@@ -13,12 +13,10 @@ Double-click **`index.html`**. It opens in any browser straight from disk. No se
 | `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 7-week study plan |
 | `patterns/01-…21-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
 | `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 21 |
-| `python/NN_*.py` | Runnable Python solutions for every problem in the pages, with tests |
-| `python/run_all.py` | `python3 python/run_all.py` runs every test file |
 | `assets/` | Source CSS and the small visualizer engine (plain JS). Every page already contains a copy of both, so **any single HTML file works on its own** (email it, move it, open it offline) |
 | `tools/inline_assets.py` | If you edit `assets/`, run `python3 tools/inline_assets.py` to refresh the copy inside every page |
 
-Every problem on every page, including each problem in the practice list, is solved **inside the HTML**: the problem, why the pattern fits, numbered approach steps, commented Python code and complexity. You never need to open the `python/` folder to read a solution.
+Every problem on every page, including each problem in the practice list, is solved **inside the HTML**: the problem, why the pattern fits, numbered approach steps, commented Python code and complexity.
 
 Every problem is also tagged with the **data structures** it is built on (Array, String, Hash Map, Linked List, Binary Tree, Heap, Graph, …): look for the small grey chips next to each problem title and in the "Data structure" column of every practice list.
 
@@ -124,7 +122,7 @@ DNS record at your registrar: `CNAME learn → c.storage.googleapis.com.`
 - If you need HTTPS, put Cloudflare (free) in front of the bucket, or use Firebase instead.
 
 ### Notes
-- Don't upload `python/__pycache__/`, `tools/` or `README.md`; they aren't needed to view the site.
+- Don't upload `tools/` or `README.md`; they aren't needed to view the site.
 - Use a **personal** GCP or Firebase project, not a corporate one.
 - Free-tier limits and prices change over time. Check the current [Firebase pricing](https://firebase.google.com/pricing) and [Cloud Storage pricing](https://cloud.google.com/storage/pricing) pages before you deploy.
 
