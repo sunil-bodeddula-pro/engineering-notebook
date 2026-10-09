@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 14 of 15</div>
+    <div class="eyebrow">Pattern 14 of 21</div>
     <h1>Backtracking</h1>
     <p class="lede">Build an answer one choice at a time. If a choice leads to a dead end, take it back and try the next one. It's a systematic "try everything" that never wastes time on a path it already knows is hopeless.</p>
 
@@ -739,7 +743,7 @@ def subsets_with_dup_helper(nums, start, path, results):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-78" open>
-      <summary><span class="tag medium">Medium</span> 78. Subsets</summary>
+      <summary><span class="tag medium">Medium</span> 78. Subsets <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given distinct integers, return every possible subset (the power set), in any order.</p>
         <p><strong>Spot it:</strong> "all possible subsets" plus <code>n ≤ 10</code>. The output alone has 2ⁿ items, so exponential time is unavoidable and expected.</p>
@@ -805,7 +809,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-46">
-      <summary><span class="tag medium">Medium</span> 46. Permutations</summary>
+      <summary><span class="tag medium">Medium</span> 46. Permutations <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every ordering of a list of distinct integers.</p>
         <p><strong>Spot it:</strong> "all possible permutations". Order matters, so <code>[1,2]</code> and <code>[2,1]</code> both count. A <code>start</code> index would lose orderings. Use <code>used</code> flags.</p>
@@ -870,7 +874,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-39">
-      <summary><span class="tag medium">Medium</span> 39. Combination Sum</summary>
+      <summary><span class="tag medium">Medium</span> 39. Combination Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given distinct positive <code>candidates</code> and a <code>target</code>, list every unique combination that sums to <code>target</code>. You may reuse a number any number of times.</p>
         <p><strong>Spot it:</strong> "all unique combinations" + "sum to target". Combinations (order doesn't matter), so use <code>start</code>. Reuse is allowed, so recurse with <code>i</code>, not <code>i+1</code>.</p>
@@ -936,7 +940,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-51">
-      <summary><span class="tag hard">Hard</span> 51. N-Queens</summary>
+      <summary><span class="tag hard">Hard</span> 51. N-Queens <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Place <code>n</code> queens on an <code>n × n</code> board so that no two share a row, column or diagonal. Return every such board.</p>
         <p><strong>Spot it:</strong> "return all distinct solutions" + placement constraints. That's classic constraint-satisfaction backtracking.</p>
@@ -1022,7 +1026,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-79">
-      <summary><span class="tag medium">Medium</span> 79. Word Search</summary>
+      <summary><span class="tag medium">Medium</span> 79. Word Search <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a letter grid and a word, return whether the word can be traced through 4-directionally adjacent cells, using each cell at most once.</p>
         <p><strong>Spot it:</strong> it looks like <a href="13-matrix-traversal.html">grid traversal</a>, but "each cell at most once <em>per path</em>" means a cell used by one attempt must be available again to the next attempt. So you must <strong>un-mark</strong> it when you back out. That's backtracking.</p>
@@ -1139,27 +1143,28 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>1863</td><td><a href="#p-1863">Sum of All Subset XOR Totals</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: take/skip tree</td></tr>
-        <tr><td>78</td><td><a href="#p-78">Subsets</a></td><td><span class="tag medium">Medium</span></td><td>Record at every node (core)</td></tr>
-        <tr><td>17</td><td><a href="#p-17">Letter Combinations of a Phone Number</a></td><td><span class="tag medium">Medium</span></td><td>Choices come from a digit → letters map</td></tr>
-        <tr><td>46</td><td><a href="#p-46">Permutations</a></td><td><span class="tag medium">Medium</span></td><td><code>used</code> flags instead of <code>start</code></td></tr>
-        <tr><td>39</td><td><a href="#p-39">Combination Sum</a></td><td><span class="tag medium">Medium</span></td><td>Reuse → recurse with <code>i</code>, sort + break</td></tr>
-        <tr><td>90</td><td><a href="#p-90">Subsets II</a></td><td><span class="tag medium">Medium</span></td><td>Duplicates: sort + skip equal siblings</td></tr>
-        <tr><td>40</td><td><a href="#p-40">Combination Sum II</a></td><td><span class="tag medium">Medium</span></td><td>No reuse + duplicates</td></tr>
-        <tr><td>22</td><td><a href="#p-22">Generate Parentheses</a></td><td><span class="tag medium">Medium</span></td><td>Prune with open/close counts</td></tr>
-        <tr><td>131</td><td><a href="#p-131">Palindrome Partitioning</a></td><td><span class="tag medium">Medium</span></td><td>Choice = where to cut next</td></tr>
-        <tr><td>79</td><td><a href="#p-79">Word Search</a></td><td><span class="tag medium">Medium</span></td><td>Mark / unmark grid cells</td></tr>
-        <tr><td>51</td><td><a href="#p-51">N-Queens</a></td><td><span class="tag hard">Hard</span></td><td>3 sets for O(1) attack checks</td></tr>
-        <tr><td>37</td><td><a href="#p-37">Sudoku Solver</a></td><td><span class="tag hard">Hard</span></td><td>Stop at the first solution (return True up the stack)</td></tr>
-        <tr><td>212</td><td><a href="#p-212">Word Search II</a></td><td><span class="tag hard">Hard</span></td><td>Backtracking + Trie pruning</td></tr>
+        <tr><td>1863</td><td><a href="#p-1863">Sum of All Subset XOR Totals</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Warm-up: take/skip tree</td></tr>
+        <tr><td>78</td><td><a href="#p-78">Subsets</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Record at every node (core)</td></tr>
+        <tr><td>17</td><td><a href="#p-17">Letter Combinations of a Phone Number</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>Choices come from a digit → letters map</td></tr>
+        <tr><td>46</td><td><a href="#p-46">Permutations</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td><code>used</code> flags instead of <code>start</code></td></tr>
+        <tr><td>39</td><td><a href="#p-39">Combination Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Reuse → recurse with <code>i</code>, sort + break</td></tr>
+        <tr><td>90</td><td><a href="#p-90">Subsets II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Duplicates: sort + skip equal siblings</td></tr>
+        <tr><td>40</td><td><a href="#p-40">Combination Sum II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>No reuse + duplicates</td></tr>
+        <tr><td>22</td><td><a href="#p-22">Generate Parentheses</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Prune with open/close counts</td></tr>
+        <tr><td>131</td><td><a href="#p-131">Palindrome Partitioning</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Choice = where to cut next</td></tr>
+        <tr><td>79</td><td><a href="#p-79">Word Search</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">String</span></span></td><td>Mark / unmark grid cells</td></tr>
+        <tr><td>77</td><td><a href="#p-77">Combinations</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Subsets with a fixed size: only record paths of length <code>k</code></td></tr>
+        <tr><td>51</td><td><a href="#p-51">N-Queens</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></td><td>3 sets for O(1) attack checks</td></tr>
+        <tr><td>37</td><td><a href="#p-37">Sudoku Solver</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></td><td>Stop at the first solution (return True up the stack)</td></tr>
+        <tr><td>212</td><td><a href="#p-212">Word Search II</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Trie</span></span></td><td>Backtracking + Trie pruning</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table above that isn't already solved in section 7 is worked out here, so you never need to leave this page. Click a problem name in the table to jump to its solution.</p>
     <details class="problem" id="p-1863">
-      <summary><span class="tag easy">Easy</span> 1863. Sum of All Subset XOR Totals</summary>
+      <summary><span class="tag easy">Easy</span> 1863. Sum of All Subset XOR Totals <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The XOR total of a subset is the XOR of all its elements (0 for the empty subset). Return the sum of the XOR totals over <em>every</em> subset of <code>nums</code>.</p>
         <p><strong>Spot it:</strong> "every subset" with a tiny n (≤ 12) is the take/skip decision tree.</p>
@@ -1213,7 +1218,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-17">
-      <summary><span class="tag medium">Medium</span> 17. Letter Combinations of a Phone Number</summary>
+      <summary><span class="tag medium">Medium</span> 17. Letter Combinations of a Phone Number <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each digit 2–9 maps to letters as on a phone keypad. Given a digit string, return every letter string it could spell.</p>
         <p><strong>Spot it:</strong> "return all possible combinations": one decision per digit, and the choices are that digit's letters.</p>
@@ -1276,7 +1281,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-90">
-      <summary><span class="tag medium">Medium</span> 90. Subsets II</summary>
+      <summary><span class="tag medium">Medium</span> 90. Subsets II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Like Subsets (78), but <code>nums</code> may contain duplicates. Return all subsets without duplicate subsets.</p>
         <p><strong>Spot it:</strong> "all subsets" + "may contain duplicates" calls for the sort + skip-equal-siblings template.</p>
@@ -1334,7 +1339,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-40">
-      <summary><span class="tag medium">Medium</span> 40. Combination Sum II</summary>
+      <summary><span class="tag medium">Medium</span> 40. Combination Sum II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <code>candidates</code> (may contain duplicates) and <code>target</code>, return every unique combination that sums to <code>target</code>. Each candidate may be used <strong>at most once</strong>.</p>
         <p><strong>Spot it:</strong> This is Combination Sum (39) with two changes: no reuse (recurse with <code>i + 1</code>) and duplicate inputs (skip equal siblings).</p>
@@ -1399,7 +1404,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-22">
-      <summary><span class="tag medium">Medium</span> 22. Generate Parentheses</summary>
+      <summary><span class="tag medium">Medium</span> 22. Generate Parentheses <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every well-formed string made of <code>n</code> pairs of parentheses.</p>
         <p><strong>Spot it:</strong> "generate all" valid strings is backtracking where the validity rules prune as you go, so you never build an invalid string.</p>
@@ -1463,7 +1468,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-131">
-      <summary><span class="tag medium">Medium</span> 131. Palindrome Partitioning</summary>
+      <summary><span class="tag medium">Medium</span> 131. Palindrome Partitioning <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split a string into pieces so that every piece is a palindrome. Return every possible split.</p>
         <p><strong>Spot it:</strong> "return all possible partitions". The choice at each step is <em>where to cut next</em>. That's backtracking over cut positions.</p>
@@ -1532,7 +1537,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-37">
-      <summary><span class="tag hard">Hard</span> 37. Sudoku Solver</summary>
+      <summary><span class="tag hard">Hard</span> 37. Sudoku Solver <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Fill the empty cells (<code>'.'</code>) of a 9×9 Sudoku so that every row, column and 3×3 box contains the digits 1–9 exactly once. Modify the board in place. A unique solution is guaranteed.</p>
         <p><strong>Spot it:</strong> This is constraint satisfaction: fill blanks one by one, prune clashing digits, and undo on dead ends. Because one solution is enough, the recursion returns True to stop everything as soon as it finds one.</p>
@@ -1628,7 +1633,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-212">
-      <summary><span class="tag hard">Hard</span> 212. Word Search II</summary>
+      <summary><span class="tag hard">Hard</span> 212. Word Search II <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Trie</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a letter grid and a list of words, return every word that can be traced through 4-adjacent cells without reusing a cell inside a word.</p>
         <p><strong>Spot it:</strong> This is Word Search (79) for many words at once. Running 79 once per word is too slow. Put all words in a <strong>Trie</strong> and backtrack over the grid once, pruning the moment the current path isn't a prefix of any word.</p>
@@ -1713,6 +1718,58 @@ class Solution:
     </details>
 
     <p>Runnable versions of every solution on this page, with assert-based tests: <code>python/14_backtracking.py</code></p>
+
+    <details class="problem" id="p-77">
+      <summary><span class="tag medium">Medium</span> 77. Combinations <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return all combinations of <code>k</code> numbers chosen from <code>1..n</code> (order inside a combination doesn't matter).</p>
+        <p><strong>Spot it:</strong> "All combinations" → backtracking. Choosing numbers in increasing order (each choice starts after the previous one) produces every combination exactly once, never <code>[2, 1]</code> as well as <code>[1, 2]</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>backtrack(start)</code> extends the current <code>path</code> with numbers from <code>start..n</code>.</li>
+          <li>If <code>path</code> has <code>k</code> numbers, record a copy and return.</li>
+          <li>Otherwise for each <code>x</code> from <code>start</code> to <code>n</code>: choose <code>x</code> (append), explore <code>backtrack(x + 1)</code>, un-choose (pop).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def combine(self, n: int, k: int) -&gt; List[List[int]]:
+        result = []
+        path = []
+
+        def backtrack(start):
+            if len(path) == k:
+                result.append(path[:])     # a copy: path keeps changing
+                return
+            for x in range(start, n + 1):
+                path.append(x)             # choose
+                backtrack(x + 1)           # explore: only bigger numbers may follow
+                path.pop()                 # un-choose
+
+        backtrack(1)
+        return result</code></pre>
+        <!-- explain:start 77 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>path</code>: the combination being built; <code>result</code>: the finished ones.</li>
+          <li><code>if len(path) == k:</code> a full combination. <code>path[:]</code> stores a <strong>copy</strong>; storing <code>path</code> itself would leave every entry pointing at the same list, which ends up empty.</li>
+          <li><code>for x in range(start, n + 1):</code> only numbers after the last one chosen, which is what prevents duplicates in a different order.</li>
+          <li><code>path.append(x)</code>, <code>backtrack(x + 1)</code>, <code>path.pop()</code>: choose, explore, un-choose. The pattern's chant.</li>
+          <li>Optional pruning: if fewer than <code>k − len(path)</code> numbers remain in <code>start..n</code>, this branch can't finish. Stopping the loop at <code>n − (k − len(path)) + 1</code> skips it.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>n = 4</code>, <code>k = 2</code> (LeetCode Example 1). Returns <code>[[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]]</code>.</p>
+        <table>
+          <thead><tr><th>first choice</th><th>second choices tried</th><th>recorded</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>2, 3, 4</td><td><code>[1, 2]</code>, <code>[1, 3]</code>, <code>[1, 4]</code></td></tr>
+            <tr><td>2</td><td>3, 4</td><td><code>[2, 3]</code>, <code>[2, 4]</code></td></tr>
+            <tr><td>3</td><td>4</td><td><code>[3, 4]</code></td></tr>
+            <tr><td>4</td><td>(none left)</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 77 -->
+        <p><strong>Complexity:</strong> <code>O(k · C(n, k))</code> time (each of the <code>C(n, k)</code> answers is copied in <code>O(k)</code>), <code>O(k)</code> recursion space besides the output.</p>
+      </div>
+    </details>
 
     <nav class="pager">
       <a href="13-matrix-traversal.html"><small>Previous pattern</small>← 13 · Matrix Traversal</a>

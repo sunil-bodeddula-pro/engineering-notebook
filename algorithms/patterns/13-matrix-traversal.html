@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 13 of 15</div>
+    <div class="eyebrow">Pattern 13 of 21</div>
     <h1>Matrix Traversal</h1>
     <p class="lede">A grid is just a graph in disguise: every cell is a node, and its up/down/left/right cells are its neighbors. Learn one neighbor loop and you can flood, spiral, rotate and search any 2-D board.</p>
 
@@ -727,7 +731,7 @@ def rotate_clockwise(matrix):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-200" open>
-      <summary><span class="tag medium">Medium</span> 200. Number of Islands</summary>
+      <summary><span class="tag medium">Medium</span> 200. Number of Islands <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A grid of <code>'1'</code> (land) and <code>'0'</code> (water). Land cells touching horizontally or vertically form one island. Count the islands.</p>
         <p><strong>Spot it:</strong> "grid" + "connected horizontally or vertically" + "number of". That's the textbook <em>outer scan + flood fill</em>. The flood visualizer above runs exactly this algorithm.</p>
@@ -809,7 +813,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-54">
-      <summary><span class="tag medium">Medium</span> 54. Spiral Matrix</summary>
+      <summary><span class="tag medium">Medium</span> 54. Spiral Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return all elements of an <code>m × n</code> matrix in clockwise spiral order, starting at the top-left.</p>
         <p><strong>Spot it:</strong> "spiral order" is a fixed geometric walk. Connectivity doesn't matter, so no visited set is needed.</p>
@@ -890,7 +894,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-48">
-      <summary><span class="tag medium">Medium</span> 48. Rotate Image</summary>
+      <summary><span class="tag medium">Medium</span> 48. Rotate Image <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rotate an <code>n × n</code> matrix 90° clockwise <strong>in place</strong>.</p>
         <p><strong>Spot it:</strong> "rotate", "in place", square matrix. You need an index identity, not a traversal.</p>
@@ -944,7 +948,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-994">
-      <summary><span class="tag medium">Medium</span> 994. Rotting Oranges</summary>
+      <summary><span class="tag medium">Medium</span> 994. Rotting Oranges <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Cells are <code>0</code> empty, <code>1</code> fresh orange, <code>2</code> rotten orange. Each minute, every rotten orange rots its 4-directional fresh neighbors. Return the minutes until no fresh orange remains, or <code>-1</code> if that never happens.</p>
         <p><strong>Spot it:</strong> "minimum minutes", "spreads to adjacent cells", and <em>several</em> starting points. That's <strong>multi-source BFS</strong> on a grid.</p>
@@ -1027,7 +1031,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-329">
-      <summary><span class="tag hard">Hard</span> 329. Longest Increasing Path in a Matrix</summary>
+      <summary><span class="tag hard">Hard</span> 329. Longest Increasing Path in a Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> From any cell you may step up/down/left/right to a <em>strictly larger</em> value. Return the length of the longest such path.</p>
         <p><strong>Spot it:</strong> grid + 4-directional moves + "longest path". A plain DFS from every cell re-explores the same paths again and again (exponential). But "strictly increasing" means a path can never loop back, so the moves form a DAG. On a DAG, <strong>DFS + memoization</strong> works.</p>
@@ -1139,27 +1143,28 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>733</td><td><a href="#p-733">Flood Fill</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: the plain DFS template (watch out when the new color equals the old one)</td></tr>
-        <tr><td>54</td><td><a href="#p-54">Spiral Matrix</a></td><td><span class="tag medium">Medium</span></td><td>Shrinking fences</td></tr>
-        <tr><td>48</td><td><a href="#p-48">Rotate Image</a></td><td><span class="tag medium">Medium</span></td><td>Transpose + mirror</td></tr>
-        <tr><td>73</td><td><a href="#p-73">Set Matrix Zeroes</a></td><td><span class="tag medium">Medium</span></td><td>Use row 0 / col 0 as markers for O(1) space</td></tr>
-        <tr><td>200</td><td><a href="#p-200">Number of Islands</a></td><td><span class="tag medium">Medium</span></td><td>Outer scan + flood (core)</td></tr>
-        <tr><td>695</td><td><a href="#p-695">Max Area of Island</a></td><td><span class="tag medium">Medium</span></td><td>Flood returns a size</td></tr>
-        <tr><td>130</td><td><a href="#p-130">Surrounded Regions</a></td><td><span class="tag medium">Medium</span></td><td>Flood from the border first, flip the rest</td></tr>
-        <tr><td>994</td><td><a href="#p-994">Rotting Oranges</a></td><td><span class="tag medium">Medium</span></td><td>Multi-source BFS, layers = minutes</td></tr>
-        <tr><td>417</td><td><a href="#p-417">Pacific Atlantic Water Flow</a></td><td><span class="tag medium">Medium</span></td><td>Reverse the flow: flood uphill from both oceans, intersect</td></tr>
-        <tr><td>1091</td><td><a href="#p-1091">Shortest Path in Binary Matrix</a></td><td><span class="tag medium">Medium</span></td><td>8-directional BFS</td></tr>
-        <tr><td>329</td><td><a href="#p-329">Longest Increasing Path in a Matrix</a></td><td><span class="tag hard">Hard</span></td><td>DFS + memo on an implicit DAG</td></tr>
-        <tr><td>1293</td><td><a href="#p-1293">Shortest Path with Obstacles Elimination</a></td><td><span class="tag hard">Hard</span></td><td>BFS state = (r, c, removals left)</td></tr>
-        <tr><td>778</td><td><a href="#p-778">Swim in Rising Water</a></td><td><span class="tag hard">Hard</span></td><td>Dijkstra / heap-BFS on the grid (see <a href="07-top-k-elements.html">heaps</a>)</td></tr>
+        <tr><td>733</td><td><a href="#p-733">Flood Fill</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Warm-up: the plain DFS template (watch out when the new color equals the old one)</td></tr>
+        <tr><td>54</td><td><a href="#p-54">Spiral Matrix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Shrinking fences</td></tr>
+        <tr><td>48</td><td><a href="#p-48">Rotate Image</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Transpose + mirror</td></tr>
+        <tr><td>73</td><td><a href="#p-73">Set Matrix Zeroes</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Use row 0 / col 0 as markers for O(1) space</td></tr>
+        <tr><td>200</td><td><a href="#p-200">Number of Islands</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Outer scan + flood (core)</td></tr>
+        <tr><td>695</td><td><a href="#p-695">Max Area of Island</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Flood returns a size</td></tr>
+        <tr><td>130</td><td><a href="#p-130">Surrounded Regions</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Flood from the border first, flip the rest</td></tr>
+        <tr><td>994</td><td><a href="#p-994">Rotting Oranges</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>Multi-source BFS, layers = minutes</td></tr>
+        <tr><td>417</td><td><a href="#p-417">Pacific Atlantic Water Flow</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></td><td>Reverse the flow: flood uphill from both oceans, intersect</td></tr>
+        <tr><td>1091</td><td><a href="#p-1091">Shortest Path in Binary Matrix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>8-directional BFS</td></tr>
+        <tr><td>289</td><td><a href="#p-289">Game of Life</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Update in place by storing the next state in a second bit</td></tr>
+        <tr><td>329</td><td><a href="#p-329">Longest Increasing Path in a Matrix</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>DFS + memo on an implicit DAG</td></tr>
+        <tr><td>1293</td><td><a href="#p-1293">Shortest Path with Obstacles Elimination</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>BFS state = (r, c, removals left)</td></tr>
+        <tr><td>778</td><td><a href="#p-778">Swim in Rising Water</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Heap</span></span></td><td>Dijkstra / heap-BFS on the grid (see <a href="07-top-k-elements.html">heaps</a>)</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table above that isn't already solved in section 7 is worked out here, so you never need to leave this page. Click a problem name in the table to jump to its solution.</p>
     <details class="problem" id="p-733">
-      <summary><span class="tag easy">Easy</span> 733. Flood Fill</summary>
+      <summary><span class="tag easy">Easy</span> 733. Flood Fill <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> An image is a grid of color numbers. Starting from pixel <code>(sr, sc)</code>, repaint it and every pixel connected to it 4-directionally <em>with the same original color</em> to <code>color</code>. Return the image.</p>
         <p><strong>Spot it:</strong> "connected 4-directionally" + "same color" + repaint is the paint-bucket tool, which is the plain flood-fill template.</p>
@@ -1225,7 +1230,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-73">
-      <summary><span class="tag medium">Medium</span> 73. Set Matrix Zeroes</summary>
+      <summary><span class="tag medium">Medium</span> 73. Set Matrix Zeroes <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Whenever a cell is 0, set its whole row and whole column to 0, in place. Follow-up: use only <code>O(1)</code> extra memory.</p>
         <p><strong>Spot it:</strong> A matrix plus row/column operations is an index walk, not connectivity. The catch: if you zero cells while scanning, the new zeros spread wrongly. You must <em>record</em> first and <em>write</em> later. To use O(1) memory, store the records inside the matrix itself (row 0 and column 0).</p>
@@ -1296,7 +1301,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-695">
-      <summary><span class="tag medium">Medium</span> 695. Max Area of Island</summary>
+      <summary><span class="tag medium">Medium</span> 695. Max Area of Island <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a 0/1 grid, an island is a group of 4-directionally connected 1s. Return the size of the largest island, or 0 if there is none.</p>
         <p><strong>Spot it:</strong> Same as Number of Islands (200), except the flood <em>returns a size</em> and we keep the maximum instead of a count.</p>
@@ -1367,7 +1372,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-130">
-      <summary><span class="tag medium">Medium</span> 130. Surrounded Regions</summary>
+      <summary><span class="tag medium">Medium</span> 130. Surrounded Regions <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A board holds <code>'X'</code> and <code>'O'</code>. Flip every region of <code>'O'</code>s that is completely surrounded by <code>'X'</code> into <code>'X'</code>. A region that touches the border can't be surrounded, so it stays.</p>
         <p><strong>Spot it:</strong> Regions on a grid call for a flood. The trick is <em>reverse thinking</em>: instead of testing each region for "is it surrounded?", flood from the border to find the regions that are <em>safe</em>. Everything else gets captured.</p>
@@ -1438,7 +1443,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-417">
-      <summary><span class="tag medium">Medium</span> 417. Pacific Atlantic Water Flow</summary>
+      <summary><span class="tag medium">Medium</span> 417. Pacific Atlantic Water Flow <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>heights</code> is an island map. Rain flows from a cell to a 4-neighbor whose height is ≤ the current cell's. The Pacific touches the top and left edges, the Atlantic the bottom and right edges. Return every cell from which water can reach <em>both</em> oceans.</p>
         <p><strong>Spot it:</strong> Asking "can every cell reach the border?" separately would be slow. Reverse the flow instead: start at each ocean's border cells (multi-source) and flood <em>uphill</em>, to neighbors that are ≥ the current cell. Then intersect the two reach sets.</p>
@@ -1526,7 +1531,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-1091">
-      <summary><span class="tag medium">Medium</span> 1091. Shortest Path in Binary Matrix</summary>
+      <summary><span class="tag medium">Medium</span> 1091. Shortest Path in Binary Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In an <code>n × n</code> grid of 0 (open) and 1 (blocked), find the length of the shortest path from the top-left to the bottom-right through open cells, moving in any of <strong>8</strong> directions. The length counts cells, including both ends. Return -1 if there's no path.</p>
         <p><strong>Spot it:</strong> "shortest" + unweighted grid moves means BFS. "8-directionally connected" means use the 8-direction list.</p>
@@ -1594,7 +1599,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-1293">
-      <summary><span class="tag hard">Hard</span> 1293. Shortest Path in a Grid with Obstacles Elimination</summary>
+      <summary><span class="tag hard">Hard</span> 1293. Shortest Path in a Grid with Obstacles Elimination <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Grid of 0 (empty) and 1 (obstacle). You move 4-directionally and may knock down at most <code>k</code> obstacles. Return the minimum number of steps from the top-left to the bottom-right, or -1.</p>
         <p><strong>Spot it:</strong> "minimum steps" on a grid means BFS. But the position alone isn't enough to describe where you are: arriving at the same cell with more knock-downs left is genuinely better. So the BFS state is <code>(r, c, removals_left)</code>.</p>
@@ -1677,7 +1682,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-778">
-      <summary><span class="tag hard">Hard</span> 778. Swim in Rising Water</summary>
+      <summary><span class="tag hard">Hard</span> 778. Swim in Rising Water <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> An <code>n × n</code> grid holds distinct elevations. At time <code>t</code> the water level is <code>t</code>, and you can swim freely between 4-adjacent cells whose elevations are both ≤ <code>t</code>. What is the least time at which you can get from the top-left to the bottom-right?</p>
         <p><strong>Spot it:</strong> The cost of a path is its <em>highest</em> cell (a bottleneck), and you want the path whose highest cell is lowest. That's Dijkstra on a grid with a min-heap, where cost is combined with <code>max</code> instead of <code>+</code>.</p>
@@ -1745,6 +1750,75 @@ class Solution:
     </details>
 
     <p>Runnable versions of every solution on this page, with assert-based tests: <code>python/13_matrix_traversal.py</code></p>
+
+    <details class="problem" id="p-289">
+      <summary><span class="tag medium">Medium</span> 289. Game of Life <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Each cell of <code>board</code> is live (1) or dead (0). Apply Conway's rules to all cells <strong>simultaneously</strong>: a live cell with 2 or 3 live neighbours lives, otherwise it dies; a dead cell with exactly 3 live neighbours becomes live. Update <code>board</code> in place.</p>
+        <p><strong>Spot it:</strong> Visit every cell and look at its 8 neighbours: a matrix traversal with a direction list. The difficulty is "simultaneously": once a cell is overwritten, its neighbours would read the <em>new</em> value.</p>
+        <p><strong>Key insight:</strong> Keep both states in one integer. Bit 0 (<code>value &amp; 1</code>) is the current state; set bit 1 (<code>value | 2</code>) to mark "alive next round". Neighbours only read bit 0, so they still see the old board. A final pass shifts every cell right by one (<code>value &gt;&gt; 1</code>) to keep just the new state.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>For every cell, count live neighbours using <code>board[nr][nc] &amp; 1</code> (only the current state).</li>
+          <li>If the cell will be alive next round (live with 2–3 neighbours, or dead with exactly 3), set bit 1: <code>board[r][c] |= 2</code>.</li>
+          <li>After all cells are marked, replace each value with <code>value &gt;&gt; 1</code>, the next state.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def gameOfLife(self, board: List[List[int]]) -&gt; None:
+        rows = len(board)
+        cols = len(board[0])
+        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        # pass 1: decide the next state, store it in bit 1 (value 2)
+        for r in range(rows):
+            for c in range(cols):
+                live = 0
+                for dr, dc in directions:
+                    nr = r + dr
+                    nc = c + dc
+                    if 0 &lt;= nr &lt; rows and 0 &lt;= nc &lt; cols:
+                        live = live + (board[nr][nc] &amp; 1)   # bit 0 = the CURRENT state
+                alive_now = board[r][c] &amp; 1
+                if alive_now == 1 and (live == 2 or live == 3):
+                    board[r][c] = board[r][c] | 2           # survives
+                if alive_now == 0 and live == 3:
+                    board[r][c] = board[r][c] | 2           # is born
+        # pass 2: keep only the next state
+        for r in range(rows):
+            for c in range(cols):
+                board[r][c] = board[r][c] &gt;&gt; 1</code></pre>
+        <!-- explain:start 289 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>directions</code>: the 8 neighbour offsets (including diagonals).</li>
+          <li><code>if 0 &lt;= nr &lt; rows and 0 &lt;= nc &lt; cols:</code> skip neighbours outside the board.</li>
+          <li><code>live + (board[nr][nc] &amp; 1)</code>: <code>&amp; 1</code> keeps only bit 0, the cell's state <em>before</em> this round, even if that neighbour was already marked with bit 1.</li>
+          <li><code>board[r][c] | 2</code>: set bit 1 = "alive next round". Bit 0 is untouched, so later neighbours still read the old state.</li>
+          <li>Cells that die or stay dead simply never get bit 1.</li>
+          <li><code>board[r][c] &gt;&gt; 1</code>: shift right by one bit, dropping the old state and keeping the new one (<code>3 → 1</code>, <code>2 → 1</code>, <code>1 → 0</code>, <code>0 → 0</code>).</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>board = [[0, 1, 0], [0, 0, 1], [1, 1, 1], [0, 0, 0]]</code> (LeetCode Example 1). Result <code>[[0, 0, 0], [1, 0, 1], [0, 1, 1], [0, 1, 0]]</code>.</p>
+        <table>
+          <thead><tr><th>cell</th><th>now</th><th>live neighbours</th><th>rule</th><th>value after pass 1</th><th>after <code>&gt;&gt; 1</code></th></tr></thead>
+          <tbody>
+            <tr><td>(0, 0)</td><td>0</td><td>1</td><td>stays dead</td><td>0</td><td>0</td></tr>
+            <tr><td>(0, 1)</td><td>1</td><td>1</td><td>dies</td><td>1</td><td>0</td></tr>
+            <tr><td>(0, 2)</td><td>0</td><td>2</td><td>stays dead</td><td>0</td><td>0</td></tr>
+            <tr><td>(1, 0)</td><td>0</td><td>3</td><td>born</td><td>2</td><td>1</td></tr>
+            <tr><td>(1, 1)</td><td>0</td><td>5</td><td>stays dead</td><td>0</td><td>0</td></tr>
+            <tr><td>(1, 2)</td><td>1</td><td>3</td><td>survives</td><td>3</td><td>1</td></tr>
+            <tr><td>(2, 0)</td><td>1</td><td>1</td><td>dies</td><td>1</td><td>0</td></tr>
+            <tr><td>(2, 1)</td><td>1</td><td>3</td><td>survives</td><td>3</td><td>1</td></tr>
+            <tr><td>(2, 2)</td><td>1</td><td>2</td><td>survives</td><td>3</td><td>1</td></tr>
+            <tr><td>(3, 0)</td><td>0</td><td>2</td><td>stays dead</td><td>0</td><td>0</td></tr>
+            <tr><td>(3, 1)</td><td>0</td><td>3</td><td>born</td><td>2</td><td>1</td></tr>
+            <tr><td>(3, 2)</td><td>0</td><td>2</td><td>stays dead</td><td>0</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 289 -->
+        <p><strong>Complexity:</strong> <code>O(rows · cols)</code> time (8 checks per cell), <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
 
     <nav class="pager">
       <a href="12-bfs.html"><small>Previous pattern</small>← 12 · BFS</a>

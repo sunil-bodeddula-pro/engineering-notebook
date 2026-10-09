@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 04 of 15</div>
+    <div class="eyebrow">Pattern 04 of 21</div>
     <h1>Fast &amp; Slow Pointers</h1>
     <p class="lede">Send two runners down the same path, one twice as fast as the other. Where and whether they meet tells you about the shape of the path (its middle, whether it loops, and where the loop begins) using <code>O(1)</code> memory.</p>
 
@@ -693,7 +697,7 @@ def cycle_start(head):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-287" open>
-      <summary><span class="tag medium">Medium</span> 287. Find the Duplicate Number</summary>
+      <summary><span class="tag medium">Medium</span> 287. Find the Duplicate Number <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> has <code>n + 1</code> integers, each in <code>1..n</code>. Exactly one value repeats (possibly many times). Find it <em>without modifying</em> the array and with <code>O(1)</code> extra space.</p>
         <p><strong>Spot it:</strong> values are valid indices, so treat <code>i → nums[i]</code> as a "next" pointer. Index 0 is never a target (values ≥ 1), so it's the head of a tail. Two indices point at the duplicate value, so that node has two arrows coming in: the <strong>entrance of a cycle</strong>. "Duplicate + O(1) space + read-only" means Floyd.</p>
@@ -764,7 +768,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-142">
-      <summary><span class="tag medium">Medium</span> 142. Linked List Cycle II</summary>
+      <summary><span class="tag medium">Medium</span> 142. Linked List Cycle II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the node where the cycle begins, or <code>None</code> if the list has no cycle. Don't modify the list.</p>
         <p><strong>Spot it:</strong> "where the cycle begins" + linked list. It's template C exactly; the second visualizer above traces it.</p>
@@ -831,7 +835,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-143">
-      <summary><span class="tag medium">Medium</span> 143. Reorder List</summary>
+      <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange <code>L0 → L1 → … → Ln</code> into <code>L0 → Ln → L1 → Ln−1 → …</code> in place.</p>
         <p><strong>Spot it:</strong> you need the back half in reverse order. That's (1) find the middle with fast/slow, (2) reverse the second half (<a href="05-linkedlist-reversal.html">pattern 05</a>), (3) weave.</p>
@@ -914,7 +918,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-457">
-      <summary><span class="tag medium">Medium</span> 457. Circular Array Loop</summary>
+      <summary><span class="tag medium">Medium</span> 457. Circular Array Loop <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> From index <code>i</code> you jump <code>nums[i]</code> steps (wrapping around). Is there a cycle of length &gt; 1 where every jump goes the <em>same direction</em>?</p>
         <p><strong>Spot it:</strong> "circular" + "jump by nums[i]" defines a next function <code>(i + nums[i]) % n</code>. Detect a cycle with fast/slow, with extra rules.</p>
@@ -1013,7 +1017,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-141">
-      <summary><span class="tag easy">Easy</span> 141. Linked List Cycle</summary>
+      <summary><span class="tag easy">Easy</span> 141. Linked List Cycle <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Does the linked list contain a cycle?</p>
         <p><strong>Spot it:</strong> the warm-up. Template B; the follow-up "O(1) memory" rules out the visited-set solution.</p>
@@ -1099,26 +1103,27 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>876</td><td><a href="#p-876">Middle of the Linked List</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: template A</td></tr>
-        <tr><td>141</td><td><a href="#p-141">Linked List Cycle</a></td><td><span class="tag easy">Easy</span></td><td>Template B</td></tr>
-        <tr><td>202</td><td><a href="#p-202">Happy Number</a></td><td><span class="tag easy">Easy</span></td><td>Implicit "next" = sum of digit squares</td></tr>
-        <tr><td>142</td><td><a href="#p-142">Linked List Cycle II</a></td><td><span class="tag medium">Medium</span></td><td>Phase 2: find the entrance</td></tr>
-        <tr><td>287</td><td><a href="#p-287">Find the Duplicate Number</a></td><td><span class="tag medium">Medium</span></td><td>Array as a linked list</td></tr>
-        <tr><td>2095</td><td><a href="#p-2095">Delete the Middle Node of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td>Stop one before the middle</td></tr>
-        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag medium">Medium</span></td><td>Middle + reverse half + compare</td></tr>
-        <tr><td>143</td><td><a href="#p-143">Reorder List</a></td><td><span class="tag medium">Medium</span></td><td>Middle + reverse + weave</td></tr>
-        <tr><td>148</td><td><a href="#p-148">Sort List</a></td><td><span class="tag medium">Medium</span></td><td>Fast/slow split for merge sort</td></tr>
-        <tr><td>457</td><td><a href="#p-457">Circular Array Loop</a></td><td><span class="tag medium">Medium</span></td><td>Direction rule + mark dead paths</td></tr>
-        <tr><td>2130</td><td><a href="#p-2130">Maximum Twin Sum of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td>Middle + reverse second half</td></tr>
+        <tr><td>876</td><td><a href="#p-876">Middle of the Linked List</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Warm-up: template A</td></tr>
+        <tr><td>141</td><td><a href="#p-141">Linked List Cycle</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Template B</td></tr>
+        <tr><td>202</td><td><a href="#p-202">Happy Number</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Math</span><span class="ds">Hash Set</span></span></td><td>Implicit "next" = sum of digit squares</td></tr>
+        <tr><td>142</td><td><a href="#p-142">Linked List Cycle II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Phase 2: find the entrance</td></tr>
+        <tr><td>287</td><td><a href="#p-287">Find the Duplicate Number</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Array as a linked list</td></tr>
+        <tr><td>2095</td><td><a href="#p-2095">Delete the Middle Node of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Stop one before the middle</td></tr>
+        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse half + compare</td></tr>
+        <tr><td>143</td><td><a href="#p-143">Reorder List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + weave</td></tr>
+        <tr><td>148</td><td><a href="#p-148">Sort List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Fast/slow split for merge sort</td></tr>
+        <tr><td>457</td><td><a href="#p-457">Circular Array Loop</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Direction rule + mark dead paths</td></tr>
+        <tr><td>2130</td><td><a href="#p-2130">Maximum Twin Sum of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse second half</td></tr>
+        <tr><td>19</td><td><a href="#p-19">Remove Nth Node From End of List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Same speed, fixed gap: <code>fast</code> starts <code>n</code> nodes ahead</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-876">
-      <summary><span class="tag easy">Easy</span> 876. Middle of the Linked List</summary>
+      <summary><span class="tag easy">Easy</span> 876. Middle of the Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the middle node of a linked list (the second middle when the length is even).</p>
         <p><strong>Spot it:</strong> "Middle" + singly linked list → template A.</p>
@@ -1167,7 +1172,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-202">
-      <summary><span class="tag easy">Easy</span> 202. Happy Number</summary>
+      <summary><span class="tag easy">Easy</span> 202. Happy Number <span class="ds-tags"><span class="ds">Math</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Keep replacing <code>n</code> with the sum of the squares of its digits. If you reach 1, <code>n</code> is happy; otherwise the numbers loop forever. Is <code>n</code> happy?</p>
         <p><strong>Spot it:</strong> "Loops forever" + a well-defined next value → cycle detection on numbers instead of nodes.</p>
@@ -1236,7 +1241,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-2095">
-      <summary><span class="tag medium">Medium</span> 2095. Delete the Middle Node of a Linked List</summary>
+      <summary><span class="tag medium">Medium</span> 2095. Delete the Middle Node of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Delete the node at index <code>⌊n/2⌋</code> and return the head.</p>
         <p><strong>Spot it:</strong> To unlink a node you need the node <em>before</em> it. Use fast &amp; slow, but give fast a one-round head start so slow stops one node early.</p>
@@ -1291,7 +1296,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-234">
-      <summary><span class="tag medium">Medium</span> 234. Palindrome Linked List (O(1) space)</summary>
+      <summary><span class="tag medium">Medium</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Do the list's values read the same forwards and backwards? Follow-up: use <code>O(1)</code> extra space.</p>
         <p><strong>Spot it:</strong> You need to compare the first half with the second half read backwards → find the middle with fast/slow, then reverse half (<a href="05-linkedlist-reversal.html">pattern 05</a>).</p>
@@ -1361,7 +1366,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-148">
-      <summary><span class="tag medium">Medium</span> 148. Sort List</summary>
+      <summary><span class="tag medium">Medium</span> 148. Sort List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Sort a linked list in <code>O(n log n)</code> time.</p>
         <p><strong>Spot it:</strong> Merge sort suits linked lists because it never needs random access; fast/slow finds the split point.</p>
@@ -1449,7 +1454,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-2130">
-      <summary><span class="tag medium">Medium</span> 2130. Maximum Twin Sum of a Linked List</summary>
+      <summary><span class="tag medium">Medium</span> 2130. Maximum Twin Sum of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a list of even length <code>n</code>, node <code>i</code> and node <code>n−1−i</code> are twins. Return the largest twin sum.</p>
         <p><strong>Spot it:</strong> Pair the first half with the second half read backwards → middle (fast/slow) + reverse the second half.</p>
@@ -1518,6 +1523,64 @@ class Solution:
 <p>The function returns <code>6</code>.</p>
 <!-- /explain-04:2130 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-19">
+      <summary><span class="tag medium">Medium</span> 19. Remove Nth Node From End of List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Remove the <code>n</code>-th node from the <strong>end</strong> of the linked list and return its head, in one pass.</p>
+        <p><strong>Spot it:</strong> "N-th from the end" without knowing the length → two runners. Here they move at the <strong>same</strong> speed but with a head start of <code>n</code>, so when the leader falls off the end, the follower stands just before the target.</p>
+        <p><strong>Key insight:</strong> A dummy node before <code>head</code> means the node <em>before</em> the target always exists, even when the target is the head itself (<code>n</code> equal to the length).</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Put a <code>dummy</code> node in front of <code>head</code>.</li>
+          <li>Move <code>fast</code> forward <code>n</code> nodes from <code>head</code>.</li>
+          <li>Start <code>slow</code> at <code>dummy</code>, then move both one step at a time until <code>fast</code> is <code>None</code>.</li>
+          <li><code>slow</code> is now just before the node to delete: set <code>slow.next = slow.next.next</code>.</li>
+          <li>Return <code>dummy.next</code> (the head may have changed).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def removeNthFromEnd(self, head: Optional[ListNode], n: int) -&gt; Optional[ListNode]:
+        # a fake node before head, so removing the head needs no special case
+        dummy = ListNode(0, head)
+        fast = head
+        # give fast a head start of n nodes
+        for _ in range(n):
+            fast = fast.next
+        slow = dummy
+        # move together; the gap between them stays n
+        while fast is not None:
+            fast = fast.next
+            slow = slow.next
+        # slow is right before the node to remove: skip over it
+        slow.next = slow.next.next
+        return dummy.next</code></pre>
+        <!-- explain:start 19 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dummy = ListNode(0, head)</code>: a placeholder whose <code>next</code> is the real head.</li>
+          <li><code>for _ in range(n): fast = fast.next</code>: <code>fast</code> walks <code>n</code> nodes ahead. (<code>_</code> means we don't need the loop counter.)</li>
+          <li><code>slow = dummy</code>: <code>slow</code> starts one node <em>before</em> the head. That extra step is what leaves it in front of the target, not on it.</li>
+          <li><code>while fast is not None:</code> move both one step per round; the gap of <code>n + 1</code> positions between them never changes.</li>
+          <li>When <code>fast</code> is <code>None</code> (just past the last node), <code>slow</code> is <code>n + 1</code> positions back: the node before the target.</li>
+          <li><code>slow.next = slow.next.next</code>: unlink the target. <code>return dummy.next</code> handles the case where the old head was removed.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>head = [1, 2, 3, 4, 5]</code>, <code>n = 2</code> (LeetCode Example 1). Returns <code>[1, 2, 3, 5]</code>.</p>
+        <table>
+          <thead><tr><th>phase</th><th>fast</th><th>slow</th><th>note</th></tr></thead>
+          <tbody>
+            <tr><td>head start</td><td>3</td><td>—</td><td><code>fast</code> moved 2 nodes: 1 → 2 → 3</td></tr>
+            <tr><td>start</td><td>3</td><td>dummy</td><td>move together</td></tr>
+            <tr><td>round 1</td><td>4</td><td>1</td><td></td></tr>
+            <tr><td>round 2</td><td>5</td><td>2</td><td></td></tr>
+            <tr><td>round 3</td><td>None</td><td>3</td><td><code>fast</code> fell off: stop</td></tr>
+            <tr><td>unlink</td><td></td><td>3</td><td><code>3.next = 5</code>, node 4 is gone → <code>[1, 2, 3, 5]</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 19 -->
+        <p><strong>Complexity:</strong> <code>O(L)</code> time (one pass over the list), <code>O(1)</code> space.</p>
       </div>
     </details>
 

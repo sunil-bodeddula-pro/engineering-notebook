@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 08 of 15</div>
+    <div class="eyebrow">Pattern 08 of 21</div>
     <h1>Overlapping Intervals</h1>
     <p class="lede">Sort the ranges by where they start, then walk left to right. Once sorted, you only ever compare an interval with the one just before it.</p>
 
@@ -712,7 +716,7 @@ def max_non_overlapping(intervals):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" open id="p-56">
-      <summary><span class="tag medium">Medium</span> 56. Merge Intervals</summary>
+      <summary><span class="tag medium">Medium</span> 56. Merge Intervals <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a list of intervals, merge all overlapping ones and return the non-overlapping result. Touching intervals like <code>[1,4]</code> and <code>[4,5]</code> count as overlapping.</p>
         <p><strong>Spot it:</strong> The word "merge" plus a list of ranges: this is the canonical problem of the pattern.</p>
@@ -784,7 +788,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-57">
-      <summary><span class="tag medium">Medium</span> 57. Insert Interval</summary>
+      <summary><span class="tag medium">Medium</span> 57. Insert Interval <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The intervals are already sorted and don't overlap. Insert <code>newInterval</code>, merging wherever needed, and return the result.</p>
         <p><strong>Spot it:</strong> It's sorted already, so <em>don't</em> re-sort. A single pass splits the list into three zones.</p>
@@ -856,7 +860,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-435">
-      <summary><span class="tag medium">Medium</span> 435. Non-overlapping Intervals</summary>
+      <summary><span class="tag medium">Medium</span> 435. Non-overlapping Intervals <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the minimum number of intervals to remove so the rest don't overlap. Touching (<code>[1,2]</code>, <code>[2,3]</code>) is allowed.</p>
         <p><strong>Spot it:</strong> "remove the fewest" = "keep the most". That's the classic activity-selection greedy: sort by <strong>end</strong>.</p>
@@ -920,7 +924,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-253">
-      <summary><span class="tag medium">Medium</span> 253. Meeting Rooms II</summary>
+      <summary><span class="tag medium">Medium</span> 253. Meeting Rooms II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given meeting times <code>[start, end)</code>, return the minimum number of conference rooms needed.</p>
         <p><strong>Spot it:</strong> "minimum rooms" = the maximum number of meetings happening at the same moment.</p>
@@ -990,7 +994,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-759">
-      <summary><span class="tag hard">Hard</span> 759. Employee Free Time</summary>
+      <summary><span class="tag hard">Hard</span> 759. Employee Free Time <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each employee has a sorted list of non-overlapping working intervals. Return the finite intervals when <em>all</em> employees are free, in sorted order.</p>
         <p><strong>Spot it:</strong> "Common free time" is the <em>gaps</em> between the merged busy blocks of everyone combined.</p>
@@ -1099,27 +1103,28 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>252</td><td><a href="#p-252">Meeting Rooms</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: sort, check neighbors for any overlap</td></tr>
-        <tr><td>56</td><td><a href="#p-56">Merge Intervals</a></td><td><span class="tag medium">Medium</span></td><td>Core template</td></tr>
-        <tr><td>57</td><td><a href="#p-57">Insert Interval</a></td><td><span class="tag medium">Medium</span></td><td>Already sorted: three zones, O(n)</td></tr>
-        <tr><td>986</td><td><a href="#p-986">Interval List Intersections</a></td><td><span class="tag medium">Medium</span></td><td>Two pointers: advance the one that ends first</td></tr>
-        <tr><td>435</td><td><a href="#p-435">Non-overlapping Intervals</a></td><td><span class="tag medium">Medium</span></td><td>Sort by end, greedy</td></tr>
-        <tr><td>452</td><td><a href="#p-452">Minimum Number of Arrows to Burst Balloons</a></td><td><span class="tag medium">Medium</span></td><td>Same greedy; touching counts as overlap</td></tr>
-        <tr><td>253</td><td><a href="#p-253">Meeting Rooms II</a></td><td><span class="tag medium">Medium</span></td><td>Min-heap of end times</td></tr>
-        <tr><td>1094</td><td><a href="#p-1094">Car Pooling</a></td><td><span class="tag medium">Medium</span></td><td>Sweep line / difference array with capacities</td></tr>
-        <tr><td>729</td><td><a href="#p-729">My Calendar I</a></td><td><span class="tag medium">Medium</span></td><td>Online inserts: sorted list + bisect</td></tr>
-        <tr><td>759</td><td><a href="#p-759">Employee Free Time</a></td><td><span class="tag hard">Hard</span></td><td>Merge everyone, report the gaps</td></tr>
-        <tr><td>1851</td><td><a href="#p-1851">Minimum Interval to Include Each Query</a></td><td><span class="tag hard">Hard</span></td><td>Sort queries offline + heap by size</td></tr>
-        <tr><td>218</td><td><a href="#p-218">The Skyline Problem</a></td><td><span class="tag hard">Hard</span></td><td>Sweep events + max-heap of heights</td></tr>
+        <tr><td>252</td><td><a href="#p-252">Meeting Rooms</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Warm-up: sort, check neighbors for any overlap</td></tr>
+        <tr><td>228</td><td><a href="#p-228">Summary Ranges</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Build intervals from consecutive runs</td></tr>
+        <tr><td>56</td><td><a href="#p-56">Merge Intervals</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Core template</td></tr>
+        <tr><td>57</td><td><a href="#p-57">Insert Interval</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Already sorted: three zones, O(n)</td></tr>
+        <tr><td>986</td><td><a href="#p-986">Interval List Intersections</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Two pointers: advance the one that ends first</td></tr>
+        <tr><td>435</td><td><a href="#p-435">Non-overlapping Intervals</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Sort by end, greedy</td></tr>
+        <tr><td>452</td><td><a href="#p-452">Minimum Number of Arrows to Burst Balloons</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Same greedy; touching counts as overlap</td></tr>
+        <tr><td>253</td><td><a href="#p-253">Meeting Rooms II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Min-heap of end times</td></tr>
+        <tr><td>1094</td><td><a href="#p-1094">Car Pooling</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Sweep line / difference array with capacities</td></tr>
+        <tr><td>729</td><td><a href="#p-729">My Calendar I</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Online inserts: sorted list + bisect</td></tr>
+        <tr><td>759</td><td><a href="#p-759">Employee Free Time</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Merge everyone, report the gaps</td></tr>
+        <tr><td>1851</td><td><a href="#p-1851">Minimum Interval to Include Each Query</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Sort queries offline + heap by size</td></tr>
+        <tr><td>218</td><td><a href="#p-218">The Skyline Problem</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Sweep events + max-heap of heights</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table that isn't solved in section 7 is worked out below. Click a problem name in the table to jump to it.</p>
 
     <details class="problem" id="p-252">
-      <summary><span class="tag easy">Easy</span> 252. Meeting Rooms</summary>
+      <summary><span class="tag easy">Easy</span> 252. Meeting Rooms <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given meeting times <code>[start, end)</code>, can one person attend all of them?</p>
         <p><strong>Spot it:</strong> Possible exactly when no two meetings overlap. Sort by start, and any overlap has to show up between neighbors.</p>
@@ -1168,7 +1173,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-986">
-      <summary><span class="tag medium">Medium</span> 986. Interval List Intersections</summary>
+      <summary><span class="tag medium">Medium</span> 986. Interval List Intersections <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two lists of closed intervals are each sorted and internally disjoint. Return their intersection: every range that's covered by both lists.</p>
         <p><strong>Spot it:</strong> Both lists are already sorted, so walk them together with <a href="02-two-pointers.html">Two Pointers</a>. The overlap of two intervals is <code>[max(starts), min(ends)]</code> when that's non-empty.</p>
@@ -1229,7 +1234,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-452">
-      <summary><span class="tag medium">Medium</span> 452. Minimum Number of Arrows to Burst Balloons</summary>
+      <summary><span class="tag medium">Medium</span> 452. Minimum Number of Arrows to Burst Balloons <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each balloon spans <code>[x_start, x_end]</code> on the x-axis. A vertical arrow shot at <code>x</code> bursts every balloon with <code>start ≤ x ≤ end</code>. What's the fewest arrows that burst them all?</p>
         <p><strong>Spot it:</strong> Same greedy as 435: sort by <strong>end</strong>. Shooting at the earliest end bursts the most balloons that are still standing. Touching counts as overlapping here.</p>
@@ -1291,7 +1296,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1094">
-      <summary><span class="tag medium">Medium</span> 1094. Car Pooling</summary>
+      <summary><span class="tag medium">Medium</span> 1094. Car Pooling <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A car with <code>capacity</code> seats drives east. Trip <code>[num, from, to]</code> picks up <code>num</code> passengers at <code>from</code> and drops them off at <code>to</code>. Can every trip be served?</p>
         <p><strong>Spot it:</strong> This is "how much overlaps at the busiest point", weighted by passengers. Use a sweep line: +num at pickup, −num at drop-off.</p>
@@ -1351,7 +1356,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-729">
-      <summary><span class="tag medium">Medium</span> 729. My Calendar I</summary>
+      <summary><span class="tag medium">Medium</span> 729. My Calendar I <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement <code>book(start, end)</code> for half-open events <code>[start, end)</code>. Accept and store the booking only if it doesn't overlap any existing one.</p>
         <p><strong>Spot it:</strong> Intervals arrive one at a time (online), so you can't sort once. Keep the bookings sorted, and a new booking only needs to be checked against its two neighbors. Find them with <a href="09-modified-binary-search.html">binary search</a>.</p>
@@ -1415,7 +1420,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1851">
-      <summary><span class="tag hard">Hard</span> 1851. Minimum Interval to Include Each Query</summary>
+      <summary><span class="tag hard">Hard</span> 1851. Minimum Interval to Include Each Query <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> For each query point <code>q</code>, return the size (<code>right − left + 1</code>) of the smallest interval that contains <code>q</code>, or -1 if no interval does.</p>
         <p><strong>Spot it:</strong> Answer the queries <em>offline</em> in sorted order. As <code>q</code> grows, intervals "start" (left ≤ q) and "expire" (right &lt; q), which is a sweep. "Smallest live interval" → min-heap by size.</p>
@@ -1511,7 +1516,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-218">
-      <summary><span class="tag hard">Hard</span> 218. The Skyline Problem</summary>
+      <summary><span class="tag hard">Hard</span> 218. The Skyline Problem <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Buildings are <code>[left, right, height]</code> rectangles on the ground. Return the skyline's "key points": <code>[x, height]</code> wherever the outline's height changes.</p>
         <p><strong>Spot it:</strong> Sweep left to right over building edges. At each x, the skyline's height is the tallest building that is currently "live", so use a max-heap of live heights. When that maximum changes, record a key point.</p>
@@ -1611,6 +1616,60 @@ class Solution:
     </details>
 
     <p>Runnable solutions with tests (including 986): <code>python/08_overlapping_intervals.py</code></p>
+
+    <details class="problem" id="p-228">
+      <summary><span class="tag easy">Easy</span> 228. Summary Ranges <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>nums</code> is sorted with unique values. Return the smallest list of ranges that covers all the numbers exactly: <code>"a-&gt;b"</code> for a run <code>a..b</code>, or <code>"a"</code> for a single number.</p>
+        <p><strong>Spot it:</strong> The reverse of merging: <em>build</em> intervals. Consecutive numbers (<code>next == current + 1</code>) belong to the same interval, and any gap closes it.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Walk with index <code>i</code>. Each run starts at <code>start = nums[i]</code>.</li>
+          <li>While the next number is exactly one more than the current, extend the run.</li>
+          <li>Close the run: write <code>"start"</code> if it holds one number, otherwise <code>"start-&gt;end"</code>.</li>
+          <li>Continue from the number after the run.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def summaryRanges(self, nums: List[int]) -&gt; List[str]:
+        ranges = []
+        i = 0
+        while i &lt; len(nums):
+            start = nums[i]
+            # extend the run while the numbers are consecutive
+            while i + 1 &lt; len(nums) and nums[i + 1] == nums[i] + 1:
+                i = i + 1
+            end = nums[i]
+            if start == end:
+                ranges.append(str(start))
+            else:
+                ranges.append(str(start) + "-&gt;" + str(end))
+            # move to the first number of the next run
+            i = i + 1
+        return ranges</code></pre>
+        <!-- explain:start 228 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>while i &lt; len(nums):</code> each pass of this loop produces one range.</li>
+          <li><code>start = nums[i]</code>: the first number of the run.</li>
+          <li>Inner <code>while i + 1 &lt; len(nums) and nums[i + 1] == nums[i] + 1:</code> keep stepping while the next number continues the run. The bounds check comes first so we never read past the end.</li>
+          <li><code>end = nums[i]</code>: the last number of the run.</li>
+          <li><code>if start == end:</code> a single number is written alone; otherwise use the <code>"a-&gt;b"</code> form.</li>
+          <li><code>i = i + 1</code>: step past the run.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [0, 1, 2, 4, 5, 7]</code> (LeetCode Example 1). Returns <code>["0-&gt;2", "4-&gt;5", "7"]</code>.</p>
+        <table>
+          <thead><tr><th>run starts at</th><th>run covers</th><th>written</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>0, 1, 2 (stops: 4 ≠ 3)</td><td><code>"0-&gt;2"</code></td></tr>
+            <tr><td>4</td><td>4, 5 (stops: 7 ≠ 6)</td><td><code>"4-&gt;5"</code></td></tr>
+            <tr><td>7</td><td>7 (end of array)</td><td><code>"7"</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 228 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space besides the output.</p>
+      </div>
+    </details>
 
     <nav class="pager">
       <a href="07-top-k-elements.html"><small>Previous pattern</small>← 07 · Top 'K' Elements</a>

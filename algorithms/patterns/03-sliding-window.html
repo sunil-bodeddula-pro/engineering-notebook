@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 03 of 15</div>
+    <div class="eyebrow">Pattern 03 of 21</div>
     <h1>Sliding Window</h1>
     <p class="lede">Look at a contiguous slice through a "window", and slide it along. When it moves, update your bookkeeping with only what came in and what went out. Never recount the middle.</p>
 
@@ -741,7 +745,7 @@ def shortest_valid(nums, target):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-209" open>
-      <summary><span class="tag medium">Medium</span> 209. Minimum Size Subarray Sum</summary>
+      <summary><span class="tag medium">Medium</span> 209. Minimum Size Subarray Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <strong>positive</strong> integers <code>nums</code> and <code>target</code>, return the length of the shortest contiguous subarray whose sum is ≥ <code>target</code> (0 if none).</p>
         <p><strong>Spot it:</strong> "shortest contiguous" + "sum ≥" + all positive. Adding makes the sum bigger, removing makes it smaller, so the condition is monotonic: shortest-valid window.</p>
@@ -817,7 +821,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-3">
-      <summary><span class="tag medium">Medium</span> 3. Longest Substring Without Repeating Characters</summary>
+      <summary><span class="tag medium">Medium</span> 3. Longest Substring Without Repeating Characters <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Length of the longest substring of <code>s</code> with all distinct characters.</p>
         <p><strong>Spot it:</strong> "longest substring" + a rule ("no repeats") that a shorter window can only satisfy more easily. The second visualizer above runs exactly this.</p>
@@ -886,7 +890,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-424">
-      <summary><span class="tag medium">Medium</span> 424. Longest Repeating Character Replacement</summary>
+      <summary><span class="tag medium">Medium</span> 424. Longest Repeating Character Replacement <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You may change at most <code>k</code> characters of uppercase string <code>s</code>. Return the length of the longest substring that can be made of one repeated letter.</p>
         <p><strong>Spot it:</strong> "longest substring" + "at most k changes". A window is fixable if <code>window_length − count_of_most_common_letter ≤ k</code>.</p>
@@ -966,7 +970,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-438">
-      <summary><span class="tag medium">Medium</span> 438. Find All Anagrams in a String</summary>
+      <summary><span class="tag medium">Medium</span> 438. Find All Anagrams in a String <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every start index in <code>s</code> where a substring is an anagram (same letters, any order) of <code>p</code>.</p>
         <p><strong>Spot it:</strong> an anagram of <code>p</code> has length <code>len(p)</code>, so this is a <strong>fixed-size</strong> window. Compare letter counts.</p>
@@ -1056,7 +1060,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-76">
-      <summary><span class="tag hard">Hard</span> 76. Minimum Window Substring</summary>
+      <summary><span class="tag hard">Hard</span> 76. Minimum Window Substring <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the shortest substring of <code>s</code> containing every character of <code>t</code> (with multiplicity). Return <code>""</code> if none.</p>
         <p><strong>Spot it:</strong> "minimum window" + "contains all of". Adding characters can only help coverage, so it's a shortest-valid window.</p>
@@ -1149,7 +1153,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-239">
-      <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum</summary>
+      <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> For every window of size <code>k</code>, report its maximum.</p>
         <p><strong>Spot it:</strong> fixed-size window, but "max" can't be undone by subtraction. Keep a <strong>monotonic deque</strong> of indices whose values decrease front→back; the front is the window max.</p>
@@ -1265,27 +1269,30 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>643</td><td><a href="#p-643">Maximum Average Subarray I</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: fixed window sum</td></tr>
-        <tr><td>3</td><td><a href="#p-3">Longest Substring Without Repeating Characters</a></td><td><span class="tag medium">Medium</span></td><td>Longest valid; last-index jump</td></tr>
-        <tr><td>209</td><td><a href="#p-209">Minimum Size Subarray Sum</a></td><td><span class="tag medium">Medium</span></td><td>Shortest valid</td></tr>
-        <tr><td>1004</td><td><a href="#p-1004">Max Consecutive Ones III</a></td><td><span class="tag medium">Medium</span></td><td>At most k zeros inside</td></tr>
-        <tr><td>424</td><td><a href="#p-424">Longest Repeating Character Replacement</a></td><td><span class="tag medium">Medium</span></td><td>length − max_freq ≤ k</td></tr>
-        <tr><td>567</td><td><a href="#p-567">Permutation in String</a></td><td><span class="tag medium">Medium</span></td><td>Fixed window + counts</td></tr>
-        <tr><td>438</td><td><a href="#p-438">Find All Anagrams in a String</a></td><td><span class="tag medium">Medium</span></td><td>Fixed window, collect all starts</td></tr>
-        <tr><td>904</td><td><a href="#p-904">Fruit Into Baskets</a></td><td><span class="tag medium">Medium</span></td><td>At most 2 distinct</td></tr>
-        <tr><td>1658</td><td><a href="#p-1658">Minimum Operations to Reduce X to Zero</a></td><td><span class="tag medium">Medium</span></td><td>Invert: longest middle window with sum total − x</td></tr>
-        <tr><td>76</td><td><a href="#p-76">Minimum Window Substring</a></td><td><span class="tag hard">Hard</span></td><td>need-counts + missing counter</td></tr>
-        <tr><td>239</td><td><a href="#p-239">Sliding Window Maximum</a></td><td><span class="tag hard">Hard</span></td><td>Monotonic deque</td></tr>
-        <tr><td>992</td><td><a href="#p-992">Subarrays with K Different Integers</a></td><td><span class="tag hard">Hard</span></td><td>exactly(k) = atMost(k) − atMost(k−1)</td></tr>
+        <tr><td>643</td><td><a href="#p-643">Maximum Average Subarray I</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Warm-up: fixed window sum</td></tr>
+        <tr><td>121</td><td><a href="#p-121">Best Time to Buy and Sell Stock</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Window = [buy day, sell day]; jump <code>buy</code> to any cheaper day</td></tr>
+        <tr><td>219</td><td><a href="#p-219">Contains Duplicate II</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></td><td>Fixed window of the last <code>k</code> values, kept in a set</td></tr>
+        <tr><td>3</td><td><a href="#p-3">Longest Substring Without Repeating Characters</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>Longest valid; last-index jump</td></tr>
+        <tr><td>209</td><td><a href="#p-209">Minimum Size Subarray Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Shortest valid</td></tr>
+        <tr><td>1004</td><td><a href="#p-1004">Max Consecutive Ones III</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>At most k zeros inside</td></tr>
+        <tr><td>424</td><td><a href="#p-424">Longest Repeating Character Replacement</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>length − max_freq ≤ k</td></tr>
+        <tr><td>567</td><td><a href="#p-567">Permutation in String</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Fixed window + counts</td></tr>
+        <tr><td>438</td><td><a href="#p-438">Find All Anagrams in a String</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>Fixed window, collect all starts</td></tr>
+        <tr><td>904</td><td><a href="#p-904">Fruit Into Baskets</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>At most 2 distinct</td></tr>
+        <tr><td>1658</td><td><a href="#p-1658">Minimum Operations to Reduce X to Zero</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Invert: longest middle window with sum total − x</td></tr>
+        <tr><td>76</td><td><a href="#p-76">Minimum Window Substring</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>need-counts + missing counter</td></tr>
+        <tr><td>239</td><td><a href="#p-239">Sliding Window Maximum</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></td><td>Monotonic deque</td></tr>
+        <tr><td>992</td><td><a href="#p-992">Subarrays with K Different Integers</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>exactly(k) = atMost(k) − atMost(k−1)</td></tr>
+        <tr><td>30</td><td><a href="#p-30">Substring with Concatenation of All Words</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>Window that moves one <em>word</em> at a time, once per starting offset</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-643">
-      <summary><span class="tag easy">Easy</span> 643. Maximum Average Subarray I</summary>
+      <summary><span class="tag easy">Easy</span> 643. Maximum Average Subarray I <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Find the largest average of any contiguous subarray of length exactly <code>k</code>.</p>
         <p><strong>Spot it:</strong> "Length exactly k" → fixed-size window.</p>
@@ -1346,7 +1353,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1004">
-      <summary><span class="tag medium">Medium</span> 1004. Max Consecutive Ones III</summary>
+      <summary><span class="tag medium">Medium</span> 1004. Max Consecutive Ones III <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A binary array; you may flip at most <code>k</code> zeros into ones. What's the longest run of ones you can get?</p>
         <p><strong>Spot it:</strong> Longest contiguous + "at most k" → variable window whose rule is "at most k zeros inside".</p>
@@ -1421,7 +1428,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-567">
-      <summary><span class="tag medium">Medium</span> 567. Permutation in String</summary>
+      <summary><span class="tag medium">Medium</span> 567. Permutation in String <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Does <code>s2</code> contain a substring that's a rearrangement (permutation) of <code>s1</code>?</p>
         <p><strong>Spot it:</strong> A permutation of <code>s1</code> has exactly <code>len(s1)</code> letters → fixed window comparing letter counts.</p>
@@ -1493,7 +1500,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-904">
-      <summary><span class="tag medium">Medium</span> 904. Fruit Into Baskets</summary>
+      <summary><span class="tag medium">Medium</span> 904. Fruit Into Baskets <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Walk along a row of trees, taking one fruit per tree. You have two baskets, each holding one fruit type. The most fruit you can collect = the longest subarray with at most 2 distinct values.</p>
         <p><strong>Spot it:</strong> Longest contiguous + "at most 2 distinct" → variable window with a count map.</p>
@@ -1566,7 +1573,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1658">
-      <summary><span class="tag medium">Medium</span> 1658. Minimum Operations to Reduce X to Zero</summary>
+      <summary><span class="tag medium">Medium</span> 1658. Minimum Operations to Reduce X to Zero <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each operation removes the leftmost or rightmost number and subtracts it from <code>x</code>. What's the minimum number of operations to make <code>x</code> exactly 0 (or −1 if impossible)?</p>
         <p><strong>Spot it:</strong> Removing from both ends is awkward. Flip it: what <em>remains</em> is a contiguous middle that sums to <code>total − x</code>. Fewest removals = longest such middle. All values are positive → sliding window.</p>
@@ -1650,7 +1657,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-992">
-      <summary><span class="tag hard">Hard</span> 992. Subarrays with K Different Integers</summary>
+      <summary><span class="tag hard">Hard</span> 992. Subarrays with K Different Integers <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Count the subarrays that contain exactly <code>k</code> distinct integers.</p>
         <p><strong>Spot it:</strong> "Exactly k" is not monotonic (growing a window can make it valid, then invalid), but "at most k" is. Use <code>exactly(k) = atMost(k) − atMost(k − 1)</code>.</p>
@@ -1726,6 +1733,191 @@ class Solution:
 </table>
         <!-- explain:992:end -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the counts.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-121">
+      <summary><span class="tag easy">Easy</span> 121. Best Time to Buy and Sell Stock <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>prices[i]</code> is a stock's price on day <code>i</code>. Choose one day to buy and a <strong>later</strong> day to sell. Return the maximum profit, or <code>0</code> if no profit is possible.</p>
+        <p><strong>Spot it:</strong> A pair <code>(buy, sell)</code> with <code>buy &lt; sell</code> that maximises <code>prices[sell] − prices[buy]</code>. Think of it as a window: <code>sell</code> scans forward, and <code>buy</code> stays on the cheapest day seen so far.</p>
+        <p><strong>Key insight:</strong> If today's price is lower than the current buy price, any future sale is better from today, so the left edge of the window jumps here. Otherwise, today is a candidate sell day.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>buy = 0</code>, <code>best = 0</code>.</li>
+          <li>For each later day <code>sell</code>: if <code>prices[sell] &lt; prices[buy]</code>, move <code>buy</code> to <code>sell</code> (a new, cheaper starting point).</li>
+          <li>Otherwise compute the profit <code>prices[sell] − prices[buy]</code> and keep the maximum.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxProfit(self, prices: List[int]) -&gt; int:
+        buy = 0      # day of the cheapest price seen so far (left edge of the window)
+        best = 0     # no transaction at all gives 0 profit
+        for sell in range(1, len(prices)):
+            if prices[sell] &lt; prices[buy]:
+                # a cheaper day: every later sale is better from here
+                buy = sell
+            else:
+                profit = prices[sell] - prices[buy]
+                best = max(best, profit)
+        return best</code></pre>
+        <!-- explain:start 121 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>buy = 0</code>: the left edge of the window, always the cheapest day so far.</li>
+          <li><code>best = 0</code>: if prices only fall, we simply don't trade.</li>
+          <li><code>for sell in range(1, len(prices)):</code> the right edge walks forward one day at a time.</li>
+          <li><code>if prices[sell] &lt; prices[buy]: buy = sell</code>: today is cheaper than our buy day, so restart the window here.</li>
+          <li><code>else:</code> today could be a sell day: compute the profit and keep the best.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>prices = [7, 1, 5, 3, 6, 4]</code> (LeetCode Example 1). Returns <code>5</code> (buy at 1, sell at 6).</p>
+        <table>
+          <thead><tr><th>sell</th><th>prices[sell]</th><th>prices[buy]</th><th>action</th><th>best</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>1</td><td>7</td><td>cheaper → buy = 1</td><td>0</td></tr>
+            <tr><td>2</td><td>5</td><td>1</td><td>profit 4</td><td>4</td></tr>
+            <tr><td>3</td><td>3</td><td>1</td><td>profit 2</td><td>4</td></tr>
+            <tr><td>4</td><td>6</td><td>1</td><td>profit 5</td><td>5</td></tr>
+            <tr><td>5</td><td>4</td><td>1</td><td>profit 3</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 121 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-219">
+      <summary><span class="tag easy">Easy</span> 219. Contains Duplicate II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if there are two indices <code>i ≠ j</code> with <code>nums[i] == nums[j]</code> and <code>|i − j| ≤ k</code>.</p>
+        <p><strong>Spot it:</strong> "Within distance <code>k</code>" = within a window of the last <code>k</code> elements. Keep those values in a set: a value already in the set is a close duplicate.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Walk the array. The set <code>window</code> holds the values of the previous <code>k</code> positions.</li>
+          <li>If <code>nums[i]</code> is already in <code>window</code>, a duplicate within distance <code>k</code> exists: return <code>True</code>.</li>
+          <li>Add <code>nums[i]</code>. If the window now holds more than <code>k</code> values, remove the one that just fell out, <code>nums[i − k]</code>.</li>
+          <li>If the loop ends, no close duplicate exists.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def containsNearbyDuplicate(self, nums: List[int], k: int) -&gt; bool:
+        # the values of the last k positions
+        window = set()
+        for i in range(len(nums)):
+            if nums[i] in window:
+                # the same value appeared at most k positions ago
+                return True
+            window.add(nums[i])
+            if len(window) &gt; k:
+                # nums[i - k] is now too far away to pair with anything ahead
+                window.remove(nums[i - k])
+        return False</code></pre>
+        <!-- explain:start 219 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>window = set()</code>: at most <code>k</code> values, the ones close enough to pair with the current position.</li>
+          <li><code>if nums[i] in window: return True</code>: an <code>O(1)</code> set lookup finds a duplicate within distance <code>k</code>.</li>
+          <li><code>window.add(nums[i])</code>: the current value joins the window for the positions that follow.</li>
+          <li><code>if len(window) &gt; k: window.remove(nums[i - k])</code>: keep the window at <code>k</code> values. The window never holds a duplicate (we would have returned), so its size equals the number of positions it covers.</li>
+          <li><code>return False</code>: no pair was close enough.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [1, 2, 3, 1, 2, 3]</code>, <code>k = 2</code> (LeetCode Example 3). Returns <code>False</code>: equal values are always 3 apart.</p>
+        <table>
+          <thead><tr><th>i</th><th>nums[i]</th><th>in window?</th><th>window after (size ≤ k)</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>1</td><td>no</td><td><code>{1}</code></td></tr>
+            <tr><td>1</td><td>2</td><td>no</td><td><code>{1, 2}</code></td></tr>
+            <tr><td>2</td><td>3</td><td>no</td><td>add 3, too big → remove <code>nums[0] = 1</code> → <code>{2, 3}</code></td></tr>
+            <tr><td>3</td><td>1</td><td>no</td><td>add 1 → remove <code>nums[1] = 2</code> → <code>{3, 1}</code></td></tr>
+            <tr><td>4</td><td>2</td><td>no</td><td>add 2 → remove <code>nums[2] = 3</code> → <code>{1, 2}</code></td></tr>
+            <tr><td>5</td><td>3</td><td>no</td><td>add 3 → remove <code>nums[3] = 1</code> → <code>{2, 3}</code></td></tr>
+          </tbody>
+        </table>
+        <p>The loop ends without a hit, so the answer is <code>False</code>. With <code>nums = [1, 2, 3, 1]</code>, <code>k = 3</code> the second <code>1</code> would find the first one still in the window.</p>
+        <!-- explain:end 219 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(k)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-30">
+      <summary><span class="tag hard">Hard</span> 30. Substring with Concatenation of All Words <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>words</code> are all the same length. Return every starting index in <code>s</code> of a substring that is some concatenation of <strong>all</strong> the words, each used exactly as many times as it appears in <code>words</code> (any order).</p>
+        <p><strong>Spot it:</strong> "Contiguous substring" + "contains exactly these counts" → a variable sliding window with a count map, like Minimum Window Substring. The twist: the window's unit is a whole <strong>word</strong> of length <code>L</code>, so it moves in jumps of <code>L</code>.</p>
+        <p><strong>Key insight:</strong> A match can start at any index, but jumping by <code>L</code> only visits indices with the same remainder mod <code>L</code>. So run the word-sized window <code>L</code> times, once for each offset <code>0 .. L − 1</code>. Each run is linear.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Count how many times each word is needed (<code>need</code>).</li>
+          <li>For each offset <code>0 .. L − 1</code>: start an empty window at <code>left = offset</code> and read words at <code>right = offset, offset + L, …</code>.</li>
+          <li>If the word is not in <code>need</code>, no answer can include it. Clear the window and restart just after it.</li>
+          <li>Otherwise add it to <code>seen</code>. If that word now appears too often, drop words from the left until it doesn't.</li>
+          <li>If the window holds exactly <code>len(words)</code> words, record <code>left</code>, then drop one word from the left to keep searching.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def findSubstring(self, s: str, words: List[str]) -&gt; List[int]:
+        word_len = len(words[0])
+        total_words = len(words)
+        # how many copies of each word a valid window must contain
+        need = {}
+        for w in words:
+            need[w] = need.get(w, 0) + 1
+        result = []
+        # the window jumps a whole word at a time, so try every starting offset
+        for offset in range(word_len):
+            left = offset
+            seen = {}    # word counts inside the current window
+            count = 0    # number of words in the current window
+            for right in range(offset, len(s) - word_len + 1, word_len):
+                word = s[right:right + word_len]
+                if word not in need:
+                    # this word can never be part of an answer: restart after it
+                    seen = {}
+                    count = 0
+                    left = right + word_len
+                    continue
+                seen[word] = seen.get(word, 0) + 1
+                count = count + 1
+                # too many copies of this word: shrink from the left until it fits again
+                while seen[word] &gt; need[word]:
+                    left_word = s[left:left + word_len]
+                    seen[left_word] = seen[left_word] - 1
+                    count = count - 1
+                    left = left + word_len
+                if count == total_words:
+                    # every word is present the right number of times
+                    result.append(left)
+                    # drop the leftmost word and keep sliding
+                    left_word = s[left:left + word_len]
+                    seen[left_word] = seen[left_word] - 1
+                    count = count - 1
+                    left = left + word_len
+        return result</code></pre>
+        <!-- explain:start 30 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>need</code>: a count map of the words, e.g. <code>{"foo": 1, "bar": 1}</code>. Words can repeat, so this must be a count, not a set.</li>
+          <li><code>for offset in range(word_len):</code> answers can start at any index, but one pass of jumps only reaches indices with the same remainder. <code>word_len</code> passes cover them all.</li>
+          <li><code>for right in range(offset, len(s) - word_len + 1, word_len):</code> <code>right</code> is the start of the next word to bring into the window.</li>
+          <li><code>if word not in need:</code> a foreign word poisons every window containing it, so reset and start the window after it.</li>
+          <li><code>seen[word] = seen.get(word, 0) + 1</code>, <code>count = count + 1</code>: grow the window by one word.</li>
+          <li><code>while seen[word] &gt; need[word]:</code> the new word appears too often; remove words from the left (updating <code>seen</code> and <code>count</code>) until it fits.</li>
+          <li><code>if count == total_words:</code> the window is a full concatenation: record its start, then drop its first word so the search continues.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>s = "barfoothefoobarman"</code>, <code>words = ["foo", "bar"]</code> (LeetCode Example 1). <code>word_len = 3</code>. Returns <code>[0, 9]</code>. Offset <code>0</code> finds both answers; offsets <code>1</code> and <code>2</code> find nothing.</p>
+        <table>
+          <thead><tr><th>right</th><th>word</th><th>what happens</th><th>window after</th><th>result</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td><code>"bar"</code></td><td>add</td><td><code>bar</code> (left = 0)</td><td><code>[]</code></td></tr>
+            <tr><td>3</td><td><code>"foo"</code></td><td>add → 2 words = all words → <strong>record 0</strong>, drop <code>bar</code></td><td><code>foo</code> (left = 3)</td><td><code>[0]</code></td></tr>
+            <tr><td>6</td><td><code>"the"</code></td><td>not a needed word → reset</td><td>empty (left = 9)</td><td><code>[0]</code></td></tr>
+            <tr><td>9</td><td><code>"foo"</code></td><td>add</td><td><code>foo</code> (left = 9)</td><td><code>[0]</code></td></tr>
+            <tr><td>12</td><td><code>"bar"</code></td><td>add → 2 words → <strong>record 9</strong>, drop <code>foo</code></td><td><code>bar</code> (left = 12)</td><td><code>[0, 9]</code></td></tr>
+            <tr><td>15</td><td><code>"man"</code></td><td>not a needed word → reset</td><td>empty (left = 18)</td><td><code>[0, 9]</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 30 -->
+        <p><strong>Complexity:</strong> <code>O(n · L)</code> time: <code>L</code> offsets, each scanning about <code>n / L</code> words, and slicing a word costs <code>O(L)</code>. <code>O(m)</code> space for the two maps, where <code>m</code> is the number of words.</p>
       </div>
     </details>
 

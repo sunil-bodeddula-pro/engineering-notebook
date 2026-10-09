@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 15 of 15</div>
+    <div class="eyebrow">Pattern 15 of 21</div>
     <h1>Dynamic Programming Patterns</h1>
     <p class="lede">Solve each small question once, write the answer down, and build the big answer out of the small ones. DP is recursion with a memory, and it comes in a handful of recurring shapes you can learn to recognize.</p>
 
@@ -807,7 +811,7 @@ def stock_cooldown(prices):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-198" open>
-      <summary><span class="tag medium">Medium</span> 198. House Robber (1-D linear)</summary>
+      <summary><span class="tag medium">Medium</span> 198. House Robber (1-D linear) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Houses in a row hold <code>nums[i]</code> money. You can't rob two adjacent houses. Maximize the loot.</p>
         <p><strong>Spot it:</strong> "maximum" + "cannot take two adjacent" + an array. Each house is a take/skip choice, and the choices interact.</p>
@@ -862,7 +866,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-416">
-      <summary><span class="tag medium">Medium</span> 416. Partition Equal Subset Sum (0/1 knapsack)</summary>
+      <summary><span class="tag medium">Medium</span> 416. Partition Equal Subset Sum (0/1 knapsack) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Can the array be split into two subsets with equal sums?</p>
         <p><strong>Spot it:</strong> "can you partition" means picking a subset that sums to <code>total/2</code>. Each number is used <strong>at most once</strong>, so it's a yes/no 0/1 knapsack.</p>
@@ -924,7 +928,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-322">
-      <summary><span class="tag medium">Medium</span> 322. Coin Change (unbounded knapsack)</summary>
+      <summary><span class="tag medium">Medium</span> 322. Coin Change (unbounded knapsack) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Fewest coins (unlimited supply of each denomination) that make up <code>amount</code>, or <code>-1</code> if impossible.</p>
         <p><strong>Spot it:</strong> "fewest" + "infinite number of each coin". That's unbounded knapsack. Greedy fails: with coins [1,3,4] and amount 6, greedy gives 4+1+1, but 3+3 is better.</p>
@@ -987,7 +991,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-72">
-      <summary><span class="tag medium">Medium</span> 72. Edit Distance (two strings)</summary>
+      <summary><span class="tag medium">Medium</span> 72. Edit Distance (two strings) <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Minimum number of single-character inserts, deletes, or replaces to turn <code>word1</code> into <code>word2</code>.</p>
         <p><strong>Spot it:</strong> two strings + "minimum operations". That's the 2-D string family, a sibling of LCS (shown in the table-fill visualizer above).</p>
@@ -1054,7 +1058,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-300">
-      <summary><span class="tag medium">Medium</span> 300. Longest Increasing Subsequence (LIS)</summary>
+      <summary><span class="tag medium">Medium</span> 300. Longest Increasing Subsequence (LIS) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Length of the longest strictly increasing <em>subsequence</em> (elements don't have to be contiguous).</p>
         <p><strong>Spot it:</strong> "longest" + "subsequence" + one array.</p>
@@ -1139,7 +1143,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-312">
-      <summary><span class="tag hard">Hard</span> 312. Burst Balloons (interval DP)</summary>
+      <summary><span class="tag hard">Hard</span> 312. Burst Balloons (interval DP) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bursting balloon <code>i</code> earns <code>nums[left] · nums[i] · nums[right]</code>, using its <em>current</em> neighbors. Missing neighbors count as 1. Maximize total coins.</p>
         <p><strong>Spot it:</strong> the order of removals changes the neighbors, and the answer for a range depends on sub-ranges. That's interval DP.</p>
@@ -1203,7 +1207,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-64">
-      <summary><span class="tag medium">Medium</span> 64. Minimum Path Sum (grid DP)</summary>
+      <summary><span class="tag medium">Medium</span> 64. Minimum Path Sum (grid DP) <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Move only right or down from the top-left to the bottom-right, minimizing the sum of the cells you pass through.</p>
         <p><strong>Spot it:</strong> grid + "only right or down" + "minimum". With one-way moves there are no cycles, so it's grid DP rather than BFS/Dijkstra.</p>
@@ -1256,7 +1260,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-309">
-      <summary><span class="tag medium">Medium</span> 309. Best Time to Buy and Sell Stock with Cooldown (state machine)</summary>
+      <summary><span class="tag medium">Medium</span> 309. Best Time to Buy and Sell Stock with Cooldown (state machine) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Unlimited transactions, but after selling you must wait one day before buying again. Maximize profit.</p>
         <p><strong>Spot it:</strong> "after you sell, you cannot buy the next day". What you're allowed to do depends on what you <em>are</em> right now. Model it as a few states with arrows between them.</p>
@@ -1356,28 +1360,34 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>70</td><td><a href="#p-70">Climbing Stairs</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: Fibonacci in disguise</td></tr>
-        <tr><td>198</td><td><a href="#p-198">House Robber</a></td><td><span class="tag medium">Medium</span></td><td>Take / skip, 1-D</td></tr>
-        <tr><td>213</td><td><a href="#p-213">House Robber II</a></td><td><span class="tag medium">Medium</span></td><td>Circle → run 198 twice (drop first / drop last)</td></tr>
-        <tr><td>322</td><td><a href="#p-322">Coin Change</a></td><td><span class="tag medium">Medium</span></td><td>Unbounded knapsack, min</td></tr>
-        <tr><td>518</td><td><a href="#p-518">Coin Change II</a></td><td><span class="tag medium">Medium</span></td><td>Count combinations: coins in the outer loop</td></tr>
-        <tr><td>416</td><td><a href="#p-416">Partition Equal Subset Sum</a></td><td><span class="tag medium">Medium</span></td><td>0/1 knapsack, backwards</td></tr>
-        <tr><td>300</td><td><a href="#p-300">Longest Increasing Subsequence</a></td><td><span class="tag medium">Medium</span></td><td>"Ending at i" + O(n log n) tails</td></tr>
-        <tr><td>1143</td><td><a href="#p-1143">Longest Common Subsequence</a></td><td><span class="tag medium">Medium</span></td><td>Two-string template</td></tr>
-        <tr><td>72</td><td><a href="#p-72">Edit Distance</a></td><td><span class="tag medium">Medium</span></td><td>3-way min</td></tr>
-        <tr><td>64</td><td><a href="#p-64">Minimum Path Sum</a></td><td><span class="tag medium">Medium</span></td><td>Grid DP, 1 row of memory</td></tr>
-        <tr><td>309</td><td><a href="#p-309">Best Time to Buy and Sell Stock with Cooldown</a></td><td><span class="tag medium">Medium</span></td><td>State machine</td></tr>
-        <tr><td>312</td><td><a href="#p-312">Burst Balloons</a></td><td><span class="tag hard">Hard</span></td><td>Interval DP, "last" trick</td></tr>
-        <tr><td>10</td><td><a href="#p-10">Regular Expression Matching</a></td><td><span class="tag hard">Hard</span></td><td>Two-string DP with <code>*</code></td></tr>
-        <tr><td>123</td><td><a href="#p-123">Best Time to Buy and Sell Stock III</a></td><td><span class="tag hard">Hard</span></td><td>4-state machine (buy1, sell1, buy2, sell2)</td></tr>
+        <tr><td>70</td><td><a href="#p-70">Climbing Stairs</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Math</span></span></td><td>Warm-up: Fibonacci in disguise</td></tr>
+        <tr><td>509</td><td><a href="#p-509">Fibonacci Number</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Math</span></span></td><td>The smallest DP: <code>f(n) = f(n−1) + f(n−2)</code> with two rolling variables</td></tr>
+        <tr><td>746</td><td><a href="#p-746">Min Cost Climbing Stairs</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Climbing Stairs with a price: take the cheaper of the two ways in</td></tr>
+        <tr><td>198</td><td><a href="#p-198">House Robber</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Take / skip, 1-D</td></tr>
+        <tr><td>213</td><td><a href="#p-213">House Robber II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Circle → run 198 twice (drop first / drop last)</td></tr>
+        <tr><td>322</td><td><a href="#p-322">Coin Change</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Unbounded knapsack, min</td></tr>
+        <tr><td>518</td><td><a href="#p-518">Coin Change II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Count combinations: coins in the outer loop</td></tr>
+        <tr><td>416</td><td><a href="#p-416">Partition Equal Subset Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>0/1 knapsack, backwards</td></tr>
+        <tr><td>300</td><td><a href="#p-300">Longest Increasing Subsequence</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>"Ending at i" + O(n log n) tails</td></tr>
+        <tr><td>1143</td><td><a href="#p-1143">Longest Common Subsequence</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Two-string template</td></tr>
+        <tr><td>72</td><td><a href="#p-72">Edit Distance</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>3-way min</td></tr>
+        <tr><td>64</td><td><a href="#p-64">Minimum Path Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Grid DP, 1 row of memory</td></tr>
+        <tr><td>309</td><td><a href="#p-309">Best Time to Buy and Sell Stock with Cooldown</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>State machine</td></tr>
+        <tr><td>53</td><td><a href="#p-53">Maximum Subarray</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Kadane: best sum ending here = max(x, best ending before + x)</td></tr>
+        <tr><td>62</td><td><a href="#p-62">Unique Paths</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Grid DP: paths to a cell = paths from above + paths from the left</td></tr>
+        <tr><td>63</td><td><a href="#p-63">Unique Paths II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Same grid DP, but an obstacle cell has 0 paths</td></tr>
+        <tr><td>120</td><td><a href="#p-120">Triangle</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Bottom-up: each cell adds the cheaper of its two children</td></tr>
+        <tr><td>312</td><td><a href="#p-312">Burst Balloons</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Interval DP, "last" trick</td></tr>
+        <tr><td>10</td><td><a href="#p-10">Regular Expression Matching</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Two-string DP with <code>*</code></td></tr>
+        <tr><td>123</td><td><a href="#p-123">Best Time to Buy and Sell Stock III</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>4-state machine (buy1, sell1, buy2, sell2)</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table above that isn't already solved in section 7 is worked out here, so you never need to leave this page. Click a problem name in the table to jump to its solution.</p>
     <details class="problem" id="p-70">
-      <summary><span class="tag easy">Easy</span> 70. Climbing Stairs</summary>
+      <summary><span class="tag easy">Easy</span> 70. Climbing Stairs <span class="ds-tags"><span class="ds">Math</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You climb a staircase of <code>n</code> steps, 1 or 2 steps at a time. In how many distinct ways can you reach the top?</p>
         <p><strong>Spot it:</strong> "how many distinct ways" + each move is a small choice is 1-D DP, and it's Fibonacci in disguise.</p>
@@ -1424,7 +1434,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-213">
-      <summary><span class="tag medium">Medium</span> 213. House Robber II</summary>
+      <summary><span class="tag medium">Medium</span> 213. House Robber II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> House Robber (198), but the houses stand in a <strong>circle</strong>: the first and last houses are neighbors.</p>
         <p><strong>Spot it:</strong> This is the same 1-D take/skip DP. The circle only adds one conflict: you can't rob both house 0 and house n−1.</p>
@@ -1483,7 +1493,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-518">
-      <summary><span class="tag medium">Medium</span> 518. Coin Change II</summary>
+      <summary><span class="tag medium">Medium</span> 518. Coin Change II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Count the number of <em>combinations</em> of coins (unlimited supply) that make up <code>amount</code>. Order doesn't matter, so 1+2 and 2+1 are the same combination.</p>
         <p><strong>Spot it:</strong> "number of combinations" + unlimited coins is unbounded knapsack, counting version. Loop order decides whether you count combinations or permutations.</p>
@@ -1535,7 +1545,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-1143">
-      <summary><span class="tag medium">Medium</span> 1143. Longest Common Subsequence</summary>
+      <summary><span class="tag medium">Medium</span> 1143. Longest Common Subsequence <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the length of the longest subsequence that appears in both strings (characters in order, not necessarily contiguous).</p>
         <p><strong>Spot it:</strong> Two strings + "longest common subsequence" is the base two-string DP. The table-filling visualizer in section 2 runs exactly this algorithm.</p>
@@ -1591,7 +1601,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-10">
-      <summary><span class="tag hard">Hard</span> 10. Regular Expression Matching</summary>
+      <summary><span class="tag hard">Hard</span> 10. Regular Expression Matching <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement matching with <code>'.'</code> (any single character) and <code>'*'</code> (zero or more of the preceding element). The pattern must match the <em>entire</em> string.</p>
         <p><strong>Spot it:</strong> Two strings, prefix vs prefix, yes/no is two-string DP. The <code>'*'</code> adds a "use it zero times / use it once more" choice.</p>
@@ -1663,7 +1673,7 @@ class Solution:
       </div>
     </details>
     <details class="problem" id="p-123">
-      <summary><span class="tag hard">Hard</span> 123. Best Time to Buy and Sell Stock III</summary>
+      <summary><span class="tag hard">Hard</span> 123. Best Time to Buy and Sell Stock III <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Make at most <strong>two</strong> transactions (buy then sell, never holding two shares at once). Maximize profit.</p>
         <p><strong>Spot it:</strong> This is a state machine: what you may do depends on how many buys and sells you've already made. Four states in a chain: buy1 → sell1 → buy2 → sell2.</p>
@@ -1722,9 +1732,294 @@ class Solution:
 
     <p>Runnable versions of every solution on this page, with assert-based tests: <code>python/15_dynamic_programming.py</code></p>
 
+    <details class="problem" id="p-509">
+      <summary><span class="tag easy">Easy</span> 509. Fibonacci Number <span class="ds-tags"><span class="ds">Math</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>F(0) = 0</code>, <code>F(1) = 1</code>, and <code>F(n) = F(n − 1) + F(n − 2)</code> for <code>n &gt; 1</code>. Return <code>F(n)</code>.</p>
+        <p><strong>Spot it:</strong> A recurrence where each value depends on smaller ones is DP's home ground. Plain recursion recomputes the same values exponentially often; building <strong>bottom-up</strong> computes each value once.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Handle <code>n &lt; 2</code> directly: the answer is <code>n</code>.</li>
+          <li>Keep only the last two values: <code>prev2 = F(i − 2)</code>, <code>prev1 = F(i − 1)</code>.</li>
+          <li>For <code>i = 2..n</code>: <code>current = prev1 + prev2</code>, then slide the two variables forward.</li>
+          <li>Return <code>prev1</code>, which is now <code>F(n)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def fib(self, n: int) -&gt; int:
+        if n &lt; 2:
+            return n
+        prev2 = 0    # F(i - 2)
+        prev1 = 1    # F(i - 1)
+        for i in range(2, n + 1):
+            current = prev1 + prev2
+            # slide the window of the last two values forward
+            prev2 = prev1
+            prev1 = current
+        return prev1</code></pre>
+        <!-- explain:start 509 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>if n &lt; 2: return n</code>: <code>F(0) = 0</code> and <code>F(1) = 1</code> are the base cases.</li>
+          <li><code>prev2 = 0</code>, <code>prev1 = 1</code>: we only ever need the last two values, so no array is needed (<code>O(1)</code> space).</li>
+          <li><code>current = prev1 + prev2</code>: the recurrence.</li>
+          <li><code>prev2 = prev1</code>, <code>prev1 = current</code>: shift both forward. The order matters: overwrite <code>prev2</code> first, or its new value would be lost.</li>
+          <li><code>return prev1</code>: after the loop, <code>prev1</code> holds <code>F(n)</code>.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>n = 5</code>. Returns <code>5</code>.</p>
+        <table>
+          <thead><tr><th>i</th><th>prev2</th><th>prev1</th><th>current = F(i)</th></tr></thead>
+          <tbody>
+            <tr><td>2</td><td>0</td><td>1</td><td>1</td></tr>
+            <tr><td>3</td><td>1</td><td>1</td><td>2</td></tr>
+            <tr><td>4</td><td>1</td><td>2</td><td>3</td></tr>
+            <tr><td>5</td><td>2</td><td>3</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 509 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space. (Naive recursion is <code>O(2ⁿ)</code>; memoised recursion is <code>O(n)</code> time and space.)</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-746">
+      <summary><span class="tag easy">Easy</span> 746. Min Cost Climbing Stairs <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>cost[i]</code> is the price of stepping on stair <code>i</code>. After paying you may climb 1 or 2 stairs. You may start on stair 0 or 1. Return the minimum cost to reach the top, just past the last stair.</p>
+        <p><strong>Spot it:</strong> The cheapest way to reach a stair depends only on the cheapest ways to reach the two stairs below it, so this is 1-D DP. <code>dp[i]</code> = minimum cost to <em>stand on</em> stair <code>i</code> (not yet paid).</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>dp[0] = dp[1] = 0</code>: starting on either of the first two stairs is free.</li>
+          <li>For <code>i = 2..n</code> (where <code>n</code> is the top): you arrive from <code>i − 1</code> (paying <code>cost[i − 1]</code>) or from <code>i − 2</code> (paying <code>cost[i − 2]</code>).</li>
+          <li><code>dp[i] = min(dp[i − 1] + cost[i − 1], dp[i − 2] + cost[i − 2])</code>.</li>
+          <li>Return <code>dp[n]</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def minCostClimbingStairs(self, cost: List[int]) -&gt; int:
+        n = len(cost)              # stair n is the top (past the last stair)
+        dp = [0] * (n + 1)         # dp[i] = cheapest way to stand on stair i
+        # dp[0] = dp[1] = 0: you may start on stair 0 or 1 for free
+        for i in range(2, n + 1):
+            from_one_below = dp[i - 1] + cost[i - 1]
+            from_two_below = dp[i - 2] + cost[i - 2]
+            dp[i] = min(from_one_below, from_two_below)
+        return dp[n]</code></pre>
+        <!-- explain:start 746 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dp = [0] * (n + 1)</code>: one entry per stair plus the top. Entries 0 and 1 stay 0.</li>
+          <li><code>from_one_below = dp[i - 1] + cost[i - 1]</code>: stand on <code>i − 1</code> as cheaply as possible, pay to leave it, take one step.</li>
+          <li><code>from_two_below</code>: the same, from two stairs down.</li>
+          <li><code>dp[i] = min(...)</code>: the cheaper way in.</li>
+          <li><code>return dp[n]</code>: the top. Only <code>dp[i − 1]</code> and <code>dp[i − 2]</code> are ever read, so two variables would also do.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>cost = [10, 15, 20]</code> (LeetCode Example 1). Returns <code>15</code> (start on stair 1, pay 15, jump to the top).</p>
+        <table>
+          <thead><tr><th>i</th><th>from i−1</th><th>from i−2</th><th>dp[i]</th></tr></thead>
+          <tbody>
+            <tr><td>2</td><td>0 + 15 = 15</td><td>0 + 10 = 10</td><td>10</td></tr>
+            <tr><td>3 (top)</td><td>10 + 20 = 30</td><td>0 + 15 = 15</td><td><strong>15</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 746 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space (<code>O(1)</code> with two variables).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-53">
+      <summary><span class="tag medium">Medium</span> 53. Maximum Subarray <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the largest sum of any non-empty contiguous subarray of <code>nums</code>.</p>
+        <p><strong>Spot it:</strong> Define <code>dp[i]</code> = the best sum of a subarray that <strong>ends at</strong> <code>i</code>. It either extends the best subarray ending at <code>i − 1</code> or starts fresh at <code>i</code>. That's Kadane's algorithm, a 1-D DP that needs only one variable.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>current</code> = best sum of a subarray ending at the current index; <code>best</code> = the overall answer.</li>
+          <li>For each <code>x</code>: <code>current = max(x, current + x)</code>. If the running sum went negative, it only drags <code>x</code> down, so start over at <code>x</code>.</li>
+          <li><code>best = max(best, current)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxSubArray(self, nums: List[int]) -&gt; int:
+        current = nums[0]     # best sum of a subarray ending at the current index
+        best = nums[0]        # best sum seen anywhere
+        for i in range(1, len(nums)):
+            x = nums[i]
+            # extend the previous subarray, or start a new one at x
+            current = max(x, current + x)
+            best = max(best, current)
+        return best</code></pre>
+        <!-- explain:start 53 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>current = nums[0]</code>, <code>best = nums[0]</code>: the subarray must be non-empty, so start from the first element (not 0, which would be wrong for an all-negative array).</li>
+          <li><code>current = max(x, current + x)</code>: if <code>current</code> is negative, <code>current + x &lt; x</code>, so dropping the past is better.</li>
+          <li><code>best = max(best, current)</code>: the best subarray ends <em>somewhere</em>, so take the maximum over all ending positions.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]</code> (LeetCode Example 1). Returns <code>6</code> (subarray <code>[4, -1, 2, 1]</code>).</p>
+        <table>
+          <thead><tr><th>x</th><th>current + x</th><th>current</th><th>best</th></tr></thead>
+          <tbody>
+            <tr><td>-2</td><td>— (start)</td><td>-2</td><td>-2</td></tr>
+            <tr><td>1</td><td>-1</td><td>1 (restart)</td><td>1</td></tr>
+            <tr><td>-3</td><td>-2</td><td>-2</td><td>1</td></tr>
+            <tr><td>4</td><td>2</td><td>4 (restart)</td><td>4</td></tr>
+            <tr><td>-1</td><td>3</td><td>3</td><td>4</td></tr>
+            <tr><td>2</td><td>5</td><td>5</td><td>5</td></tr>
+            <tr><td>1</td><td>6</td><td>6</td><td>6</td></tr>
+            <tr><td>-5</td><td>1</td><td>1</td><td>6</td></tr>
+            <tr><td>4</td><td>5</td><td>5</td><td><strong>6</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 53 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-62">
+      <summary><span class="tag medium">Medium</span> 62. Unique Paths <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A robot starts at the top-left of an <code>m × n</code> grid and moves only right or down. How many distinct paths reach the bottom-right?</p>
+        <p><strong>Spot it:</strong> The last move into a cell comes from above or from the left, and those two sets of paths never overlap. So <code>dp[r][c] = dp[r − 1][c] + dp[r][c − 1]</code>: grid DP.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Every cell in the first row and first column has exactly 1 path (straight right or straight down).</li>
+          <li>Fill the rest row by row: <code>dp[r][c] = dp[r − 1][c] + dp[r][c − 1]</code>.</li>
+          <li>Return <code>dp[m − 1][n − 1]</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def uniquePaths(self, m: int, n: int) -&gt; int:
+        # first row and first column: only one way to reach each cell
+        dp = [[1] * n for _ in range(m)]
+        for r in range(1, m):
+            for c in range(1, n):
+                # arrive from above or from the left
+                dp[r][c] = dp[r - 1][c] + dp[r][c - 1]
+        return dp[m - 1][n - 1]</code></pre>
+        <!-- explain:start 62 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dp = [[1] * n for _ in range(m)]</code>: a fresh row for each <code>r</code> (writing <code>[[1] * n] * m</code> would make every row the <em>same</em> list). The 1s in row 0 and column 0 are already correct.</li>
+          <li><code>for r in range(1, m): for c in range(1, n):</code> row by row, so <code>dp[r − 1][c]</code> and <code>dp[r][c − 1]</code> are always ready.</li>
+          <li><code>dp[r][c] = dp[r - 1][c] + dp[r][c - 1]</code>: add the two disjoint ways in.</li>
+          <li><code>return dp[m - 1][n - 1]</code>: the bottom-right corner.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>m = 3</code>, <code>n = 7</code> (LeetCode Example 1). Returns <code>28</code>. The finished table:</p>
+        <table>
+          <thead><tr><th>row</th><th>c=0</th><th>c=1</th><th>c=2</th><th>c=3</th><th>c=4</th><th>c=5</th><th>c=6</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+            <tr><td>1</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td></tr>
+            <tr><td>2</td><td>1</td><td>3</td><td>6</td><td>10</td><td>15</td><td>21</td><td><strong>28</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 62 -->
+        <p><strong>Complexity:</strong> <code>O(m · n)</code> time and space (one row is enough for <code>O(n)</code> space).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-63">
+      <summary><span class="tag medium">Medium</span> 63. Unique Paths II <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Same robot, but <code>obstacleGrid[r][c] == 1</code> marks a blocked cell. Count the paths from the top-left to the bottom-right that avoid obstacles.</p>
+        <p><strong>Spot it:</strong> Unique Paths with one change: no path can pass through an obstacle, so its count is 0. The first row and column are no longer all 1s either, because a block cuts off everything after it.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>dp[r][c]</code> = number of paths to <code>(r, c)</code>. If the start is blocked, the answer is 0.</li>
+          <li>Set <code>dp[0][0] = 1</code>, then visit cells row by row.</li>
+          <li>Obstacle → <code>dp[r][c] = 0</code>. Otherwise add the count from above (if <code>r &gt; 0</code>) and from the left (if <code>c &gt; 0</code>).</li>
+          <li>Return the bottom-right count.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def uniquePathsWithObstacles(self, obstacleGrid: List[List[int]]) -&gt; int:
+        rows = len(obstacleGrid)
+        cols = len(obstacleGrid[0])
+        dp = [[0] * cols for _ in range(rows)]
+        if obstacleGrid[0][0] == 1:
+            return 0
+        dp[0][0] = 1
+        for r in range(rows):
+            for c in range(cols):
+                if obstacleGrid[r][c] == 1:
+                    dp[r][c] = 0               # nothing can pass through a rock
+                    continue
+                if r &gt; 0:
+                    dp[r][c] = dp[r][c] + dp[r - 1][c]   # from above
+                if c &gt; 0:
+                    dp[r][c] = dp[r][c] + dp[r][c - 1]   # from the left
+        return dp[rows - 1][cols - 1]</code></pre>
+        <!-- explain:start 63 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dp = [[0] * cols ...]</code>: start every count at 0.</li>
+          <li><code>if obstacleGrid[0][0] == 1: return 0</code>: a blocked start means no paths at all.</li>
+          <li><code>dp[0][0] = 1</code>: one way to be at the start.</li>
+          <li><code>if obstacleGrid[r][c] == 1: dp[r][c] = 0; continue</code>: an obstacle contributes nothing to its neighbours.</li>
+          <li><code>if r &gt; 0</code> / <code>if c &gt; 0</code>: add the counts from above and from the left when those cells exist. This also handles the first row and column without special cases (and <code>(0, 0)</code> keeps its 1).</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>obstacleGrid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]</code> (LeetCode Example 1). Returns <code>2</code>. The finished table (<code>X</code> = obstacle):</p>
+        <table>
+          <thead><tr><th>row</th><th>c=0</th><th>c=1</th><th>c=2</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+            <tr><td>1</td><td>1</td><td>X (0)</td><td>1</td></tr>
+            <tr><td>2</td><td>1</td><td>1</td><td><strong>2</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 63 -->
+        <p><strong>Complexity:</strong> <code>O(rows · cols)</code> time and space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-120">
+      <summary><span class="tag medium">Medium</span> 120. Triangle <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the minimum path sum from the top of <code>triangle</code> to the bottom. From index <code>i</code> on one row you may move to index <code>i</code> or <code>i + 1</code> on the row below.</p>
+        <p><strong>Spot it:</strong> Choices that branch and re-merge (two parents share a child) → overlapping sub-problems → DP. Working <strong>from the bottom up</strong>, each cell needs only the two cells beneath it, and the answer ends up at the top.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Copy the bottom row into <code>best</code>: from a bottom cell, the cheapest path is the cell itself.</li>
+          <li>For each row above, going up: <code>best[i] = row[i] + min(best[i], best[i + 1])</code>.</li>
+          <li>After the top row, <code>best[0]</code> is the answer.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def minimumTotal(self, triangle: List[List[int]]) -&gt; int:
+        # best[i] = cheapest path from (current row, i) down to the bottom
+        best = list(triangle[-1])
+        for r in range(len(triangle) - 2, -1, -1):
+            row = triangle[r]
+            for i in range(len(row)):
+                # step to the cheaper of the two cells below
+                best[i] = row[i] + min(best[i], best[i + 1])
+        return best[0]</code></pre>
+        <!-- explain:start 120 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>best = list(triangle[-1])</code>: a copy of the bottom row, so the input is left unchanged.</li>
+          <li><code>for r in range(len(triangle) - 2, -1, -1):</code> from the second-to-last row up to row 0.</li>
+          <li><code>best[i] = row[i] + min(best[i], best[i + 1])</code>: <code>best[i]</code> and <code>best[i + 1]</code> still describe the row below, the two cells reachable from <code>(r, i)</code>. Going left to right is safe because <code>best[i + 1]</code> hasn't been overwritten yet when we read it.</li>
+          <li><code>return best[0]</code>: the top row has one cell.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>triangle = [[2], [3, 4], [6, 5, 7], [4, 1, 8, 3]]</code> (LeetCode Example 1). Returns <code>11</code> (2 + 3 + 5 + 1).</p>
+        <table>
+          <thead><tr><th>row processed</th><th>best after</th></tr></thead>
+          <tbody>
+            <tr><td>bottom <code>[4, 1, 8, 3]</code> (copied)</td><td><code>[4, 1, 8, 3]</code></td></tr>
+            <tr><td><code>[6, 5, 7]</code></td><td><code>[7, 6, 10]</code> (+ unused tail)</td></tr>
+            <tr><td><code>[3, 4]</code></td><td><code>[9, 10]</code> (+ unused tail)</td></tr>
+            <tr><td><code>[2]</code></td><td><code>[11]</code> → <strong>11</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 120 -->
+        <p><strong>Complexity:</strong> <code>O(n²)</code> time for <code>n</code> rows (every number once), <code>O(n)</code> extra space.</p>
+      </div>
+    </details>
+
     <nav class="pager">
       <a href="14-backtracking.html"><small>Previous pattern</small>← 14 · Backtracking</a>
-      <a class="next" href="../cheatsheet.html"><small>You finished all 15</small>Cheat sheet →</a>
+      <a class="next" href="16-hash-map-set.html"><small>Next pattern</small>16 · Hash Map &amp; Set →</a>
     </nav>
   </main>
 </div>

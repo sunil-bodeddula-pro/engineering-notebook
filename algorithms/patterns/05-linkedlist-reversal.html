@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 05 of 15</div>
+    <div class="eyebrow">Pattern 05 of 21</div>
     <h1>LinkedList In-place Reversal</h1>
     <p class="lede">Reverse a linked list (or just a piece of it) by flipping each arrow to point backwards, one node at a time, using three pointers and no extra memory.</p>
 
@@ -694,7 +698,7 @@ def reverse_between(head, left, right):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-25" open>
-      <summary><span class="tag hard">Hard</span> 25. Reverse Nodes in k-Group</summary>
+      <summary><span class="tag hard">Hard</span> 25. Reverse Nodes in k-Group <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the nodes of the list <code>k</code> at a time. If the last group has fewer than <code>k</code> nodes, leave it as it is. Only change links, not values.</p>
         <p><strong>Spot it:</strong> "reverse" + "k at a time" + "only nodes may be changed": repeated sub-list reversal with stitching.</p>
@@ -771,7 +775,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-92">
-      <summary><span class="tag medium">Medium</span> 92. Reverse Linked List II</summary>
+      <summary><span class="tag medium">Medium</span> 92. Reverse Linked List II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse only positions <code>left..right</code> (1-indexed) of the list, in one pass.</p>
         <p><strong>Spot it:</strong> "reverse from position left to right". Partial reversal: needs a dummy (left may be 1) and stitching. The second visualizer above traces it.</p>
@@ -833,7 +837,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-24">
-      <summary><span class="tag medium">Medium</span> 24. Swap Nodes in Pairs</summary>
+      <summary><span class="tag medium">Medium</span> 24. Swap Nodes in Pairs <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Swap every two adjacent nodes (1→2→3→4 becomes 2→1→4→3) without changing values.</p>
         <p><strong>Spot it:</strong> it's k-group reversal with <code>k = 2</code>, small enough to write the three re-links by hand.</p>
@@ -894,7 +898,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-2130">
-      <summary><span class="tag medium">Medium</span> 2130. Maximum Twin Sum of a Linked List</summary>
+      <summary><span class="tag medium">Medium</span> 2130. Maximum Twin Sum of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a list of even length <code>n</code>, node <code>i</code> and node <code>n−1−i</code> are twins. Return the largest twin sum.</p>
         <p><strong>Spot it:</strong> you need to walk the first half forwards and the second half <em>backwards</em> at the same time. Reverse the second half in place.</p>
@@ -968,7 +972,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-206">
-      <summary><span class="tag easy">Easy</span> 206. Reverse Linked List (iterative + recursive)</summary>
+      <summary><span class="tag easy">Easy</span> 206. Reverse Linked List (iterative + recursive) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the entire list and return the new head.</p>
         <p><strong>Spot it:</strong> template A word for word. Interviewers often ask for the recursive version too.</p>
@@ -1082,25 +1086,31 @@ def reverse_between(head, left, right):
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>206</td><td><a href="#p-206">Reverse Linked List</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: template A, then recursive</td></tr>
-        <tr><td>92</td><td><a href="#p-92">Reverse Linked List II</a></td><td><span class="tag medium">Medium</span></td><td>Dummy + head insertion</td></tr>
-        <tr><td>24</td><td><a href="#p-24">Swap Nodes in Pairs</a></td><td><span class="tag medium">Medium</span></td><td>k-group with k = 2</td></tr>
-        <tr><td>2130</td><td><a href="#p-2130">Maximum Twin Sum of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td>Reverse the second half</td></tr>
-        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag medium">Medium</span></td><td>Middle + reverse + compare</td></tr>
-        <tr><td>143</td><td><a href="#p-143">Reorder List</a></td><td><span class="tag medium">Medium</span></td><td>Middle + reverse + weave</td></tr>
-        <tr><td>61</td><td><a href="#p-61">Rotate List</a></td><td><span class="tag medium">Medium</span></td><td>Close into a ring, cut at n − k</td></tr>
-        <tr><td>445</td><td><a href="#p-445">Add Two Numbers II</a></td><td><span class="tag medium">Medium</span></td><td>Reverse both, add with carry, prepend each digit</td></tr>
-        <tr><td>2074</td><td><a href="#p-2074">Reverse Nodes in Even Length Groups</a></td><td><span class="tag medium">Medium</span></td><td>Group sizes 1, 2, 3…; reverse only even ones</td></tr>
-        <tr><td>25</td><td><a href="#p-25">Reverse Nodes in k-Group</a></td><td><span class="tag hard">Hard</span></td><td>Check k nodes, reverse with prev_node = group_next, stitch</td></tr>
+        <tr><td>206</td><td><a href="#p-206">Reverse Linked List</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Warm-up: template A, then recursive</td></tr>
+        <tr><td>21</td><td><a href="#p-21">Merge Two Sorted Lists</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Re-link existing nodes behind a dummy; no new nodes</td></tr>
+        <tr><td>83</td><td><a href="#p-83">Remove Duplicates from Sorted List</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Skip the next node while it repeats the current value</td></tr>
+        <tr><td>92</td><td><a href="#p-92">Reverse Linked List II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Dummy + head insertion</td></tr>
+        <tr><td>24</td><td><a href="#p-24">Swap Nodes in Pairs</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>k-group with k = 2</td></tr>
+        <tr><td>2130</td><td><a href="#p-2130">Maximum Twin Sum of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Reverse the second half</td></tr>
+        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + compare</td></tr>
+        <tr><td>143</td><td><a href="#p-143">Reorder List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + weave</td></tr>
+        <tr><td>61</td><td><a href="#p-61">Rotate List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Close into a ring, cut at n − k</td></tr>
+        <tr><td>445</td><td><a href="#p-445">Add Two Numbers II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Reverse both, add with carry, prepend each digit</td></tr>
+        <tr><td>2074</td><td><a href="#p-2074">Reverse Nodes in Even Length Groups</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Group sizes 1, 2, 3…; reverse only even ones</td></tr>
+        <tr><td>2</td><td><a href="#p-2">Add Two Numbers</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Walk both lists at once with a carry; build the answer behind a dummy</td></tr>
+        <tr><td>82</td><td><a href="#p-82">Remove Duplicates from Sorted List II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Delete the <em>whole</em> run of a repeated value; <code>prev</code> stays before it</td></tr>
+        <tr><td>138</td><td><a href="#p-138">Copy List with Random Pointer</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Hash Map</span></span></td><td>Map every old node to its copy, then wire <code>next</code> and <code>random</code></td></tr>
+        <tr><td>2807</td><td><a href="#p-2807">Insert Greatest Common Divisors in Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Splice a new node between every adjacent pair</td></tr>
+        <tr><td>25</td><td><a href="#p-25">Reverse Nodes in k-Group</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Check k nodes, reverse with prev_node = group_next, stitch</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-234">
-      <summary><span class="tag medium">Medium</span> 234. Palindrome Linked List (O(1) space)</summary>
+      <summary><span class="tag medium">Medium</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Do the list's values read the same forwards and backwards, using only <code>O(1)</code> extra space?</p>
         <p><strong>Spot it:</strong> Comparing the front with the back means reading the second half backwards. Reverse it in place instead of copying into an array.</p>
@@ -1171,7 +1181,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-143">
-      <summary><span class="tag medium">Medium</span> 143. Reorder List</summary>
+      <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange <code>L0 → L1 → … → Ln</code> into <code>L0 → Ln → L1 → Ln−1 → …</code> by changing links only.</p>
         <p><strong>Spot it:</strong> You need the back half in reverse order → split at the middle, reverse the second half, then weave.</p>
@@ -1248,7 +1258,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-61">
-      <summary><span class="tag medium">Medium</span> 61. Rotate List</summary>
+      <summary><span class="tag medium">Medium</span> 61. Rotate List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rotate the list to the right by <code>k</code> places: the last <code>k</code> nodes move to the front.</p>
         <p><strong>Spot it:</strong> Re-linking pointers in place, like reversal. The trick is to close the list into a ring and cut it at the right spot.</p>
@@ -1323,7 +1333,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-445">
-      <summary><span class="tag medium">Medium</span> 445. Add Two Numbers II</summary>
+      <summary><span class="tag medium">Medium</span> 445. Add Two Numbers II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two non-negative numbers are stored as lists with the most-significant digit first. Return their sum as a list in the same order.</p>
         <p><strong>Spot it:</strong> Addition starts from the least-significant digit, which is at the <em>end</em>. Reverse both lists in place first.</p>
@@ -1401,7 +1411,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-2074">
-      <summary><span class="tag medium">Medium</span> 2074. Reverse Nodes in Even Length Groups</summary>
+      <summary><span class="tag medium">Medium</span> 2074. Reverse Nodes in Even Length Groups <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split the list into consecutive groups of sizes 1, 2, 3, … (the last group may be shorter). Reverse every group whose <em>actual</em> length is even.</p>
         <p><strong>Spot it:</strong> Reversing chunks in place → k-group reversal where <code>k</code> grows each time and a parity check decides whether to reverse.</p>
@@ -1475,6 +1485,339 @@ def reverse_between(head, left, right):
         </table>
         <!-- /explain:2074 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-21">
+      <summary><span class="tag easy">Easy</span> 21. Merge Two Sorted Lists <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Merge two sorted linked lists into one sorted list by splicing their nodes together. Return the new head.</p>
+        <p><strong>Spot it:</strong> Two sorted sequences → compare the two fronts and take the smaller (the merge step of merge sort). With linked lists we re-point <code>next</code> pointers instead of copying values.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Create a <code>dummy</code> node and a <code>tail</code> pointer.</li>
+          <li>While both lists have nodes: attach the smaller front node to <code>tail</code>, advance that list, and move <code>tail</code>.</li>
+          <li>One list may have nodes left. They are already sorted, so attach the rest in one step.</li>
+          <li>Return <code>dummy.next</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -&gt; Optional[ListNode]:
+        dummy = ListNode()   # placeholder in front of the merged list
+        tail = dummy
+        while list1 is not None and list2 is not None:
+            if list1.val &lt;= list2.val:
+                tail.next = list1      # reuse list1's node
+                list1 = list1.next
+            else:
+                tail.next = list2
+                list2 = list2.next
+            tail = tail.next
+        # at most one list still has nodes, and they are already sorted
+        if list1 is not None:
+            tail.next = list1
+        else:
+            tail.next = list2
+        return dummy.next</code></pre>
+        <!-- explain:start 21 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dummy</code>, <code>tail</code>: <code>tail</code> is always the last node of the merged list so far.</li>
+          <li><code>while list1 is not None and list2 is not None:</code> compare only while both have a front node.</li>
+          <li><code>if list1.val &lt;= list2.val:</code> take the smaller front. <code>&lt;=</code> keeps equal values in their original order (a stable merge).</li>
+          <li><code>tail.next = list1</code> re-uses the existing node; <code>list1 = list1.next</code> moves that list forward; <code>tail = tail.next</code> moves to the new end.</li>
+          <li>After the loop, attach whichever list is left. It's already sorted and bigger than everything placed so far.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>list1 = [1, 2, 4]</code>, <code>list2 = [1, 3, 4]</code> (LeetCode Example 1). Returns <code>[1, 1, 2, 3, 4, 4]</code>.</p>
+        <table>
+          <thead><tr><th>list1 front</th><th>list2 front</th><th>take</th><th>merged so far</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>1</td><td>list1's 1 (tie → list1)</td><td><code>1</code></td></tr>
+            <tr><td>2</td><td>1</td><td>list2's 1</td><td><code>1 1</code></td></tr>
+            <tr><td>2</td><td>3</td><td>list1's 2</td><td><code>1 1 2</code></td></tr>
+            <tr><td>4</td><td>3</td><td>list2's 3</td><td><code>1 1 2 3</code></td></tr>
+            <tr><td>4</td><td>4</td><td>list1's 4 (tie)</td><td><code>1 1 2 3 4</code></td></tr>
+            <tr><td>None</td><td>4</td><td>list1 is empty → attach the rest of list2</td><td><code>1 1 2 3 4 4</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 21 -->
+        <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(1)</code> extra space (nodes are re-linked, not copied).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-83">
+      <summary><span class="tag easy">Easy</span> 83. Remove Duplicates from Sorted List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> The linked list is sorted. Delete duplicates so each value appears only once, and return the head.</p>
+        <p><strong>Spot it:</strong> Sorted means equal values sit next to each other. Stay on a node and unlink its <code>next</code> for as long as it has the same value. That's in-place pointer surgery with one pointer.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>cur = head</code>.</li>
+          <li>While <code>cur</code> and <code>cur.next</code> exist: if <code>cur.next.val == cur.val</code>, unlink <code>cur.next</code> (<code>cur.next = cur.next.next</code>) and stay on <code>cur</code>.</li>
+          <li>Otherwise move <code>cur</code> forward.</li>
+          <li>Return <code>head</code> (the first node is never removed).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def deleteDuplicates(self, head: Optional[ListNode]) -&gt; Optional[ListNode]:
+        cur = head
+        while cur is not None and cur.next is not None:
+            if cur.next.val == cur.val:
+                # same value again: unlink the next node, but stay here
+                # (the new next might be another copy)
+                cur.next = cur.next.next
+            else:
+                # a new value: move on to it
+                cur = cur.next
+        return head</code></pre>
+        <!-- explain:start 83 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>cur = head</code>: the node whose duplicates we are removing.</li>
+          <li><code>while cur is not None and cur.next is not None:</code> we look one node ahead, so both must exist.</li>
+          <li><code>if cur.next.val == cur.val: cur.next = cur.next.next</code>: drop the copy. We do <em>not</em> move <code>cur</code>, because a run like <code>1 → 1 → 1</code> needs several removals.</li>
+          <li><code>else: cur = cur.next</code>: the next value is different, so it becomes the new current node.</li>
+          <li><code>return head</code>: the head is the first of its value, so it always stays.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>head = [1, 1, 2, 3, 3]</code> (LeetCode Example 2). Returns <code>[1, 2, 3]</code>.</p>
+        <table>
+          <thead><tr><th>cur</th><th>cur.next</th><th>equal?</th><th>action</th><th>list now</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>1</td><td>yes</td><td>unlink</td><td><code>1 → 2 → 3 → 3</code></td></tr>
+            <tr><td>1</td><td>2</td><td>no</td><td>move on</td><td><code>1 → 2 → 3 → 3</code></td></tr>
+            <tr><td>2</td><td>3</td><td>no</td><td>move on</td><td><code>1 → 2 → 3 → 3</code></td></tr>
+            <tr><td>3</td><td>3</td><td>yes</td><td>unlink</td><td><code>1 → 2 → 3</code></td></tr>
+            <tr><td>3</td><td>None</td><td>—</td><td>stop</td><td><code>1 → 2 → 3</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 83 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-2">
+      <summary><span class="tag medium">Medium</span> 2. Add Two Numbers <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Two non-empty linked lists store non-negative integers with their digits in <strong>reverse</strong> order (<code>2 → 4 → 3</code> is 342). Return their sum as a linked list in the same reverse format.</p>
+        <p><strong>Spot it:</strong> Reverse order means the head is the ones digit, exactly where column addition starts. So walk both lists together, add digit + digit + carry, and append one new node per column.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Make a <code>dummy</code> node and a <code>tail</code> pointer to append to; <code>carry = 0</code>.</li>
+          <li>While either list has nodes left <strong>or</strong> <code>carry</code> is not zero: add the two current digits (0 for a list that has ended) and <code>carry</code>.</li>
+          <li>The new digit is <code>total % 10</code>; the new carry is <code>total // 10</code>. Append the digit and move <code>tail</code>.</li>
+          <li>Advance whichever input lists still have nodes.</li>
+          <li>Return <code>dummy.next</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def addTwoNumbers(self, l1: Optional[ListNode], l2: Optional[ListNode]) -&gt; Optional[ListNode]:
+        dummy = ListNode()   # the answer is built after this placeholder
+        tail = dummy
+        carry = 0
+        # a final carry (e.g. 5 + 5 = 10) still needs its own node
+        while l1 is not None or l2 is not None or carry != 0:
+            total = carry
+            if l1 is not None:
+                total = total + l1.val
+                l1 = l1.next
+            if l2 is not None:
+                total = total + l2.val
+                l2 = l2.next
+            # write the ones digit, carry the tens digit to the next column
+            tail.next = ListNode(total % 10)
+            tail = tail.next
+            carry = total // 10
+        return dummy.next</code></pre>
+        <!-- explain:start 2 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dummy</code>, <code>tail</code>: appending after a placeholder means the first digit needs no special case.</li>
+          <li><code>while l1 is not None or l2 is not None or carry != 0:</code> keep going while any digit or carry remains. The lists can have different lengths.</li>
+          <li><code>total = carry</code>, then add <code>l1.val</code> and <code>l2.val</code> only if that list still has a node, stepping it forward as we use it.</li>
+          <li><code>ListNode(total % 10)</code>: the digit for this column (e.g. 10 → 0). <code>carry = total // 10</code> is 0 or 1 for the next column.</li>
+          <li><code>return dummy.next</code>: skip the placeholder.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>l1 = [2, 4, 3]</code> (342), <code>l2 = [5, 6, 4]</code> (465) (LeetCode Example 1). Returns <code>[7, 0, 8]</code> (807).</p>
+        <table>
+          <thead><tr><th>column</th><th>l1 digit</th><th>l2 digit</th><th>carry in</th><th>total</th><th>new node</th><th>carry out</th></tr></thead>
+          <tbody>
+            <tr><td>ones</td><td>2</td><td>5</td><td>0</td><td>7</td><td>7</td><td>0</td></tr>
+            <tr><td>tens</td><td>4</td><td>6</td><td>0</td><td>10</td><td>0</td><td>1</td></tr>
+            <tr><td>hundreds</td><td>3</td><td>4</td><td>1</td><td>8</td><td>8</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 2 -->
+        <p><strong>Complexity:</strong> <code>O(max(m, n))</code> time, <code>O(max(m, n))</code> for the output list.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-82">
+      <summary><span class="tag medium">Medium</span> 82. Remove Duplicates from Sorted List II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> The linked list is sorted. Delete <strong>every</strong> node whose value appears more than once, leaving only values that were distinct. Return the head.</p>
+        <p><strong>Spot it:</strong> Unlike LeetCode 83, the first copy must go too, and that may be the head. A <code>dummy</code> node plus a <code>prev</code> pointer that always sits on the last node we are sure to keep makes this a clean in-place splice.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>dummy → head</code>; <code>prev = dummy</code> (the last kept node), <code>cur = head</code>.</li>
+          <li>If <code>cur</code> starts a run of equal values (<code>cur.next</code> has the same value), walk <code>cur</code> to the last node of the run, then splice the whole run out: <code>prev.next = cur.next</code>.</li>
+          <li>Otherwise <code>cur</code> is unique: keep it by moving <code>prev</code> onto it.</li>
+          <li>Move <code>cur</code> forward and repeat. Return <code>dummy.next</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def deleteDuplicates(self, head: Optional[ListNode]) -&gt; Optional[ListNode]:
+        dummy = ListNode(0, head)   # the head itself may be deleted
+        prev = dummy                # last node we are sure to keep
+        cur = head
+        while cur is not None:
+            if cur.next is not None and cur.next.val == cur.val:
+                # cur starts a run of duplicates: walk to the run's last node
+                while cur.next is not None and cur.next.val == cur.val:
+                    cur = cur.next
+                # cut the whole run out; prev stays where it is
+                prev.next = cur.next
+            else:
+                # cur is unique: it stays, so prev moves onto it
+                prev = cur
+            cur = cur.next
+        return dummy.next</code></pre>
+        <!-- explain:start 82 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dummy = ListNode(0, head)</code>: lets us delete the head with the same code as any other node.</li>
+          <li><code>prev</code>: the last node that is definitely in the answer. We only ever splice <em>after</em> it.</li>
+          <li><code>if cur.next is not None and cur.next.val == cur.val:</code> <code>cur</code> is the first node of a duplicate run.</li>
+          <li>Inner <code>while</code>: move <code>cur</code> to the last copy of that value.</li>
+          <li><code>prev.next = cur.next</code>: one assignment removes the entire run. <code>prev</code> does <strong>not</strong> move: the next node might start another run.</li>
+          <li><code>else: prev = cur</code>: a value with no copies is kept.</li>
+          <li><code>cur = cur.next</code>: continue after the run (or after the kept node).</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>head = [1, 2, 3, 3, 4, 4, 5]</code> (LeetCode Example 1). Returns <code>[1, 2, 5]</code>.</p>
+        <table>
+          <thead><tr><th>cur</th><th>run of duplicates?</th><th>action</th><th>prev after</th><th>list now</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>no</td><td>keep 1</td><td>1</td><td><code>1 2 3 3 4 4 5</code></td></tr>
+            <tr><td>2</td><td>no</td><td>keep 2</td><td>2</td><td><code>1 2 3 3 4 4 5</code></td></tr>
+            <tr><td>3</td><td>yes (3, 3)</td><td><code>2.next = 4</code>, the 3s are gone</td><td>2</td><td><code>1 2 4 4 5</code></td></tr>
+            <tr><td>4</td><td>yes (4, 4)</td><td><code>2.next = 5</code>, the 4s are gone</td><td>2</td><td><code>1 2 5</code></td></tr>
+            <tr><td>5</td><td>no</td><td>keep 5</td><td>5</td><td><code>1 2 5</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 82 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-138">
+      <summary><span class="tag medium">Medium</span> 138. Copy List with Random Pointer <span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Each node has a <code>next</code> pointer and a <code>random</code> pointer that may point to any node or <code>None</code>. Return a <strong>deep copy</strong>: brand-new nodes whose pointers mirror the original structure.</p>
+        <p><strong>Spot it:</strong> The trouble is <code>random</code>: it may point to a node whose copy doesn't exist yet. A hash map from <strong>old node → new node</strong> solves it. Create all copies first, then connect them.</p>
+        <p><strong>Key insight:</strong> Two passes. Pass 1 creates a copy of every node. Pass 2 sets <code>copy.next = old_to_new[old.next]</code> and <code>copy.random = old_to_new[old.random]</code>. Mapping <code>None → None</code> avoids special cases. (An <code>O(1)</code>-space variant weaves copies between the originals, but the map version is far easier to get right.)</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Start the map with <code>{None: None}</code>, so a missing pointer copies to a missing pointer.</li>
+          <li>Pass 1: walk the list and create <code>Node(old.val)</code> for every node, storing <code>old → copy</code>.</li>
+          <li>Pass 2: walk again and set each copy's <code>next</code> and <code>random</code> by looking up the copies of the old targets.</li>
+          <li>Return the copy of <code>head</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def copyRandomList(self, head: "Optional[Node]") -&gt; "Optional[Node]":
+        # old node -&gt; its copy; None maps to None so empty pointers copy for free
+        old_to_new = {None: None}
+        # pass 1: make a copy of every node (pointers not set yet)
+        cur = head
+        while cur is not None:
+            old_to_new[cur] = Node(cur.val)
+            cur = cur.next
+        # pass 2: wire up next and random using the copies
+        cur = head
+        while cur is not None:
+            copy = old_to_new[cur]
+            copy.next = old_to_new[cur.next]
+            copy.random = old_to_new[cur.random]
+            cur = cur.next
+        return old_to_new[head]</code></pre>
+        <!-- explain:start 138 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>old_to_new = {None: None}</code>: nodes can be dictionary keys (by identity). Seeding <code>None</code> means <code>old_to_new[cur.random]</code> works even when <code>random</code> is empty.</li>
+          <li>Pass 1, <code>old_to_new[cur] = Node(cur.val)</code>: every copy exists before we connect anything, so pass 2 can point to any of them.</li>
+          <li>Pass 2, <code>copy.next = old_to_new[cur.next]</code>: the copy's next is <em>the copy of</em> the old next, never the old node itself.</li>
+          <li><code>copy.random = old_to_new[cur.random]</code>: same idea for the random pointer.</li>
+          <li><code>return old_to_new[head]</code>: the copied head (or <code>None</code> for an empty list).</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>head = [[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]</code> (LeetCode Example 1; each pair is <code>[value, index that random points to]</code>). Name the originals <code>A..E</code> and the copies <code>A'..E'</code>.</p>
+        <table>
+          <thead><tr><th>old node</th><th>val</th><th>old.next</th><th>old.random</th><th>copy gets next / random</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>7</td><td>B</td><td>None</td><td><code>A'.next = B'</code>, <code>A'.random = None</code></td></tr>
+            <tr><td>B</td><td>13</td><td>C</td><td>A</td><td><code>B'.next = C'</code>, <code>B'.random = A'</code></td></tr>
+            <tr><td>C</td><td>11</td><td>D</td><td>E</td><td><code>C'.next = D'</code>, <code>C'.random = E'</code></td></tr>
+            <tr><td>D</td><td>10</td><td>E</td><td>C</td><td><code>D'.next = E'</code>, <code>D'.random = C'</code></td></tr>
+            <tr><td>E</td><td>1</td><td>None</td><td>A</td><td><code>E'.next = None</code>, <code>E'.random = A'</code></td></tr>
+          </tbody>
+        </table>
+        <p>Pass 1 already created <code>A'..E'</code>, so every lookup in pass 2 succeeds. The copy has the same shape, <code>[[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]</code>, with no shared nodes.</p>
+        <!-- explain:end 138 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the map.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-2807">
+      <summary><span class="tag medium">Medium</span> 2807. Insert Greatest Common Divisors in Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Between every pair of adjacent nodes, insert a new node whose value is the <strong>greatest common divisor</strong> (GCD) of the two values. Return the head.</p>
+        <p><strong>Spot it:</strong> Pure in-place pointer surgery: for each pair <code>(cur, cur.next)</code>, create a node, point it at <code>cur.next</code>, point <code>cur</code> at it, then jump over it to the old next node.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>cur = head</code>.</li>
+          <li>While <code>cur.next</code> exists: compute <code>g = gcd(cur.val, cur.next.val)</code>.</li>
+          <li>Create <code>ListNode(g, cur.next)</code>: it already points at the old next node. Then set <code>cur.next</code> to the new node.</li>
+          <li>Jump <code>cur</code> two steps (over the new node) to the old next node, and repeat.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def insertGreatestCommonDivisors(self, head: Optional[ListNode]) -&gt; Optional[ListNode]:
+        def gcd(a, b):
+            # Euclid: gcd(a, b) = gcd(b, a % b), and gcd(a, 0) = a
+            while b != 0:
+                a, b = b, a % b
+            return a
+
+        cur = head
+        while cur is not None and cur.next is not None:
+            after = cur.next
+            # the new node points at the old next node ...
+            middle = ListNode(gcd(cur.val, after.val), after)
+            # ... and cur points at the new node
+            cur.next = middle
+            # skip over the node we just added
+            cur = after
+        return head</code></pre>
+        <!-- explain:start 2807 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def gcd(a, b):</code> Euclid's algorithm: replace <code>(a, b)</code> with <code>(b, a % b)</code> until <code>b</code> is 0; then <code>a</code> is the GCD. (Python's <code>math.gcd</code> does the same.)</li>
+          <li><code>while cur is not None and cur.next is not None:</code> we need a pair, so the next node must exist.</li>
+          <li><code>after = cur.next</code>: remember the old neighbour before we change any pointer.</li>
+          <li><code>middle = ListNode(gcd(...), after)</code>: build the new node already linked to <code>after</code>.</li>
+          <li><code>cur.next = middle</code>: link it in. The order matters: if we changed <code>cur.next</code> first without saving <code>after</code>, we would lose the rest of the list.</li>
+          <li><code>cur = after</code>: move to the next original node, skipping the one we inserted.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>head = [18, 6, 10, 3]</code> (LeetCode Example 1). Returns <code>[18, 6, 6, 2, 10, 1, 3]</code>.</p>
+        <table>
+          <thead><tr><th>cur</th><th>after</th><th>gcd</th><th>list now</th></tr></thead>
+          <tbody>
+            <tr><td>18</td><td>6</td><td>6</td><td><code>18 → 6 → 6 → 10 → 3</code></td></tr>
+            <tr><td>6</td><td>10</td><td>2</td><td><code>18 → 6 → 6 → 2 → 10 → 3</code></td></tr>
+            <tr><td>10</td><td>3</td><td>1</td><td><code>18 → 6 → 6 → 2 → 10 → 1 → 3</code></td></tr>
+            <tr><td>3</td><td>None</td><td>—</td><td>stop</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 2807 -->
+        <p><strong>Complexity:</strong> <code>O(n · log(max value))</code> time (one GCD per pair), <code>O(1)</code> extra space besides the new nodes.</p>
       </div>
     </details>
 

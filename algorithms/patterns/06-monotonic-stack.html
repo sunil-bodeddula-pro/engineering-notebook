@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 06 of 15</div>
+    <div class="eyebrow">Pattern 06 of 21</div>
     <h1>Monotonic Stack</h1>
     <p class="lede">Keep a stack that is always sorted. The moment a new element breaks the order, everyone it "beats" gets popped, and each popped element learns its answer right then.</p>
 
@@ -672,7 +676,7 @@ def previous_smaller(nums):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" open id="p-739">
-      <summary><span class="tag medium">Medium</span> 739. Daily Temperatures</summary>
+      <summary><span class="tag medium">Medium</span> 739. Daily Temperatures <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given daily temperatures, for each day return how many days you must wait until a warmer day. If there's none, put 0.</p>
         <p><strong>Spot it:</strong> "wait until a <em>warmer</em> day" = <strong>next greater element</strong>, but we want the <em>distance</em>, so we store indices.</p>
@@ -734,7 +738,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-503">
-      <summary><span class="tag medium">Medium</span> 503. Next Greater Element II</summary>
+      <summary><span class="tag medium">Medium</span> 503. Next Greater Element II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The array is <em>circular</em>: after the last element comes the first. For each element, return the next greater value when walking forward (wrapping around), or -1.</p>
         <p><strong>Spot it:</strong> "next greater element" → decreasing stack. "Circular" → the answer for an element near the end may be near the start.</p>
@@ -794,7 +798,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-402">
-      <summary><span class="tag medium">Medium</span> 402. Remove K Digits</summary>
+      <summary><span class="tag medium">Medium</span> 402. Remove K Digits <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a number as a string and an integer <code>k</code>, delete exactly <code>k</code> digits so the remaining number is as small as possible. Return it without leading zeros ("0" if empty).</p>
         <p><strong>Spot it:</strong> "remove k characters to get the smallest result" while keeping order. A digit should be deleted when a <em>smaller</em> digit comes right after it. That's "pop the top while it's bigger than the newcomer": an <strong>increasing</strong> stack.</p>
@@ -867,7 +871,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-907">
-      <summary><span class="tag medium">Medium</span> 907. Sum of Subarray Minimums</summary>
+      <summary><span class="tag medium">Medium</span> 907. Sum of Subarray Minimums <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Add up <code>min(sub)</code> over <em>every</em> contiguous subarray of <code>arr</code>. Return the sum modulo 10⁹+7.</p>
         <p><strong>Spot it:</strong> There are <code>O(n²)</code> subarrays, so enumerating them is too slow. Flip the question: <em>for each element, in how many subarrays is it the minimum?</em> That depends on the nearest smaller element on each side, which is a Monotonic Stack job.</p>
@@ -948,7 +952,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-84">
-      <summary><span class="tag hard">Hard</span> 84. Largest Rectangle in Histogram</summary>
+      <summary><span class="tag hard">Hard</span> 84. Largest Rectangle in Histogram <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bars of width 1 have heights <code>heights[i]</code>. Find the area of the largest rectangle that fits entirely inside the histogram.</p>
         <p><strong>Spot it:</strong> A rectangle that uses bar <code>i</code> as its <em>shortest</em> bar can stretch left and right until it hits a <strong>shorter</strong> bar. "Nearest shorter on both sides" → an increasing stack.</p>
@@ -1057,27 +1061,28 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>496</td><td><a href="#p-496">Next Greater Element I</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: template + hash map lookup</td></tr>
-        <tr><td>739</td><td><a href="#p-739">Daily Temperatures</a></td><td><span class="tag medium">Medium</span></td><td>Store indices, answer = distance</td></tr>
-        <tr><td>503</td><td><a href="#p-503">Next Greater Element II</a></td><td><span class="tag medium">Medium</span></td><td>Circular: loop twice</td></tr>
-        <tr><td>901</td><td><a href="#p-901">Online Stock Span</a></td><td><span class="tag medium">Medium</span></td><td>Streaming "previous greater", store (price, span)</td></tr>
-        <tr><td>402</td><td><a href="#p-402">Remove K Digits</a></td><td><span class="tag medium">Medium</span></td><td>Greedy pop with a deletion budget</td></tr>
-        <tr><td>1081</td><td><a href="#p-1081">Smallest Subsequence of Distinct Characters</a></td><td><span class="tag medium">Medium</span></td><td>Only pop if the char appears again later</td></tr>
-        <tr><td>907</td><td><a href="#p-907">Sum of Subarray Minimums</a></td><td><span class="tag medium">Medium</span></td><td>Contribution counting, tie-break</td></tr>
-        <tr><td>456</td><td><a href="#p-456">132 Pattern</a></td><td><span class="tag medium">Medium</span></td><td>Scan from the right, track the "2"</td></tr>
-        <tr><td>84</td><td><a href="#p-84">Largest Rectangle in Histogram</a></td><td><span class="tag hard">Hard</span></td><td>Increasing stack + sentinel</td></tr>
-        <tr><td>42</td><td><a href="#p-42">Trapping Rain Water</a></td><td><span class="tag hard">Hard</span></td><td>Water fills "valleys" when a taller bar pops</td></tr>
-        <tr><td>85</td><td><a href="#p-85">Maximal Rectangle</a></td><td><span class="tag hard">Hard</span></td><td>Each row becomes a histogram → 84</td></tr>
-        <tr><td>239</td><td><a href="#p-239">Sliding Window Maximum</a></td><td><span class="tag hard">Hard</span></td><td>Monotonic deque</td></tr>
+        <tr><td>496</td><td><a href="#p-496">Next Greater Element I</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span><span class="ds">Hash Map</span></span></td><td>Warm-up: template + hash map lookup</td></tr>
+        <tr><td>739</td><td><a href="#p-739">Daily Temperatures</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Store indices, answer = distance</td></tr>
+        <tr><td>503</td><td><a href="#p-503">Next Greater Element II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Circular: loop twice</td></tr>
+        <tr><td>901</td><td><a href="#p-901">Online Stock Span</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Stack</span></span></td><td>Streaming "previous greater", store (price, span)</td></tr>
+        <tr><td>402</td><td><a href="#p-402">Remove K Digits</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Greedy pop with a deletion budget</td></tr>
+        <tr><td>1081</td><td><a href="#p-1081">Smallest Subsequence of Distinct Characters</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span><span class="ds">Hash Set</span></span></td><td>Only pop if the char appears again later</td></tr>
+        <tr><td>907</td><td><a href="#p-907">Sum of Subarray Minimums</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Contribution counting, tie-break</td></tr>
+        <tr><td>456</td><td><a href="#p-456">132 Pattern</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Scan from the right, track the "2"</td></tr>
+        <tr><td>853</td><td><a href="#p-853">Car Fleet</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Sort by position; a stack of arrival times that must strictly increase</td></tr>
+        <tr><td>84</td><td><a href="#p-84">Largest Rectangle in Histogram</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Increasing stack + sentinel</td></tr>
+        <tr><td>42</td><td><a href="#p-42">Trapping Rain Water</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Water fills "valleys" when a taller bar pops</td></tr>
+        <tr><td>85</td><td><a href="#p-85">Maximal Rectangle</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Stack</span></span></td><td>Each row becomes a histogram → 84</td></tr>
+        <tr><td>239</td><td><a href="#p-239">Sliding Window Maximum</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></td><td>Monotonic deque</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table that isn't solved in section 7 is worked out below. Click a problem name in the table to jump to it.</p>
 
     <details class="problem" id="p-496">
-      <summary><span class="tag easy">Easy</span> 496. Next Greater Element I</summary>
+      <summary><span class="tag easy">Easy</span> 496. Next Greater Element I <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums1</code> is a subset of <code>nums2</code> (all values distinct). For each value in <code>nums1</code>, find the first greater value to its right <em>in <code>nums2</code></em>, or -1.</p>
         <p><strong>Spot it:</strong> "Next greater element" is the template word for word. The only twist is that answers are looked up by value, so store them in a dict.</p>
@@ -1136,7 +1141,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-901">
-      <summary><span class="tag medium">Medium</span> 901. Online Stock Span</summary>
+      <summary><span class="tag medium">Medium</span> 901. Online Stock Span <span class="ds-tags"><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Prices arrive one per day. For each new price, return its <em>span</em>: how many consecutive days, ending today and going backwards, had a price ≤ today's.</p>
         <p><strong>Spot it:</strong> "Going backwards until a bigger price" means you need the previous greater element, in a stream. A decreasing stack that remembers how many days each entry already covers answers it.</p>
@@ -1189,7 +1194,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1081">
-      <summary><span class="tag medium">Medium</span> 1081. Smallest Subsequence of Distinct Characters</summary>
+      <summary><span class="tag medium">Medium</span> 1081. Smallest Subsequence of Distinct Characters <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the lexicographically smallest subsequence of <code>s</code> that contains every distinct letter exactly once. (Same as LeetCode 316.)</p>
         <p><strong>Spot it:</strong> "Smallest result" built by deleting characters while keeping order is the same greedy as Remove K Digits: an increasing stack. The extra rule is that you can only drop a letter if it appears again later.</p>
@@ -1252,7 +1257,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-456">
-      <summary><span class="tag medium">Medium</span> 456. 132 Pattern</summary>
+      <summary><span class="tag medium">Medium</span> 456. 132 Pattern <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return True if there are indices <code>i &lt; j &lt; k</code> with <code>nums[i] &lt; nums[k] &lt; nums[j]</code> (small, big, middle).</p>
         <p><strong>Spot it:</strong> For each candidate "3" (<code>nums[j]</code>), we want the largest "2" to its right that is smaller than it. That's a previous/next-greater relationship, so use a monotonic stack scanned from the right.</p>
@@ -1307,7 +1312,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-42">
-      <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water</summary>
+      <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bars of width 1 have heights <code>height[i]</code>. How much rain water is trapped between them after it rains?</p>
         <p><strong>Spot it:</strong> Water collects in a "valley": a lower bar with a taller bar on each side. When a taller bar arrives, it closes the valleys of the shorter bars before it. That's "pop while the top is smaller".</p>
@@ -1377,7 +1382,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-85">
-      <summary><span class="tag hard">Hard</span> 85. Maximal Rectangle</summary>
+      <summary><span class="tag hard">Hard</span> 85. Maximal Rectangle <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a binary matrix of <code>"0"</code>/<code>"1"</code>, find the area of the largest rectangle containing only 1s.</p>
         <p><strong>Spot it:</strong> Treat each row as the floor of a histogram: bar <code>c</code> = how many consecutive 1s stand above (and including) this row in column <code>c</code>. Each row is then exactly problem 84.</p>
@@ -1458,7 +1463,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-239">
-      <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum</summary>
+      <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the maximum of every contiguous window of size <code>k</code> as it slides from left to right.</p>
         <p><strong>Spot it:</strong> Each window's max is "the biggest element that hasn't been beaten by a later, bigger one". That's a monotonic structure, but old indices also leave from the front, so use a <strong>deque</strong>.</p>
@@ -1523,6 +1528,58 @@ class Solution:
     </details>
 
     <p>Runnable solutions with tests (including 42 Trapping Rain Water): <code>python/06_monotonic_stack.py</code></p>
+
+    <details class="problem" id="p-853">
+      <summary><span class="tag medium">Medium</span> 853. Car Fleet <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>n</code> cars drive toward <code>target</code> on a one-lane road. Car <code>i</code> starts at <code>position[i]</code> with <code>speed[i]</code>. A faster car that catches a slower one ahead must slow down and drive with it as one <strong>fleet</strong>. How many fleets arrive at the target?</p>
+        <p><strong>Spot it:</strong> Process cars from closest-to-target to farthest. Each car's solo arrival time is <code>(target − pos) / speed</code>. A car behind can only stay separate if it arrives <strong>later</strong> than the fleet ahead. That's a stack whose times strictly increase.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Pair positions with speeds and sort by position, <strong>descending</strong> (nearest the target first).</li>
+          <li>For each car compute <code>time = (target − pos) / speed</code>.</li>
+          <li>If the stack is empty or <code>time</code> is greater than the top's time, this car can't catch the fleet ahead: push it as a new fleet.</li>
+          <li>Otherwise it catches up and merges into that fleet (don't push; the fleet keeps the slower, later time).</li>
+          <li>The stack's size is the number of fleets.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def carFleet(self, target: int, position: List[int], speed: List[int]) -&gt; int:
+        # pair each car's position with its speed, nearest-to-target first
+        cars = sorted(zip(position, speed), reverse=True)
+        # arrival times of the fleets ahead, slowest (latest) on top
+        stack = []
+        for pos, spd in cars:
+            time = (target - pos) / spd
+            if not stack or time &gt; stack[-1]:
+                # can't catch the fleet ahead before the target: a new fleet
+                stack.append(time)
+            # else: it catches up and joins the fleet ahead (nothing to push)
+        return len(stack)</code></pre>
+        <!-- explain:start 853 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>sorted(zip(position, speed), reverse=True)</code>: <code>zip</code> pairs each position with its speed, and sorting the pairs by position, descending, puts the car nearest the target first.</li>
+          <li><code>time = (target - pos) / spd</code>: how long this car would take on its own.</li>
+          <li><code>if not stack or time &gt; stack[-1]:</code> the fleet directly ahead arrives at <code>stack[-1]</code>. If this car needs <em>more</em> time, it never catches up: it leads a new fleet.</li>
+          <li>If <code>time &lt;= stack[-1]</code>, the car catches the fleet ahead at or before the target and is slowed to its pace, so it adds no fleet.</li>
+          <li><code>return len(stack)</code>: one entry per fleet.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>target = 12</code>, <code>position = [10, 8, 0, 5, 3]</code>, <code>speed = [2, 4, 1, 1, 3]</code> (LeetCode Example 1). Returns <code>3</code>.</p>
+        <table>
+          <thead><tr><th>car (pos, speed)</th><th>time to target</th><th>top of stack</th><th>action</th><th>fleets</th></tr></thead>
+          <tbody>
+            <tr><td>(10, 2)</td><td>1.0</td><td>—</td><td>new fleet</td><td>1</td></tr>
+            <tr><td>(8, 4)</td><td>1.0</td><td>1.0</td><td>1.0 ≤ 1.0 → joins</td><td>1</td></tr>
+            <tr><td>(5, 1)</td><td>7.0</td><td>1.0</td><td>new fleet</td><td>2</td></tr>
+            <tr><td>(3, 3)</td><td>3.0</td><td>7.0</td><td>3.0 ≤ 7.0 → joins</td><td>2</td></tr>
+            <tr><td>(0, 1)</td><td>12.0</td><td>7.0</td><td>new fleet</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 853 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time for the sort, <code>O(n)</code> space.</p>
+      </div>
+    </details>
 
     <nav class="pager">
       <a href="05-linkedlist-reversal.html"><small>Previous pattern</small>← 05 · LinkedList Reversal</a>

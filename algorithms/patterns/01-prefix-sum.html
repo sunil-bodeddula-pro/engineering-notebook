@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 01 of 15</div>
+    <div class="eyebrow">Pattern 01 of 21</div>
     <h1>Prefix Sum</h1>
     <p class="lede">Do the adding <em>once</em> up front, so that any "sum of a range" question later becomes a single subtraction.</p>
 
@@ -690,7 +694,7 @@ def count_subarrays(nums, k):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-560" open>
-      <summary><span class="tag medium">Medium</span> 560. Subarray Sum Equals K</summary>
+      <summary><span class="tag medium">Medium</span> 560. Subarray Sum Equals K <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <code>nums</code> (can contain negatives) and <code>k</code>, return how many contiguous subarrays sum to <code>k</code>.</p>
         <p><strong>Spot it:</strong> "number of subarrays" + "sum equals k" + negatives allowed, so Sliding Window won't work. That points to Prefix Sum + hash map.</p>
@@ -747,7 +751,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-525">
-      <summary><span class="tag medium">Medium</span> 525. Contiguous Array</summary>
+      <summary><span class="tag medium">Medium</span> 525. Contiguous Array <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a binary array, find the length of the longest subarray with an equal number of 0s and 1s.</p>
         <p><strong>Spot it:</strong> "equal number of" → turn each 0 into −1. Now "equal" means "sum is 0". It's a <em>longest</em> question, so store the <strong>first index</strong> where each running sum appears.</p>
@@ -808,7 +812,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-974">
-      <summary><span class="tag medium">Medium</span> 974. Subarray Sums Divisible by K</summary>
+      <summary><span class="tag medium">Medium</span> 974. Subarray Sums Divisible by K <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Spot it:</strong> "divisible by k" means two prefixes with the <strong>same remainder</strong> mod k enclose a divisible slice. Count prefixes by remainder.</p>
         <p><strong>Approach:</strong></p>
@@ -859,7 +863,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-304">
-      <summary><span class="tag medium">Medium</span> 304. Range Sum Query 2D – Immutable</summary>
+      <summary><span class="tag medium">Medium</span> 304. Range Sum Query 2D – Immutable <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Spot it:</strong> many rectangle-sum queries on a fixed grid. Use a 2-D prefix sum.</p>
         <p><strong>Inclusion–exclusion picture:</strong> big rectangle − top strip − left strip + the corner you subtracted twice.</p>
@@ -929,7 +933,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1074">
-      <summary><span class="tag hard">Hard</span> 1074. Number of Submatrices That Sum to Target</summary>
+      <summary><span class="tag hard">Hard</span> 1074. Number of Submatrices That Sum to Target <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Spot it:</strong> a 2-D version of #560. Fix a pair of rows (top, bottom). Squash the columns between them into a 1-D array of column sums, then run the #560 hash-map trick on it.</p>
         <p><strong>Approach:</strong></p>
@@ -1015,19 +1019,19 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>303</td><td><a href="#p-303">Range Sum Query – Immutable</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: the plain template</td></tr>
-        <tr><td>238</td><td><a href="#p-238">Product of Array Except Self</a></td><td><span class="tag medium">Medium</span></td><td>Prefix <em>and</em> suffix products</td></tr>
-        <tr><td>560</td><td><a href="#p-560">Subarray Sum Equals K</a></td><td><span class="tag medium">Medium</span></td><td>Prefix + hash map (core)</td></tr>
-        <tr><td>523</td><td><a href="#p-523">Continuous Subarray Sum</a></td><td><span class="tag medium">Medium</span></td><td>Remainders + length ≥ 2</td></tr>
-        <tr><td>525</td><td><a href="#p-525">Contiguous Array</a></td><td><span class="tag medium">Medium</span></td><td>0 → −1, first index</td></tr>
-        <tr><td>974</td><td><a href="#p-974">Subarray Sums Divisible by K</a></td><td><span class="tag medium">Medium</span></td><td>Count by remainder</td></tr>
-        <tr><td>437</td><td><a href="#p-437">Path Sum III</a></td><td><span class="tag medium">Medium</span></td><td>Prefix sums along a tree path (DFS)</td></tr>
-        <tr><td>304</td><td><a href="#p-304">Range Sum Query 2D</a></td><td><span class="tag medium">Medium</span></td><td>2-D inclusion–exclusion</td></tr>
-        <tr><td>1590</td><td><a href="#p-1590">Make Sum Divisible by P</a></td><td><span class="tag medium">Medium</span></td><td>Shortest slice to remove</td></tr>
-        <tr><td>1074</td><td><a href="#p-1074">Number of Submatrices That Sum to Target</a></td><td><span class="tag hard">Hard</span></td><td>Squash rows → 560</td></tr>
-        <tr><td>862</td><td><a href="#p-862">Shortest Subarray with Sum at Least K</a></td><td><span class="tag hard">Hard</span></td><td>Prefix + monotonic deque</td></tr>
+        <tr><td>303</td><td><a href="#p-303">Range Sum Query – Immutable</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Warm-up: the plain template</td></tr>
+        <tr><td>238</td><td><a href="#p-238">Product of Array Except Self</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Prefix <em>and</em> suffix products</td></tr>
+        <tr><td>560</td><td><a href="#p-560">Subarray Sum Equals K</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>Prefix + hash map (core)</td></tr>
+        <tr><td>523</td><td><a href="#p-523">Continuous Subarray Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>Remainders + length ≥ 2</td></tr>
+        <tr><td>525</td><td><a href="#p-525">Contiguous Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>0 → −1, first index</td></tr>
+        <tr><td>974</td><td><a href="#p-974">Subarray Sums Divisible by K</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Count by remainder</td></tr>
+        <tr><td>437</td><td><a href="#p-437">Path Sum III</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></td><td>Prefix sums along a tree path (DFS)</td></tr>
+        <tr><td>304</td><td><a href="#p-304">Range Sum Query 2D</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>2-D inclusion–exclusion</td></tr>
+        <tr><td>1590</td><td><a href="#p-1590">Make Sum Divisible by P</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>Shortest slice to remove</td></tr>
+        <tr><td>1074</td><td><a href="#p-1074">Number of Submatrices That Sum to Target</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Map</span></span></td><td>Squash rows → 560</td></tr>
+        <tr><td>862</td><td><a href="#p-862">Shortest Subarray with Sum at Least K</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></td><td>Prefix + monotonic deque</td></tr>
       </tbody>
     </table>
 
@@ -1035,7 +1039,7 @@ class Solution:
     <p>Problems 560, 525, 974, 304 and 1074 are solved in <a href="#problems">section 7</a>. Here are the rest.</p>
 
     <details class="problem" id="p-303">
-      <summary><span class="tag easy">Easy</span> 303. Range Sum Query – Immutable</summary>
+      <summary><span class="tag easy">Easy</span> 303. Range Sum Query – Immutable <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a fixed array, answer many <code>sumRange(left, right)</code> calls (inclusive) quickly.</p>
         <p><strong>Spot it:</strong> "many queries" on an array that never changes. That's textbook Prefix Sum.</p>
@@ -1088,7 +1092,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-238">
-      <summary><span class="tag medium">Medium</span> 238. Product of Array Except Self</summary>
+      <summary><span class="tag medium">Medium</span> 238. Product of Array Except Self <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>answer[i]</code> = product of every element except <code>nums[i]</code>, without using division, in <code>O(n)</code>.</p>
         <p><strong>Spot it:</strong> "everything except i" = (everything to the left of i) × (everything to the right of i). That's a prefix product times a suffix product.</p>
@@ -1143,7 +1147,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-523">
-      <summary><span class="tag medium">Medium</span> 523. Continuous Subarray Sum</summary>
+      <summary><span class="tag medium">Medium</span> 523. Continuous Subarray Sum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return true if there is a subarray of <strong>length ≥ 2</strong> whose sum is a multiple of <code>k</code>.</p>
         <p><strong>Spot it:</strong> "multiple of k" = same remainder trick as #974. "Length ≥ 2" means you must store the <em>first index</em> of each remainder and check the distance.</p>
@@ -1195,7 +1199,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-437">
-      <summary><span class="tag medium">Medium</span> 437. Path Sum III</summary>
+      <summary><span class="tag medium">Medium</span> 437. Path Sum III <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Count downward paths in a binary tree (from any node to any descendant) whose values sum to <code>targetSum</code>.</p>
         <p><strong>Spot it:</strong> a root-to-node path is just an array. Count "subarrays with sum = target" along it, which is #560, done during a DFS.</p>
@@ -1263,7 +1267,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1590">
-      <summary><span class="tag medium">Medium</span> 1590. Make Sum Divisible by P</summary>
+      <summary><span class="tag medium">Medium</span> 1590. Make Sum Divisible by P <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Remove the <strong>shortest</strong> subarray (it may be empty, but you can't remove the whole array) so the sum of what remains is divisible by <code>p</code>. Return its length, or −1.</p>
         <p><strong>Spot it:</strong> the removed slice must have <code>sum % p == total % p</code>. That's a remainder lookup, and because it asks for the <em>shortest</em>, store the <em>latest</em> index of each remainder.</p>
@@ -1331,7 +1335,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-862">
-      <summary><span class="tag hard">Hard</span> 862. Shortest Subarray with Sum at Least K</summary>
+      <summary><span class="tag hard">Hard</span> 862. Shortest Subarray with Sum at Least K <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The array can contain negatives. Return the length of the shortest subarray with sum <strong>≥ k</strong>, or −1.</p>
         <p><strong>Spot it:</strong> because of negatives, Sliding Window fails. With prefix sums the question becomes: for each <code>j</code>, find the latest <code>i &lt; j</code> with <code>P[j] − P[i] ≥ k</code>. A <strong>monotonic deque</strong> of increasing prefix values answers that in amortized <code>O(1)</code>.</p>

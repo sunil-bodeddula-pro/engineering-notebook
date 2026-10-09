@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 02 of 15</div>
+    <div class="eyebrow">Pattern 02 of 21</div>
     <h1>Two Pointers</h1>
     <p class="lede">Instead of checking every pair with two nested loops, walk two fingers through the data and use what you learn at each step to throw away a whole row of pairs at once.</p>
 
@@ -703,7 +707,7 @@ def dedupe_sorted(nums):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-11" open>
-      <summary><span class="tag medium">Medium</span> 11. Container With Most Water</summary>
+      <summary><span class="tag medium">Medium</span> 11. Container With Most Water <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>height[i]</code> is a vertical wall at position <code>i</code>. Pick two walls so that, together with the x-axis, they hold the most water. Return that area.</p>
         <p><strong>Spot it:</strong> the answer depends on <em>two ends</em> (width × shorter wall) and the brute force checks all pairs. Start with the widest container and squeeze.</p>
@@ -773,7 +777,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-15">
-      <summary><span class="tag medium">Medium</span> 15. 3Sum</summary>
+      <summary><span class="tag medium">Medium</span> 15. 3Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every <em>unique</em> triplet <code>[a, b, c]</code> from <code>nums</code> with <code>a + b + c = 0</code>.</p>
         <p><strong>Spot it:</strong> "triplets that sum to a target", values (not indices) returned, so we may sort. Fix the first number, then it's Two Sum II on the rest.</p>
@@ -858,7 +862,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-167">
-      <summary><span class="tag medium">Medium</span> 167. Two Sum II – Input Array Is Sorted</summary>
+      <summary><span class="tag medium">Medium</span> 167. Two Sum II – Input Array Is Sorted <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A sorted array and a target; exactly one pair sums to it. Return their <strong>1-based</strong> indices using constant extra space.</p>
         <p><strong>Spot it:</strong> "sorted" + "pair sums to target" + "constant space" is the textbook opposite-ends case (the first visualizer above is exactly this).</p>
@@ -925,7 +929,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-75">
-      <summary><span class="tag medium">Medium</span> 75. Sort Colors (Dutch National Flag)</summary>
+      <summary><span class="tag medium">Medium</span> 75. Sort Colors (Dutch National Flag) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Sort an array of 0s, 1s and 2s in place, in one pass, without a library sort.</p>
         <p><strong>Spot it:</strong> "in place" + "partition into groups". Use <em>three</em> pointers: <code>low</code> (next slot for a 0), <code>mid</code> (reader), <code>high</code> (next slot for a 2).</p>
@@ -995,7 +999,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-42">
-      <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water</summary>
+      <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>height</code> is an elevation map of bars of width 1. How much rain water is trapped after it rains?</p>
         <p><strong>Spot it:</strong> water above bar <code>i</code> = <code>min(tallest on the left, tallest on the right) − height[i]</code>. Depends on both ends, so squeeze from both sides.</p>
@@ -1104,26 +1108,34 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>125</td><td><a href="#p-125">Valid Palindrome</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: skip non-alphanumerics from both ends</td></tr>
-        <tr><td>167</td><td><a href="#p-167">Two Sum II – Input Array Is Sorted</a></td><td><span class="tag medium">Medium</span></td><td>The plain opposite-end template</td></tr>
-        <tr><td>80</td><td><a href="#p-80">Remove Duplicates from Sorted Array II</a></td><td><span class="tag medium">Medium</span></td><td>Reader/writer, compare with <code>nums[write−2]</code></td></tr>
-        <tr><td>11</td><td><a href="#p-11">Container With Most Water</a></td><td><span class="tag medium">Medium</span></td><td>Move the shorter wall</td></tr>
-        <tr><td>15</td><td><a href="#p-15">3Sum</a></td><td><span class="tag medium">Medium</span></td><td>Fix one + squeeze + skip duplicates</td></tr>
-        <tr><td>16</td><td><a href="#p-16">3Sum Closest</a></td><td><span class="tag medium">Medium</span></td><td>Track the best |sum − target|</td></tr>
-        <tr><td>75</td><td><a href="#p-75">Sort Colors</a></td><td><span class="tag medium">Medium</span></td><td>Three pointers (Dutch flag)</td></tr>
-        <tr><td>18</td><td><a href="#p-18">4Sum</a></td><td><span class="tag medium">Medium</span></td><td>Fix two + squeeze, <code>O(n³)</code></td></tr>
-        <tr><td>881</td><td><a href="#p-881">Boats to Save People</a></td><td><span class="tag medium">Medium</span></td><td>Greedy: heaviest pairs with lightest if it fits</td></tr>
-        <tr><td>42</td><td><a href="#p-42">Trapping Rain Water</a></td><td><span class="tag hard">Hard</span></td><td>Settle the lower side using its running max</td></tr>
-        <tr><td>4</td><td><a href="#p-4">Median of Two Sorted Arrays</a></td><td><span class="tag hard">Hard</span></td><td>Two-pointer merge is O(m+n); the real answer needs <a href="09-modified-binary-search.html">binary search</a></td></tr>
+        <tr><td>125</td><td><a href="#p-125">Valid Palindrome</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Warm-up: skip non-alphanumerics from both ends</td></tr>
+        <tr><td>26</td><td><a href="#p-26">Remove Duplicates from Sorted Array</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Reader/writer: copy a value only when it differs from the last one kept</td></tr>
+        <tr><td>88</td><td><a href="#p-88">Merge Sorted Array</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Fill from the <strong>back</strong> so nothing gets overwritten</td></tr>
+        <tr><td>344</td><td><a href="#p-344">Reverse String</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>The purest opposite-ends swap</td></tr>
+        <tr><td>392</td><td><a href="#p-392">Is Subsequence</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>One pointer per string; advance in <code>s</code> only on a match</td></tr>
+        <tr><td>977</td><td><a href="#p-977">Squares of a Sorted Array</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>The largest square is always at one of the two ends</td></tr>
+        <tr><td>1768</td><td><a href="#p-1768">Merge Strings Alternately</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>One pointer per string; append the leftover tail</td></tr>
+        <tr><td>167</td><td><a href="#p-167">Two Sum II – Input Array Is Sorted</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>The plain opposite-end template</td></tr>
+        <tr><td>80</td><td><a href="#p-80">Remove Duplicates from Sorted Array II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Reader/writer, compare with <code>nums[write−2]</code></td></tr>
+        <tr><td>11</td><td><a href="#p-11">Container With Most Water</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Move the shorter wall</td></tr>
+        <tr><td>15</td><td><a href="#p-15">3Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Fix one + squeeze + skip duplicates</td></tr>
+        <tr><td>16</td><td><a href="#p-16">3Sum Closest</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Track the best |sum − target|</td></tr>
+        <tr><td>75</td><td><a href="#p-75">Sort Colors</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Three pointers (Dutch flag)</td></tr>
+        <tr><td>18</td><td><a href="#p-18">4Sum</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Fix two + squeeze, <code>O(n³)</code></td></tr>
+        <tr><td>881</td><td><a href="#p-881">Boats to Save People</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Greedy: heaviest pairs with lightest if it fits</td></tr>
+        <tr><td>5</td><td><a href="#p-5">Longest Palindromic Substring</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Two pointers moving <em>outward</em> from every centre</td></tr>
+        <tr><td>189</td><td><a href="#p-189">Rotate Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Three reversals, each one an opposite-ends swap</td></tr>
+        <tr><td>42</td><td><a href="#p-42">Trapping Rain Water</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Settle the lower side using its running max</td></tr>
+        <tr><td>4</td><td><a href="#p-4">Median of Two Sorted Arrays</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Two-pointer merge is O(m+n); the real answer needs <a href="09-modified-binary-search.html">binary search</a></td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-125">
-      <summary><span class="tag easy">Easy</span> 125. Valid Palindrome</summary>
+      <summary><span class="tag easy">Easy</span> 125. Valid Palindrome <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> After lower-casing and ignoring everything that isn't a letter or digit, does <code>s</code> read the same forwards and backwards?</p>
         <p><strong>Spot it:</strong> "Compare from both ends" → opposite-end pointers. No need to build a cleaned copy of the string.</p>
@@ -1186,7 +1198,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-80">
-      <summary><span class="tag medium">Medium</span> 80. Remove Duplicates from Sorted Array II</summary>
+      <summary><span class="tag medium">Medium</span> 80. Remove Duplicates from Sorted Array II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A sorted array; remove extra copies <em>in place</em> so every value appears at most twice. Return the new length <code>k</code> (the first <code>k</code> slots hold the result).</p>
         <p><strong>Spot it:</strong> "In place" + keep-or-drop each element → reader/writer pointers. Sorted, so copies sit next to each other.</p>
@@ -1250,7 +1262,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-16">
-      <summary><span class="tag medium">Medium</span> 16. 3Sum Closest</summary>
+      <summary><span class="tag medium">Medium</span> 16. 3Sum Closest <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Choose three numbers whose sum is as close as possible to <code>target</code>; return that sum.</p>
         <p><strong>Spot it:</strong> Same skeleton as 3Sum, but instead of looking for <code>== 0</code> we track the smallest <code>|sum − target|</code>.</p>
@@ -1316,7 +1328,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-18">
-      <summary><span class="tag medium">Medium</span> 18. 4Sum</summary>
+      <summary><span class="tag medium">Medium</span> 18. 4Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every unique quadruplet <code>[a, b, c, d]</code> with <code>a + b + c + d == target</code>.</p>
         <p><strong>Spot it:</strong> k-Sum: fix the first two numbers with loops, then squeeze the last two with opposite-end pointers.</p>
@@ -1393,7 +1405,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-881">
-      <summary><span class="tag medium">Medium</span> 881. Boats to Save People</summary>
+      <summary><span class="tag medium">Medium</span> 881. Boats to Save People <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each boat holds at most two people with total weight ≤ <code>limit</code>. What's the minimum number of boats to carry everyone?</p>
         <p><strong>Spot it:</strong> Pair the lightest with the heaviest after sorting: a greedy opposite-end squeeze.</p>
@@ -1448,7 +1460,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-4">
-      <summary><span class="tag hard">Hard</span> 4. Median of Two Sorted Arrays</summary>
+      <summary><span class="tag hard">Hard</span> 4. Median of Two Sorted Arrays <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given two sorted arrays, return the median of all their numbers combined. The required time is <code>O(log(m + n))</code>.</p>
         <p><strong>Spot it:</strong> Two sorted arrays → a two-pointer <em>merge</em> reaches the middle in <code>O(m + n)</code> (shown as <code>findMedianMerge</code>). To get logarithmic time, binary-search the cut point instead (see <a href="09-modified-binary-search.html">Modified Binary Search</a>).</p>
@@ -1591,6 +1603,435 @@ class Solution:
         </table>
         <!-- explain:end 4 -->
         <p><strong>Complexity:</strong> Binary search: <code>O(log min(m, n))</code> time; merge: <code>O(m + n)</code>. Both <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-26">
+      <summary><span class="tag easy">Easy</span> 26. Remove Duplicates from Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>nums</code> is sorted. Remove the duplicates <strong>in place</strong> so each value appears once, keep the order, and return <code>k</code>, the number of unique values. The first <code>k</code> slots must hold them; the rest don't matter.</p>
+        <p><strong>Spot it:</strong> "In place" + "sorted" + "remove" → two pointers moving the <strong>same</strong> direction: a fast <code>read</code> pointer scans everything and a slow <code>write</code> pointer marks where the next keeper goes.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>nums[0]</code> is always kept, so start <code>write = 1</code>.</li>
+          <li>Move <code>read</code> from index 1 to the end.</li>
+          <li>Because the array is sorted, a new value is simply one that differs from the last value kept, <code>nums[write − 1]</code>.</li>
+          <li>When it differs, copy it to <code>nums[write]</code> and advance <code>write</code>. Duplicates are just skipped.</li>
+          <li><code>write</code> ends up equal to the number of unique values. Return it.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def removeDuplicates(self, nums: List[int]) -&gt; int:
+        # nums[0] is always unique, so the next unique value goes to index 1
+        write = 1
+        for read in range(1, len(nums)):
+            # sorted input: a new value is one that differs from the last value we kept
+            if nums[read] != nums[write - 1]:
+                nums[write] = nums[read]
+                write = write + 1
+        # write counts how many unique values sit at the front
+        return write</code></pre>
+        <!-- explain:start 26 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>write = 1</code>: the first element can never be a duplicate, so it stays where it is.</li>
+          <li><code>for read in range(1, len(nums)):</code> the reader looks at every other element exactly once.</li>
+          <li><code>if nums[read] != nums[write - 1]:</code> <code>nums[write - 1]</code> is the last value we kept. Equal means duplicate (skip it); different means a brand-new value.</li>
+          <li><code>nums[write] = nums[read]</code> copies the new value into the next free slot, and <code>write = write + 1</code> moves the slot forward.</li>
+          <li><code>return write</code>: everything before <code>write</code> is the unique, ordered prefix.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4]</code> (LeetCode Example 2). Returns <code>5</code>, with <code>nums</code> starting <code>[0, 1, 2, 3, 4]</code>.</p>
+        <table>
+          <thead><tr><th>read</th><th>nums[read]</th><th>last kept <code>nums[write−1]</code></th><th>action</th><th>write after</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>0</td><td>0</td><td>duplicate → skip</td><td>1</td></tr>
+            <tr><td>2</td><td>1</td><td>0</td><td>new → <code>nums[1] = 1</code></td><td>2</td></tr>
+            <tr><td>3</td><td>1</td><td>1</td><td>duplicate → skip</td><td>2</td></tr>
+            <tr><td>4</td><td>1</td><td>1</td><td>duplicate → skip</td><td>2</td></tr>
+            <tr><td>5</td><td>2</td><td>1</td><td>new → <code>nums[2] = 2</code></td><td>3</td></tr>
+            <tr><td>6</td><td>2</td><td>2</td><td>duplicate → skip</td><td>3</td></tr>
+            <tr><td>7</td><td>3</td><td>2</td><td>new → <code>nums[3] = 3</code></td><td>4</td></tr>
+            <tr><td>8</td><td>3</td><td>3</td><td>duplicate → skip</td><td>4</td></tr>
+            <tr><td>9</td><td>4</td><td>3</td><td>new → <code>nums[4] = 4</code></td><td>5</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 26 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-88">
+      <summary><span class="tag easy">Easy</span> 88. Merge Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>nums1</code> has length <code>m + n</code>: its first <code>m</code> values are sorted and the last <code>n</code> slots are zeros. <code>nums2</code> holds <code>n</code> sorted values. Merge <code>nums2</code> into <code>nums1</code> <strong>in place</strong> so <code>nums1</code> ends up sorted.</p>
+        <p><strong>Spot it:</strong> Two sorted inputs → one pointer per array. Filling from the front would overwrite values of <code>nums1</code> we still need, but the empty space is at the <strong>end</strong>, so fill backwards: always place the <em>larger</em> of the two tails.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>i</code> points at the last real value of <code>nums1</code> (<code>m − 1</code>), <code>j</code> at the last value of <code>nums2</code> (<code>n − 1</code>), and <code>write</code> at the very last slot (<code>m + n − 1</code>).</li>
+          <li>While <code>nums2</code> still has values (<code>j ≥ 0</code>): compare <code>nums1[i]</code> and <code>nums2[j]</code>, copy the larger into <code>nums1[write]</code>, and step that pointer left.</li>
+          <li>Move <code>write</code> left after every placement.</li>
+          <li>If <code>nums2</code> runs out first, the rest of <code>nums1</code> is already in place, so we can stop.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def merge(self, nums1: List[int], m: int, nums2: List[int], n: int) -&gt; None:
+        i = m - 1          # last real value of nums1
+        j = n - 1          # last value of nums2
+        write = m + n - 1  # last slot of nums1 (the empty space is at the end)
+        # once nums2 is used up, whatever is left in nums1 is already in place
+        while j &gt;= 0:
+            if i &gt;= 0 and nums1[i] &gt; nums2[j]:
+                # nums1's tail is bigger: it belongs at the back
+                nums1[write] = nums1[i]
+                i = i - 1
+            else:
+                # nums2's tail is bigger (or nums1 is used up)
+                nums1[write] = nums2[j]
+                j = j - 1
+            write = write - 1</code></pre>
+        <!-- explain:start 88 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>i</code>, <code>j</code>, <code>write</code>: three pointers that all start at the right end and move left.</li>
+          <li><code>while j &gt;= 0:</code> we only need to keep going while <code>nums2</code> has values. Leftover <code>nums1</code> values are already sitting in sorted position.</li>
+          <li><code>if i &gt;= 0 and nums1[i] &gt; nums2[j]:</code> check <code>i &gt;= 0</code> first so we never read <code>nums1[-1]</code>. If <code>nums1</code>'s tail is larger, it goes to <code>write</code>.</li>
+          <li><code>else:</code> otherwise <code>nums2[j]</code> is larger or equal (or <code>nums1</code> is exhausted), so it goes to <code>write</code>.</li>
+          <li><code>write = write - 1</code>: the slot is filled; the next largest value goes one to the left.</li>
+          <li>The function returns nothing: LeetCode checks <code>nums1</code> itself.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums1 = [1, 2, 3, 0, 0, 0]</code>, <code>m = 3</code>, <code>nums2 = [2, 5, 6]</code>, <code>n = 3</code> (LeetCode Example 1). Result <code>[1, 2, 2, 3, 5, 6]</code>.</p>
+        <table>
+          <thead><tr><th>write</th><th>nums1[i]</th><th>nums2[j]</th><th>placed</th><th>nums1 after</th></tr></thead>
+          <tbody>
+            <tr><td>5</td><td>3</td><td>6</td><td>6 (from nums2)</td><td><code>[1, 2, 3, 0, 0, 6]</code></td></tr>
+            <tr><td>4</td><td>3</td><td>5</td><td>5 (from nums2)</td><td><code>[1, 2, 3, 0, 5, 6]</code></td></tr>
+            <tr><td>3</td><td>3</td><td>2</td><td>3 (from nums1)</td><td><code>[1, 2, 3, 3, 5, 6]</code></td></tr>
+            <tr><td>2</td><td>2</td><td>2</td><td>2 (from nums2, tie)</td><td><code>[1, 2, 2, 3, 5, 6]</code></td></tr>
+          </tbody>
+        </table>
+        <p><code>j</code> is now <code>−1</code>, so the loop stops. The <code>[1, 2]</code> at the front never had to move.</p>
+        <!-- explain:end 88 -->
+        <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-344">
+      <summary><span class="tag easy">Easy</span> 344. Reverse String <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Reverse the list of characters <code>s</code> <strong>in place</strong>, using <code>O(1)</code> extra memory.</p>
+        <p><strong>Spot it:</strong> "Reverse" + "in place" → one pointer at each end; swap and walk inward until they meet.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>left = 0</code>, <code>right = len(s) − 1</code>.</li>
+          <li>While <code>left &lt; right</code>: swap <code>s[left]</code> and <code>s[right]</code>.</li>
+          <li>Move <code>left</code> right and <code>right</code> left. When they meet (odd length) or cross (even length), every pair has been swapped.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def reverseString(self, s: List[str]) -&gt; None:
+        left = 0
+        right = len(s) - 1
+        while left &lt; right:
+            # swap the two ends using a temporary variable
+            temp = s[left]
+            s[left] = s[right]
+            s[right] = temp
+            # both pointers step toward the middle
+            left = left + 1
+            right = right - 1</code></pre>
+        <!-- explain:start 344 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>left = 0</code>, <code>right = len(s) - 1</code>: the first and last positions.</li>
+          <li><code>while left &lt; right:</code> stop when the pointers meet: the middle character of an odd-length list stays put.</li>
+          <li><code>temp = s[left]</code> … <code>s[right] = temp</code>: a three-line swap. (Python's <code>s[left], s[right] = s[right], s[left]</code> does the same in one line.)</li>
+          <li><code>left = left + 1</code>, <code>right = right - 1</code>: move inward to the next pair.</li>
+          <li>Nothing is returned: the list is changed in place, which is what LeetCode checks.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>s = ["h", "e", "l", "l", "o"]</code> (LeetCode Example 1). Result <code>["o", "l", "l", "e", "h"]</code>.</p>
+        <table>
+          <thead><tr><th>left</th><th>right</th><th>swap</th><th>s after</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>4</td><td><code>h</code> ↔ <code>o</code></td><td><code>o e l l h</code></td></tr>
+            <tr><td>1</td><td>3</td><td><code>e</code> ↔ <code>l</code></td><td><code>o l l e h</code></td></tr>
+            <tr><td>2</td><td>2</td><td>pointers meet → stop</td><td><code>o l l e h</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 344 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-392">
+      <summary><span class="tag easy">Easy</span> 392. Is Subsequence <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if <code>s</code> is a <strong>subsequence</strong> of <code>t</code>: you can delete some (or no) characters of <code>t</code>, without reordering the rest, to get <code>s</code>.</p>
+        <p><strong>Spot it:</strong> Two sequences scanned left to right at different speeds → two pointers moving the same way. <code>t</code> is always consumed; <code>s</code> only moves forward when its current character is found.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>i</code> points at the next character of <code>s</code> we still need to find.</li>
+          <li>Walk through every character of <code>t</code>.</li>
+          <li>If it equals <code>s[i]</code>, we found that character in order: move <code>i</code> forward.</li>
+          <li>At the end, <code>s</code> is a subsequence exactly when every character was found, i.e. <code>i == len(s)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def isSubsequence(self, s: str, t: str) -&gt; bool:
+        # i = index of the next character of s we still need to find
+        i = 0
+        for ch in t:
+            # only compare while s still has characters left to match
+            if i &lt; len(s) and s[i] == ch:
+                i = i + 1
+        # every character of s was found, in order
+        return i == len(s)</code></pre>
+        <!-- explain:start 392 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>i = 0</code>: nothing of <code>s</code> has been matched yet.</li>
+          <li><code>for ch in t:</code> the second pointer walks <code>t</code> one character at a time.</li>
+          <li><code>if i &lt; len(s) and s[i] == ch:</code> guard first, so once all of <code>s</code> is matched we never read past its end. A match lets <code>s</code> move on to its next character.</li>
+          <li>Non-matching characters of <code>t</code> are simply the ones we "delete".</li>
+          <li><code>return i == len(s)</code>: true only if all of <code>s</code> was matched in order.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>s = "abc"</code>, <code>t = "ahbgdc"</code> (LeetCode Example 1). Returns <code>True</code>.</p>
+        <table>
+          <thead><tr><th>ch in t</th><th>s[i] we want</th><th>match?</th><th>i after</th></tr></thead>
+          <tbody>
+            <tr><td><code>a</code></td><td><code>a</code></td><td>yes</td><td>1</td></tr>
+            <tr><td><code>h</code></td><td><code>b</code></td><td>no</td><td>1</td></tr>
+            <tr><td><code>b</code></td><td><code>b</code></td><td>yes</td><td>2</td></tr>
+            <tr><td><code>g</code></td><td><code>c</code></td><td>no</td><td>2</td></tr>
+            <tr><td><code>d</code></td><td><code>c</code></td><td>no</td><td>2</td></tr>
+            <tr><td><code>c</code></td><td><code>c</code></td><td>yes</td><td>3 = len(s) → <strong>True</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 392 -->
+        <p><strong>Complexity:</strong> <code>O(len(t))</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-977">
+      <summary><span class="tag easy">Easy</span> 977. Squares of a Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>nums</code> is sorted in non-decreasing order and may contain negatives. Return the squares of each number, also sorted.</p>
+        <p><strong>Spot it:</strong> Squaring breaks the order because big negatives become big positives. But the <strong>largest</strong> square must come from one of the two ends. Opposite-end pointers pick it, and we fill the answer from the back.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>left = 0</code>, <code>right = n − 1</code>, and <code>write = n − 1</code> (the last slot of the answer).</li>
+          <li>Compare <code>abs(nums[left])</code> and <code>abs(nums[right])</code>. The bigger one gives the largest remaining square.</li>
+          <li>Put that square at <code>result[write]</code> and move the pointer it came from inward.</li>
+          <li>Move <code>write</code> left and repeat until <code>left</code> passes <code>right</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def sortedSquares(self, nums: List[int]) -&gt; List[int]:
+        n = len(nums)
+        result = [0] * n
+        left = 0
+        right = n - 1
+        # fill the answer from the largest square down to the smallest
+        write = n - 1
+        while left &lt;= right:
+            if abs(nums[left]) &gt; abs(nums[right]):
+                # a big negative on the left gives the larger square
+                result[write] = nums[left] * nums[left]
+                left = left + 1
+            else:
+                result[write] = nums[right] * nums[right]
+                right = right - 1
+            write = write - 1
+        return result</code></pre>
+        <!-- explain:start 977 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>result = [0] * n</code>: a list of the right size to fill in.</li>
+          <li><code>left</code>, <code>right</code>: the two ends of <code>nums</code>. The largest absolute value is always at one of them.</li>
+          <li><code>write = n - 1</code>: we discover squares from biggest to smallest, so we fill the answer from the back.</li>
+          <li><code>while left &lt;= right:</code> use <code>&lt;=</code> so the last remaining element (when the pointers meet) is also placed.</li>
+          <li><code>if abs(nums[left]) &gt; abs(nums[right]):</code> the left end wins: square it, put it at <code>write</code>, move <code>left</code> right. Otherwise the right end wins.</li>
+          <li><code>write = write - 1</code>: the next square is the next smaller one.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [-4, -1, 0, 3, 10]</code> (LeetCode Example 1). Returns <code>[0, 1, 9, 16, 100]</code>.</p>
+        <table>
+          <thead><tr><th>left</th><th>right</th><th>compare</th><th>placed at write</th><th>result</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>4</td><td>|−4| vs |10|</td><td>100 at 4</td><td><code>[0, 0, 0, 0, 100]</code></td></tr>
+            <tr><td>0</td><td>3</td><td>|−4| vs |3|</td><td>16 at 3</td><td><code>[0, 0, 0, 16, 100]</code></td></tr>
+            <tr><td>1</td><td>3</td><td>|−1| vs |3|</td><td>9 at 2</td><td><code>[0, 0, 9, 16, 100]</code></td></tr>
+            <tr><td>1</td><td>2</td><td>|−1| vs |0|</td><td>1 at 1</td><td><code>[0, 1, 9, 16, 100]</code></td></tr>
+            <tr><td>2</td><td>2</td><td>|0| vs |0|</td><td>0 at 0</td><td><code>[0, 1, 9, 16, 100]</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 977 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> for the output (<code>O(1)</code> extra besides it).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-1768">
+      <summary><span class="tag easy">Easy</span> 1768. Merge Strings Alternately <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Merge <code>word1</code> and <code>word2</code> by taking letters in alternating order, starting with <code>word1</code>. If one word is longer, append its remaining letters at the end.</p>
+        <p><strong>Spot it:</strong> Two strings consumed side by side → one pointer per string, moving together.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Start both pointers at 0 and collect letters in a list (building strings with <code>+=</code> in a loop is slow).</li>
+          <li>While at least one word still has letters: take <code>word1[i]</code> if it exists, then <code>word2[j]</code> if it exists.</li>
+          <li>Join the list into a string.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def mergeAlternately(self, word1: str, word2: str) -&gt; str:
+        i = 0
+        j = 0
+        parts = []
+        # keep going while EITHER word still has letters
+        while i &lt; len(word1) or j &lt; len(word2):
+            if i &lt; len(word1):
+                parts.append(word1[i])
+                i = i + 1
+            if j &lt; len(word2):
+                parts.append(word2[j])
+                j = j + 1
+        return "".join(parts)</code></pre>
+        <!-- explain:start 1768 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>i</code>, <code>j</code>: the next letter to take from each word.</li>
+          <li><code>parts = []</code>: collect letters in a list; <code>"".join(parts)</code> at the end is <code>O(n)</code>, while repeated string concatenation can be <code>O(n²)</code>.</li>
+          <li><code>while i &lt; len(word1) or j &lt; len(word2):</code> loop until both words are used up, so a longer word's tail is not lost.</li>
+          <li><code>if i &lt; len(word1):</code> take a letter from <code>word1</code> only if it has one left; same for <code>word2</code>. This handles the leftover tail automatically.</li>
+          <li><code>return "".join(parts)</code>: glue the letters together.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>word1 = "ab"</code>, <code>word2 = "pqrs"</code> (LeetCode Example 2). Returns <code>"apbqrs"</code>.</p>
+        <table>
+          <thead><tr><th>round</th><th>from word1</th><th>from word2</th><th>parts so far</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>a</code></td><td><code>p</code></td><td><code>a p</code></td></tr>
+            <tr><td>2</td><td><code>b</code></td><td><code>q</code></td><td><code>a p b q</code></td></tr>
+            <tr><td>3</td><td>— (used up)</td><td><code>r</code></td><td><code>a p b q r</code></td></tr>
+            <tr><td>4</td><td>— (used up)</td><td><code>s</code></td><td><code>a p b q r s</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 1768 -->
+        <p><strong>Complexity:</strong> <code>O(m + n)</code> time and space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-5">
+      <summary><span class="tag medium">Medium</span> 5. Longest Palindromic Substring <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the longest substring of <code>s</code> that reads the same forwards and backwards.</p>
+        <p><strong>Spot it:</strong> A palindrome is a mirror around its centre. Instead of squeezing two pointers inward, put them <em>on</em> a centre and walk them <strong>outward</strong> while the characters match. There are only <code>2n − 1</code> centres: every character (odd length) and every gap between two characters (even length).</p>
+        <p><strong>Key insight:</strong> Checking every substring is <code>O(n³)</code>. Growing from each centre reuses the matching work, so each centre costs at most <code>O(n)</code> and the whole thing is <code>O(n²)</code> with <code>O(1)</code> space.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Keep the best palindrome found so far as a start index and a length.</li>
+          <li>For each index <code>center</code>, try two starting pairs: <code>(center, center)</code> for odd lengths and <code>(center, center + 1)</code> for even lengths.</li>
+          <li>While both pointers are inside the string and <code>s[left] == s[right]</code>, move <code>left</code> one step left and <code>right</code> one step right.</li>
+          <li>When the loop stops, the palindrome is <code>s[left + 1 : right]</code>, of length <code>right − left − 1</code>. Keep it if it beats the best.</li>
+          <li>Return the best slice.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def longestPalindrome(self, s: str) -&gt; str:
+        best_start = 0
+        best_len = 0
+        for center in range(len(s)):
+            # odd length: centred ON a character; even length: centred BETWEEN two characters
+            for left, right in ((center, center), (center, center + 1)):
+                # spread outwards while both ends are inside the string and match
+                while left &gt;= 0 and right &lt; len(s) and s[left] == s[right]:
+                    left = left - 1
+                    right = right + 1
+                # the loop overshot by one on each side, so the palindrome is s[left+1 : right]
+                length = right - left - 1
+                if length &gt; best_len:
+                    best_len = length
+                    best_start = left + 1
+        return s[best_start:best_start + best_len]</code></pre>
+        <!-- explain:start 5 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>best_start</code>, <code>best_len</code>: where the longest palindrome so far begins and how long it is.</li>
+          <li><code>for center in range(len(s)):</code> every index is a possible middle.</li>
+          <li><code>for left, right in ((center, center), (center, center + 1)):</code> two tries per centre. <code>(c, c)</code> grows odd palindromes like <code>"bab"</code>; <code>(c, c + 1)</code> grows even ones like <code>"abba"</code>.</li>
+          <li><code>while left &gt;= 0 and right &lt; len(s) and s[left] == s[right]:</code> keep expanding while the ends are valid and equal. The bounds are checked first so <code>s[-1]</code> is never read by mistake.</li>
+          <li><code>left = left - 1</code>, <code>right = right + 1</code>: one step outward on each side.</li>
+          <li><code>length = right - left - 1</code>: the loop exits one step <em>past</em> the palindrome on both sides, so the real span is <code>left + 1 .. right − 1</code>.</li>
+          <li><code>if length &gt; best_len:</code> remember the new best; <code>best_start = left + 1</code> undoes the overshoot.</li>
+          <li><code>return s[best_start:best_start + best_len]</code>: slice out the winner.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>s = "babad"</code> (LeetCode Example 1). Returns <code>"bab"</code> (<code>"aba"</code> is equally long and also accepted).</p>
+        <table>
+          <thead><tr><th>center</th><th>odd try grows to</th><th>even try grows to</th><th>best so far</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td><code>"b"</code></td><td>(no match)</td><td><code>"b"</code></td></tr>
+            <tr><td>1</td><td><code>"bab"</code></td><td>(no match)</td><td><code>"bab"</code></td></tr>
+            <tr><td>2</td><td><code>"aba"</code></td><td>(no match)</td><td><code>"bab"</code> (tie, not longer)</td></tr>
+            <tr><td>3</td><td><code>"a"</code></td><td>(no match)</td><td><code>"bab"</code></td></tr>
+            <tr><td>4</td><td><code>"d"</code></td><td>(no match)</td><td><code>"bab"</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 5 -->
+        <p><strong>Complexity:</strong> <code>O(n²)</code> time (<code>2n − 1</code> centres, each expanding up to <code>n</code>), <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-189">
+      <summary><span class="tag medium">Medium</span> 189. Rotate Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Rotate <code>nums</code> to the right by <code>k</code> steps, in place. For example <code>[1,2,3,4,5,6,7]</code>, <code>k = 3</code> becomes <code>[5,6,7,1,2,3,4]</code>.</p>
+        <p><strong>Spot it:</strong> "In place" with <code>O(1)</code> extra space rules out building a new array. Reversing a range in place is the classic opposite-end two-pointer swap, and three reversals produce a rotation.</p>
+        <p><strong>Key insight:</strong> Rotating right by <code>k</code> moves the last <code>k</code> values to the front. Reverse the whole array (the last <code>k</code> are now first, but backwards), then reverse the first <code>k</code> and the rest separately to fix their order.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>k = k % n</code>: rotating by <code>n</code> changes nothing, so only the remainder matters.</li>
+          <li>Reverse the whole array.</li>
+          <li>Reverse the first <code>k</code> values.</li>
+          <li>Reverse the remaining <code>n − k</code> values.</li>
+          <li>Each reversal swaps <code>left</code> and <code>right</code>, then moves them toward each other until they meet.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def rotate(self, nums: List[int], k: int) -&gt; None:
+        n = len(nums)
+        # rotating by n is a full circle, so only the remainder matters
+        k = k % n
+
+        def reverse(left, right):
+            # classic opposite-ends two pointers: swap, then step inward
+            while left &lt; right:
+                temp = nums[left]
+                nums[left] = nums[right]
+                nums[right] = temp
+                left = left + 1
+                right = right - 1
+
+        reverse(0, n - 1)  # whole array: the last k values move to the front (backwards)
+        reverse(0, k - 1)  # put the first k back in order
+        reverse(k, n - 1)  # put the rest back in order</code></pre>
+        <!-- explain:start 189 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>k = k % n</code>: with <code>n = 7</code>, rotating by <code>10</code> is the same as rotating by <code>3</code>. Without this, <code>k − 1</code> could point past the end.</li>
+          <li><code>def reverse(left, right):</code> a helper that reverses <code>nums[left..right]</code> in place.</li>
+          <li><code>while left &lt; right:</code> swap the two ends using a temporary variable, then move both pointers inward until they meet.</li>
+          <li><code>reverse(0, n - 1)</code>: the last <code>k</code> values are now at the front, but in reverse order, and so is everything else.</li>
+          <li><code>reverse(0, k - 1)</code> and <code>reverse(k, n - 1)</code>: fix the order inside each block.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [1, 2, 3, 4, 5, 6, 7]</code>, <code>k = 3</code> (LeetCode Example 1). Result <code>[5, 6, 7, 1, 2, 3, 4]</code>.</p>
+        <table>
+          <thead><tr><th>step</th><th>range reversed</th><th>nums after</th></tr></thead>
+          <tbody>
+            <tr><td>start</td><td>—</td><td><code>[1, 2, 3, 4, 5, 6, 7]</code></td></tr>
+            <tr><td>1</td><td>0..6 (whole)</td><td><code>[7, 6, 5, 4, 3, 2, 1]</code></td></tr>
+            <tr><td>2</td><td>0..2 (first k)</td><td><code>[5, 6, 7, 4, 3, 2, 1]</code></td></tr>
+            <tr><td>3</td><td>3..6 (the rest)</td><td><code>[5, 6, 7, 1, 2, 3, 4]</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 189 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (every element is swapped at most twice), <code>O(1)</code> extra space.</p>
       </div>
     </details>
 

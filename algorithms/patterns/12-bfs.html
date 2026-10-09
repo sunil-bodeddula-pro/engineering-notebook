@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 12 of 15</div>
+    <div class="eyebrow">Pattern 12 of 21</div>
     <h1>Breadth-First Search (BFS)</h1>
     <p class="lede">Explore in rings: first everything 1 step away, then everything 2 steps away, and so on. Because of that, the first time BFS reaches a node is guaranteed to be by a <strong>shortest</strong> route.</p>
 
@@ -804,7 +808,7 @@ def multi_source_bfs(graph, sources):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-994" open>
-      <summary><span class="tag medium">Medium</span> 994. Rotting Oranges</summary>
+      <summary><span class="tag medium">Medium</span> 994. Rotting Oranges <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A grid holds <code>0</code> (empty), <code>1</code> (fresh orange) and <code>2</code> (rotten orange). Every minute, each rotten orange rots its 4-directional fresh neighbours. Return the minutes until no fresh orange is left, or <code>-1</code> if some can never rot.</p>
         <p><strong>Spot it:</strong> "every minute, spreads to adjacent" with <strong>many</strong> starting rotten oranges = multi-source, level-by-level BFS.</p>
@@ -892,7 +896,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-752">
-      <summary><span class="tag medium">Medium</span> 752. Open the Lock</summary>
+      <summary><span class="tag medium">Medium</span> 752. Open the Lock <span class="ds-tags"><span class="ds">String</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A 4-wheel lock starts at <code>"0000"</code>. One move turns one wheel up or down by one (9 wraps to 0). Avoid every code in <code>deadends</code>. Return the minimum number of moves to reach <code>target</code>, or <code>-1</code>.</p>
         <p><strong>Spot it:</strong> "minimum number of turns", and each turn costs 1. The graph is <em>implicit</em>: nodes are the 10<sup>4</sup> codes, and every code has 8 neighbours.</p>
@@ -966,7 +970,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-310">
-      <summary><span class="tag medium">Medium</span> 310. Minimum Height Trees</summary>
+      <summary><span class="tag medium">Medium</span> 310. Minimum Height Trees <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a tree of <code>n</code> nodes (as undirected edges), return every node that, when chosen as the root, gives the minimum possible height.</p>
         <p><strong>Spot it:</strong> Running a BFS from every node is <code>O(n²)</code>. The best roots are the <strong>centre</strong> of the tree, and you can find the centre with a BFS that runs <em>from the outside in</em>.</p>
@@ -1051,7 +1055,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-127">
-      <summary><span class="tag hard">Hard</span> 127. Word Ladder</summary>
+      <summary><span class="tag hard">Hard</span> 127. Word Ladder <span class="ds-tags"><span class="ds">String</span><span class="ds">Graph</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Transform <code>beginWord</code> into <code>endWord</code> by changing one letter at a time, where every intermediate word must be in <code>wordList</code>. Return the number of words in the shortest sequence (including both ends), or 0.</p>
         <p><strong>Spot it:</strong> "shortest transformation sequence" + "one letter at a time" = BFS on an implicit graph of words.</p>
@@ -1134,7 +1138,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-815">
-      <summary><span class="tag hard">Hard</span> 815. Bus Routes</summary>
+      <summary><span class="tag hard">Hard</span> 815. Bus Routes <span class="ds-tags"><span class="ds">Array</span><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>routes[i]</code> is the loop of stops bus <code>i</code> visits. Starting at stop <code>source</code>, what's the fewest number of <strong>buses</strong> you must take to reach <code>target</code>? Return <code>-1</code> if it's impossible.</p>
         <p><strong>Spot it:</strong> "fewest buses" = BFS, but the cost is per <em>bus</em>, not per stop. Each BFS level must be "one more bus".</p>
@@ -1243,20 +1247,24 @@ def multi_source_bfs(graph, sources):
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>111</td><td><a href="#p-111">Minimum Depth of Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: stop at the first leaf you pop</td></tr>
-        <tr><td>1091</td><td><a href="#p-1091">Shortest Path in Binary Matrix</a></td><td><span class="tag medium">Medium</span></td><td>8-direction grid BFS, count cells</td></tr>
-        <tr><td>994</td><td><a href="#p-994">Rotting Oranges</a></td><td><span class="tag medium">Medium</span></td><td>Multi-source + levels = minutes</td></tr>
-        <tr><td>542</td><td><a href="#p-542">01 Matrix</a></td><td><span class="tag medium">Medium</span></td><td>Multi-source from every 0</td></tr>
-        <tr><td>286</td><td><a href="#p-286">Walls and Gates</a></td><td><span class="tag medium">Medium</span></td><td>Multi-source from gates, in place</td></tr>
-        <tr><td>752</td><td><a href="#p-752">Open the Lock</a></td><td><span class="tag medium">Medium</span></td><td>Implicit graph of 10<sup>4</sup> codes</td></tr>
-        <tr><td>310</td><td><a href="#p-310">Minimum Height Trees</a></td><td><span class="tag medium">Medium</span></td><td>Peel leaves from the outside in</td></tr>
-        <tr><td>1926</td><td><a href="#p-1926">Nearest Exit from Entrance in Maze</a></td><td><span class="tag medium">Medium</span></td><td>Target = any border cell</td></tr>
-        <tr><td>127</td><td><a href="#p-127">Word Ladder</a></td><td><span class="tag hard">Hard</span></td><td>Wildcard buckets; bidirectional BFS</td></tr>
-        <tr><td>815</td><td><a href="#p-815">Bus Routes</a></td><td><span class="tag hard">Hard</span></td><td>BFS over buses, not stops</td></tr>
-        <tr><td>847</td><td><a href="#p-847">Shortest Path Visiting All Nodes</a></td><td><span class="tag hard">Hard</span></td><td>State = (node, visited bitmask)</td></tr>
-        <tr><td>1293</td><td><a href="#p-1293">Shortest Path in a Grid with Obstacles Elimination</a></td><td><span class="tag hard">Hard</span></td><td>State = (r, c, removals left)</td></tr>
+        <tr><td>111</td><td><a href="#p-111">Minimum Depth of Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></td><td>Warm-up: stop at the first leaf you pop</td></tr>
+        <tr><td>637</td><td><a href="#p-637">Average of Levels in Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></td><td>Level-order BFS; average each level's values</td></tr>
+        <tr><td>1091</td><td><a href="#p-1091">Shortest Path in Binary Matrix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>8-direction grid BFS, count cells</td></tr>
+        <tr><td>994</td><td><a href="#p-994">Rotting Oranges</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>Multi-source + levels = minutes</td></tr>
+        <tr><td>542</td><td><a href="#p-542">01 Matrix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>Multi-source from every 0</td></tr>
+        <tr><td>286</td><td><a href="#p-286">Walls and Gates</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>Multi-source from gates, in place</td></tr>
+        <tr><td>752</td><td><a href="#p-752">Open the Lock</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></td><td>Implicit graph of 10<sup>4</sup> codes</td></tr>
+        <tr><td>310</td><td><a href="#p-310">Minimum Height Trees</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></td><td>Peel leaves from the outside in</td></tr>
+        <tr><td>1926</td><td><a href="#p-1926">Nearest Exit from Entrance in Maze</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>Target = any border cell</td></tr>
+        <tr><td>117</td><td><a href="#p-117">Populating Next Right Pointers in Each Node II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></td><td>Level-order BFS; link each node to the next one popped on its level</td></tr>
+        <tr><td>433</td><td><a href="#p-433">Minimum Genetic Mutation</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></td><td>Word Ladder on 8-letter genes over the alphabet A, C, G, T</td></tr>
+        <tr><td>909</td><td><a href="#p-909">Snakes and Ladders</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>BFS over square numbers; the hard part is square → (row, col)</td></tr>
+        <tr><td>127</td><td><a href="#p-127">Word Ladder</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Graph</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></td><td>Wildcard buckets; bidirectional BFS</td></tr>
+        <tr><td>815</td><td><a href="#p-815">Bus Routes</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Graph</span><span class="ds">Queue</span></span></td><td>BFS over buses, not stops</td></tr>
+        <tr><td>847</td><td><a href="#p-847">Shortest Path Visiting All Nodes</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></td><td>State = (node, visited bitmask)</td></tr>
+        <tr><td>1293</td><td><a href="#p-1293">Shortest Path in a Grid with Obstacles Elimination</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></td><td>State = (r, c, removals left)</td></tr>
       </tbody>
     </table>
 
@@ -1264,7 +1272,7 @@ def multi_source_bfs(graph, sources):
     <p>Problems already solved in section 7 link back up there. Everything else is solved here.</p>
 
     <details class="problem" id="p-111">
-      <summary><span class="tag easy">Easy</span> 111. Minimum Depth of Binary Tree</summary>
+      <summary><span class="tag easy">Easy</span> 111. Minimum Depth of Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the number of nodes on the shortest path from the root down to a <em>leaf</em> (a node with no children).</p>
         <p><strong>Spot it:</strong> "minimum depth" is the shortest distance. BFS reaches shallow nodes first, so the first leaf it pops is the answer and it can stop early.</p>
@@ -1319,7 +1327,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-1091">
-      <summary><span class="tag medium">Medium</span> 1091. Shortest Path in Binary Matrix</summary>
+      <summary><span class="tag medium">Medium</span> 1091. Shortest Path in Binary Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In an <code>n × n</code> grid of 0s (open) and 1s (blocked), find the length (number of cells) of the shortest path from the top-left to the bottom-right, moving in any of the 8 directions. Return -1 if there's no path.</p>
         <p><strong>Spot it:</strong> "shortest clear path" where every move costs 1, so grid BFS.</p>
@@ -1388,7 +1396,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-542">
-      <summary><span class="tag medium">Medium</span> 542. 01 Matrix</summary>
+      <summary><span class="tag medium">Medium</span> 542. 01 Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> For every cell of a 0/1 matrix, return the distance to the nearest 0 (moving up, down, left or right).</p>
         <p><strong>Spot it:</strong> "distance to the nearest X" for every cell is multi-source BFS starting from all the 0s at once.</p>
@@ -1458,7 +1466,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-286">
-      <summary><span class="tag medium">Medium</span> 286. Walls and Gates</summary>
+      <summary><span class="tag medium">Medium</span> 286. Walls and Gates <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The grid holds <code>-1</code> (wall), <code>0</code> (gate) and <code>INF = 2147483647</code> (empty room). Fill each empty room <em>in place</em> with the distance to its nearest gate, and leave <code>INF</code> where no gate is reachable.</p>
         <p><strong>Spot it:</strong> "nearest gate" for every room is multi-source BFS from all the gates.</p>
@@ -1528,7 +1536,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-1926">
-      <summary><span class="tag medium">Medium</span> 1926. Nearest Exit from Entrance in Maze</summary>
+      <summary><span class="tag medium">Medium</span> 1926. Nearest Exit from Entrance in Maze <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A maze has <code>'.'</code> (open) and <code>'+'</code> (wall) cells. From <code>entrance</code>, find the fewest steps to any open cell on the border (an exit). The entrance itself doesn't count as an exit. Return -1 if there's none.</p>
         <p><strong>Spot it:</strong> "fewest steps" on a grid is BFS. The target is <em>any</em> border cell, so test for it when you enqueue.</p>
@@ -1594,7 +1602,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-847">
-      <summary><span class="tag hard">Hard</span> 847. Shortest Path Visiting All Nodes</summary>
+      <summary><span class="tag hard">Hard</span> 847. Shortest Path Visiting All Nodes <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a connected undirected graph, return the length of the shortest walk that visits every node. You may start and end anywhere, and revisit nodes and edges.</p>
         <p><strong>Spot it:</strong> "shortest" with unit edges means BFS, but the position alone isn't enough state. The real state is <code>(node, set of nodes visited so far)</code>, stored as a bitmask. Since you can start anywhere, it's multi-source.</p>
@@ -1660,7 +1668,7 @@ def multi_source_bfs(graph, sources):
     </details>
 
     <details class="problem" id="p-1293">
-      <summary><span class="tag hard">Hard</span> 1293. Shortest Path in a Grid with Obstacles Elimination</summary>
+      <summary><span class="tag hard">Hard</span> 1293. Shortest Path in a Grid with Obstacles Elimination <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Move up, down, left or right through a 0/1 grid from the top-left to the bottom-right. You may remove at most <code>k</code> obstacles (1s). Return the minimum number of steps, or -1.</p>
         <p><strong>Spot it:</strong> "minimum steps" means BFS, but the same cell reached with more removals left is a <em>better</em> state. So the state is <code>(r, c, removals_left)</code>.</p>
@@ -1732,6 +1740,253 @@ def multi_source_bfs(graph, sources):
         <p>The winning path goes down the left side, removing the obstacle at (1,0), then along the bottom row.</p>
         <!-- bfs12:1293:end -->
         <p><strong>Complexity:</strong> <code>O(R·C·k)</code> time and space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-637">
+      <summary><span class="tag easy">Easy</span> 637. Average of Levels in Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the average value of the nodes on each level of the tree, from top to bottom.</p>
+        <p><strong>Spot it:</strong> "Per level" → BFS with a queue, processing exactly one level per round (<code>len(queue)</code> nodes).</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Put the root in a queue.</li>
+          <li>While the queue isn't empty: the current level is the <code>len(queue)</code> nodes in it right now.</li>
+          <li>Pop each of them, add its value to a running total, and push its children (they form the next level).</li>
+          <li>Append <code>total / level_size</code>.</li>
+        </ol>
+        <pre><code class="python">from collections import deque
+
+class Solution:
+    def averageOfLevels(self, root: Optional[TreeNode]) -&gt; List[float]:
+        averages = []
+        queue = deque([root])
+        while queue:
+            level_size = len(queue)      # nodes on the current level
+            total = 0
+            for _ in range(level_size):
+                node = queue.popleft()
+                total = total + node.val
+                # children belong to the next level
+                if node.left is not None:
+                    queue.append(node.left)
+                if node.right is not None:
+                    queue.append(node.right)
+            averages.append(total / level_size)
+        return averages</code></pre>
+        <!-- explain:start 637 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>deque([root])</code>: a double-ended queue; <code>popleft()</code> is <code>O(1)</code> (a list's <code>pop(0)</code> is <code>O(n)</code>).</li>
+          <li><code>level_size = len(queue)</code>: measured <em>before</em> the loop, so children pushed during it wait for the next round.</li>
+          <li><code>for _ in range(level_size):</code> pop exactly the nodes of this level and add their values.</li>
+          <li><code>queue.append(node.left)</code> / <code>node.right</code>: enqueue the next level.</li>
+          <li><code>total / level_size</code>: <code>/</code> is true division, so <code>29 / 2</code> gives <code>14.5</code>.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [3, 9, 20, null, null, 15, 7]</code> (LeetCode Example 1). Returns <code>[3.0, 14.5, 11.0]</code>.</p>
+        <table>
+          <thead><tr><th>level</th><th>nodes popped</th><th>total</th><th>average</th><th>queue after</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>3</td><td>3</td><td>3.0</td><td><code>[9, 20]</code></td></tr>
+            <tr><td>1</td><td>9, 20</td><td>29</td><td>14.5</td><td><code>[15, 7]</code></td></tr>
+            <tr><td>2</td><td>15, 7</td><td>22</td><td>11.0</td><td><code>[]</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 637 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> space for the queue (<code>w</code> = the widest level).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-117">
+      <summary><span class="tag medium">Medium</span> 117. Populating Next Right Pointers in Each Node II <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Each node has an extra <code>next</code> pointer. Point every node's <code>next</code> at the node directly to its right on the same level, or <code>None</code> if it is the last one. The tree is <strong>not</strong> necessarily perfect.</p>
+        <p><strong>Spot it:</strong> "Same level, left to right" is exactly the order BFS pops nodes. Within one level, each popped node's <code>next</code> is simply the following node in the queue.</p>
+        <p><strong>Key insight:</strong> A follow-up asks for <code>O(1)</code> extra space: walk each level along the <code>next</code> pointers you already built while linking the level below with a dummy head. The BFS version below is the clearest starting point.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>BFS with a queue, one level per round.</li>
+          <li>Pop the level's nodes in order, remembering the previously popped node <code>prev</code>.</li>
+          <li>Set <code>prev.next = node</code> for every node after the first; the last node keeps <code>next = None</code>.</li>
+          <li>Push each node's children for the next level.</li>
+        </ol>
+        <pre><code class="python">from collections import deque
+
+class Solution:
+    def connect(self, root: "Node") -&gt; "Node":
+        if root is None:
+            return None
+        queue = deque([root])
+        while queue:
+            level_size = len(queue)
+            prev = None
+            for _ in range(level_size):
+                node = queue.popleft()
+                if prev is not None:
+                    # the node popped before this one is its left neighbour
+                    prev.next = node
+                prev = node
+                if node.left is not None:
+                    queue.append(node.left)
+                if node.right is not None:
+                    queue.append(node.right)
+            # the last node of the level keeps next = None
+        return root</code></pre>
+        <!-- explain:start 117 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>if root is None: return None</code>: nothing to connect.</li>
+          <li><code>level_size = len(queue)</code>: the number of nodes on this level.</li>
+          <li><code>prev = None</code> at the start of every level, so the first node of a level is never linked from the previous level's last node.</li>
+          <li><code>if prev is not None: prev.next = node</code>: chain the level together in the order the queue gives us, which is left to right.</li>
+          <li>Children are appended left before right, which keeps the next level in left-to-right order too.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [1, 2, 3, 4, 5, null, 7]</code> (LeetCode Example 1). Result levels: <code>1 → None</code>, <code>2 → 3 → None</code>, <code>4 → 5 → 7 → None</code>.</p>
+        <table>
+          <thead><tr><th>level</th><th>popped in order</th><th>links made</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>1</td><td>(none; 1.next stays None)</td></tr>
+            <tr><td>1</td><td>2, 3</td><td><code>2.next = 3</code></td></tr>
+            <tr><td>2</td><td>4, 5, 7</td><td><code>4.next = 5</code>, <code>5.next = 7</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 117 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> queue space (<code>O(1)</code> with the follow-up technique).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-433">
+      <summary><span class="tag medium">Medium</span> 433. Minimum Genetic Mutation <span class="ds-tags"><span class="ds">String</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A gene is an 8-character string of <code>A</code>, <code>C</code>, <code>G</code>, <code>T</code>. One mutation changes one character, and every intermediate gene must be in <code>bank</code>. Return the minimum number of mutations from <code>startGene</code> to <code>endGene</code>, or <code>-1</code> if impossible.</p>
+        <p><strong>Spot it:</strong> "Minimum number of single changes" between states → each gene is a node, each valid mutation an edge, and all edges cost 1. Shortest path in an unweighted graph = BFS.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Put <code>bank</code> in a set for <code>O(1)</code> membership checks. If <code>endGene</code> isn't in it, return <code>-1</code> straight away.</li>
+          <li>BFS from <code>startGene</code> with a step count, plus a <code>visited</code> set.</li>
+          <li>For each popped gene, try every position × every other letter (<code>8 × 3 = 24</code> mutations). Queue the ones that are in the bank and not yet visited.</li>
+          <li>The first time <code>endGene</code> is popped, its step count is the minimum.</li>
+        </ol>
+        <pre><code class="python">from collections import deque
+
+class Solution:
+    def minMutation(self, startGene: str, endGene: str, bank: List[str]) -&gt; int:
+        valid = set(bank)
+        if endGene not in valid:
+            return -1
+        queue = deque([(startGene, 0)])
+        visited = {startGene}
+        while queue:
+            gene, steps = queue.popleft()
+            if gene == endGene:
+                return steps
+            # every gene that differs from this one in exactly one position
+            for i in range(len(gene)):
+                for ch in "ACGT":
+                    if ch == gene[i]:
+                        continue
+                    mutated = gene[:i] + ch + gene[i + 1:]
+                    if mutated in valid and mutated not in visited:
+                        visited.add(mutated)
+                        queue.append((mutated, steps + 1))
+        return -1</code></pre>
+        <!-- explain:start 433 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>valid = set(bank)</code>: membership tests in <code>O(1)</code>. If the target isn't in the bank, it can never be reached.</li>
+          <li><code>queue = deque([(startGene, 0)])</code>: each entry carries its distance from the start.</li>
+          <li><code>visited = {startGene}</code>: mark genes when they are <strong>queued</strong>, so the same gene is never queued twice.</li>
+          <li><code>if gene == endGene: return steps</code>: BFS pops genes in order of distance, so the first time we pop the target is the shortest route.</li>
+          <li><code>mutated = gene[:i] + ch + gene[i + 1:]</code>: copy the gene with position <code>i</code> replaced by <code>ch</code>.</li>
+          <li><code>return -1</code>: the queue emptied without reaching the target.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>startGene = "AACCGGTT"</code>, <code>endGene = "AAACGGTA"</code>, <code>bank = ["AACCGGTA", "AACCGCTA", "AAACGGTA"]</code> (LeetCode Example 2). Returns <code>2</code>.</p>
+        <table>
+          <thead><tr><th>popped (steps)</th><th>valid unvisited mutations queued</th><th>queue after</th></tr></thead>
+          <tbody>
+            <tr><td><code>AACCGGTT</code> (0)</td><td><code>AACCGGTA</code> (position 7: T→A)</td><td><code>[AACCGGTA (1)]</code></td></tr>
+            <tr><td><code>AACCGGTA</code> (1)</td><td><code>AAACGGTA</code> (position 2: C→A), <code>AACCGCTA</code> (position 5: G→C)</td><td><code>[AAACGGTA (2), AACCGCTA (2)]</code></td></tr>
+            <tr><td><code>AAACGGTA</code> (2)</td><td>it is <code>endGene</code> → <strong>return 2</strong></td><td></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 433 -->
+        <p><strong>Complexity:</strong> <code>O(b · L · 4)</code> time, where <code>b</code> is the bank size and <code>L = 8</code>; <code>O(b)</code> space for the set, queue and visited.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-909">
+      <summary><span class="tag medium">Medium</span> 909. Snakes and Ladders <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> An <code>n × n</code> board is numbered <code>1..n²</code> starting at the <strong>bottom-left</strong>, alternating direction on every row (boustrophedon). Each move, roll a die and go 1–6 squares forward; if you land on a snake or ladder (<code>board[r][c] != -1</code>), you must take it to that square. Return the fewest moves to reach <code>n²</code>, or <code>-1</code>.</p>
+        <p><strong>Spot it:</strong> "Fewest moves" where every move costs 1 → BFS over squares. Each square has up to six neighbours (<code>s + 1 .. s + 6</code>, then follow a snake/ladder).</p>
+        <p><strong>Key insight:</strong> Convert a square number to its cell: <code>row_from_bottom = (s − 1) // n</code>, <code>col = (s − 1) % n</code>, and flip <code>col</code> on odd rows from the bottom because those rows run right-to-left. The real row index is <code>n − 1 − row_from_bottom</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Write <code>cell(s)</code> to turn a square number into <code>(row, col)</code>.</li>
+          <li>BFS from square 1 with move count 0; mark squares as visited when queued.</li>
+          <li>For each popped square, try <code>s + 1 .. min(s + 6, n²)</code>. If that cell has a snake or ladder, jump to its destination.</li>
+          <li>Return the move count when <code>n²</code> is reached; <code>-1</code> if the queue empties.</li>
+        </ol>
+        <pre><code class="python">from collections import deque
+
+class Solution:
+    def snakesAndLadders(self, board: List[List[int]]) -&gt; int:
+        n = len(board)
+
+        def cell(square):
+            # squares count from the bottom-left, zig-zagging every row
+            row_from_bottom = (square - 1) // n
+            col = (square - 1) % n
+            if row_from_bottom % 2 == 1:
+                col = n - 1 - col          # odd rows (from the bottom) run right-to-left
+            return n - 1 - row_from_bottom, col
+
+        target = n * n
+        queue = deque([(1, 0)])            # (square, moves taken)
+        visited = {1}
+        while queue:
+            square, moves = queue.popleft()
+            if square == target:
+                return moves
+            for step in range(1, 7):
+                nxt = square + step
+                if nxt &gt; target:
+                    break
+                r, c = cell(nxt)
+                if board[r][c] != -1:
+                    nxt = board[r][c]      # forced to take the snake or ladder
+                if nxt not in visited:
+                    visited.add(nxt)
+                    queue.append((nxt, moves + 1))
+        return -1</code></pre>
+        <!-- explain:start 909 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def cell(square):</code> row <code>0</code> of <code>board</code> is the <strong>top</strong>, but square 1 is at the bottom, hence <code>n - 1 - row_from_bottom</code>.</li>
+          <li><code>if row_from_bottom % 2 == 1: col = n - 1 - col</code>: rows alternate direction, so every second row is mirrored.</li>
+          <li><code>queue = deque([(1, 0)])</code>: start on square 1 having made 0 moves.</li>
+          <li><code>for step in range(1, 7):</code> the six die faces. <code>if nxt &gt; target: break</code>: you can't move past the last square.</li>
+          <li><code>if board[r][c] != -1: nxt = board[r][c]</code>: a snake or ladder is mandatory, so the neighbour is its destination.</li>
+          <li><code>if nxt not in visited:</code> BFS reaches each square first by the fewest moves, so later visits are useless.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p>LeetCode Example 1, a 6 × 6 board with a ladder 2 → 15, a ladder 14 → 35 and a snake 17 → 13. Returns <code>4</code> (1 → 2↑15 → 17↓13 → 14↑35 → 36). Each row is one BFS level.</p>
+        <table>
+          <thead><tr><th>moves</th><th>squares first reached with this many moves</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>1</td></tr>
+            <tr><td>1</td><td>15, 3, 4, 5, 6, 7</td></tr>
+            <tr><td>2</td><td>16, 13, 18, 19, 20, 21, 8, 9, 10, 11, 12</td></tr>
+            <tr><td>3</td><td>22, 35, 23, 24, 25, 26, 27</td></tr>
+            <tr><td>4</td><td>28, 36, 29, 30, 31, 32, 33 → <strong>36 reached</strong></td></tr>
+          </tbody>
+        </table>
+        <p>Rolling a 2 from square 1 lands on the ladder, which is why <code>15</code> is reached in one move and <code>2</code> never appears. Likewise <code>17</code> is a snake down to <code>13</code>, and <code>14</code> is a ladder up to <code>35</code>, which is then one roll from 36.</p>
+        <!-- explain:end 909 -->
+        <p><strong>Complexity:</strong> <code>O(n²)</code> time (each square is queued at most once, with 6 tries), <code>O(n²)</code> space.</p>
       </div>
     </details>
 

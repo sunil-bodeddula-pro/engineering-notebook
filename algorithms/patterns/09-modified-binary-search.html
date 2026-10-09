@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 09 of 15</div>
+    <div class="eyebrow">Pattern 09 of 21</div>
     <h1>Modified Binary Search</h1>
     <p class="lede">Each question you ask throws away half of the remaining possibilities. Once you see that "yes/no" boundary, a million candidates take only 20 checks.</p>
 
@@ -710,7 +714,7 @@ def search_rotated(nums, target):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" open id="p-33">
-      <summary><span class="tag medium">Medium</span> 33. Search in Rotated Sorted Array</summary>
+      <summary><span class="tag medium">Medium</span> 33. Search in Rotated Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A sorted array of distinct numbers was rotated at an unknown pivot (e.g. <code>[0,1,2,4,5,6,7]</code> → <code>[4,5,6,7,0,1,2]</code>). Find the index of <code>target</code> in <code>O(log n)</code>, or return -1.</p>
         <p><strong>Spot it:</strong> "sorted" + "rotated" + "O(log n)" → modified binary search.</p>
@@ -782,7 +786,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-34">
-      <summary><span class="tag medium">Medium</span> 34. Find First and Last Position of Element in Sorted Array</summary>
+      <summary><span class="tag medium">Medium</span> 34. Find First and Last Position of Element in Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a sorted array (with duplicates), return <code>[first, last]</code> index of <code>target</code>, or <code>[-1, -1]</code>. Must be <code>O(log n)</code>.</p>
         <p><strong>Spot it:</strong> "first and last position" in a sorted array: two boundary searches.</p>
@@ -852,7 +856,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-153">
-      <summary><span class="tag medium">Medium</span> 153. Find Minimum in Rotated Sorted Array</summary>
+      <summary><span class="tag medium">Medium</span> 153. Find Minimum in Rotated Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the minimum of a rotated sorted array of distinct numbers in <code>O(log n)</code>.</p>
         <p><strong>Spot it:</strong> The minimum is the "rotation point". Compared with the <em>last</em> element, the array looks like <code>bigger, bigger, …, smaller, smaller</code>: a yes/no boundary.</p>
@@ -908,7 +912,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-875">
-      <summary><span class="tag medium">Medium</span> 875. Koko Eating Bananas</summary>
+      <summary><span class="tag medium">Medium</span> 875. Koko Eating Bananas <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Koko eats at speed <code>k</code> bananas per hour, finishing at most one pile per hour (a pile of <code>p</code> takes <code>ceil(p / k)</code> hours). Find the minimum <code>k</code> that lets her finish all piles within <code>h</code> hours.</p>
         <p><strong>Spot it:</strong> "minimum speed such that…". If speed <code>k</code> works, every faster speed works too. That's monotonic, so <strong>binary search on the answer</strong> over <code>[1, max(piles)]</code>. (See the second visualization above.)</p>
@@ -975,7 +979,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-410">
-      <summary><span class="tag hard">Hard</span> 410. Split Array Largest Sum</summary>
+      <summary><span class="tag hard">Hard</span> 410. Split Array Largest Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split <code>nums</code> (non-negative) into <code>k</code> non-empty contiguous pieces so that the <strong>largest piece-sum is as small as possible</strong>. Return that value.</p>
         <p><strong>Spot it:</strong> "minimize the largest sum" means "minimize the maximum", the classic binary-search-on-the-answer phrase. If a cap of <code>X</code> per piece is achievable with ≤ k pieces, any bigger cap is too.</p>
@@ -1081,27 +1085,30 @@ class Solution:
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>35</td><td><a href="#p-35">Search Insert Position</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: it's exactly lower_bound</td></tr>
-        <tr><td>34</td><td><a href="#p-34">Find First and Last Position</a></td><td><span class="tag medium">Medium</span></td><td>Two boundary searches</td></tr>
-        <tr><td>162</td><td><a href="#p-162">Find Peak Element</a></td><td><span class="tag medium">Medium</span></td><td>Compare mid with mid+1: walk uphill</td></tr>
-        <tr><td>153</td><td><a href="#p-153">Find Minimum in Rotated Sorted Array</a></td><td><span class="tag medium">Medium</span></td><td>Compare with the right end</td></tr>
-        <tr><td>33</td><td><a href="#p-33">Search in Rotated Sorted Array</a></td><td><span class="tag medium">Medium</span></td><td>Which half is sorted?</td></tr>
-        <tr><td>74</td><td><a href="#p-74">Search a 2D Matrix</a></td><td><span class="tag medium">Medium</span></td><td>Treat the matrix as one flat sorted array</td></tr>
-        <tr><td>875</td><td><a href="#p-875">Koko Eating Bananas</a></td><td><span class="tag medium">Medium</span></td><td>Binary search on the answer (speed)</td></tr>
-        <tr><td>1011</td><td><a href="#p-1011">Capacity To Ship Packages Within D Days</a></td><td><span class="tag medium">Medium</span></td><td>On the answer + greedy day count</td></tr>
-        <tr><td>981</td><td><a href="#p-981">Time Based Key-Value Store</a></td><td><span class="tag medium">Medium</span></td><td>bisect_right on timestamps</td></tr>
-        <tr><td>410</td><td><a href="#p-410">Split Array Largest Sum</a></td><td><span class="tag hard">Hard</span></td><td>Minimize the maximum</td></tr>
-        <tr><td>4</td><td><a href="#p-4">Median of Two Sorted Arrays</a></td><td><span class="tag hard">Hard</span></td><td>Binary search the partition of the shorter array</td></tr>
-        <tr><td>668</td><td><a href="#p-668">Kth Smallest Number in Multiplication Table</a></td><td><span class="tag hard">Hard</span></td><td>On the answer: count how many are ≤ x</td></tr>
+        <tr><td>35</td><td><a href="#p-35">Search Insert Position</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Warm-up: it's exactly lower_bound</td></tr>
+        <tr><td>278</td><td><a href="#p-278">First Bad Version</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Binary search on a yes/no condition: the first <code>True</code></td></tr>
+        <tr><td>367</td><td><a href="#p-367">Valid Perfect Square</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Math</span></span></td><td>Binary search over candidate roots <code>1..num</code></td></tr>
+        <tr><td>704</td><td><a href="#p-704">Binary Search</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>The plain template: halve the window until found</td></tr>
+        <tr><td>34</td><td><a href="#p-34">Find First and Last Position</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Two boundary searches</td></tr>
+        <tr><td>162</td><td><a href="#p-162">Find Peak Element</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Compare mid with mid+1: walk uphill</td></tr>
+        <tr><td>153</td><td><a href="#p-153">Find Minimum in Rotated Sorted Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Compare with the right end</td></tr>
+        <tr><td>33</td><td><a href="#p-33">Search in Rotated Sorted Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Which half is sorted?</td></tr>
+        <tr><td>74</td><td><a href="#p-74">Search a 2D Matrix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Treat the matrix as one flat sorted array</td></tr>
+        <tr><td>875</td><td><a href="#p-875">Koko Eating Bananas</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Binary search on the answer (speed)</td></tr>
+        <tr><td>1011</td><td><a href="#p-1011">Capacity To Ship Packages Within D Days</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>On the answer + greedy day count</td></tr>
+        <tr><td>981</td><td><a href="#p-981">Time Based Key-Value Store</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></td><td>bisect_right on timestamps</td></tr>
+        <tr><td>410</td><td><a href="#p-410">Split Array Largest Sum</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Minimize the maximum</td></tr>
+        <tr><td>4</td><td><a href="#p-4">Median of Two Sorted Arrays</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Binary search the partition of the shorter array</td></tr>
+        <tr><td>668</td><td><a href="#p-668">Kth Smallest Number in Multiplication Table</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>On the answer: count how many are ≤ x</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table that isn't solved in section 7 is worked out below. Click a problem name in the table to jump to it.</p>
 
     <details class="problem" id="p-35">
-      <summary><span class="tag easy">Easy</span> 35. Search Insert Position</summary>
+      <summary><span class="tag easy">Easy</span> 35. Search Insert Position <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a sorted array of distinct numbers, return the index of <code>target</code>, or the index where it would be inserted to keep the array sorted.</p>
         <p><strong>Spot it:</strong> "Where would it go" is the first index with <code>nums[i] ≥ target</code>. That's exactly lower bound.</p>
@@ -1154,7 +1161,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-162">
-      <summary><span class="tag medium">Medium</span> 162. Find Peak Element</summary>
+      <summary><span class="tag medium">Medium</span> 162. Find Peak Element <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the index of any element strictly greater than its neighbors. Treat <code>nums[−1]</code> and <code>nums[n]</code> as −∞. Adjacent values are never equal. Required: <code>O(log n)</code>.</p>
         <p><strong>Spot it:</strong> The array isn't sorted, but comparing <code>nums[mid]</code> with <code>nums[mid + 1]</code> tells you which way is "uphill". Walking uphill always reaches a peak, because the edge is −∞.</p>
@@ -1208,7 +1215,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-74">
-      <summary><span class="tag medium">Medium</span> 74. Search a 2D Matrix</summary>
+      <summary><span class="tag medium">Medium</span> 74. Search a 2D Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each row is sorted, and each row's first value is bigger than the previous row's last value. Return whether <code>target</code> is in the matrix.</p>
         <p><strong>Spot it:</strong> Read row by row, the matrix is one long sorted array. Binary search over flat indices <code>0 … R·C − 1</code> and convert each one to <code>(row, col)</code>.</p>
@@ -1273,7 +1280,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-1011">
-      <summary><span class="tag medium">Medium</span> 1011. Capacity To Ship Packages Within D Days</summary>
+      <summary><span class="tag medium">Medium</span> 1011. Capacity To Ship Packages Within D Days <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Packages must ship in their given order. Each day you load packages onto a ship until the next one would exceed its capacity. Find the smallest capacity that ships everything within <code>days</code> days.</p>
         <p><strong>Spot it:</strong> "Minimum capacity such that…", and a bigger ship never needs more days. That's monotonic, so binary search on the answer (the same shape as 410 and Koko).</p>
@@ -1344,7 +1351,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-981">
-      <summary><span class="tag medium">Medium</span> 981. Time Based Key-Value Store</summary>
+      <summary><span class="tag medium">Medium</span> 981. Time Based Key-Value Store <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement <code>set(key, value, timestamp)</code> and <code>get(key, timestamp)</code>. <code>get</code> returns the value set with the largest timestamp ≤ the given one, or <code>""</code>. Timestamps for <code>set</code> arrive strictly increasing.</p>
         <p><strong>Spot it:</strong> Each key's timestamps form a sorted list for free (they arrive in increasing order). "Largest timestamp ≤ t" is a boundary search: <code>bisect_right(t) − 1</code>.</p>
@@ -1421,7 +1428,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-4">
-      <summary><span class="tag hard">Hard</span> 4. Median of Two Sorted Arrays</summary>
+      <summary><span class="tag hard">Hard</span> 4. Median of Two Sorted Arrays <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the median of two sorted arrays combined, in <code>O(log(min(m, n)))</code> time.</p>
         <p><strong>Spot it:</strong> Merging would be <code>O(m + n)</code>. Instead, binary search for a <em>partition</em>: take <code>i</code> items from the shorter array A and <code>j = half − i</code> from B so that together they form the smaller half. The partition is valid when everything on the left is ≤ everything on the right.</p>
@@ -1519,7 +1526,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-668">
-      <summary><span class="tag hard">Hard</span> 668. Kth Smallest Number in Multiplication Table</summary>
+      <summary><span class="tag hard">Hard</span> 668. Kth Smallest Number in Multiplication Table <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In an <code>m × n</code> multiplication table (cell <code>(i, j)</code> = <code>i·j</code>, 1-indexed), return the k-th smallest number.</p>
         <p><strong>Spot it:</strong> The table has up to 9·10⁸ cells, far too many to list. But "how many cells are ≤ x?" is quick to count, and that count only grows as x grows. Binary search on the answer value.</p>
@@ -1579,6 +1586,160 @@ class Solution:
         </table>
         <p>Now <code>low == high == 3</code>, so the answer is <strong>3</strong>.</p>
         <p><strong>Complexity:</strong> <code>O(m log(m·n))</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-278">
+      <summary><span class="tag easy">Easy</span> 278. First Bad Version <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Versions <code>1..n</code> were released in order and every version after a bad one is also bad. Using the API <code>isBadVersion(v)</code>, find the first bad version while calling the API as few times as possible.</p>
+        <p><strong>Spot it:</strong> The answers look like <code>False False … False True True … True</code>, a <strong>monotonic condition</strong>. Finding the first <code>True</code> is the lower-bound form of binary search.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>lo = 1</code>, <code>hi = n</code>. The first bad version is always inside <code>[lo, hi]</code>.</li>
+          <li>While <code>lo &lt; hi</code>: check <code>mid</code>.</li>
+          <li>If <code>mid</code> is bad, it might be the first one, so keep it: <code>hi = mid</code>.</li>
+          <li>If <code>mid</code> is good, the first bad is strictly after it: <code>lo = mid + 1</code>.</li>
+          <li>When <code>lo == hi</code>, that is the answer.</li>
+        </ol>
+        <pre><code class="python"># The isBadVersion API is already defined for you.
+# def isBadVersion(version: int) -&gt; bool:
+
+class Solution:
+    def firstBadVersion(self, n: int) -&gt; int:
+        lo = 1
+        hi = n
+        # invariant: the first bad version is inside [lo, hi]
+        while lo &lt; hi:
+            mid = (lo + hi) // 2
+            if isBadVersion(mid):
+                hi = mid        # mid is bad: it may be the first, keep it
+            else:
+                lo = mid + 1    # mid is good: the first bad is after it
+        return lo</code></pre>
+        <!-- explain:start 278 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>lo = 1</code>, <code>hi = n</code>: versions are numbered from 1.</li>
+          <li><code>while lo &lt; hi:</code> stop when one candidate is left. (Not <code>&lt;=</code>, because <code>hi = mid</code> could then loop forever.)</li>
+          <li><code>if isBadVersion(mid): hi = mid</code>: a bad <code>mid</code> stays in the window; it may be the first.</li>
+          <li><code>else: lo = mid + 1</code>: a good <code>mid</code> and everything before it are ruled out.</li>
+          <li><code>return lo</code>: <code>lo == hi</code>, the first bad version.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>n = 5</code>, first bad version <code>4</code> (LeetCode Example 1). Returns <code>4</code>.</p>
+        <table>
+          <thead><tr><th>lo</th><th>hi</th><th>mid</th><th>isBadVersion(mid)</th><th>move</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>5</td><td>3</td><td>False</td><td>lo = 4</td></tr>
+            <tr><td>4</td><td>5</td><td>4</td><td>True</td><td>hi = 4</td></tr>
+            <tr><td>4</td><td>4</td><td>—</td><td>lo == hi</td><td><strong>return 4</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 278 -->
+        <p><strong>Complexity:</strong> <code>O(log n)</code> API calls and time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-367">
+      <summary><span class="tag easy">Easy</span> 367. Valid Perfect Square <span class="ds-tags"><span class="ds">Math</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if <code>num</code> is a perfect square (some integer squared), without using a square-root function.</p>
+        <p><strong>Spot it:</strong> <code>x * x</code> grows as <code>x</code> grows, so the candidate roots <code>1..num</code> are "sorted" by their squares. Binary-search for an <code>x</code> with <code>x * x == num</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>lo = 1</code>, <code>hi = num</code>.</li>
+          <li>While <code>lo ≤ hi</code>: <code>mid</code>, <code>square = mid * mid</code>.</li>
+          <li>Equal → <code>True</code>. Too small → <code>lo = mid + 1</code>. Too big → <code>hi = mid − 1</code>.</li>
+          <li>If the window empties, no integer root exists: <code>False</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def isPerfectSquare(self, num: int) -&gt; bool:
+        lo = 1
+        hi = num
+        while lo &lt;= hi:
+            mid = (lo + hi) // 2
+            square = mid * mid
+            if square == num:
+                return True
+            if square &lt; num:
+                lo = mid + 1     # the root (if any) is bigger than mid
+            else:
+                hi = mid - 1     # the root (if any) is smaller than mid
+        return False</code></pre>
+        <!-- explain:start 367 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>lo = 1</code>, <code>hi = num</code>: the root of <code>num</code> is somewhere in <code>1..num</code>.</li>
+          <li><code>square = mid * mid</code>: squares increase with <code>mid</code>, which is what makes binary search valid.</li>
+          <li><code>if square == num: return True</code>: found an exact root.</li>
+          <li><code>if square &lt; num: lo = mid + 1</code>, else <code>hi = mid - 1</code>: discard the half that can't contain the root.</li>
+          <li><code>return False</code>: the window closed, so <code>num</code> lies strictly between two consecutive squares.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>num = 16</code> (LeetCode Example 1). Returns <code>True</code>.</p>
+        <table>
+          <thead><tr><th>lo</th><th>hi</th><th>mid</th><th>mid²</th><th>decision</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>16</td><td>8</td><td>64</td><td>too big → hi = 7</td></tr>
+            <tr><td>1</td><td>7</td><td>4</td><td>16</td><td><strong>equal → True</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 367 -->
+        <p><strong>Complexity:</strong> <code>O(log num)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-704">
+      <summary><span class="tag easy">Easy</span> 704. Binary Search <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>nums</code> is sorted ascending. Return the index of <code>target</code>, or <code>-1</code> if it isn't there, in <code>O(log n)</code> time.</p>
+        <p><strong>Spot it:</strong> Sorted array + "find" + <code>O(log n)</code> → classic binary search on a closed window <code>[lo, hi]</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>lo = 0</code>, <code>hi = n − 1</code>: the target, if present, is somewhere in <code>nums[lo..hi]</code>.</li>
+          <li>While <code>lo ≤ hi</code>: look at the middle <code>mid</code>.</li>
+          <li>If <code>nums[mid] == target</code>, return <code>mid</code>. If it's smaller, the target must be to the right: <code>lo = mid + 1</code>. If larger: <code>hi = mid − 1</code>.</li>
+          <li>If the window becomes empty, the target is not present: return <code>-1</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def search(self, nums: List[int], target: int) -&gt; int:
+        lo = 0
+        hi = len(nums) - 1
+        # the answer, if it exists, is always inside nums[lo..hi]
+        while lo &lt;= hi:
+            mid = (lo + hi) // 2
+            if nums[mid] == target:
+                return mid
+            if nums[mid] &lt; target:
+                # everything at or left of mid is too small
+                lo = mid + 1
+            else:
+                # everything at or right of mid is too big
+                hi = mid - 1
+        return -1</code></pre>
+        <!-- explain:start 704 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>lo</code>, <code>hi</code>: both ends are included in the search window.</li>
+          <li><code>while lo &lt;= hi:</code> the window is non-empty while <code>lo ≤ hi</code>.</li>
+          <li><code>mid = (lo + hi) // 2</code>: the middle index (<code>//</code> rounds down).</li>
+          <li><code>if nums[mid] == target: return mid</code>: found it.</li>
+          <li><code>if nums[mid] &lt; target: lo = mid + 1</code>: <code>mid</code> and everything left of it are too small, so discard that half (including <code>mid</code>).</li>
+          <li><code>else: hi = mid - 1</code>: <code>mid</code> and everything right of it are too big.</li>
+          <li><code>return -1</code>: the window emptied without a match.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [-1, 0, 3, 5, 9, 12]</code>, <code>target = 9</code> (LeetCode Example 1). Returns <code>4</code>.</p>
+        <table>
+          <thead><tr><th>lo</th><th>hi</th><th>mid</th><th>nums[mid]</th><th>decision</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>5</td><td>2</td><td>3</td><td>3 &lt; 9 → lo = 3</td></tr>
+            <tr><td>3</td><td>5</td><td>4</td><td>9</td><td><strong>found → return 4</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 704 -->
+        <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
 

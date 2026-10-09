@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 11 of 15</div>
+    <div class="eyebrow">Pattern 11 of 21</div>
     <h1>Depth-First Search (DFS) on Graphs</h1>
     <p class="lede">Go as deep as you can down one path. When you hit a dead end, back up to the last fork and try the next road. A <code>visited</code> set makes sure you never walk in circles.</p>
 
@@ -816,7 +820,7 @@ def topo_sort(n, graph):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-547" open>
-      <summary><span class="tag medium">Medium</span> 547. Number of Provinces</summary>
+      <summary><span class="tag medium">Medium</span> 547. Number of Provinces <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>isConnected[i][j] = 1</code> means city <code>i</code> and city <code>j</code> are directly connected. A province is a group of cities connected directly or indirectly. Count the provinces.</p>
         <p><strong>Spot it:</strong> "groups connected directly or indirectly" = connected components. The input is an adjacency matrix.</p>
@@ -871,7 +875,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-133">
-      <summary><span class="tag medium">Medium</span> 133. Clone Graph</summary>
+      <summary><span class="tag medium">Medium</span> 133. Clone Graph <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a reference to one node of a connected undirected graph, return a deep copy. Every node has <code>val</code> and a list of <code>neighbors</code>.</p>
         <p><strong>Spot it:</strong> "copy every node reachable from here", and the graph has cycles. That's DFS with a visited map.</p>
@@ -927,7 +931,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-207">
-      <summary><span class="tag medium">Medium</span> 207. Course Schedule</summary>
+      <summary><span class="tag medium">Medium</span> 207. Course Schedule <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> There are <code>numCourses</code> courses. <code>[a, b]</code> means you must take <code>b</code> before <code>a</code>. Can you finish them all?</p>
         <p><strong>Spot it:</strong> "prerequisites" = a directed graph. You can finish everything if and only if there's <strong>no cycle</strong>.</p>
@@ -998,7 +1002,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-210">
-      <summary><span class="tag medium">Medium</span> 210. Course Schedule II</summary>
+      <summary><span class="tag medium">Medium</span> 210. Course Schedule II <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Same input as 207, but return <em>an</em> order in which to take all courses, or <code>[]</code> if that's impossible.</p>
         <p><strong>Spot it:</strong> "return an ordering that respects dependencies" = topological sort.</p>
@@ -1077,7 +1081,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-1192">
-      <summary><span class="tag hard">Hard</span> 1192. Critical Connections in a Network</summary>
+      <summary><span class="tag hard">Hard</span> 1192. Critical Connections in a Network <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>n</code> servers and undirected connections. A connection is <em>critical</em> if removing it disconnects some servers. Return all critical connections (these are called <strong>bridges</strong>).</p>
         <p><strong>Spot it:</strong> "removing an edge disconnects the graph" = bridges, which Tarjan's DFS finds in one pass.</p>
@@ -1186,20 +1190,23 @@ def topo_sort(n, graph):
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>1971</td><td><a href="#p-1971">Find if Path Exists in Graph</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: plain reachability</td></tr>
-        <tr><td>547</td><td><a href="#p-547">Number of Provinces</a></td><td><span class="tag medium">Medium</span></td><td>Components from an adjacency matrix</td></tr>
-        <tr><td>841</td><td><a href="#p-841">Keys and Rooms</a></td><td><span class="tag medium">Medium</span></td><td>Can DFS from room 0 reach every room?</td></tr>
-        <tr><td>133</td><td><a href="#p-133">Clone Graph</a></td><td><span class="tag medium">Medium</span></td><td>Visited map original → copy</td></tr>
-        <tr><td>797</td><td><a href="#p-797">All Paths From Source to Target</a></td><td><span class="tag medium">Medium</span></td><td>DAG: no visited needed, collect paths</td></tr>
-        <tr><td>207</td><td><a href="#p-207">Course Schedule</a></td><td><span class="tag medium">Medium</span></td><td>3-colour cycle detection</td></tr>
-        <tr><td>210</td><td><a href="#p-210">Course Schedule II</a></td><td><span class="tag medium">Medium</span></td><td>Reverse postorder = topo order</td></tr>
-        <tr><td>802</td><td><a href="#p-802">Find Eventual Safe States</a></td><td><span class="tag medium">Medium</span></td><td>Safe = ends BLACK without hitting GRAY</td></tr>
-        <tr><td>399</td><td><a href="#p-399">Evaluate Division</a></td><td><span class="tag medium">Medium</span></td><td>Weighted edges, multiply along the DFS path</td></tr>
-        <tr><td>332</td><td><a href="#p-332">Reconstruct Itinerary</a></td><td><span class="tag hard">Hard</span></td><td>Hierholzer: post-order Euler path</td></tr>
-        <tr><td>329</td><td><a href="#p-329">Longest Increasing Path in a Matrix</a></td><td><span class="tag hard">Hard</span></td><td>DFS + memo on an implicit DAG</td></tr>
-        <tr><td>1192</td><td><a href="#p-1192">Critical Connections in a Network</a></td><td><span class="tag hard">Hard</span></td><td>Tarjan: <code>low[v] &gt; disc[u]</code></td></tr>
+        <tr><td>1971</td><td><a href="#p-1971">Find if Path Exists in Graph</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Set</span><span class="ds">Stack</span></span></td><td>Warm-up: plain reachability</td></tr>
+        <tr><td>112</td><td><a href="#p-112">Path Sum</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Carry the <em>remaining</em> sum down; check it at a leaf</td></tr>
+        <tr><td>547</td><td><a href="#p-547">Number of Provinces</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Matrix</span></span></td><td>Components from an adjacency matrix</td></tr>
+        <tr><td>841</td><td><a href="#p-841">Keys and Rooms</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Set</span><span class="ds">Stack</span></span></td><td>Can DFS from room 0 reach every room?</td></tr>
+        <tr><td>133</td><td><a href="#p-133">Clone Graph</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></td><td>Visited map original → copy</td></tr>
+        <tr><td>797</td><td><a href="#p-797">All Paths From Source to Target</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span></span></td><td>DAG: no visited needed, collect paths</td></tr>
+        <tr><td>207</td><td><a href="#p-207">Course Schedule</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span></span></td><td>3-colour cycle detection</td></tr>
+        <tr><td>210</td><td><a href="#p-210">Course Schedule II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span></span></td><td>Reverse postorder = topo order</td></tr>
+        <tr><td>802</td><td><a href="#p-802">Find Eventual Safe States</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span></span></td><td>Safe = ends BLACK without hitting GRAY</td></tr>
+        <tr><td>399</td><td><a href="#p-399">Evaluate Division</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></td><td>Weighted edges, multiply along the DFS path</td></tr>
+        <tr><td>129</td><td><a href="#p-129">Sum Root to Leaf Numbers</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Carry the number built so far: <code>number * 10 + digit</code></td></tr>
+        <tr><td>1448</td><td><a href="#p-1448">Count Good Nodes in Binary Tree</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Carry the path's maximum down</td></tr>
+        <tr><td>332</td><td><a href="#p-332">Reconstruct Itinerary</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></td><td>Hierholzer: post-order Euler path</td></tr>
+        <tr><td>329</td><td><a href="#p-329">Longest Increasing Path in a Matrix</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>DFS + memo on an implicit DAG</td></tr>
+        <tr><td>1192</td><td><a href="#p-1192">Critical Connections in a Network</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span></span></td><td>Tarjan: <code>low[v] &gt; disc[u]</code></td></tr>
       </tbody>
     </table>
 
@@ -1207,7 +1214,7 @@ def topo_sort(n, graph):
     <p>Problems already solved in section 7 link back up there. Everything else is solved here.</p>
 
     <details class="problem" id="p-1971">
-      <summary><span class="tag easy">Easy</span> 1971. Find if Path Exists in Graph</summary>
+      <summary><span class="tag easy">Easy</span> 1971. Find if Path Exists in Graph <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Set</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <code>n</code> nodes and an undirected edge list, is there a path from <code>source</code> to <code>destination</code>?</p>
         <p><strong>Spot it:</strong> "is there a path" is plain reachability. DFS from the source and see if you reach the destination.</p>
@@ -1262,7 +1269,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-841">
-      <summary><span class="tag medium">Medium</span> 841. Keys and Rooms</summary>
+      <summary><span class="tag medium">Medium</span> 841. Keys and Rooms <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Set</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Room 0 is unlocked, and every other room is locked. <code>rooms[i]</code> lists the keys you find inside room <code>i</code>. Can you get into every room?</p>
         <p><strong>Spot it:</strong> Rooms are nodes and keys are directed edges. "Can I visit all?" means: does a DFS from room 0 reach every node?</p>
@@ -1307,7 +1314,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-797">
-      <summary><span class="tag medium">Medium</span> 797. All Paths From Source to Target</summary>
+      <summary><span class="tag medium">Medium</span> 797. All Paths From Source to Target <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a DAG (directed graph with no cycles) as an adjacency list, return every path from node 0 to node <code>n-1</code>.</p>
         <p><strong>Spot it:</strong> "all paths" means explore every branch, which is DFS. The graph has no cycles, so no visited set is needed.</p>
@@ -1358,7 +1365,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-802">
-      <summary><span class="tag medium">Medium</span> 802. Find Eventual Safe States</summary>
+      <summary><span class="tag medium">Medium</span> 802. Find Eventual Safe States <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a directed graph, a node is <em>safe</em> if every path starting from it ends at a terminal node (one with no outgoing edges). Return all safe nodes in sorted order.</p>
         <p><strong>Spot it:</strong> A node is unsafe exactly when it can reach a cycle. That's 3-colour DFS, and the final colours give the answer.</p>
@@ -1416,7 +1423,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-399">
-      <summary><span class="tag medium">Medium</span> 399. Evaluate Division</summary>
+      <summary><span class="tag medium">Medium</span> 399. Evaluate Division <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You're given equations like <code>a / b = 2.0</code>. Answer queries like <code>a / c</code>. Return <code>-1.0</code> if a query can't be determined.</p>
         <p><strong>Spot it:</strong> Variables are nodes, and <code>a/b = k</code> is an edge a→b with weight k (plus b→a with weight 1/k). A query is "find any path and multiply the weights along it", which DFS can do.</p>
@@ -1488,7 +1495,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-332">
-      <summary><span class="tag hard">Hard</span> 332. Reconstruct Itinerary</summary>
+      <summary><span class="tag hard">Hard</span> 332. Reconstruct Itinerary <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given airline tickets <code>[from, to]</code>, use every ticket exactly once to build an itinerary starting at <code>"JFK"</code>. If several work, return the lexicographically smallest one.</p>
         <p><strong>Spot it:</strong> "use every edge exactly once" is an Euler path. Hierholzer's algorithm is a DFS that adds a node to the route when it gets <em>stuck</em> (postorder).</p>
@@ -1554,7 +1561,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-329">
-      <summary><span class="tag hard">Hard</span> 329. Longest Increasing Path in a Matrix</summary>
+      <summary><span class="tag hard">Hard</span> 329. Longest Increasing Path in a Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the length of the longest strictly increasing path in a grid, moving up, down, left or right.</p>
         <p><strong>Spot it:</strong> Edges go only from smaller to larger values, so the grid is an implicit DAG with no cycles. DFS from each cell, with memoization so each cell is computed once.</p>
@@ -1620,6 +1627,156 @@ def topo_sort(n, graph):
         </table>
         <p>The largest value is 4 (path 1 → 2 → 6 → 9).</p>
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-112">
+      <summary><span class="tag easy">Easy</span> 112. Path Sum <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if some <strong>root-to-leaf</strong> path has values adding up to <code>targetSum</code>.</p>
+        <p><strong>Spot it:</strong> Root-to-leaf paths → DFS that carries state <strong>downward</strong>. Subtracting each node's value from the target means a leaf only has to check whether what is left equals its own value.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>An empty tree has no paths: <code>False</code>.</li>
+          <li>Subtract the current node's value from the remaining sum.</li>
+          <li>At a leaf (no children), succeed if the remainder is exactly 0.</li>
+          <li>Otherwise succeed if either child's subtree has a path for the new remainder.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def hasPathSum(self, root: Optional[TreeNode], targetSum: int) -&gt; bool:
+        if root is None:
+            return False
+        remaining = targetSum - root.val
+        if root.left is None and root.right is None:
+            # a leaf: the path ends here, so nothing may be left over
+            return remaining == 0
+        # keep going down either side with what is still needed
+        return self.hasPathSum(root.left, remaining) or self.hasPathSum(root.right, remaining)</code></pre>
+        <!-- explain:start 112 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>if root is None: return False</code>: reached from a node with only one child. That is not a leaf, so no valid path ends here.</li>
+          <li><code>remaining = targetSum - root.val</code>: how much the rest of the path must still add up to.</li>
+          <li><code>if root.left is None and root.right is None:</code> the path must end at a leaf, so check the remainder only here.</li>
+          <li><code>return ... or ...</code>: try the left subtree, and only if that fails, the right one.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, 1]</code>, <code>targetSum = 22</code> (LeetCode Example 1). Returns <code>True</code> via <code>5 → 4 → 11 → 2</code>.</p>
+        <table>
+          <thead><tr><th>node</th><th>remaining after it</th><th>leaf?</th><th>result</th></tr></thead>
+          <tbody>
+            <tr><td>5</td><td>17</td><td>no</td><td>go down</td></tr>
+            <tr><td>4</td><td>13</td><td>no</td><td>go down</td></tr>
+            <tr><td>11</td><td>2</td><td>no</td><td>go down</td></tr>
+            <tr><td>7</td><td>−5</td><td>yes</td><td>−5 ≠ 0 → False, try the sibling</td></tr>
+            <tr><td>2</td><td>0</td><td>yes</td><td><strong>0 → True</strong> (bubbles up through the <code>or</code>s)</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 112 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-129">
+      <summary><span class="tag medium">Medium</span> 129. Sum Root to Leaf Numbers <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Each node holds a digit <code>0..9</code>, and every root-to-leaf path spells a number (<code>1 → 2 → 3</code> is 123). Return the sum of all these numbers.</p>
+        <p><strong>Spot it:</strong> Root-to-leaf + state that accumulates on the way down → DFS passing the partial number to the children.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>dfs(node, number)</code> receives the number formed by the path <em>above</em> <code>node</code>.</li>
+          <li>Append this digit: <code>number = number * 10 + node.val</code>.</li>
+          <li>At a leaf, the path's number is complete: return it.</li>
+          <li>Otherwise return the sum of both children's results (a missing child contributes 0).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def sumNumbers(self, root: Optional[TreeNode]) -&gt; int:
+        def dfs(node, number):
+            if node is None:
+                return 0
+            # shift the digits left and append this node's digit
+            number = number * 10 + node.val
+            if node.left is None and node.right is None:
+                return number            # a complete root-to-leaf number
+            return dfs(node.left, number) + dfs(node.right, number)
+
+        return dfs(root, 0)</code></pre>
+        <!-- explain:start 129 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def dfs(node, number):</code> <code>number</code> is passed by value, so each branch builds its own copy. No undoing is needed.</li>
+          <li><code>if node is None: return 0</code>: a missing child adds nothing.</li>
+          <li><code>number = number * 10 + node.val</code>: e.g. 12 followed by digit 3 → 123.</li>
+          <li><code>if node.left is None and node.right is None: return number</code>: a leaf finishes one number.</li>
+          <li><code>return dfs(node.left, number) + dfs(node.right, number)</code>: add up every number below this node.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [4, 9, 0, 5, 1]</code> (LeetCode Example 2). Returns <code>1026</code> (= 495 + 491 + 40).</p>
+        <table>
+          <thead><tr><th>node</th><th>number after it</th><th>leaf?</th><th>returns</th></tr></thead>
+          <tbody>
+            <tr><td>4</td><td>4</td><td>no</td><td>sum of children</td></tr>
+            <tr><td>9</td><td>49</td><td>no</td><td>sum of children</td></tr>
+            <tr><td>5</td><td>495</td><td>yes</td><td>495</td></tr>
+            <tr><td>1</td><td>491</td><td>yes</td><td>491</td></tr>
+            <tr><td>9 (done)</td><td></td><td></td><td>495 + 491 = 986</td></tr>
+            <tr><td>0</td><td>40</td><td>yes</td><td>40</td></tr>
+            <tr><td>4 (done)</td><td></td><td></td><td>986 + 40 = <strong>1026</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 129 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-1448">
+      <summary><span class="tag medium">Medium</span> 1448. Count Good Nodes in Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A node is <strong>good</strong> if no node on the path from the root to it has a greater value. Count the good nodes.</p>
+        <p><strong>Spot it:</strong> "Compared with everything on the path from the root" → DFS that carries the largest value seen so far.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>dfs(node, max_so_far)</code>: <code>max_so_far</code> is the largest value on the path above <code>node</code>.</li>
+          <li>If <code>node.val &gt;= max_so_far</code>, this node is good: count 1.</li>
+          <li>Update the maximum and add the counts from both children.</li>
+          <li>Start with <code>dfs(root, root.val)</code>: the root is always good.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def goodNodes(self, root: TreeNode) -&gt; int:
+        def dfs(node, max_so_far):
+            if node is None:
+                return 0
+            good = 0
+            if node.val &gt;= max_so_far:
+                good = 1                      # nothing above it is bigger
+            new_max = max(max_so_far, node.val)
+            return good + dfs(node.left, new_max) + dfs(node.right, new_max)
+
+        return dfs(root, root.val)</code></pre>
+        <!-- explain:start 1448 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def dfs(node, max_so_far):</code> each call knows the biggest value between the root and this node.</li>
+          <li><code>if node.val &gt;= max_so_far: good = 1</code>: equal values still count as good ("no node <strong>greater</strong>").</li>
+          <li><code>new_max = max(max_so_far, node.val)</code>: the path's maximum including this node, passed to both children.</li>
+          <li><code>return good + dfs(...) + dfs(...)</code>: this node's contribution plus everything below it.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [3, 1, 4, 3, null, 1, 5]</code> (LeetCode Example 1). Returns <code>4</code> (the nodes 3, 3, 4, 5).</p>
+        <table>
+          <thead><tr><th>node</th><th>max above it</th><th>good?</th><th>max passed down</th></tr></thead>
+          <tbody>
+            <tr><td>3 (root)</td><td>3</td><td>yes</td><td>3</td></tr>
+            <tr><td>1</td><td>3</td><td>no</td><td>3</td></tr>
+            <tr><td>3 (under 1)</td><td>3</td><td>yes (3 ≥ 3)</td><td>3</td></tr>
+            <tr><td>4</td><td>3</td><td>yes</td><td>4</td></tr>
+            <tr><td>1 (under 4)</td><td>4</td><td>no</td><td>4</td></tr>
+            <tr><td>5</td><td>4</td><td>yes</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <p>Four <code>yes</code> rows → <code>4</code>.</p>
+        <!-- explain:end 1448 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
 

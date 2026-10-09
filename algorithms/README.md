@@ -1,6 +1,6 @@
 # Coding Patterns Mastery
 
-An offline, interactive course that takes you from zero to pro at the 15 coding-interview patterns.
+An offline, interactive course that takes you from zero to pro at the 21 coding-interview patterns.
 
 ## Open it
 
@@ -10,15 +10,19 @@ Double-click **`index.html`**. It opens in any browser straight from disk. No se
 
 | Path | What it is |
 |---|---|
-| `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 6-week study plan |
-| `patterns/01-…15-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
-| `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 15 |
+| `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 7-week study plan |
+| `patterns/01-…21-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
+| `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 21 |
 | `python/NN_*.py` | Runnable Python solutions for every problem in the pages, with tests |
 | `python/run_all.py` | `python3 python/run_all.py` runs every test file |
 | `assets/` | Source CSS and the small visualizer engine (plain JS). Every page already contains a copy of both, so **any single HTML file works on its own** (email it, move it, open it offline) |
 | `tools/inline_assets.py` | If you edit `assets/`, run `python3 tools/inline_assets.py` to refresh the copy inside every page |
 
 Every problem on every page, including each problem in the practice list, is solved **inside the HTML**: the problem, why the pattern fits, numbered approach steps, commented Python code and complexity. You never need to open the `python/` folder to read a solution.
+
+Every problem is also tagged with the **data structures** it is built on (Array, String, Hash Map, Linked List, Binary Tree, Heap, Graph, …): look for the small grey chips next to each problem title and in the "Data structure" column of every practice list.
+
+The practice lists cover every LeetCode problem from the YouTube playlist [Data Structures & Algorithms in Python – The Complete Pathway](https://www.youtube.com/playlist?list=PLKYEe2WisBTFEr6laH5bR2J19j7sl5O8R), each sorted into the pattern it belongs to.
 
 ### The 10 sections on every pattern page
 1. **What it's for**: plain English, with a real-world analogy
@@ -35,7 +39,7 @@ Every problem on every page, including each problem in the practice list, is sol
 ## Visualizer controls
 Click inside a visualizer, then use <kbd>←</kbd> / <kbd>→</kbd> to step and <kbd>Space</kbd> to play or pause. You can also drag the slider.
 
-## The 15 memory hooks
+## The 21 memory hooks
 | # | Pattern | Hook |
 |---|---|---|
 | 01 | Prefix Sum | Odometer minus odometer |
@@ -53,6 +57,12 @@ Click inside a visualizer, then use <kbd>←</kbd> / <kbd>→</kbd> to step and 
 | 13 | Matrix Traversal | Every cell is a node; neighbours are N/E/S/W |
 | 14 | Backtracking | Choose, explore, un-choose |
 | 15 | Dynamic Programming | Backtracking with a memory |
+| 16 | Hash Map & Set | Coat check: hang it once, find it instantly |
+| 17 | Stack | Plates in the cafeteria |
+| 18 | Greedy | Biggest coin that fits |
+| 19 | Trie & Design | Thumb index + two-tool belt |
+| 20 | Shortest Path & MST | Closest unvisited city next |
+| 21 | Array & String Basics | The careful clerk |
 
 ## Hosting it as a website (free)
 

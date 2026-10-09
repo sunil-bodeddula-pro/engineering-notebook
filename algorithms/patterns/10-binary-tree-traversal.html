@@ -141,6 +141,10 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
 @media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+/* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
+.ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
+.ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -531,7 +535,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 10 of 15</div>
+    <div class="eyebrow">Pattern 10 of 21</div>
     <h1>Binary Tree Traversal</h1>
     <p class="lede">Visit every node of a tree exactly once, in an order you choose on purpose. The <em>order</em> you pick (pre, in, post, or level) decides what information is ready when you reach each node.</p>
 
@@ -869,7 +873,7 @@ def level_order(root):
     <p>Helper used below: <code>class TreeNode: val, left, right</code> (LeetCode's standard definition).</p>
 
     <details class="problem" id="p-230" open>
-      <summary><span class="tag medium">Medium</span> 230. Kth Smallest Element in a BST</summary>
+      <summary><span class="tag medium">Medium</span> 230. Kth Smallest Element in a BST <span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given the root of a binary search tree and an integer <code>k</code>, return the <code>k</code>-th smallest value (1-indexed).</p>
         <p><strong>Spot it:</strong> "BST" + "kth smallest" = sorted order is needed. Inorder traversal of a BST visits values in ascending order.</p>
@@ -924,7 +928,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-98">
-      <summary><span class="tag medium">Medium</span> 98. Validate Binary Search Tree</summary>
+      <summary><span class="tag medium">Medium</span> 98. Validate Binary Search Tree <span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if the tree is a valid BST: every node's left subtree holds only smaller values, its right subtree only larger values, recursively.</p>
         <p><strong>Spot it:</strong> "valid BST" means "is the inorder sequence strictly increasing?"</p>
@@ -979,7 +983,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-105">
-      <summary><span class="tag medium">Medium</span> 105. Construct Binary Tree from Preorder and Inorder Traversal</summary>
+      <summary><span class="tag medium">Medium</span> 105. Construct Binary Tree from Preorder and Inorder Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You get the preorder and inorder lists of a tree with unique values. Rebuild the tree.</p>
         <p><strong>Spot it:</strong> "construct from traversals" means you have to know exactly what each order guarantees.</p>
@@ -1044,7 +1048,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-124">
-      <summary><span class="tag hard">Hard</span> 124. Binary Tree Maximum Path Sum</summary>
+      <summary><span class="tag hard">Hard</span> 124. Binary Tree Maximum Path Sum <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A path is any chain of connected nodes (it doesn't have to pass through the root, and it can't branch). Return the largest possible sum of node values on a path. Values may be negative.</p>
         <p><strong>Spot it:</strong> "max path" in a tree, and the best answer at a node depends on the best answers <em>below</em> it. That's postorder.</p>
@@ -1111,7 +1115,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-297">
-      <summary><span class="tag hard">Hard</span> 297. Serialize and Deserialize Binary Tree</summary>
+      <summary><span class="tag hard">Hard</span> 297. Serialize and Deserialize Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design <code>serialize(root) -&gt; str</code> and <code>deserialize(str) -&gt; root</code> so that a tree survives the round trip.</p>
         <p><strong>Spot it:</strong> "encode/decode a tree": preorder with explicit null markers is self-describing.</p>
@@ -1221,19 +1225,32 @@ def level_order(root):
     <!-- 10 -->
     <h2 id="practice">10. Practice list (in order)</h2>
     <table>
-      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Twist</th></tr></thead>
+      <thead><tr><th>#</th><th>Problem</th><th>Level</th><th>Data structure</th><th>Twist</th></tr></thead>
       <tbody>
-        <tr><td>94</td><td><a href="#p-94">Binary Tree Inorder Traversal</a></td><td><span class="tag easy">Easy</span></td><td>Warm-up: write it iteratively, without looking</td></tr>
-        <tr><td>102</td><td><a href="#p-102">Binary Tree Level Order Traversal</a></td><td><span class="tag medium">Medium</span></td><td>The level-order template itself</td></tr>
-        <tr><td>103</td><td><a href="#p-103">Binary Tree Zigzag Level Order Traversal</a></td><td><span class="tag medium">Medium</span></td><td>Reverse every other level</td></tr>
-        <tr><td>199</td><td><a href="#p-199">Binary Tree Right Side View</a></td><td><span class="tag medium">Medium</span></td><td>Last node of each level</td></tr>
-        <tr><td>98</td><td><a href="#p-98">Validate Binary Search Tree</a></td><td><span class="tag medium">Medium</span></td><td>Inorder must be strictly increasing</td></tr>
-        <tr><td>230</td><td><a href="#p-230">Kth Smallest Element in a BST</a></td><td><span class="tag medium">Medium</span></td><td>Iterative inorder, stop early</td></tr>
-        <tr><td>236</td><td><a href="#p-236">Lowest Common Ancestor of a Binary Tree</a></td><td><span class="tag medium">Medium</span></td><td>Postorder: "did either side find p or q?"</td></tr>
-        <tr><td>105</td><td><a href="#p-105">Construct Binary Tree from Preorder and Inorder</a></td><td><span class="tag medium">Medium</span></td><td>Preorder gives roots, inorder gives splits</td></tr>
-        <tr><td>173</td><td><a href="#p-173">Binary Search Tree Iterator</a></td><td><span class="tag medium">Medium</span></td><td>Iterative inorder, paused between calls</td></tr>
-        <tr><td>124</td><td><a href="#p-124">Binary Tree Maximum Path Sum</a></td><td><span class="tag hard">Hard</span></td><td>Postorder: update global, return one side</td></tr>
-        <tr><td>297</td><td><a href="#p-297">Serialize and Deserialize Binary Tree</a></td><td><span class="tag hard">Hard</span></td><td>Preorder with null markers</td></tr>
+        <tr><td>94</td><td><a href="#p-94">Binary Tree Inorder Traversal</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Stack</span></span></td><td>Warm-up: write it iteratively, without looking</td></tr>
+        <tr><td>100</td><td><a href="#p-100">Same Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Walk two trees in lock-step</td></tr>
+        <tr><td>101</td><td><a href="#p-101">Symmetric Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Same Tree, but compare outer with outer and inner with inner</td></tr>
+        <tr><td>104</td><td><a href="#p-104">Maximum Depth of Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Depth = 1 + the deeper subtree</td></tr>
+        <tr><td>108</td><td><a href="#p-108">Convert Sorted Array to Binary Search Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">BST</span><span class="ds">Array</span></span></td><td>The middle element is the root; recurse on each half</td></tr>
+        <tr><td>110</td><td><a href="#p-110">Balanced Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Return the height, or <code>-1</code> as an "unbalanced" signal</td></tr>
+        <tr><td>226</td><td><a href="#p-226">Invert Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Post-order: invert both subtrees, then swap them</td></tr>
+        <tr><td>530</td><td><a href="#p-530">Minimum Absolute Difference in BST</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">BST</span></span></td><td>In-order gives sorted values; compare neighbours only</td></tr>
+        <tr><td>543</td><td><a href="#p-543">Diameter of Binary Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Return the height up, record <code>left + right</code> on the side</td></tr>
+        <tr><td>572</td><td><a href="#p-572">Subtree of Another Tree</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Traverse <code>root</code>; at each node run Same Tree against <code>subRoot</code></td></tr>
+        <tr><td>102</td><td><a href="#p-102">Binary Tree Level Order Traversal</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></td><td>The level-order template itself</td></tr>
+        <tr><td>103</td><td><a href="#p-103">Binary Tree Zigzag Level Order Traversal</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></td><td>Reverse every other level</td></tr>
+        <tr><td>199</td><td><a href="#p-199">Binary Tree Right Side View</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></td><td>Last node of each level</td></tr>
+        <tr><td>98</td><td><a href="#p-98">Validate Binary Search Tree</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></td><td>Inorder must be strictly increasing</td></tr>
+        <tr><td>230</td><td><a href="#p-230">Kth Smallest Element in a BST</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></td><td>Iterative inorder, stop early</td></tr>
+        <tr><td>236</td><td><a href="#p-236">Lowest Common Ancestor of a Binary Tree</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Postorder: "did either side find p or q?"</td></tr>
+        <tr><td>105</td><td><a href="#p-105">Construct Binary Tree from Preorder and Inorder</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></td><td>Preorder gives roots, inorder gives splits</td></tr>
+        <tr><td>173</td><td><a href="#p-173">Binary Search Tree Iterator</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></td><td>Iterative inorder, paused between calls</td></tr>
+        <tr><td>106</td><td><a href="#p-106">Construct Binary Tree from Inorder and Postorder Traversal</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></td><td>Postorder's <strong>last</strong> value is the root; build the right subtree first</td></tr>
+        <tr><td>114</td><td><a href="#p-114">Flatten Binary Tree to Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Linked List</span></span></td><td>Splice each left subtree in between the node and its right subtree</td></tr>
+        <tr><td>235</td><td><a href="#p-235">Lowest Common Ancestor of a Binary Search Tree</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">BST</span></span></td><td>Use BST order: walk down until <code>p</code> and <code>q</code> split</td></tr>
+        <tr><td>427</td><td><a href="#p-427">Construct Quad Tree</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Quad Tree</span></span></td><td>Divide the square into four until each part is uniform</td></tr>
+        <tr><td>124</td><td><a href="#p-124">Binary Tree Maximum Path Sum</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Postorder: update global, return one side</td></tr>
+        <tr><td>297</td><td><a href="#p-297">Serialize and Deserialize Binary Tree</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Binary Tree</span></span></td><td>Preorder with null markers</td></tr>
       </tbody>
     </table>
 
@@ -1241,7 +1258,7 @@ def level_order(root):
     <p>Problems already solved in section 7 link back up there. Everything else is solved here.</p>
 
     <details class="problem" id="p-94">
-      <summary><span class="tag easy">Easy</span> 94. Binary Tree Inorder Traversal</summary>
+      <summary><span class="tag easy">Easy</span> 94. Binary Tree Inorder Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the values of a binary tree in inorder (left, node, right). Do it without recursion.</p>
         <p><strong>Spot it:</strong> "inorder" is literally in the name. The iterative version is the building block for 98, 173 and 230.</p>
@@ -1290,7 +1307,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-102">
-      <summary><span class="tag medium">Medium</span> 102. Binary Tree Level Order Traversal</summary>
+      <summary><span class="tag medium">Medium</span> 102. Binary Tree Level Order Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the node values level by level, from top to bottom and left to right within each level, as a list of lists.</p>
         <p><strong>Spot it:</strong> "level by level" means BFS on the tree with a queue.</p>
@@ -1344,7 +1361,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-103">
-      <summary><span class="tag medium">Medium</span> 103. Binary Tree Zigzag Level Order Traversal</summary>
+      <summary><span class="tag medium">Medium</span> 103. Binary Tree Zigzag Level Order Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Like level order, but alternate direction: level 0 left→right, level 1 right→left, and so on.</p>
         <p><strong>Spot it:</strong> Still "per level", so it's level order. Only the way each level is written changes.</p>
@@ -1409,7 +1426,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-199">
-      <summary><span class="tag medium">Medium</span> 199. Binary Tree Right Side View</summary>
+      <summary><span class="tag medium">Medium</span> 199. Binary Tree Right Side View <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Imagine standing to the right of the tree. Return the values you can see, from top to bottom. That's the rightmost node of each level.</p>
         <p><strong>Spot it:</strong> "one value per row, top to bottom" is a per-level question, so level order.</p>
@@ -1460,7 +1477,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-236">
-      <summary><span class="tag medium">Medium</span> 236. Lowest Common Ancestor of a Binary Tree</summary>
+      <summary><span class="tag medium">Medium</span> 236. Lowest Common Ancestor of a Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given two nodes <code>p</code> and <code>q</code> in a binary tree (not a BST), return their lowest common ancestor: the deepest node that has both of them in its subtree. A node counts as its own descendant.</p>
         <p><strong>Spot it:</strong> Each node needs to know "did my left / right subtree contain p or q?". That information flows up, so postorder.</p>
@@ -1513,7 +1530,7 @@ def level_order(root):
     </details>
 
     <details class="problem" id="p-173">
-      <summary><span class="tag medium">Medium</span> 173. Binary Search Tree Iterator</summary>
+      <summary><span class="tag medium">Medium</span> 173. Binary Search Tree Iterator <span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design an iterator over a BST: <code>next()</code> returns the next smallest value, and <code>hasNext()</code> says whether any remain. Aim for average <code>O(1)</code> time and <code>O(h)</code> memory.</p>
         <p><strong>Spot it:</strong> "next smallest" in a BST is inorder. To "pause" between calls, keep the iterative inorder stack as object state.</p>
@@ -1565,6 +1582,690 @@ def level_order(root):
           </tbody>
         </table>
         <p><strong>Complexity:</strong> <code>next()</code> is amortized <code>O(1)</code> because each node is pushed and popped once. <code>O(h)</code> memory.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-100">
+      <summary><span class="tag easy">Easy</span> 100. Same Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if the two binary trees <code>p</code> and <code>q</code> have the same shape and the same values.</p>
+        <p><strong>Spot it:</strong> Compare two trees node by node → one recursion that takes a node from <strong>each</strong> tree.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Both nodes missing → equal so far: <code>True</code>.</li>
+          <li>Exactly one missing, or the values differ → <code>False</code>.</li>
+          <li>Otherwise both left subtrees must be the same <strong>and</strong> both right subtrees must be the same.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -&gt; bool:
+        if p is None and q is None:
+            return True            # both empty: identical
+        if p is None or q is None:
+            return False           # only one is empty: different shape
+        if p.val != q.val:
+            return False           # same position, different value
+        # identical only if BOTH pairs of subtrees are identical
+        return self.isSameTree(p.left, q.left) and self.isSameTree(p.right, q.right)</code></pre>
+        <!-- explain:start 100 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>if p is None and q is None: return True</code>: two empty trees match.</li>
+          <li><code>if p is None or q is None: return False</code>: we already know they aren't both <code>None</code>, so exactly one is. The shapes differ.</li>
+          <li><code>if p.val != q.val: return False</code>: same position, different value.</li>
+          <li><code>return ... and ...</code>: both subtrees must match. <code>and</code> stops early: if the left side fails, the right side is never checked.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>p = [1, 2]</code>, <code>q = [1, null, 2]</code> (LeetCode Example 2). Returns <code>False</code>.</p>
+        <table>
+          <thead><tr><th>compare (p node, q node)</th><th>result</th><th>why</th></tr></thead>
+          <tbody>
+            <tr><td>(1, 1)</td><td>check children</td><td>both exist, values equal</td></tr>
+            <tr><td>(2, None) (the left children)</td><td><strong>False</strong></td><td>only one exists</td></tr>
+            <tr><td>(1, 1)</td><td><strong>False</strong></td><td><code>and</code> short-circuits: the right children are never compared</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 100 -->
+        <p><strong>Complexity:</strong> <code>O(min(m, n))</code> time (stops at the first difference), <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-101">
+      <summary><span class="tag easy">Easy</span> 101. Symmetric Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if the tree is a mirror image of itself around its centre.</p>
+        <p><strong>Spot it:</strong> A tree is symmetric when its left subtree mirrors its right subtree. "Mirror" is Same Tree with crossed children: <code>a.left</code> pairs with <code>b.right</code>, and <code>a.right</code> with <code>b.left</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Write a helper <code>mirror(a, b)</code> that checks whether two subtrees mirror each other.</li>
+          <li>Both missing → <code>True</code>; one missing or values differ → <code>False</code>.</li>
+          <li>Otherwise the outer pair <code>(a.left, b.right)</code> and the inner pair <code>(a.right, b.left)</code> must both mirror.</li>
+          <li>The answer is <code>mirror(root.left, root.right)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def isSymmetric(self, root: Optional[TreeNode]) -&gt; bool:
+        def mirror(a, b):
+            if a is None and b is None:
+                return True
+            if a is None or b is None:
+                return False
+            if a.val != b.val:
+                return False
+            # outer children pair up, and inner children pair up
+            return mirror(a.left, b.right) and mirror(a.right, b.left)
+
+        return mirror(root.left, root.right)</code></pre>
+        <!-- explain:start 101 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def mirror(a, b):</code> true when the subtree at <code>a</code> is the mirror image of the subtree at <code>b</code>.</li>
+          <li>The first three checks are the same as Same Tree: matching emptiness and equal values.</li>
+          <li><code>mirror(a.left, b.right)</code>: the outer edges of the two halves must match.</li>
+          <li><code>mirror(a.right, b.left)</code>: and so must the inner ones.</li>
+          <li><code>return mirror(root.left, root.right)</code>: the root itself sits on the mirror line, so only its two subtrees are compared.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [1, 2, 2, 3, 4, 4, 3]</code> (LeetCode Example 1). Returns <code>True</code>. Call the two 2s <code>2L</code> and <code>2R</code>.</p>
+        <table>
+          <thead><tr><th>mirror(a, b)</th><th>values</th><th>next checks</th><th>result</th></tr></thead>
+          <tbody>
+            <tr><td>(2L, 2R)</td><td>2 = 2</td><td>outer (3, 3), inner (4, 4)</td><td>waits</td></tr>
+            <tr><td>(3, 3)</td><td>3 = 3</td><td>both pairs of children are (None, None)</td><td>True</td></tr>
+            <tr><td>(4, 4)</td><td>4 = 4</td><td>both pairs of children are (None, None)</td><td>True</td></tr>
+            <tr><td>(2L, 2R)</td><td></td><td>True and True</td><td><strong>True</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 101 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-104">
+      <summary><span class="tag easy">Easy</span> 104. Maximum Depth of Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the number of nodes on the longest path from the root down to a leaf.</p>
+        <p><strong>Spot it:</strong> A value that depends on both subtrees → post-order recursion: ask each child for its depth, then combine.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>An empty tree has depth 0.</li>
+          <li>Get the depth of the left and right subtrees recursively.</li>
+          <li>This node adds one level: return <code>1 + max(left, right)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxDepth(self, root: Optional[TreeNode]) -&gt; int:
+        if root is None:
+            return 0
+        left_depth = self.maxDepth(root.left)
+        right_depth = self.maxDepth(root.right)
+        # this node is one more level on top of its deeper subtree
+        return 1 + max(left_depth, right_depth)</code></pre>
+        <!-- explain:start 104 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>if root is None: return 0</code>: no node, no depth. This is what makes a leaf's depth come out as 1.</li>
+          <li><code>left_depth</code>, <code>right_depth</code>: the recursion answers the same question for each subtree.</li>
+          <li><code>return 1 + max(...)</code>: the longest path goes through the deeper side, plus this node.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [3, 9, 20, null, null, 15, 7]</code> (LeetCode Example 1). Returns <code>3</code>.</p>
+        <table>
+          <thead><tr><th>call finishes</th><th>left depth</th><th>right depth</th><th>returns</th></tr></thead>
+          <tbody>
+            <tr><td>9</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>15</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>7</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>20</td><td>1</td><td>1</td><td>2</td></tr>
+            <tr><td>3</td><td>1</td><td>2</td><td><strong>3</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 104 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-108">
+      <summary><span class="tag easy">Easy</span> 108. Convert Sorted Array to Binary Search Tree <span class="ds-tags"><span class="ds">BST</span><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>nums</code> is sorted ascending. Build a <strong>height-balanced</strong> BST from it (subtree heights differ by at most 1 at every node).</p>
+        <p><strong>Spot it:</strong> BST + sorted input: the in-order of the tree must equal <code>nums</code>. Picking the <strong>middle</strong> element as the root puts half of the values on each side, which keeps the tree balanced. Then do the same for each half.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>build(lo, hi)</code> builds a tree from <code>nums[lo..hi]</code>; an empty range gives <code>None</code>.</li>
+          <li><code>mid = (lo + hi) // 2</code> becomes the root.</li>
+          <li>The left subtree is <code>build(lo, mid − 1)</code>, the right is <code>build(mid + 1, hi)</code>.</li>
+          <li>Return <code>build(0, n − 1)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def sortedArrayToBST(self, nums: List[int]) -&gt; Optional[TreeNode]:
+        def build(lo, hi):
+            if lo &gt; hi:
+                return None              # empty range: no node
+            mid = (lo + hi) // 2
+            node = TreeNode(nums[mid])
+            # smaller values on the left, larger on the right
+            node.left = build(lo, mid - 1)
+            node.right = build(mid + 1, hi)
+            return node
+
+        return build(0, len(nums) - 1)</code></pre>
+        <!-- explain:start 108 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def build(lo, hi):</code> works on index ranges instead of slicing, so no list copies are made.</li>
+          <li><code>if lo &gt; hi: return None</code>: an empty range is a missing child.</li>
+          <li><code>mid = (lo + hi) // 2</code>, <code>TreeNode(nums[mid])</code>: the middle value; the two halves differ in size by at most 1, which is what keeps the tree balanced.</li>
+          <li><code>node.left = build(lo, mid - 1)</code>: everything smaller; <code>node.right = build(mid + 1, hi)</code>: everything larger. That's exactly the BST rule.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>nums = [-10, -3, 0, 5, 9]</code> (LeetCode Example 1). Our code returns <code>[0, -10, 5, null, -3, null, 9]</code>, one of the accepted answers.</p>
+        <table>
+          <thead><tr><th>build(lo, hi)</th><th>mid</th><th>node</th><th>left call</th><th>right call</th></tr></thead>
+          <tbody>
+            <tr><td>(0, 4)</td><td>2</td><td>0</td><td>(0, 1)</td><td>(3, 4)</td></tr>
+            <tr><td>(0, 1)</td><td>0</td><td>−10</td><td>(0, −1) → None</td><td>(1, 1)</td></tr>
+            <tr><td>(1, 1)</td><td>1</td><td>−3</td><td>None</td><td>None</td></tr>
+            <tr><td>(3, 4)</td><td>3</td><td>5</td><td>(3, 2) → None</td><td>(4, 4)</td></tr>
+            <tr><td>(4, 4)</td><td>4</td><td>9</td><td>None</td><td>None</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 108 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (each element becomes one node), <code>O(log n)</code> recursion depth.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-110">
+      <summary><span class="tag easy">Easy</span> 110. Balanced Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A tree is height-balanced if, at <strong>every</strong> node, the heights of its two subtrees differ by at most 1. Check it.</p>
+        <p><strong>Spot it:</strong> Each node needs both subtree heights → post-order. Computing heights separately at every node costs <code>O(n²)</code>; instead return the height and use <code>-1</code> to mean "already unbalanced below".</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>A helper <code>height(node)</code> returns the subtree's height, or <code>-1</code> if it is unbalanced anywhere.</li>
+          <li>Empty tree → height 0.</li>
+          <li>Get both child heights; if either is <code>-1</code>, pass the <code>-1</code> up immediately.</li>
+          <li>If they differ by more than 1, return <code>-1</code>. Otherwise return <code>1 + max(left, right)</code>.</li>
+          <li>The tree is balanced if <code>height(root) != -1</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def isBalanced(self, root: Optional[TreeNode]) -&gt; bool:
+        def height(node):
+            # returns the height, or -1 if this subtree is unbalanced somewhere
+            if node is None:
+                return 0
+            left = height(node.left)
+            if left == -1:
+                return -1
+            right = height(node.right)
+            if right == -1:
+                return -1
+            if abs(left - right) &gt; 1:
+                return -1
+            return 1 + max(left, right)
+
+        return height(root) != -1</code></pre>
+        <!-- explain:start 110 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def height(node):</code> one function, two jobs: the height, and an "unbalanced" flag (<code>-1</code>, which can never be a real height).</li>
+          <li><code>if node is None: return 0</code>: empty subtrees have height 0.</li>
+          <li><code>if left == -1: return -1</code>: an unbalanced subtree makes the whole tree unbalanced. Stop early (we don't even visit the right side).</li>
+          <li><code>if abs(left - right) &gt; 1: return -1</code>: this node itself breaks the rule.</li>
+          <li><code>return 1 + max(left, right)</code>: the normal height.</li>
+          <li><code>return height(root) != -1</code>: balanced exactly when no <code>-1</code> reached the top.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [1, 2, 2, 3, 3, null, null, 4, 4]</code> (LeetCode Example 2). Returns <code>False</code>. Name the left 2 <code>2a</code> (children <code>3a</code>, <code>3b</code>; <code>3a</code> has two children <code>4</code>) and the right 2 <code>2b</code> (a leaf).</p>
+        <table>
+          <thead><tr><th>call finishes</th><th>left h</th><th>right h</th><th>returns</th></tr></thead>
+          <tbody>
+            <tr><td>4 (left of 3a)</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>4 (right of 3a)</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>3a</td><td>1</td><td>1</td><td>2</td></tr>
+            <tr><td>3b</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>2a</td><td>2</td><td>1</td><td>3 (difference 1, fine)</td></tr>
+            <tr><td>2b</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>1</td><td>3</td><td>1</td><td><strong>−1</strong> (difference 2 &gt; 1)</td></tr>
+          </tbody>
+        </table>
+        <p><code>height(root)</code> is <code>−1</code>, so <code>isBalanced</code> returns <strong>False</strong>. The root is the only node that breaks the rule.</p>
+        <!-- explain:end 110 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (each node visited once), <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-226">
+      <summary><span class="tag easy">Easy</span> 226. Invert Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Mirror the binary tree (swap every node's left and right children) and return its root.</p>
+        <p><strong>Spot it:</strong> "Do something to every node" on a tree → a recursive traversal. Each node's job is local: swap its two children.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>An empty tree is already inverted: return <code>None</code>.</li>
+          <li>Recursively invert the left subtree and the right subtree.</li>
+          <li>Swap them: the inverted right becomes the new left and vice versa.</li>
+          <li>Return the node.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def invertTree(self, root: Optional[TreeNode]) -&gt; Optional[TreeNode]:
+        if root is None:
+            return None
+        # invert both subtrees first (post-order) ...
+        left = self.invertTree(root.left)
+        right = self.invertTree(root.right)
+        # ... then swap them
+        root.left = right
+        root.right = left
+        return root</code></pre>
+        <!-- explain:start 226 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>if root is None: return None</code>: the base case. Every leaf's missing children end here.</li>
+          <li><code>left = self.invertTree(root.left)</code> and <code>right = ...</code>: trust the recursion to mirror each subtree completely.</li>
+          <li><code>root.left = right</code>, <code>root.right = left</code>: swap the two (already mirrored) subtrees. Saving them in variables first means no temporary is needed.</li>
+          <li><code>return root</code>: the parent call attaches this mirrored subtree on its opposite side.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [4, 2, 7, 1, 3, 6, 9]</code> (LeetCode Example 1). Returns <code>[4, 7, 2, 9, 6, 3, 1]</code>. Rows are in the order the calls <em>finish</em>.</p>
+        <table>
+          <thead><tr><th>call finishes</th><th>children after the swap (left, right)</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>(None, None)</td></tr>
+            <tr><td>3</td><td>(None, None)</td></tr>
+            <tr><td>2</td><td>(3, 1)</td></tr>
+            <tr><td>6</td><td>(None, None)</td></tr>
+            <tr><td>9</td><td>(None, None)</td></tr>
+            <tr><td>7</td><td>(9, 6)</td></tr>
+            <tr><td>4</td><td>(7, 2)</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 226 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (every node once), <code>O(h)</code> space for the recursion stack (<code>h</code> = height).</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-530">
+      <summary><span class="tag easy">Easy</span> 530. Minimum Absolute Difference in BST <span class="ds-tags"><span class="ds">BST</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the minimum absolute difference between the values of any two different nodes in a BST.</p>
+        <p><strong>Spot it:</strong> An in-order traversal of a BST visits values in <strong>sorted</strong> order, and in a sorted list the closest pair is always adjacent. So walk in order and compare each value with the previous one.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Do an in-order traversal (left, node, right), remembering the previously visited value <code>prev</code>.</li>
+          <li>At each node, if there is a <code>prev</code>, update <code>best</code> with <code>node.val − prev</code>.</li>
+          <li>Set <code>prev = node.val</code> and continue to the right subtree.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def getMinimumDifference(self, root: Optional[TreeNode]) -&gt; int:
+        prev = None             # value of the previous node in sorted order
+        best = float("inf")
+
+        def inorder(node):
+            nonlocal prev, best
+            if node is None:
+                return
+            inorder(node.left)
+            if prev is not None:
+                # sorted order: the closest value to node.val is its neighbour
+                best = min(best, node.val - prev)
+            prev = node.val
+            inorder(node.right)
+
+        inorder(root)
+        return best</code></pre>
+        <!-- explain:start 530 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>prev = None</code>: no value visited yet. <code>best = float("inf")</code>: any real difference beats infinity.</li>
+          <li><code>inorder(node.left)</code> → handle <code>node</code> → <code>inorder(node.right)</code>: that order lists BST values from smallest to largest.</li>
+          <li><code>if prev is not None: best = min(best, node.val - prev)</code>: values are increasing, so the difference is never negative and <code>abs</code> isn't needed.</li>
+          <li><code>prev = node.val</code>: this node becomes the neighbour of the next one.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [4, 2, 6, 1, 3]</code> (LeetCode Example 1). In-order: <code>1, 2, 3, 4, 6</code>. Returns <code>1</code>.</p>
+        <table>
+          <thead><tr><th>visit</th><th>prev</th><th>difference</th><th>best</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>—</td><td>—</td><td>∞</td></tr>
+            <tr><td>2</td><td>1</td><td>1</td><td>1</td></tr>
+            <tr><td>3</td><td>2</td><td>1</td><td>1</td></tr>
+            <tr><td>4</td><td>3</td><td>1</td><td>1</td></tr>
+            <tr><td>6</td><td>4</td><td>2</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 530 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-543">
+      <summary><span class="tag easy">Easy</span> 543. Diameter of Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> The diameter is the number of <strong>edges</strong> on the longest path between any two nodes. The path does not have to pass through the root. Return it.</p>
+        <p><strong>Spot it:</strong> The longest path bends at some node: down its left side and down its right side. At every node, <code>left height + right height</code> is a candidate. Post-order recursion gives both heights; a variable outside the recursion keeps the best candidate.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>best = 0</code> holds the longest path seen.</li>
+          <li>A helper <code>height(node)</code> returns how many nodes are on the longest downward path from <code>node</code> (0 for <code>None</code>).</li>
+          <li>At each node: get the left and right heights. The path that bends here has <code>left + right</code> edges; update <code>best</code>.</li>
+          <li>Return <code>1 + max(left, right)</code> to the parent.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def diameterOfBinaryTree(self, root: Optional[TreeNode]) -&gt; int:
+        best = 0
+
+        def height(node):
+            nonlocal best
+            if node is None:
+                return 0
+            left = height(node.left)
+            right = height(node.right)
+            # the longest path that bends at this node uses left + right edges
+            best = max(best, left + right)
+            # the parent can only extend ONE side of this node
+            return 1 + max(left, right)
+
+        height(root)
+        return best</code></pre>
+        <!-- explain:start 543 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>best = 0</code>: the answer, updated as the recursion visits every node.</li>
+          <li><code>nonlocal best</code>: lets the inner function change <code>best</code> from the outer function (without it, Python would create a new local <code>best</code>).</li>
+          <li><code>left = height(node.left)</code>, <code>right = height(node.right)</code>: nodes on the longest path down each side.</li>
+          <li><code>best = max(best, left + right)</code>: going down <code>left</code> nodes on one side and <code>right</code> nodes on the other is a path of exactly <code>left + right</code> edges through this node.</li>
+          <li><code>return 1 + max(left, right)</code>: a parent can continue the path through only one of our sides, so it gets the taller one.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [1, 2, 3, 4, 5]</code> (LeetCode Example 1). Returns <code>3</code> (path <code>4 → 2 → 1 → 3</code> or <code>5 → 2 → 1 → 3</code>).</p>
+        <table>
+          <thead><tr><th>call finishes</th><th>left</th><th>right</th><th>path through it</th><th>best</th><th>returns</th></tr></thead>
+          <tbody>
+            <tr><td>4</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>5</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+            <tr><td>2</td><td>1</td><td>1</td><td>2</td><td>2</td><td>2</td></tr>
+            <tr><td>3</td><td>0</td><td>0</td><td>0</td><td>2</td><td>1</td></tr>
+            <tr><td>1</td><td>2</td><td>1</td><td>3</td><td><strong>3</strong></td><td>3</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 543 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-572">
+      <summary><span class="tag easy">Easy</span> 572. Subtree of Another Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>True</code> if some node of <code>root</code>, together with all its descendants, is identical to the tree <code>subRoot</code>.</p>
+        <p><strong>Spot it:</strong> Two layers: a traversal that visits every candidate node of <code>root</code>, and Same Tree (LeetCode 100) to compare a candidate with <code>subRoot</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Write <code>same(a, b)</code> exactly as in Same Tree.</li>
+          <li>If <code>root</code> is <code>None</code>, there is nothing to match: <code>False</code>.</li>
+          <li>If <code>same(root, subRoot)</code>, we're done: <code>True</code>.</li>
+          <li>Otherwise the match must be inside the left <strong>or</strong> right subtree: recurse.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -&gt; bool:
+        def same(a, b):
+            if a is None and b is None:
+                return True
+            if a is None or b is None or a.val != b.val:
+                return False
+            return same(a.left, b.left) and same(a.right, b.right)
+
+        if root is None:
+            return False
+        if same(root, subRoot):
+            return True
+        # not at this node: try every node below it
+        return self.isSubtree(root.left, subRoot) or self.isSubtree(root.right, subRoot)</code></pre>
+        <!-- explain:start 572 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def same(a, b):</code> LeetCode 100 in a few lines: equal shape and equal values.</li>
+          <li><code>if root is None: return False</code>: ran out of candidates on this path.</li>
+          <li><code>if same(root, subRoot): return True</code>: the subtree starting here matches exactly.</li>
+          <li><code>return ... or ...</code>: look for a match anywhere in the left subtree, otherwise anywhere in the right subtree. <code>or</code> stops at the first success.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [3, 4, 5, 1, 2]</code>, <code>subRoot = [4, 1, 2]</code> (LeetCode Example 1). Returns <code>True</code>.</p>
+        <table>
+          <thead><tr><th>candidate in root</th><th>same(candidate, subRoot)?</th><th>why</th></tr></thead>
+          <tbody>
+            <tr><td>3</td><td>no</td><td>3 ≠ 4</td></tr>
+            <tr><td>4</td><td><strong>yes</strong></td><td>4 = 4, then (1, 1) and (2, 2) match, all leaves end together</td></tr>
+          </tbody>
+        </table>
+        <p>The left subtree of 3 matched, so <code>or</code> never needs to try the 5.</p>
+        <!-- explain:end 572 -->
+        <p><strong>Complexity:</strong> <code>O(m · n)</code> time in the worst case (Same Tree from each of the <code>m</code> nodes), <code>O(h)</code> recursion space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-106">
+      <summary><span class="tag medium">Medium</span> 106. Construct Binary Tree from Inorder and Postorder Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Given the in-order and post-order traversals of a binary tree with unique values, rebuild the tree.</p>
+        <p><strong>Spot it:</strong> Mirror of LeetCode 105. Post-order is <code>left, right, root</code>, so the root is at the <strong>end</strong>. Its position in the in-order list splits the values into the left subtree and the right subtree.</p>
+        <p><strong>Key insight:</strong> Reading post-order backwards gives <code>root, right, left</code>. So take values from the end of <code>postorder</code> and build the <strong>right</strong> subtree before the left one. A dictionary <code>value → in-order index</code> makes each split <code>O(1)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Map every value to its index in <code>inorder</code>.</li>
+          <li>Keep a pointer <code>post_i</code> at the last element of <code>postorder</code>.</li>
+          <li><code>build(lo, hi)</code> builds the subtree whose values are <code>inorder[lo..hi]</code>: take <code>postorder[post_i]</code> as the root and move <code>post_i</code> left.</li>
+          <li>Find the root's in-order index <code>mid</code>. Build the right subtree from <code>mid + 1..hi</code> <strong>first</strong>, then the left from <code>lo..mid − 1</code>.</li>
+          <li>An empty range returns <code>None</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def buildTree(self, inorder: List[int], postorder: List[int]) -&gt; Optional[TreeNode]:
+        # value -&gt; its position in inorder, to split left/right in O(1)
+        index_of = {}
+        for i in range(len(inorder)):
+            index_of[inorder[i]] = i
+        # we consume postorder from the END: root, then right subtree, then left
+        post_i = len(postorder) - 1
+
+        def build(lo, hi):
+            nonlocal post_i
+            if lo &gt; hi:
+                return None
+            root_val = postorder[post_i]
+            post_i = post_i - 1
+            node = TreeNode(root_val)
+            mid = index_of[root_val]
+            # right first, because postorder read backwards is root, right, left
+            node.right = build(mid + 1, hi)
+            node.left = build(lo, mid - 1)
+            return node
+
+        return build(0, len(inorder) - 1)</code></pre>
+        <!-- explain:start 106 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>index_of</code>: where each value sits in <code>inorder</code>. Values are unique, so this is well defined.</li>
+          <li><code>post_i = len(postorder) - 1</code>: the next root to use, starting from the end.</li>
+          <li><code>if lo &gt; hi: return None</code>: no values for this subtree.</li>
+          <li><code>root_val = postorder[post_i]</code>, <code>post_i = post_i - 1</code>: take the next root.</li>
+          <li><code>mid = index_of[root_val]</code>: in-order values left of <code>mid</code> form the left subtree and values right of it form the right subtree.</li>
+          <li><code>node.right = build(mid + 1, hi)</code> <strong>before</strong> <code>node.left</code>: the element just before a root in post-order belongs to its right subtree. Building left first would hand the left subtree the wrong roots.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>inorder = [9, 3, 15, 20, 7]</code>, <code>postorder = [9, 15, 7, 20, 3]</code> (LeetCode Example 1). Returns <code>[3, 9, 20, null, null, 15, 7]</code>.</p>
+        <table>
+          <thead><tr><th>build(lo, hi)</th><th>takes postorder[post_i]</th><th>in-order index</th><th>right range</th><th>left range</th></tr></thead>
+          <tbody>
+            <tr><td>(0, 4)</td><td>3</td><td>1</td><td>(2, 4)</td><td>(0, 0)</td></tr>
+            <tr><td>(2, 4)</td><td>20</td><td>3</td><td>(4, 4)</td><td>(2, 2)</td></tr>
+            <tr><td>(4, 4)</td><td>7</td><td>4</td><td>empty</td><td>empty</td></tr>
+            <tr><td>(2, 2)</td><td>15</td><td>2</td><td>empty</td><td>empty</td></tr>
+            <tr><td>(0, 0)</td><td>9</td><td>0</td><td>empty</td><td>empty</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 106 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the map and recursion.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-114">
+      <summary><span class="tag medium">Medium</span> 114. Flatten Binary Tree to Linked List <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Flatten the tree <strong>in place</strong> into a "linked list" that uses the <code>right</code> pointers, in pre-order (node, left, right). Every <code>left</code> pointer must become <code>None</code>.</p>
+        <p><strong>Spot it:</strong> Pre-order puts the whole left subtree between a node and its right subtree. So for each node with a left child: hang the right subtree off the <strong>rightmost</strong> node of the left subtree, then move the left subtree over to the right. <code>O(1)</code> extra space, no recursion.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Walk <code>cur</code> down the right pointers from the root.</li>
+          <li>If <code>cur</code> has a left subtree: find that subtree's rightmost node <code>tail</code> (the last node of the left subtree in pre-order).</li>
+          <li>Attach <code>cur.right</code> to <code>tail.right</code>, then make <code>cur.right = cur.left</code> and <code>cur.left = None</code>.</li>
+          <li>Move <code>cur = cur.right</code> and repeat until <code>cur</code> is <code>None</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def flatten(self, root: Optional[TreeNode]) -&gt; None:
+        cur = root
+        while cur is not None:
+            if cur.left is not None:
+                # the last node of the left subtree in pre-order is its rightmost node
+                tail = cur.left
+                while tail.right is not None:
+                    tail = tail.right
+                # the right subtree comes after the whole left subtree
+                tail.right = cur.right
+                # move the left subtree into the right slot
+                cur.right = cur.left
+                cur.left = None
+            cur = cur.right</code></pre>
+        <!-- explain:start 114 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>cur = root</code>: we work down the chain that is being built.</li>
+          <li><code>if cur.left is not None:</code> only nodes with a left subtree need re-wiring.</li>
+          <li><code>tail = cur.left</code>, then <code>while tail.right is not None: tail = tail.right</code>: the rightmost node of the left subtree is visited last in pre-order, so the right subtree must follow it.</li>
+          <li><code>tail.right = cur.right</code>: hang the old right subtree after that last node.</li>
+          <li><code>cur.right = cur.left</code>, <code>cur.left = None</code>: the left subtree now comes right after <code>cur</code>, and no left pointers remain.</li>
+          <li><code>cur = cur.right</code>: continue. Nodes deeper down still get the same treatment when <code>cur</code> reaches them.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [1, 2, 5, 3, 4, null, 6]</code> (LeetCode Example 1). Result <code>[1, null, 2, null, 3, null, 4, null, 5, null, 6]</code>.</p>
+        <table>
+          <thead><tr><th>cur</th><th>left subtree?</th><th>tail (rightmost of left)</th><th>re-wiring</th><th>chain so far (right pointers)</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>yes (2)</td><td>4</td><td><code>4.right = 5</code>, <code>1.right = 2</code>, <code>1.left = None</code></td><td><code>1 → 2 → 4 → 5 → 6</code> (2 still has left child 3)</td></tr>
+            <tr><td>2</td><td>yes (3)</td><td>3</td><td><code>3.right = 4</code>, <code>2.right = 3</code>, <code>2.left = None</code></td><td><code>1 → 2 → 3 → 4 → 5 → 6</code></td></tr>
+            <tr><td>3</td><td>no</td><td>—</td><td>—</td><td>unchanged</td></tr>
+            <tr><td>4</td><td>no</td><td>—</td><td>—</td><td>unchanged</td></tr>
+            <tr><td>5</td><td>no</td><td>—</td><td>—</td><td>unchanged</td></tr>
+            <tr><td>6</td><td>no</td><td>—</td><td>—</td><td>done</td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 114 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (each <code>tail</code> walk covers edges no other walk covers), <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-235">
+      <summary><span class="tag medium">Medium</span> 235. Lowest Common Ancestor of a Binary Search Tree <span class="ds-tags"><span class="ds">BST</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> In a <strong>BST</strong>, return the lowest node that has both <code>p</code> and <code>q</code> as descendants (a node counts as a descendant of itself).</p>
+        <p><strong>Spot it:</strong> BST order tells you which side each value is on. While both values are smaller than the current node, the LCA is on the left; while both are larger, on the right. The first node where they split (or that equals one of them) is the LCA.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Start at the root.</li>
+          <li>If both <code>p.val</code> and <code>q.val</code> are smaller than <code>node.val</code>, move left.</li>
+          <li>If both are larger, move right.</li>
+          <li>Otherwise they are on different sides (or one of them is this node): return it.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def lowestCommonAncestor(self, root: TreeNode, p: TreeNode, q: TreeNode) -&gt; TreeNode:
+        node = root
+        while node is not None:
+            if p.val &lt; node.val and q.val &lt; node.val:
+                node = node.left      # both are in the left subtree
+            elif p.val &gt; node.val and q.val &gt; node.val:
+                node = node.right     # both are in the right subtree
+            else:
+                # they split here (or one of them IS this node)
+                return node
+        return None</code></pre>
+        <!-- explain:start 235 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>node = root</code>: an iterative walk. No recursion is needed because we only ever go down one path.</li>
+          <li><code>if p.val &lt; node.val and q.val &lt; node.val:</code> in a BST everything smaller lives on the left, so the LCA must be there too.</li>
+          <li><code>elif p.val &gt; node.val and q.val &gt; node.val:</code> both on the right.</li>
+          <li><code>else: return node</code>: one value is ≤ and the other ≥ this node, so this is the deepest node above both.</li>
+          <li><code>return None</code>: unreachable when <code>p</code> and <code>q</code> are in the tree, as the problem guarantees.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>root = [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5]</code>, <code>p = 2</code>, <code>q = 4</code> (LeetCode Example 2). Returns <code>2</code>.</p>
+        <table>
+          <thead><tr><th>node</th><th>p = 2 vs node</th><th>q = 4 vs node</th><th>move</th></tr></thead>
+          <tbody>
+            <tr><td>6</td><td>smaller</td><td>smaller</td><td>go left</td></tr>
+            <tr><td>2</td><td>equal</td><td>larger</td><td><strong>split → return 2</strong></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 235 -->
+        <p><strong>Complexity:</strong> <code>O(h)</code> time (one root-to-node path), <code>O(1)</code> space.</p>
+      </div>
+    </details>
+
+    <details class="problem" id="p-427">
+      <summary><span class="tag medium">Medium</span> 427. Construct Quad Tree <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Quad Tree</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>grid</code> is an <code>n × n</code> matrix of 0s and 1s (<code>n</code> a power of 2). Build its <strong>quad tree</strong>: a uniform square becomes a leaf with that value; otherwise the node has four children for the top-left, top-right, bottom-left and bottom-right quarters.</p>
+        <p><strong>Spot it:</strong> A tree defined by recursive splitting → recursion that builds one node per square. Each node has four children instead of two.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>build(row, col, size)</code> handles the square whose top-left corner is <code>(row, col)</code>.</li>
+          <li>Check whether every cell in it equals the first cell.</li>
+          <li>If so, return a leaf: <code>Node(val = that value, isLeaf = True)</code>.</li>
+          <li>Otherwise split into four squares of <code>size // 2</code> and return an internal node with those four children.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def construct(self, grid: List[List[int]]) -&gt; "Node":
+        def build(row, col, size):
+            # is every cell in this square the same as its first cell?
+            first = grid[row][col]
+            uniform = True
+            for r in range(row, row + size):
+                for c in range(col, col + size):
+                    if grid[r][c] != first:
+                        uniform = False
+                        break
+                if not uniform:
+                    break
+            if uniform:
+                return Node(first == 1, True)
+            half = size // 2
+            # not uniform: split into four quarters
+            return Node(True, False,
+                        build(row, col, half),                 # top-left
+                        build(row, col + half, half),          # top-right
+                        build(row + half, col, half),          # bottom-left
+                        build(row + half, col + half, half))   # bottom-right
+
+        return build(0, 0, len(grid))</code></pre>
+        <!-- explain:start 427 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>def build(row, col, size):</code> a square is described by its corner and side length, so no sub-grids are copied.</li>
+          <li>The two nested loops compare every cell with <code>first</code> and <code>break</code> out at the first mismatch.</li>
+          <li><code>if uniform: return Node(first == 1, True)</code>: a leaf. LeetCode stores the value as a boolean, so <code>first == 1</code> turns 1/0 into <code>True</code>/<code>False</code>.</li>
+          <li><code>half = size // 2</code>: the side of each quarter.</li>
+          <li><code>Node(True, False, ...)</code>: an internal node (<code>isLeaf = False</code>; its <code>val</code> can be anything) with four recursively built children, in the order top-left, top-right, bottom-left, bottom-right.</li>
+        </ol>
+        <p><strong>Dry run</strong> on the example:</p>
+        <p><code>grid = [[0, 1], [1, 0]]</code> (LeetCode Example 1). Returns <code>[[0, 1], [1, 0], [1, 1], [1, 1], [1, 0]]</code> (each pair is <code>[isLeaf, val]</code>).</p>
+        <table>
+          <thead><tr><th>build(row, col, size)</th><th>cells</th><th>uniform?</th><th>result</th></tr></thead>
+          <tbody>
+            <tr><td>(0, 0, 2)</td><td>0, 1, 1, 0</td><td>no</td><td>internal node, split into four</td></tr>
+            <tr><td>(0, 0, 1)</td><td>0</td><td>yes</td><td>leaf <code>val = False</code></td></tr>
+            <tr><td>(0, 1, 1)</td><td>1</td><td>yes</td><td>leaf <code>val = True</code></td></tr>
+            <tr><td>(1, 0, 1)</td><td>1</td><td>yes</td><td>leaf <code>val = True</code></td></tr>
+            <tr><td>(1, 1, 1)</td><td>0</td><td>yes</td><td>leaf <code>val = False</code></td></tr>
+          </tbody>
+        </table>
+        <!-- explain:end 427 -->
+        <p><strong>Complexity:</strong> <code>O(n² log n)</code> time (each level of splitting re-scans all cells once), <code>O(log n)</code> recursion depth.</p>
       </div>
     </details>
 
