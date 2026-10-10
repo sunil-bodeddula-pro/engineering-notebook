@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -697,6 +713,17 @@ def count_subarrays(nums, k):
       <summary><span class="tag medium">Medium</span> 560. Subarray Sum Equals K <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <code>nums</code> (can contain negatives) and <code>k</code>, return how many contiguous subarrays sum to <code>k</code>.</p>
+        <!-- enrich-top:start 560 -->
+        <p class="links"><a href="https://leetcode.com/problems/subarray-sum-equals-k/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,1], k = 2</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3], k = 3</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 2 * 10⁴</code> · <code>-1000 ≤ nums[i] ≤ 1000</code> · <code>-10⁷ ≤ k ≤ 10⁷</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The sum of <code>nums[i..j]</code> equals <code>prefix[j + 1] − prefix[i]</code>. If that difference must be <code>k</code>, what earlier prefix are you looking for?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Walk once, keeping a running sum. Count how many earlier prefixes equal <code>running − k</code>; a dictionary of prefix → how many times seen answers that instantly.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Try every start <code>i</code> and every end <code>j</code> and add up the slice: <code>O(n³)</code>, or <code>O(n²)</code> if you extend a running sum from each start. The waste is that every slice sum is rebuilt from scratch. With prefix sums a slice sum is one subtraction, and storing the prefixes you've seen in a hash map turns "is there a start that makes this sum <code>k</code>?" into one <code>O(1)</code> lookup, so the whole thing is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 560 -->
         <p><strong>Spot it:</strong> "number of subarrays" + "sum equals k" + negatives allowed, so Sliding Window won't work. That points to Prefix Sum + hash map.</p>
         <p><strong>Key insight:</strong> If <code>running_now − running_earlier = k</code>, then the slice between those two points sums to <code>k</code>. So at every step, count how many earlier prefixes equal <code>running_now − k</code>.</p>
         <div id="viz-560"></div>
@@ -746,6 +773,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>2</code>. The two slices are <code>[1, 2]</code> (found at i = 1, because total 0 was seen) and <code>[3]</code> (found at i = 2, because total 3 was seen).</p>
+        <!-- enrich-edges:start 560 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 0</code> with zeros in the array, e.g. <code>[0, 0, 0]</code> → 6 subarrays (forgetting to seed <code>{0: 1}</code> gives the wrong count).</li>
+          <li>Negative numbers, e.g. <code>[1, -1, 0]</code>, <code>k = 0</code>: a sliding window would fail here, prefix sums don't.</li>
+          <li>A single element equal to <code>k</code>, e.g. <code>[3]</code>, <code>k = 3</code> → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 560 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -754,6 +789,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 525. Contiguous Array <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a binary array, find the length of the longest subarray with an equal number of 0s and 1s.</p>
+        <!-- enrich-top:start 525 -->
+        <p class="links"><a href="https://leetcode.com/problems/contiguous-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [0,1]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[0, 1] is the longest contiguous subarray with an equal number of 0 and 1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,1,0]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[0, 1] (or [1, 0]) is a longest contiguous subarray with equal number of 0 and 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>nums[i]</code> is either <code>0</code> or <code>1</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Replace every 0 with −1. What does "equal number of 0s and 1s" become in terms of the sum?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A subarray with sum 0 sits between two equal prefix sums. To get the <em>longest</em>, remember the <strong>first</strong> index each prefix sum appeared.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Check every subarray and count its 0s and 1s: <code>O(n²)</code>. Mapping <code>0 → −1</code> turns "balanced" into "sums to 0", and two equal prefix sums enclose such a subarray. Storing the first index of each prefix sum lets you measure the longest one in a single <code>O(n)</code> pass.</p>
+        <!-- enrich-top:end 525 -->
         <p><strong>Spot it:</strong> "equal number of" → turn each 0 into −1. Now "equal" means "sum is 0". It's a <em>longest</em> question, so store the <strong>first index</strong> where each running sum appears.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list"><li>Map 0 → −1 and 1 → +1, so "equal counts" means "sum 0".</li><li>Store the <em>first</em> index at which each running sum appears, seeded with <code>{0: -1}</code>.</li><li>When a running sum repeats, the slice between the two indices sums to 0. Update the best length.</li></ol>
@@ -807,6 +853,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>6</code> (indices 3..8: <code>[1, 1, 1, 0, 0, 0]</code>).</p>
+        <!-- enrich-edges:start 525 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No balanced subarray, e.g. <code>[0, 0, 0]</code> → 0.</li>
+          <li>The whole array is balanced, e.g. <code>[0, 1, 1, 0]</code> → 4 (needs the seed <code>{0: −1}</code>).</li>
+          <li>Length 1 → always 0.</li>
+        </ul>
+        <!-- enrich-edges:end 525 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -814,6 +868,19 @@ class Solution:
     <details class="problem" id="p-974">
       <summary><span class="tag medium">Medium</span> 974. Subarray Sums Divisible by K <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
+        <!-- enrich-top:start 974 -->
+        <p><strong>Problem:</strong> Return the number of non-empty contiguous subarrays of <code>nums</code> whose sum is divisible by <code>k</code>.</p>
+        <p class="links"><a href="https://leetcode.com/problems/subarray-sums-divisible-by-k/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [4,5,0,-2,-3,1], k = 5</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are 7 subarrays with a sum divisible by k = 5:
+[4, 5, 0, -2, -3, 1], [5], [5, 0], [5, 0, -2, -3], [0], [0, -2, -3], [-2, -3]</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [5], k = 9</code></div><div><strong>Output:</strong> <code class="ex">0</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 3 * 10⁴</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>2 ≤ k ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>When is <code>prefix[j] − prefix[i]</code> divisible by <code>k</code>? Think about remainders.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Two prefixes with the same remainder <code>mod k</code> enclose a divisible slice. Count prefixes per remainder; each new prefix pairs with all earlier ones of the same remainder.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sum every subarray and test <code>% k</code>: <code>O(n²)</code>. A slice is divisible exactly when its two bounding prefix sums leave the same remainder, so you only need a count per remainder (an array of size <code>k</code>). Each prefix adds the count of earlier equal remainders: <code>O(n + k)</code>.</p>
+        <!-- enrich-top:end 974 -->
         <p><strong>Spot it:</strong> "divisible by k" means two prefixes with the <strong>same remainder</strong> mod k enclose a divisible slice. Count prefixes by remainder.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list"><li>Keep counts of prefix remainders mod k, with remainder 0 seen once.</li><li>For each number, update <code>running = (running + x) % k</code>.</li><li>Every earlier prefix with the same remainder forms a divisible slice, so add its count, then increment it.</li></ol>
@@ -858,6 +925,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>7</code>. Notice <code>-2</code>: <code>(4 + -2) % 5</code> is 2 in Python, never negative.</p>
+        <!-- enrich-edges:start 974 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Negative numbers: Python's <code>%</code> already returns a non-negative remainder (<code>-1 % 5 == 4</code>); in other languages add <code>k</code>.</li>
+          <li>Every element divisible by <code>k</code>, e.g. <code>[5, 5]</code>, <code>k = 5</code> → 3.</li>
+          <li><code>k = 1</code>: every subarray counts, <code>n(n + 1) / 2</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 974 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(k)</code> space.</p>
       </div>
     </details>
@@ -865,6 +940,21 @@ class Solution:
     <details class="problem" id="p-304">
       <summary><span class="tag medium">Medium</span> 304. Range Sum Query 2D – Immutable <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
+        <!-- enrich-top:start 304 -->
+        <p><strong>Problem:</strong> Design <code>NumMatrix(matrix)</code> with <code>sumRegion(row1, col1, row2, col2)</code>, which returns the sum of the rectangle with top-left <code>(row1, col1)</code> and bottom-right <code>(row2, col2)</code> (inclusive). There can be up to 10⁴ queries, each must be <code>O(1)</code>.</p>
+        <p class="links"><a href="https://leetcode.com/problems/range-sum-query-2d-immutable/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["NumMatrix", "sumRegion", "sumRegion", "sumRegion"]
+[[[[3, 0, 1, 4, 2], [5, 6, 3, 2, 1], [1, 2, 0, 1, 5], [4, 1, 0, 1, 7], [1, 0, 3, 0, 5]]], [2, 1, 4, 3], [1, 1, 2, 2], [1, 2, 2, 4]]</code></div><div><strong>Output:</strong> <code class="ex">[null, 8, 11, 12]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">NumMatrix numMatrix = new NumMatrix([[3, 0, 1, 4, 2], [5, 6, 3, 2, 1], [1, 2, 0, 1, 5], [4, 1, 0, 1, 7], [1, 0, 3, 0, 5]]);
+numMatrix.sumRegion(2, 1, 4, 3); // return 8 (i.e sum of the red rectangle)
+numMatrix.sumRegion(1, 1, 2, 2); // return 11 (i.e sum of the green rectangle)
+numMatrix.sumRegion(1, 2, 2, 4); // return 12 (i.e sum of the blue rectangle)</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[i].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>-10⁴ ≤ matrix[i][j] ≤ 10⁴</code> · <code>0 ≤ row1 ≤ row2 &lt; m</code> · <code>0 ≤ col1 ≤ col2 &lt; n</code> · At most <code>10⁴</code> calls will be made to <code>sumRegion</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Precompute <code>P[r][c]</code> = sum of everything above and to the left of <code>(r, c)</code>. How do you build it from its neighbours?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A rectangle = big prefix − the strip above − the strip to the left + the corner you subtracted twice.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Adding up the rectangle cell by cell costs <code>O(rows · cols)</code> per query, too slow for many queries. A 2-D prefix sum spends <code>O(rows · cols)</code> once and then answers every query with four lookups (inclusion–exclusion).</p>
+        <!-- enrich-top:end 304 -->
         <p><strong>Spot it:</strong> many rectangle-sum queries on a fixed grid. Use a 2-D prefix sum.</p>
         <p><strong>Inclusion–exclusion picture:</strong> big rectangle − top strip − left strip + the corner you subtracted twice.</p>
         <div id="viz-304"></div>
@@ -928,6 +1018,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>8</code>.</p>
+        <!-- enrich-edges:start 304 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single-cell region (<code>row1 == row2</code>, <code>col1 == col2</code>).</li>
+          <li>A region touching row 0 or column 0: the padded extra row/column of zeros avoids index −1.</li>
+          <li>Negative values in the matrix.</li>
+        </ul>
+        <!-- enrich-edges:end 304 -->
         <p><strong>Complexity:</strong> build <code>O(R·C)</code>, query <code>O(1)</code>.</p>
       </div>
     </details>
@@ -935,6 +1033,18 @@ class Solution:
     <details class="problem" id="p-1074">
       <summary><span class="tag hard">Hard</span> 1074. Number of Submatrices That Sum to Target <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
+        <!-- enrich-top:start 1074 -->
+        <p><strong>Problem:</strong> Return the number of non-empty submatrices of <code>matrix</code> whose elements sum to <code>target</code>.</p>
+        <p class="links"><a href="https://leetcode.com/problems/number-of-submatrices-that-sum-to-target/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[0,1,0],[1,1,1],[0,1,0]], target = 0</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The four 1x1 submatrices that only contain 0.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,-1],[-1,1]], target = 0</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The two 1x2 submatrices, plus the two 2x1 submatrices, plus the 2x2 submatrix.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ matrix.length ≤ 100</code> · <code>1 ≤ matrix[0].length ≤ 100</code> · <code>-1000 ≤ matrix[i][j] ≤ 1000</code> · <code>-10^8 ≤ target ≤ 10^8</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Fix a top row and a bottom row. What does the band between them look like if you add up each column?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Each band is a 1-D array of column sums, so count its subarrays with sum <code>target</code> using the LeetCode 560 hash-map trick.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating all submatrices is <code>O(r² · c²)</code> and summing each one adds more. Fixing the pair of rows reduces the problem to 1-D: squash the columns into sums, then count subarrays summing to <code>target</code> in <code>O(c)</code> with a prefix-sum map. Total <code>O(r² · c)</code>.</p>
+        <!-- enrich-top:end 1074 -->
         <p><strong>Spot it:</strong> a 2-D version of #560. Fix a pair of rows (top, bottom). Squash the columns between them into a 1-D array of column sums, then run the #560 hash-map trick on it.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list"><li>Pick a top row and extend the bottom row down one row at a time.</li><li>Keep <code>col[c]</code> = sum of column c between top and bottom: a 1-D array.</li><li>Run the #560 prefix + hash map count on <code>col</code> for <code>target</code>.</li></ol>
@@ -985,6 +1095,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>4</code>: the four single-cell zeros in the corners.</p>
+        <!-- enrich-edges:start 1074 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single cell equal to <code>target</code>.</li>
+          <li><code>target = 0</code> with zeros and negatives (the <code>{0: 1}</code> seed matters).</li>
+          <li>One row or one column: it degenerates to plain LeetCode 560.</li>
+        </ul>
+        <!-- enrich-edges:end 1074 -->
         <p><strong>Complexity:</strong> <code>O(R²·C)</code> time, <code>O(C)</code> space. Make <code>R</code> the smaller dimension.</p>
       </div>
     </details>
@@ -1042,6 +1160,20 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 303. Range Sum Query – Immutable <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a fixed array, answer many <code>sumRange(left, right)</code> calls (inclusive) quickly.</p>
+        <!-- enrich-top:start 303 -->
+        <p class="links"><a href="https://leetcode.com/problems/range-sum-query-immutable/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["NumArray", "sumRange", "sumRange", "sumRange"]
+[[[-2, 0, 3, -5, 2, -1]], [0, 2], [2, 5], [0, 5]]</code></div><div><strong>Output:</strong> <code class="ex">[null, 1, -1, -3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">NumArray numArray = new NumArray([-2, 0, 3, -5, 2, -1]);
+numArray.sumRange(0, 2); // return (-2) + 0 + 3 = 1
+numArray.sumRange(2, 5); // return 3 + (-5) + 2 + (-1) = -1
+numArray.sumRange(0, 5); // return (-2) + 0 + 3 + (-5) + 2 + (-1) = -3</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁵ ≤ nums[i] ≤ 10⁵</code> · <code>0 ≤ left ≤ right &lt; nums.length</code> · At most <code>10⁴</code> calls will be made to <code>sumRange</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Many queries on the same array: what can you precompute once?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>With <code>prefix[i]</code> = sum of the first <code>i</code> numbers, the sum of <code>left..right</code> is a single subtraction.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Summing <code>nums[left..right]</code> per query is <code>O(n)</code> each, so <code>q</code> queries cost <code>O(n · q)</code>. Building the prefix array once in <code>O(n)</code> makes every query <code>O(1)</code>.</p>
+        <!-- enrich-top:end 303 -->
         <p><strong>Spot it:</strong> "many queries" on an array that never changes. That's textbook Prefix Sum.</p>
         <ol class="steps-list">
           <li>In the constructor, build <code>prefix</code> with a leading 0.</li>
@@ -1087,6 +1219,14 @@ class Solution:
             <tr><td>sumRange(0, 5)</td><td>prefix[6] - prefix[0] = -3 - 0</td><td>-3</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 303 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>left == right</code> (a single element).</li>
+          <li>The whole array (<code>left = 0</code>, <code>right = n − 1</code>): this is why <code>prefix</code> has <code>n + 1</code> entries.</li>
+          <li>Negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 303 -->
         <p><strong>Complexity:</strong> build <code>O(n)</code>, each query <code>O(1)</code>, space <code>O(n)</code>.</p>
       </div>
     </details>
@@ -1095,6 +1235,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 238. Product of Array Except Self <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>answer[i]</code> = product of every element except <code>nums[i]</code>, without using division, in <code>O(n)</code>.</p>
+        <!-- enrich-top:start 238 -->
+        <p class="links"><a href="https://leetcode.com/problems/product-of-array-except-self/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=yKZFurr4GQA" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[24,12,8,6]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [-1,1,0,-3,3]</code></div><div><strong>Output:</strong> <code class="ex">[0,0,9,0,0]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ nums.length ≤ 10⁵</code> · <code>-30 ≤ nums[i] ≤ 30</code> · The input is generated such that <code>answer[i]</code> is <strong>guaranteed</strong> to fit in a <strong>32-bit</strong> integer.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>answer[i]</code> = (product of everything to the left of <code>i</code>) × (product of everything to the right).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Build the left products in one pass, then sweep from the right with a running product. No division needed.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For each <code>i</code>, multiply all other elements: <code>O(n²)</code>. Dividing the total product by <code>nums[i]</code> breaks on zeros and is forbidden. Prefix products from the left and suffix products from the right give each answer in <code>O(1)</code>, so <code>O(n)</code> overall.</p>
+        <!-- enrich-top:end 238 -->
         <p><strong>Spot it:</strong> "everything except i" = (everything to the left of i) × (everything to the right of i). That's a prefix product times a suffix product.</p>
         <ol class="steps-list">
           <li>Left pass: <code>answer[i]</code> = product of <code>nums[0..i-1]</code>, starting from 1.</li>
@@ -1142,6 +1293,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>[24, 12, 8, 6]</code>.</p>
+        <!-- enrich-edges:start 238 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One zero, e.g. <code>[1, 2, 0, 4]</code> → only index 2 is non-zero.</li>
+          <li>Two zeros → every answer is 0.</li>
+          <li>Negative numbers, e.g. <code>[-1, 1, 0, -3, 3]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 238 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space (not counting the output).</p>
       </div>
     </details>
@@ -1150,6 +1309,18 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 523. Continuous Subarray Sum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return true if there is a subarray of <strong>length ≥ 2</strong> whose sum is a multiple of <code>k</code>.</p>
+        <!-- enrich-top:start 523 -->
+        <p class="links"><a href="https://leetcode.com/problems/continuous-subarray-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [23,2,4,6,7], k = 6</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[2, 4] is a continuous subarray of size 2 whose elements sum up to 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [23,2,6,4,7], k = 6</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[23, 2, 6, 4, 7] is an continuous subarray of size 5 whose elements sum up to 42.
+42 is a multiple of 6 because 42 = 7 * 6 and 7 is an integer.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>0 ≤ nums[i] ≤ 10⁹</code> · <code>0 ≤ sum(nums[i]) ≤ 2³¹ - 1</code> · <code>1 ≤ k ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Like LeetCode 974, compare prefix remainders <code>mod k</code>. What's different here?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>The subarray must have length <strong>at least 2</strong>, so store the <em>first</em> index of each remainder and check the distance.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every subarray of length ≥ 2 is <code>O(n²)</code>. Equal remainders <code>mod k</code> mean the slice between them is a multiple of <code>k</code>; remembering where each remainder first appeared lets one pass check the length condition in <code>O(1)</code>.</p>
+        <!-- enrich-top:end 523 -->
         <p><strong>Spot it:</strong> "multiple of k" = same remainder trick as #974. "Length ≥ 2" means you must store the <em>first index</em> of each remainder and check the distance.</p>
         <ol class="steps-list">
           <li>Keep <code>first_at = {0: -1}</code>: remainder 0 is seen "before" index 0.</li>
@@ -1194,6 +1365,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>True</code>: the slice <code>[2, 4]</code> (indices 1..2) sums to 6.</p>
+        <!-- enrich-edges:start 523 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>[0, 0]</code> with any <code>k</code> → True (0 is a multiple of every <code>k</code>).</li>
+          <li>A single element that is a multiple of <code>k</code>, e.g. <code>[6]</code>, <code>k = 6</code> → False (length 1).</li>
+          <li>Seeding <code>{0: −1}</code> so a valid prefix starting at index 0 is found.</li>
+        </ul>
+        <!-- enrich-edges:end 523 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(min(n, k))</code> space.</p>
       </div>
     </details>
@@ -1202,6 +1381,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 437. Path Sum III <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Count downward paths in a binary tree (from any node to any descendant) whose values sum to <code>targetSum</code>.</p>
+        <!-- enrich-top:start 437 -->
+        <p class="links"><a href="https://leetcode.com/problems/path-sum-iii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [10,5,-3,3,2,null,11,3,-2,null,1], targetSum = 8</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The paths that sum to 8 are shown.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [5,4,8,11,null,13,4,7,2,null,null,5,1], targetSum = 22</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 1000]</code>. · <code>-10⁹ ≤ Node.val ≤ 10⁹</code> · <code>-1000 ≤ targetSum ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Along any root-to-node path, a downward path with sum <code>target</code> is a difference of two prefix sums on that path.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>DFS with a count map of the prefix sums on the current path; add the node's sum on the way down and remove it on the way back up.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Starting a DFS from every node and following every downward path is <code>O(n²)</code> on a skewed tree. Treating each root-to-node path like an array, the prefix-sum hash map counts matching paths ending at each node in <code>O(1)</code>, so <code>O(n)</code> total.</p>
+        <!-- enrich-top:end 437 -->
         <p><strong>Spot it:</strong> a root-to-node path is just an array. Count "subarrays with sum = target" along it, which is #560, done during a DFS.</p>
         <ol class="steps-list">
           <li>DFS from the root, carrying the running sum from the root to the current node.</li>
@@ -1262,6 +1452,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>3</code>: the paths <code>5 → 3</code>, <code>5 → 2 → 1</code> and <code>-3 → 11</code>. Notice how <code>seen</code> only ever holds the totals of the current path, thanks to the backtracking step.</p>
+        <!-- enrich-edges:start 437 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Negative values, so a path can still match after the sum overshoots.</li>
+          <li><code>targetSum = 0</code> with zero-valued nodes.</li>
+          <li>An empty tree → 0.</li>
+        </ul>
+        <!-- enrich-edges:end 437 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> space (h = tree height).</p>
       </div>
     </details>
@@ -1270,6 +1468,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1590. Make Sum Divisible by P <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Remove the <strong>shortest</strong> subarray (it may be empty, but you can't remove the whole array) so the sum of what remains is divisible by <code>p</code>. Return its length, or −1.</p>
+        <!-- enrich-top:start 1590 -->
+        <p class="links"><a href="https://leetcode.com/problems/make-sum-divisible-by-p/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,1,4,2], p = 6</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The sum of the elements in nums is 10, which is not divisible by 6. We can remove the subarray [4], and the sum of the remaining elements is 6, which is divisible by 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [6,3,5,2], p = 9</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We cannot remove a single element to get a sum divisible by 9. The best way is to remove the subarray [5,2], leaving us with [6,3] with sum 9.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>1 ≤ nums[i] ≤ 10⁹</code> · <code>1 ≤ p ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Let <code>need = sum(nums) % p</code>. You must remove a subarray whose sum has remainder <code>need</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Remember the latest index of each prefix remainder; at index <code>j</code> look for the remainder <code>(prefix − need) mod p</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every subarray to remove and re-checking the rest is <code>O(n²)</code> or worse. In remainder terms, you need the shortest slice with sum ≡ <code>need</code> (mod <code>p</code>): a prefix-remainder map storing the <strong>latest</strong> index finds the shortest one ending at each <code>j</code> in <code>O(1)</code>.</p>
+        <!-- enrich-top:end 1590 -->
         <p><strong>Spot it:</strong> the removed slice must have <code>sum % p == total % p</code>. That's a remainder lookup, and because it asks for the <em>shortest</em>, store the <em>latest</em> index of each remainder.</p>
         <ol class="steps-list">
           <li><code>need = total % p</code>. If it's 0, return 0.</li>
@@ -1330,6 +1539,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>1</code>: remove <code>[4]</code>, leaving 3 + 1 + 2 = 6.</p>
+        <!-- enrich-edges:start 1590 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Already divisible (<code>need = 0</code>) → 0.</li>
+          <li>Only removing the whole array would work → −1 (the whole array may not be removed).</li>
+          <li>Large numbers, so work with remainders throughout.</li>
+        </ul>
+        <!-- enrich-edges:end 1590 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(min(n, p))</code> space.</p>
       </div>
     </details>
@@ -1338,6 +1555,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 862. Shortest Subarray with Sum at Least K <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The array can contain negatives. Return the length of the shortest subarray with sum <strong>≥ k</strong>, or −1.</p>
+        <!-- enrich-top:start 862 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-subarray-with-sum-at-least-k/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1], k = 1</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2], k = 4</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁵ ≤ nums[i] ≤ 10⁵</code> · <code>1 ≤ k ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>With negatives, a sliding window breaks: shrinking the window can <em>increase</em> its sum. Use prefix sums instead.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a deque of prefix indices with increasing prefix values; pop from the front while the current prefix minus the front is ≥ <code>k</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking all <code>(i, j)</code> pairs of prefix sums is <code>O(n²)</code>. A monotonic deque keeps only start candidates that could still give a shorter answer: an older start with a larger prefix is never better, so it gets dropped. Each index enters and leaves once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 862 -->
         <p><strong>Spot it:</strong> because of negatives, Sliding Window fails. With prefix sums the question becomes: for each <code>j</code>, find the latest <code>i &lt; j</code> with <code>P[j] − P[i] ≥ k</code>. A <strong>monotonic deque</strong> of increasing prefix values answers that in amortized <code>O(1)</code>.</p>
         <ol class="steps-list">
           <li>Build <code>P</code> with a leading 0.</li>
@@ -1402,6 +1630,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>3</code> (the whole array, 2 - 1 + 2 = 3).</p>
+        <!-- enrich-edges:start 862 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No valid subarray → −1.</li>
+          <li>A single element ≥ <code>k</code> → 1.</li>
+          <li>Negatives between positives, e.g. <code>[2, -1, 2]</code>, <code>k = 3</code> → 3.</li>
+        </ul>
+        <!-- enrich-edges:end 862 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each index enters and leaves the deque once), <code>O(n)</code> space.</p>
       </div>
     </details>

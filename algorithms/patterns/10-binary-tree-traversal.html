@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -876,6 +892,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 230. Kth Smallest Element in a BST <span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given the root of a binary search tree and an integer <code>k</code>, return the <code>k</code>-th smallest value (1-indexed).</p>
+        <!-- enrich-top:start 230 -->
+        <p class="links"><a href="https://leetcode.com/problems/kth-smallest-element-in-a-bst/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=PwjF3RO9djY" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,1,4,null,2], k = 1</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [5,3,6,2,4,null,null,1], k = 3</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is <code>n</code>. · <code>1 ≤ k ≤ n ≤ 10⁴</code> · <code>0 ≤ Node.val ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>An in-order traversal of a BST visits values in increasing order.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Do an in-order traversal and stop at the <code>k</code>-th node you visit (an explicit stack lets you stop early).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting every value and sorting is <code>O(n log n)</code>. The BST's in-order is already sorted, so walking it and stopping after <code>k</code> nodes is <code>O(h + k)</code>.</p>
+        <!-- enrich-top:end 230 -->
         <p><strong>Spot it:</strong> "BST" + "kth smallest" = sorted order is needed. Inorder traversal of a BST visits values in ascending order.</p>
         <p><strong>Key insight:</strong> Use the <em>iterative</em> inorder so you can <strong>stop early</strong> the moment you've visited <code>k</code> nodes. Cost is <code>O(h + k)</code>, not <code>O(n)</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -923,6 +950,14 @@ def level_order(root):
             <tr><td>3</td><td><code>[5, 3]</code></td><td>3</td><td>3</td><td>count == k, <strong>return 3</strong></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 230 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → the leftmost node.</li>
+          <li><code>k = n</code> → the rightmost node.</li>
+          <li>A completely skewed tree.</li>
+        </ul>
+        <!-- enrich-edges:end 230 -->
         <p><strong>Complexity:</strong> <code>O(h + k)</code> time, <code>O(h)</code> space.</p>
       </div>
     </details>
@@ -931,6 +966,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 98. Validate Binary Search Tree <span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if the tree is a valid BST: every node's left subtree holds only smaller values, its right subtree only larger values, recursively.</p>
+        <!-- enrich-top:start 98 -->
+        <p class="links"><a href="https://leetcode.com/problems/validate-binary-search-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=nTXuWuqIka4" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [2,1,3]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [5,1,4,null,null,3,6]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The root node's value is 5 but its right child's value is 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 10⁴]</code>. · <code>-2³¹ ≤ Node.val ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Comparing each node only with its children is not enough. Why?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Every node must lie within a range inherited from its ancestors: pass <code>(low, high)</code> down, or check that the in-order traversal is strictly increasing.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking, for every node, that its whole left subtree is smaller and its whole right subtree larger is <code>O(n²)</code>. Passing bounds down (or one in-order pass) checks it in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 98 -->
         <p><strong>Spot it:</strong> "valid BST" means "is the inorder sequence strictly increasing?"</p>
         <p><strong>Key insight:</strong> Checking only <code>node.left.val &lt; node.val</code> is the classic trap. In <code>[5,4,6,null,null,3,7]</code> the 3 is a right-subtree descendant of 5, which breaks the rule, but every parent-child pair looks fine. Comparing each inorder value with the <em>previous</em> inorder value catches it.</p>
         <p><strong>Approach:</strong></p>
@@ -978,6 +1024,14 @@ def level_order(root):
           </tbody>
         </table>
         <p><strong>Alternative (preorder, passing info down):</strong> <code>check(node, lo, hi)</code> requires <code>lo &lt; node.val &lt; hi</code>, then recurses with <code>(lo, node.val)</code> on the left and <code>(node.val, hi)</code> on the right.</p>
+        <!-- enrich-edges:start 98 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A deep violation, e.g. <code>[5, 4, 6, null, null, 3, 7]</code> (3 is inside the right subtree of 5).</li>
+          <li>Duplicate values → invalid (strictly increasing is required).</li>
+          <li>Values at the integer limits (use infinities as the initial bounds).</li>
+        </ul>
+        <!-- enrich-edges:end 98 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> space.</p>
       </div>
     </details>
@@ -986,6 +1040,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 105. Construct Binary Tree from Preorder and Inorder Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You get the preorder and inorder lists of a tree with unique values. Rebuild the tree.</p>
+        <!-- enrich-top:start 105 -->
+        <p class="links"><a href="https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=qnOGHPHGCf4" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">preorder = [3,9,20,15,7], inorder = [9,3,15,20,7]</code></div><div><strong>Output:</strong> <code class="ex">[3,9,20,null,null,15,7]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">preorder = [-1], inorder = [-1]</code></div><div><strong>Output:</strong> <code class="ex">[-1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ preorder.length ≤ 3000</code> · <code>inorder.length == preorder.length</code> · <code>-3000 ≤ preorder[i], inorder[i] ≤ 3000</code> · <code>preorder</code> and <code>inorder</code> consist of <strong>unique</strong> values. · Each value of <code>inorder</code> also appears in <code>preorder</code>. · <code>preorder</code> is <strong>guaranteed</strong> to be the preorder traversal of the tree. · <code>inorder</code> is <strong>guaranteed</strong> to be the inorder traversal of the tree.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The first value of the preorder is the root. Where is it in the inorder list?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Everything left of the root in inorder is the left subtree; recurse, using a value → index map to find the root in <code>O(1)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Searching the inorder list for each root is <code>O(n)</code> per node, <code>O(n²)</code> overall. A hash map from value to inorder index makes every split <code>O(1)</code>: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 105 -->
         <p><strong>Spot it:</strong> "construct from traversals" means you have to know exactly what each order guarantees.</p>
         <p><strong>Key insight:</strong> Preorder's <strong>first</strong> value is always the root. Find that root in inorder: everything to its left is the left subtree, everything to its right is the right subtree. Keep a pointer into preorder and build left before right, because preorder is root → <strong>left</strong> → right. A hash map gives <code>O(1)</code> lookups of positions in inorder.</p>
         <p><strong>Approach:</strong></p>
@@ -1043,6 +1108,14 @@ def level_order(root):
             <tr><td><code>build(4, 4)</code></td><td>7</td><td>4</td><td>empty</td><td>empty</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 105 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node.</li>
+          <li>A left-skewed or right-skewed tree.</li>
+          <li>Values are unique, which is what makes the map work.</li>
+        </ul>
+        <!-- enrich-edges:end 105 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the map (plus <code>O(h)</code> recursion).</p>
       </div>
     </details>
@@ -1051,6 +1124,17 @@ def level_order(root):
       <summary><span class="tag hard">Hard</span> 124. Binary Tree Maximum Path Sum <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A path is any chain of connected nodes (it doesn't have to pass through the root, and it can't branch). Return the largest possible sum of node values on a path. Values may be negative.</p>
+        <!-- enrich-top:start 124 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-tree-maximum-path-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=LOOudxSJm4E" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The optimal path is 2 -&gt; 1 -&gt; 3 with a path sum of 2 + 1 + 3 = 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [-10,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">42</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The optimal path is 15 -&gt; 20 -&gt; 7 with a path sum of 15 + 20 + 7 = 42.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 3 * 10⁴]</code>. · <code>-1000 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A path can bend at one node: down its left side and down its right side.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Post-order: each node returns its best one-sided gain (ignore negative gains) and updates a global best with <code>node.val + left + right</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every pair of endpoints and summing the path between them is <code>O(n²)</code> or worse. A single post-order pass computes the best path bending at each node: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 124 -->
         <p><strong>Spot it:</strong> "max path" in a tree, and the best answer at a node depends on the best answers <em>below</em> it. That's postorder.</p>
         <p><strong>Key insight:</strong> Each node does two different jobs. (1) It <strong>updates the global best</strong> with a path that bends at it: <code>val + left + right</code>. (2) It <strong>returns to its parent</strong> a path that goes down only one side: <code>val + max(left, right)</code>. A parent can only extend one branch. Clamp negative branch gains to 0 (just don't take that branch).</p>
         <p><strong>Approach:</strong></p>
@@ -1110,6 +1194,14 @@ def level_order(root):
           </tbody>
         </table>
         <p>The answer is <code>42</code>: the path 15 → 20 → 7.</p>
+        <!-- enrich-edges:start 124 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All negative values → the single largest value.</li>
+          <li>A single node.</li>
+          <li>The best path doesn't pass through the root.</li>
+        </ul>
+        <!-- enrich-edges:end 124 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> space.</p>
       </div>
     </details>
@@ -1118,6 +1210,17 @@ def level_order(root):
       <summary><span class="tag hard">Hard</span> 297. Serialize and Deserialize Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design <code>serialize(root) -&gt; str</code> and <code>deserialize(str) -&gt; root</code> so that a tree survives the round trip.</p>
+        <!-- enrich-top:start 297 -->
+        <p class="links"><a href="https://leetcode.com/problems/serialize-and-deserialize-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Gg6XvCyeP4U" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3,null,null,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,null,null,4,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 10⁴]</code>. · <code>-1000 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Pick a traversal that records missing children explicitly, e.g. pre-order with a marker for <code>None</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Deserialise by reading the tokens back in the same order with an index or iterator.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is a design task rather than an optimisation. The main pitfall is leaving out the <code>None</code> markers, which makes the tree ambiguous. A pre-order or level-order encoding with explicit nulls is <code>O(n)</code> both ways.</p>
+        <!-- enrich-top:end 297 -->
         <p><strong>Spot it:</strong> "encode/decode a tree": preorder with explicit null markers is self-describing.</p>
         <p><strong>Key insight:</strong> If you write <code>#</code> for every missing child, a preorder string alone determines the tree. That's different from 105, which needed two traversals. Deserialize by reading tokens in the same preorder: make the node, then build its left, then its right.</p>
         <p><strong>Approach:</strong></p>
@@ -1184,6 +1287,14 @@ def level_order(root):
           </tbody>
         </table>
         <p><code>deserialize</code> reads those 11 tokens in the same order: 1 becomes the root, 2 its left child, the two <code>#</code> close 2's children, 3 becomes the root's right child, and so on.</p>
+        <!-- enrich-edges:start 297 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree.</li>
+          <li>Negative and multi-digit values (use a separator between tokens).</li>
+          <li>A skewed tree (deep recursion; level order avoids it).</li>
+        </ul>
+        <!-- enrich-edges:end 297 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space for both directions.</p>
       </div>
     </details>
@@ -1261,6 +1372,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 94. Binary Tree Inorder Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the values of a binary tree in inorder (left, node, right). Do it without recursion.</p>
+        <!-- enrich-top:start 94 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-tree-inorder-traversal/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,null,2,3]</code></div><div><strong>Output:</strong> <code class="ex">[1,3,2]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3,4,5,null,8,null,null,6,7,9]</code></div><div><strong>Output:</strong> <code class="ex">[4,2,6,5,7,1,3,9,8]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 100]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>In-order = left subtree, node, right subtree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Iteratively: push nodes while going left, pop one, visit it, then go to its right child.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> The recursive version is three lines but uses the call stack. The explicit-stack version gives the same <code>O(n)</code> traversal and is the basis for BST iterators and early stopping.</p>
+        <!-- enrich-top:end 94 -->
         <p><strong>Spot it:</strong> "inorder" is literally in the name. The iterative version is the building block for 98, 173 and 230.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1302,6 +1424,14 @@ def level_order(root):
             <tr><td>3</td><td><code>[2]</code></td><td>2</td><td><code>[1, 3, 2]</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 94 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree → <code>[]</code>.</li>
+          <li>Only left children.</li>
+          <li>Only right children.</li>
+        </ul>
+        <!-- enrich-edges:end 94 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> space.</p>
       </div>
     </details>
@@ -1310,6 +1440,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 102. Binary Tree Level Order Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the node values level by level, from top to bottom and left to right within each level, as a list of lists.</p>
+        <!-- enrich-top:start 102 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-tree-level-order-traversal/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=2_tm34ZtYT4" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">[[3],[9,20],[15,7]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1]</code></div><div><strong>Output:</strong> <code class="ex">[[1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 2000]</code>. · <code>-1000 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Visit nodes level by level: that's BFS with a queue.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>At the start of each round, <code>len(queue)</code> is exactly the number of nodes on the current level.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Computing each node's depth with DFS and grouping by depth also works in <code>O(n)</code>. BFS produces the levels directly, in order, with one queue.</p>
+        <!-- enrich-top:end 102 -->
         <p><strong>Spot it:</strong> "level by level" means BFS on the tree with a queue.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1356,6 +1497,14 @@ def level_order(root):
           </tbody>
         </table>
         <p>Result: <code>[[3], [9, 20], [15, 7]]</code>.</p>
+        <!-- enrich-edges:start 102 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree → <code>[]</code>.</li>
+          <li>A skewed tree (one node per level).</li>
+          <li>A complete tree.</li>
+        </ul>
+        <!-- enrich-edges:end 102 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> space (w = widest level).</p>
       </div>
     </details>
@@ -1364,6 +1513,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 103. Binary Tree Zigzag Level Order Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Like level order, but alternate direction: level 0 left→right, level 1 right→left, and so on.</p>
+        <!-- enrich-top:start 103 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=aVMGDpSgvXU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">[[3],[20,9],[15,7]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1]</code></div><div><strong>Output:</strong> <code class="ex">[[1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 2000]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Do a normal level-order traversal.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse every other level (or insert at the front of a deque on those levels).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Level-order BFS plus reversing alternate levels is <code>O(n)</code>. Building each level with a deque avoids the extra reverse step.</p>
+        <!-- enrich-top:end 103 -->
         <p><strong>Spot it:</strong> Still "per level", so it's level order. Only the way each level is written changes.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1421,6 +1581,14 @@ def level_order(root):
           </tbody>
         </table>
         <p>Result: <code>[[3], [20, 9], [15, 7]]</code>.</p>
+        <!-- enrich-edges:start 103 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree.</li>
+          <li>A single node.</li>
+          <li>Levels with missing children.</li>
+        </ul>
+        <!-- enrich-edges:end 103 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> space.</p>
       </div>
     </details>
@@ -1429,6 +1597,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 199. Binary Tree Right Side View <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Imagine standing to the right of the tree. Return the values you can see, from top to bottom. That's the rightmost node of each level.</p>
+        <!-- enrich-top:start 199 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-tree-right-side-view/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=G1HqRX4FA0M" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3,null,5,null,4]</code></div><div><strong>Output:</strong> <code class="ex">[1,3,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3,4,null,null,null,5]</code></div><div><strong>Output:</strong> <code class="ex">[1,3,4,5]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 100]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>From the right, you see the last node of every level.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS level by level and record the last node of each level (or DFS visiting right before left, recording the first node at each new depth).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting every level fully and then taking its last element is still <code>O(n)</code>. Either BFS or right-first DFS gives the view in one pass.</p>
+        <!-- enrich-top:end 199 -->
         <p><strong>Spot it:</strong> "one value per row, top to bottom" is a per-level question, so level order.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1472,6 +1651,14 @@ def level_order(root):
             <tr><td>3</td><td><code>[5, 4]</code></td><td>2</td><td>4</td><td><code>[1, 3, 4]</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 199 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A left child visible because the right side is shorter, e.g. <code>[1, 2]</code> → <code>[1, 2]</code>.</li>
+          <li>An empty tree.</li>
+          <li>Only right children.</li>
+        </ul>
+        <!-- enrich-edges:end 199 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> space.</p>
       </div>
     </details>
@@ -1480,6 +1667,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 236. Lowest Common Ancestor of a Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given two nodes <code>p</code> and <code>q</code> in a binary tree (not a BST), return their lowest common ancestor: the deepest node that has both of them in its subtree. A node counts as its own descendant.</p>
+        <!-- enrich-top:start 236 -->
+        <p class="links"><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=qhJMox7HV5Y" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 1</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The LCA of nodes 5 and 1 is 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 4</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The LCA of nodes 5 and 4 is 5, since a node can be a descendant of itself according to the LCA definition.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[2, 10⁵]</code>. · <code>-10⁹ ≤ Node.val ≤ 10⁹</code> · All <code>Node.val</code> are <strong>unique</strong>. · <code>p != q</code> · <code>p</code> and <code>q</code> will exist in the tree.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Search both subtrees for <code>p</code> and <code>q</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>If one is found on each side, the current node is the LCA; if both are on one side, the answer comes up from that side.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Storing the root-to-node paths of <code>p</code> and <code>q</code> and comparing them is <code>O(n)</code> time and space. One post-order recursion returning the found node (or <code>None</code>) is <code>O(n)</code> with only the recursion stack.</p>
+        <!-- enrich-top:end 236 -->
         <p><strong>Spot it:</strong> Each node needs to know "did my left / right subtree contain p or q?". That information flows up, so postorder.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1525,6 +1723,14 @@ def level_order(root):
             <tr><td>3</td><td>found_left = 5, found_right = 1, both non-None</td><td><strong>node 3</strong></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 236 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>p</code> is an ancestor of <code>q</code> → <code>p</code>.</li>
+          <li><code>p</code> and <code>q</code> on opposite sides of the root → the root.</li>
+          <li>Deep, unbalanced trees.</li>
+        </ul>
+        <!-- enrich-edges:end 236 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> space.</p>
       </div>
     </details>
@@ -1533,6 +1739,26 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 173. Binary Search Tree Iterator <span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design an iterator over a BST: <code>next()</code> returns the next smallest value, and <code>hasNext()</code> says whether any remain. Aim for average <code>O(1)</code> time and <code>O(h)</code> memory.</p>
+        <!-- enrich-top:start 173 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-search-tree-iterator/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=waK2ZfHcNB8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["BSTIterator", "next", "next", "hasNext", "next", "hasNext", "next", "hasNext", "next", "hasNext"]
+[[[7, 3, 15, null, null, 9, 20]], [], [], [], [], [], [], [], [], []]</code></div><div><strong>Output:</strong> <code class="ex">[null, 3, 7, true, 9, true, 15, true, 20, false]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">BSTIterator bSTIterator = new BSTIterator([7, 3, 15, null, null, 9, 20]);
+bSTIterator.next(); // return 3
+bSTIterator.next(); // return 7
+bSTIterator.hasNext(); // return True
+bSTIterator.next(); // return 9
+bSTIterator.hasNext(); // return True
+bSTIterator.next(); // return 15
+bSTIterator.hasNext(); // return True
+bSTIterator.next(); // return 20
+bSTIterator.hasNext(); // return False</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 10⁵]</code>. · <code>0 ≤ Node.val ≤ 10⁶</code> · At most <code>10⁵</code> calls will be made to <code>hasNext</code>, and <code>next</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The iterator must return BST values in increasing order: in-order traversal.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a stack of the leftmost path; <code>next()</code> pops a node, then pushes the leftmost path of its right child.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Flattening the whole tree into a list in the constructor uses <code>O(n)</code> memory. The controlled stack keeps only <code>O(h)</code> nodes, with amortised <code>O(1)</code> per <code>next()</code>.</p>
+        <!-- enrich-top:end 173 -->
         <p><strong>Spot it:</strong> "next smallest" in a BST is inorder. To "pause" between calls, keep the iterative inorder stack as object state.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1581,6 +1807,14 @@ def level_order(root):
             <tr><td><code>hasNext()</code></td><td>False</td><td><code>[]</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 173 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node.</li>
+          <li>A skewed tree.</li>
+          <li><code>hasNext()</code> called after the last value → False.</li>
+        </ul>
+        <!-- enrich-edges:end 173 -->
         <p><strong>Complexity:</strong> <code>next()</code> is amortized <code>O(1)</code> because each node is pushed and popped once. <code>O(h)</code> memory.</p>
       </div>
     </details>
@@ -1589,6 +1823,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 100. Same Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if the two binary trees <code>p</code> and <code>q</code> have the same shape and the same values.</p>
+        <!-- enrich-top:start 100 -->
+        <p class="links"><a href="https://leetcode.com/problems/same-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=jK6XXYezw2g" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">p = [1,2,3], q = [1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">p = [1,2], q = [1,null,2]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in both trees is in the range <code>[0, 100]</code>. · <code>-10⁴ ≤ Node.val ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Two trees are the same when the roots match and both pairs of subtrees are the same.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Handle the base cases first: both <code>None</code> → True; exactly one <code>None</code> → False.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Serialising both trees with null markers and comparing the strings works in <code>O(n)</code> but uses extra memory. A lock-step recursion stops at the first difference.</p>
+        <!-- enrich-top:end 100 -->
         <p><strong>Spot it:</strong> Compare two trees node by node → one recursion that takes a node from <strong>each</strong> tree.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1625,6 +1870,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 100 -->
+        <!-- enrich-edges:start 100 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Both empty → True.</li>
+          <li>Same values, different shape, e.g. <code>[1, 2]</code> vs <code>[1, null, 2]</code>.</li>
+          <li>Same shape, different values.</li>
+        </ul>
+        <!-- enrich-edges:end 100 -->
         <p><strong>Complexity:</strong> <code>O(min(m, n))</code> time (stops at the first difference), <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1633,6 +1886,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 101. Symmetric Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if the tree is a mirror image of itself around its centre.</p>
+        <!-- enrich-top:start 101 -->
+        <p class="links"><a href="https://leetcode.com/problems/symmetric-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=BooilJIjNHc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,2,3,4,4,3]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,2,2,null,3,null,3]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 1000]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A tree is symmetric when its left subtree mirrors its right subtree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Compare <code>a.left</code> with <code>b.right</code> and <code>a.right</code> with <code>b.left</code> recursively.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building a mirrored copy and comparing it with the original is <code>O(n)</code> time and space. Comparing the two halves in mirrored lock-step uses only the recursion stack.</p>
+        <!-- enrich-top:end 101 -->
         <p><strong>Spot it:</strong> A tree is symmetric when its left subtree mirrors its right subtree. "Mirror" is Same Tree with crossed children: <code>a.left</code> pairs with <code>b.right</code>, and <code>a.right</code> with <code>b.left</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1675,6 +1939,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 101 -->
+        <!-- enrich-edges:start 101 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → True.</li>
+          <li>Same values but asymmetric shape, e.g. <code>[1, 2, 2, null, 3, null, 3]</code> → False.</li>
+          <li>An empty subtree on one side only.</li>
+        </ul>
+        <!-- enrich-edges:end 101 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1683,6 +1955,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 104. Maximum Depth of Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the number of nodes on the longest path from the root down to a leaf.</p>
+        <!-- enrich-top:start 104 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-depth-of-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=ScvTcU2Aifs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,null,2]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 10⁴]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The depth of a tree = 1 + the depth of its deeper subtree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Base case: an empty tree has depth 0.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is already a single <code>O(n)</code> traversal; BFS counting levels works equally well. The recursion is the most direct form.</p>
+        <!-- enrich-top:end 104 -->
         <p><strong>Spot it:</strong> A value that depends on both subtrees → post-order recursion: ask each child for its depth, then combine.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1718,6 +2001,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 104 -->
+        <!-- enrich-edges:start 104 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree → 0.</li>
+          <li>A skewed tree (depth <code>n</code>).</li>
+          <li>A single node → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 104 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1726,6 +2017,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 108. Convert Sorted Array to Binary Search Tree <span class="ds-tags"><span class="ds">BST</span><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> is sorted ascending. Build a <strong>height-balanced</strong> BST from it (subtree heights differ by at most 1 at every node).</p>
+        <!-- enrich-top:start 108 -->
+        <p class="links"><a href="https://leetcode.com/problems/convert-sorted-array-to-binary-search-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=8qTgRvVmRds" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-10,-3,0,5,9]</code></div><div><strong>Output:</strong> <code class="ex">[0,-3,9,-10,null,5]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[0,-10,5,null,-3,null,9] is also accepted:</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,3]</code></div><div><strong>Output:</strong> <code class="ex">[3,1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[1,null,3] and [3,1] are both height-balanced BSTs.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>nums</code> is sorted in a <strong>strictly increasing</strong> order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>To keep the BST balanced, which element should be the root?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Take the middle element as the root and recurse on the left half and the right half.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Inserting the values one by one into a BST in sorted order gives a skewed tree. Picking the middle element at each level gives a balanced tree in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 108 -->
         <p><strong>Spot it:</strong> BST + sorted input: the in-order of the tree must equal <code>nums</code>. Picking the <strong>middle</strong> element as the root puts half of the values on each side, which keeps the tree balanced. Then do the same for each half.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1768,6 +2070,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 108 -->
+        <!-- enrich-edges:start 108 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One or two elements.</li>
+          <li>An even length: either middle element works.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 108 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each element becomes one node), <code>O(log n)</code> recursion depth.</p>
       </div>
     </details>
@@ -1776,6 +2086,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 110. Balanced Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A tree is height-balanced if, at <strong>every</strong> node, the heights of its two subtrees differ by at most 1. Check it.</p>
+        <!-- enrich-top:start 110 -->
+        <p class="links"><a href="https://leetcode.com/problems/balanced-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=BrnZDIoScEA" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,2,2,3,3,null,null,4,4]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 5000]</code>. · <code>-10⁴ ≤ Node.val ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need every node's subtree heights.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Return the height from each recursive call, and use <code>-1</code> as a signal meaning "unbalanced below" so you can stop early.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Calling a separate height function at every node is <code>O(n²)</code> on skewed trees. Returning the height and the balance status together makes it <code>O(n)</code>.</p>
+        <!-- enrich-top:end 110 -->
         <p><strong>Spot it:</strong> Each node needs both subtree heights → post-order. Computing heights separately at every node costs <code>O(n²)</code>; instead return the height and use <code>-1</code> to mean "already unbalanced below".</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1828,6 +2149,14 @@ def level_order(root):
         </table>
         <p><code>height(root)</code> is <code>−1</code>, so <code>isBalanced</code> returns <strong>False</strong>. The root is the only node that breaks the rule.</p>
         <!-- explain:end 110 -->
+        <!-- enrich-edges:start 110 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree → True.</li>
+          <li>Balanced at the root but not deeper down → False.</li>
+          <li>A long chain → False.</li>
+        </ul>
+        <!-- enrich-edges:end 110 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each node visited once), <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1836,6 +2165,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 226. Invert Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Mirror the binary tree (swap every node's left and right children) and return its root.</p>
+        <!-- enrich-top:start 226 -->
+        <p class="links"><a href="https://leetcode.com/problems/invert-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=6ScBLgESFas" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [4,2,7,1,3,6,9]</code></div><div><strong>Output:</strong> <code class="ex">[4,7,2,9,6,3,1]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [2,1,3]</code></div><div><strong>Output:</strong> <code class="ex">[2,3,1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 100]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Inverting a tree = swapping the left and right children of every node.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Recursively invert both subtrees, then swap them.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is already <code>O(n)</code>: every node must be visited once. Recursion or a BFS with a queue both work.</p>
+        <!-- enrich-top:end 226 -->
         <p><strong>Spot it:</strong> "Do something to every node" on a tree → a recursive traversal. Each node's job is local: swap its two children.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1878,6 +2218,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 226 -->
+        <!-- enrich-edges:start 226 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree.</li>
+          <li>A single node.</li>
+          <li>A skewed tree.</li>
+        </ul>
+        <!-- enrich-edges:end 226 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (every node once), <code>O(h)</code> space for the recursion stack (<code>h</code> = height).</p>
       </div>
     </details>
@@ -1886,6 +2234,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 530. Minimum Absolute Difference in BST <span class="ds-tags"><span class="ds">BST</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the minimum absolute difference between the values of any two different nodes in a BST.</p>
+        <!-- enrich-top:start 530 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-absolute-difference-in-bst/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=NttA_NC_ZhI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [4,2,6,1,3]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,0,48,null,null,12,49]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[2, 10⁴]</code>. · <code>0 ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>In a sorted list, the closest pair is always adjacent.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>An in-order traversal of a BST is sorted; compare each value with the previous one.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair of nodes is <code>O(n²)</code>. An in-order walk compares only neighbours in sorted order: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 530 -->
         <p><strong>Spot it:</strong> An in-order traversal of a BST visits values in <strong>sorted</strong> order, and in a sorted list the closest pair is always adjacent. So walk in order and compare each value with the previous one.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1932,6 +2291,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 530 -->
+        <!-- enrich-edges:start 530 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two nodes.</li>
+          <li>The closest pair spans the root (e.g. the root and its in-order successor).</li>
+          <li>A skewed tree.</li>
+        </ul>
+        <!-- enrich-edges:end 530 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1940,6 +2307,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 543. Diameter of Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The diameter is the number of <strong>edges</strong> on the longest path between any two nodes. The path does not have to pass through the root. Return it.</p>
+        <!-- enrich-top:start 543 -->
+        <p class="links"><a href="https://leetcode.com/problems/diameter-of-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=6lJZ_xj1mEo" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">3 is the length of the path [4,2,1,3] or [5,2,1,3].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,2]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 10⁴]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The longest path bends at some node: down the left side, then down the right side.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Post-order: return each subtree's height and update a global best with <code>left + right</code> at every node.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Computing heights separately for each node as the bend point is <code>O(n²)</code>. Returning heights while tracking the best <code>left + right</code> is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 543 -->
         <p><strong>Spot it:</strong> The longest path bends at some node: down its left side and down its right side. At every node, <code>left height + right height</code> is a candidate. Post-order recursion gives both heights; a variable outside the recursion keeps the best candidate.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1987,6 +2365,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 543 -->
+        <!-- enrich-edges:start 543 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → 0.</li>
+          <li>The longest path doesn't go through the root.</li>
+          <li>A skewed tree.</li>
+        </ul>
+        <!-- enrich-edges:end 543 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1995,6 +2381,17 @@ def level_order(root):
       <summary><span class="tag easy">Easy</span> 572. Subtree of Another Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if some node of <code>root</code>, together with all its descendants, is identical to the tree <code>subRoot</code>.</p>
+        <!-- enrich-top:start 572 -->
+        <p class="links"><a href="https://leetcode.com/problems/subtree-of-another-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=fvyqbtmor9U" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,4,5,1,2], subRoot = [4,1,2]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [3,4,5,1,2,null,null,null,null,0], subRoot = [4,1,2]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the <code>root</code> tree is in the range <code>[1, 2000]</code>. · The number of nodes in the <code>subRoot</code> tree is in the range <code>[1, 1000]</code>. · <code>-10⁴ ≤ root.val ≤ 10⁴</code> · <code>-10⁴ ≤ subRoot.val ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every node of <code>root</code> is a possible starting point.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>At each node, run Same Tree against <code>subRoot</code>; otherwise recurse into the children.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Same Tree from every node is <code>O(m · n)</code> in the worst case, which is acceptable here. Serialising both trees and doing a substring search (with careful separators) or tree hashing gets close to <code>O(m + n)</code>.</p>
+        <!-- enrich-top:end 572 -->
         <p><strong>Spot it:</strong> Two layers: a traversal that visits every candidate node of <code>root</code>, and Same Tree (LeetCode 100) to compare a candidate with <code>subRoot</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -2037,6 +2434,14 @@ def level_order(root):
         </table>
         <p>The left subtree of 3 matched, so <code>or</code> never needs to try the 5.</p>
         <!-- explain:end 572 -->
+        <!-- enrich-edges:start 572 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>subRoot</code> equal to the whole tree.</li>
+          <li>Equal values but an extra node below, e.g. a leaf vs a node with a child.</li>
+          <li>Repeated values (several candidate starting points).</li>
+        </ul>
+        <!-- enrich-edges:end 572 -->
         <p><strong>Complexity:</strong> <code>O(m · n)</code> time in the worst case (Same Tree from each of the <code>m</code> nodes), <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -2045,6 +2450,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 106. Construct Binary Tree from Inorder and Postorder Traversal <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given the in-order and post-order traversals of a binary tree with unique values, rebuild the tree.</p>
+        <!-- enrich-top:start 106 -->
+        <p class="links"><a href="https://leetcode.com/problems/construct-binary-tree-from-inorder-and-postorder-traversal/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=gLGBhbboyu4" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">inorder = [9,3,15,20,7], postorder = [9,15,7,20,3]</code></div><div><strong>Output:</strong> <code class="ex">[3,9,20,null,null,15,7]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">inorder = [-1], postorder = [-1]</code></div><div><strong>Output:</strong> <code class="ex">[-1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ inorder.length ≤ 3000</code> · <code>postorder.length == inorder.length</code> · <code>-3000 ≤ inorder[i], postorder[i] ≤ 3000</code> · <code>inorder</code> and <code>postorder</code> consist of <strong>unique</strong> values. · Each value of <code>postorder</code> also appears in <code>inorder</code>. · <code>inorder</code> is <strong>guaranteed</strong> to be the inorder traversal of the tree. · <code>postorder</code> is <strong>guaranteed</strong> to be the postorder traversal of the tree.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The last value of the postorder is the root.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Read the postorder backwards (root, right, left), building the <strong>right</strong> subtree first; find each root in the inorder list via a hash map.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Searching the inorder list for each root costs <code>O(n)</code> per node, <code>O(n²)</code> total. A value → index map and a pointer moving backwards through the postorder make it <code>O(n)</code>.</p>
+        <!-- enrich-top:end 106 -->
         <p><strong>Spot it:</strong> Mirror of LeetCode 105. Post-order is <code>left, right, root</code>, so the root is at the <strong>end</strong>. Its position in the in-order list splits the values into the left subtree and the right subtree.</p>
         <p><strong>Key insight:</strong> Reading post-order backwards gives <code>root, right, left</code>. So take values from the end of <code>postorder</code> and build the <strong>right</strong> subtree before the left one. A dictionary <code>value → in-order index</code> makes each split <code>O(1)</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -2101,6 +2517,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 106 -->
+        <!-- enrich-edges:start 106 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node.</li>
+          <li>Skewed trees.</li>
+          <li>Forgetting to build the right subtree first gives the wrong tree.</li>
+        </ul>
+        <!-- enrich-edges:end 106 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the map and recursion.</p>
       </div>
     </details>
@@ -2109,6 +2533,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 114. Flatten Binary Tree to Linked List <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Flatten the tree <strong>in place</strong> into a "linked list" that uses the <code>right</code> pointers, in pre-order (node, left, right). Every <code>left</code> pointer must become <code>None</code>.</p>
+        <!-- enrich-top:start 114 -->
+        <p class="links"><a href="https://leetcode.com/problems/flatten-binary-tree-to-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=V_JaKyVKrJs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,5,3,4,null,6]</code></div><div><strong>Output:</strong> <code class="ex">[1,null,2,null,3,null,4,null,5,null,6]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 2000]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Pre-order puts the whole left subtree between a node and its right subtree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>For each node with a left child: attach its right subtree to the rightmost node of the left subtree, then move the left subtree to the right.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting the pre-order into a list and re-linking uses <code>O(n)</code> space. Splicing each left subtree in place uses <code>O(1)</code> extra space and still touches every edge a constant number of times: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 114 -->
         <p><strong>Spot it:</strong> Pre-order puts the whole left subtree between a node and its right subtree. So for each node with a left child: hang the right subtree off the <strong>rightmost</strong> node of the left subtree, then move the left subtree over to the right. <code>O(1)</code> extra space, no recursion.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -2156,6 +2591,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 114 -->
+        <!-- enrich-edges:start 114 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree.</li>
+          <li>Only left children.</li>
+          <li>Already flat (only right children).</li>
+        </ul>
+        <!-- enrich-edges:end 114 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each <code>tail</code> walk covers edges no other walk covers), <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -2164,6 +2607,17 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 235. Lowest Common Ancestor of a Binary Search Tree <span class="ds-tags"><span class="ds">BST</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a <strong>BST</strong>, return the lowest node that has both <code>p</code> and <code>q</code> as descendants (a node counts as a descendant of itself).</p>
+        <!-- enrich-top:start 235 -->
+        <p class="links"><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=r6AXIfdi9oQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [6,2,8,0,4,7,9,null,null,3,5], p = 2, q = 8</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The LCA of nodes 2 and 8 is 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [6,2,8,0,4,7,9,null,null,3,5], p = 2, q = 4</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The LCA of nodes 2 and 4 is 2, since a node can be a descendant of itself according to the LCA definition.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[2, 10⁵]</code>. · <code>-10⁹ ≤ Node.val ≤ 10⁹</code> · All <code>Node.val</code> are <strong>unique</strong>. · <code>p != q</code> · <code>p</code> and <code>q</code> will exist in the BST.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Use the BST ordering: you know which side each value lies on.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>While both values are smaller, go left; while both are larger, go right; otherwise the current node is the split point.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> The general LCA algorithm explores the whole tree (<code>O(n)</code>). In a BST the ordering tells you which way to go, so you follow one path: <code>O(h)</code>.</p>
+        <!-- enrich-top:end 235 -->
         <p><strong>Spot it:</strong> BST order tells you which side each value is on. While both values are smaller than the current node, the LCA is on the left; while both are larger, on the right. The first node where they split (or that equals one of them) is the LCA.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -2203,6 +2657,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 235 -->
+        <!-- enrich-edges:start 235 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>p</code> is an ancestor of <code>q</code>.</li>
+          <li><code>p</code> and <code>q</code> are the root's two children.</li>
+          <li>A skewed BST.</li>
+        </ul>
+        <!-- enrich-edges:end 235 -->
         <p><strong>Complexity:</strong> <code>O(h)</code> time (one root-to-node path), <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -2211,6 +2673,21 @@ def level_order(root):
       <summary><span class="tag medium">Medium</span> 427. Construct Quad Tree <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Quad Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>grid</code> is an <code>n × n</code> matrix of 0s and 1s (<code>n</code> a power of 2). Build its <strong>quad tree</strong>: a uniform square becomes a leaf with that value; otherwise the node has four children for the top-left, top-right, bottom-left and bottom-right quarters.</p>
+        <!-- enrich-top:start 427 -->
+        <p class="links"><a href="https://leetcode.com/problems/construct-quad-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=LqU2QfQg_Wc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,1],[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,1],[1,0],[1,1],[1,1],[1,0]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The explanation of this example is shown below:
+Notice that 0 represents False and 1 represents True in the photo representing the Quad-Tree.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,1],[1,1],[0,1],[1,1],[1,0],null,null,null,null,[1,0],[1,0],[1,1],[1,1]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">All values in the grid are not the same. We divide the grid into four sub-grids.
+The topLeft, bottomLeft and bottomRight each has the same value.
+The topRight have different values so we divide it into 4 sub-grids where each has the same value.
+Explanation is shown in the photo below:</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == grid.length == grid[i].length</code> · <code>n == 2x</code> where <code>0 ≤ x ≤ 6</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If every value in a square is the same, the square is a leaf.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Otherwise split it into four quarters and build each recursively.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking uniformity by scanning each square is <code>O(n² log n)</code> overall. A 2-D prefix sum checks a square in <code>O(1)</code>, giving <code>O(n²)</code>.</p>
+        <!-- enrich-top:end 427 -->
         <p><strong>Spot it:</strong> A tree defined by recursive splitting → recursion that builds one node per square. Each node has four children instead of two.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -2265,6 +2742,14 @@ def level_order(root):
           </tbody>
         </table>
         <!-- explain:end 427 -->
+        <!-- enrich-edges:start 427 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A 1 × 1 grid.</li>
+          <li>A uniform grid → a single leaf.</li>
+          <li>A checkerboard → maximum splitting.</li>
+        </ul>
+        <!-- enrich-edges:end 427 -->
         <p><strong>Complexity:</strong> <code>O(n² log n)</code> time (each level of splitting re-scans all cells once), <code>O(log n)</code> recursion depth.</p>
       </div>
     </details>

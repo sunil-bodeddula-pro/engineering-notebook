@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -748,6 +764,17 @@ def shortest_valid(nums, target):
       <summary><span class="tag medium">Medium</span> 209. Minimum Size Subarray Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <strong>positive</strong> integers <code>nums</code> and <code>target</code>, return the length of the shortest contiguous subarray whose sum is ≥ <code>target</code> (0 if none).</p>
+        <!-- enrich-top:start 209 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-size-subarray-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=RG17VCQOFpg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">target = 7, nums = [2,3,1,2,4,3]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The subarray [4,3] has the minimal length under the problem constraint.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">target = 4, nums = [1,4,4]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ target ≤ 10⁹</code> · <code>1 ≤ nums.length ≤ 10⁵</code> · <code>1 ≤ nums[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All numbers are positive, so growing a window only increases its sum and shrinking only decreases it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Expand the right edge; while the sum is ≥ target, record the length and shrink from the left.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Every start with every end is <code>O(n²)</code>. Because values are positive, once a window reaches the target there's no point extending it further: shrink it from the left instead. Each index enters and leaves the window once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 209 -->
         <p><strong>Spot it:</strong> "shortest contiguous" + "sum ≥" + all positive. Adding makes the sum bigger, removing makes it smaller, so the condition is monotonic: shortest-valid window.</p>
         <p><strong>Key insight:</strong> as soon as the window is valid, record it and keep shrinking from the left while it stays valid. That squeezes out the shortest window ending at each <code>right</code>.</p>
         <div id="viz-209"></div>
@@ -816,6 +843,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:209:end -->
+        <!-- enrich-edges:start 209 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No window reaches the target → 0.</li>
+          <li>A single element ≥ target → 1.</li>
+          <li>The whole array is needed.</li>
+        </ul>
+        <!-- enrich-edges:end 209 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -824,6 +859,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 3. Longest Substring Without Repeating Characters <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Length of the longest substring of <code>s</code> with all distinct characters.</p>
+        <!-- enrich-top:start 3 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-substring-without-repeating-characters/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=FCbOzdHKW18" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "abcabcbb"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The answer is "abc", with the length of 3. Note that "bca" and "cab" are also correct answers.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "bbbbb"</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The answer is "b", with the length of 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ s.length ≤ 10⁵</code> · <code>s</code> consists of English letters, digits, symbols and spaces.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Grow a window to the right. What breaks it?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>When the new character already appears inside the window, move the left edge just past its previous position (remember last positions in a map).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every substring for repeats is <code>O(n³)</code> (or <code>O(n²)</code> with a set per start). A window that only moves forward, plus a map of each character's last index, finds the longest valid substring in one pass: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 3 -->
         <p><strong>Spot it:</strong> "longest substring" + a rule ("no repeats") that a shorter window can only satisfy more easily. The second visualizer above runs exactly this.</p>
         <p><strong>Key insight (optimised):</strong> store the <em>last index</em> of each character. When you see a repeat inside the window, jump <code>left</code> straight past the old copy instead of shrinking one step at a time.</p>
         <p><strong>Approach:</strong></p>
@@ -885,6 +931,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:3:end -->
+        <!-- enrich-edges:start 3 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Empty string → 0.</li>
+          <li>All the same character, e.g. <code>"bbbb"</code> → 1.</li>
+          <li>A repeat that's <em>before</em> the current window, e.g. <code>"abba"</code> (don't move the left edge backwards).</li>
+        </ul>
+        <!-- enrich-edges:end 3 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(min(n, σ))</code> space.</p>
       </div>
     </details>
@@ -893,6 +947,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 424. Longest Repeating Character Replacement <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You may change at most <code>k</code> characters of uppercase string <code>s</code>. Return the length of the longest substring that can be made of one repeated letter.</p>
+        <!-- enrich-top:start 424 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-repeating-character-replacement/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=tkNWKvxI3mU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "ABAB", k = 2</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Replace the two 'A's with two 'B's or vice versa.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "AABABBA", k = 1</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Replace the one 'A' in the middle with 'B' and form "AABBBBA".
+The substring "BBBB" has the longest repeating letters, which is 4.
+There may exists other ways to achieve this answer too.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁵</code> · <code>s</code> consists of only uppercase English letters. · <code>0 ≤ k ≤ s.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A window can be made of one letter if <code>window length − count of its most frequent letter ≤ k</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Grow the window; when that condition fails, slide the left edge forward by one.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every substring and every target letter is <code>O(26 · n²)</code>. A sliding window with letter counts checks validity in <code>O(1)</code> (length − max count ≤ k), so one pass suffices: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 424 -->
         <p><strong>Spot it:</strong> "longest substring" + "at most k changes". A window is fixable if <code>window_length − count_of_most_common_letter ≤ k</code>.</p>
         <p><strong>Key insight:</strong> <code>max_freq</code> never needs to decrease. The answer only grows when a window with a higher <code>max_freq</code> appears, so a stale (too high) value just keeps the window from shrinking. It never produces a wrong answer.</p>
         <p><strong>Approach:</strong></p>
@@ -965,6 +1032,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:424:end -->
+        <!-- enrich-edges:start 424 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k</code> large enough to change everything → the whole length.</li>
+          <li><code>k = 0</code> → the longest run of one letter.</li>
+          <li>A single character.</li>
+        </ul>
+        <!-- enrich-edges:end 424 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(26)</code> space.</p>
       </div>
     </details>
@@ -973,6 +1048,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 438. Find All Anagrams in a String <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every start index in <code>s</code> where a substring is an anagram (same letters, any order) of <code>p</code>.</p>
+        <!-- enrich-top:start 438 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-all-anagrams-in-a-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "cbaebabacd", p = "abc"</code></div><div><strong>Output:</strong> <code class="ex">[0,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The substring with start index = 0 is "cba", which is an anagram of "abc".
+The substring with start index = 6 is "bac", which is an anagram of "abc".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "abab", p = "ab"</code></div><div><strong>Output:</strong> <code class="ex">[0,1,2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The substring with start index = 0 is "ab", which is an anagram of "ab".
+The substring with start index = 1 is "ba", which is an anagram of "ab".
+The substring with start index = 2 is "ab", which is an anagram of "ab".</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length, p.length ≤ 3 * 10⁴</code> · <code>s</code> and <code>p</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>An anagram of <code>p</code> is any window of length <code>len(p)</code> with the same letter counts.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Slide a fixed-size window and update the counts in <code>O(1)</code> per step: add the new letter, remove the one leaving.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting or counting every window from scratch is <code>O(n · m)</code>. A fixed window whose counts are updated incrementally compares in <code>O(26)</code>, so <code>O(n)</code> overall.</p>
+        <!-- enrich-top:end 438 -->
         <p><strong>Spot it:</strong> an anagram of <code>p</code> has length <code>len(p)</code>, so this is a <strong>fixed-size</strong> window. Compare letter counts.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1055,6 +1144,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:438:end -->
+        <!-- enrich-edges:start 438 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>p</code> longer than <code>s</code> → <code>[]</code>.</li>
+          <li>Overlapping matches, e.g. <code>s = "abab"</code>, <code>p = "ab"</code> → <code>[0, 1, 2]</code>.</li>
+          <li>Repeated letters in <code>p</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 438 -->
         <p><strong>Complexity:</strong> <code>O(n · 26)</code> = <code>O(n)</code> time, <code>O(26)</code> space.</p>
       </div>
     </details>
@@ -1063,6 +1160,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 76. Minimum Window Substring <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the shortest substring of <code>s</code> containing every character of <code>t</code> (with multiplicity). Return <code>""</code> if none.</p>
+        <!-- enrich-top:start 76 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-window-substring/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=9NNrorI_U7M" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "ADOBECODEBANC", t = "ABC"</code></div><div><strong>Output:</strong> <code class="ex">"BANC"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The minimum window substring "BANC" includes 'A', 'B', and 'C' from string t.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "a", t = "a"</code></div><div><strong>Output:</strong> <code class="ex">"a"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The entire string s is the minimum window.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == s.length</code> · <code>n == t.length</code> · <code>1 ≤ m, n ≤ 10⁵</code> · <code>s</code> and <code>t</code> consist of uppercase and lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Expand the right edge until the window contains every character of <code>t</code> (with multiplicity).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Then shrink from the left as far as possible while it stays valid; record the smallest window. A counter of "letters still missing" makes the validity check <code>O(1)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every substring for containing <code>t</code> is <code>O(n² · m)</code>. A variable window that expands until valid and then shrinks greedily visits each index at most twice: <code>O(n + m)</code>.</p>
+        <!-- enrich-top:end 76 -->
         <p><strong>Spot it:</strong> "minimum window" + "contains all of". Adding characters can only help coverage, so it's a shortest-valid window.</p>
         <p><strong>Key insight:</strong> keep <code>need[c]</code> = how many more of <code>c</code> the window still needs (can go negative for extras), and a single integer <code>missing</code> so the validity check is <code>O(1)</code>.</p>
         <div id="viz-76"></div>
@@ -1148,6 +1256,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:76:end -->
+        <!-- enrich-edges:start 76 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>t</code> longer than <code>s</code> → <code>""</code>.</li>
+          <li>Duplicate letters in <code>t</code>, e.g. <code>t = "aa"</code>.</li>
+          <li>The answer is the whole of <code>s</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 76 -->
         <p><strong>Complexity:</strong> <code>O(|s| + |t|)</code> time, <code>O(σ)</code> space.</p>
       </div>
     </details>
@@ -1156,6 +1272,24 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> For every window of size <code>k</code>, report its maximum.</p>
+        <!-- enrich-top:start 239 -->
+        <p class="links"><a href="https://leetcode.com/problems/sliding-window-maximum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,-1,-3,5,3,6,7], k = 3</code></div><div><strong>Output:</strong> <code class="ex">[3,3,5,5,6,7]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Window position Max
+--------------- -----
+[1 3 -1] -3 5 3 6 7 3
+ 1 [3 -1 -3] 5 3 6 7 3
+ 1 3 [-1 -3 5] 3 6 7 5
+ 1 3 -1 [-3 5 3] 6 7 5
+ 1 3 -1 -3 [5 3 6] 7 6
+ 1 3 -1 -3 5 [3 6 7] 7</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1], k = 1</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>1 ≤ k ≤ nums.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Recomputing <code>max</code> for each window is <code>O(k)</code>. Which elements can never be a future maximum?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a deque of indices with decreasing values: drop smaller ones from the back when a bigger value arrives, and drop the front when it leaves the window.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Taking <code>max</code> of every window is <code>O(n · k)</code>. A monotonic deque keeps only candidates that could still become a maximum; each index is added and removed once, so <code>O(n)</code>.</p>
+        <!-- enrich-top:end 239 -->
         <p><strong>Spot it:</strong> fixed-size window, but "max" can't be undone by subtraction. Keep a <strong>monotonic deque</strong> of indices whose values decrease front→back; the front is the window max.</p>
         <p><strong>Key insight:</strong> when a bigger value arrives, everything smaller behind it can never be a maximum again (it's older <em>and</em> smaller), so pop it.</p>
         <div id="viz-239"></div>
@@ -1229,6 +1363,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:239:end -->
+        <!-- enrich-edges:start 239 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → the array itself.</li>
+          <li><code>k = n</code> → one value, the overall maximum.</li>
+          <li>Decreasing input, so the deque grows to size <code>k</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 239 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each index pushed and popped once), <code>O(k)</code> space.</p>
       </div>
     </details>
@@ -1295,6 +1437,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 643. Maximum Average Subarray I <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Find the largest average of any contiguous subarray of length exactly <code>k</code>.</p>
+        <!-- enrich-top:start 643 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-average-subarray-i/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=UdUUnoiLkPg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,12,-5,-6,50,3], k = 4</code></div><div><strong>Output:</strong> <code class="ex">12.75000</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Maximum average is (12 - 5 - 6 + 50) / 4 = 51 / 4 = 12.75</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [5], k = 1</code></div><div><strong>Output:</strong> <code class="ex">5.00000</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ k ≤ n ≤ 10⁵</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every window has the same size <code>k</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Moving the window one step: add the entering element, subtract the leaving one.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Summing each window from scratch is <code>O(n · k)</code>. Updating the sum incrementally makes each slide <code>O(1)</code>: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 643 -->
         <p><strong>Spot it:</strong> "Length exactly k" → fixed-size window.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1348,6 +1501,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:643:end -->
+        <!-- enrich-edges:start 643 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = n</code> → the average of everything.</li>
+          <li>All negative numbers (start the best at the first window, not 0).</li>
+          <li><code>k = 1</code> → the maximum element.</li>
+        </ul>
+        <!-- enrich-edges:end 643 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1356,6 +1517,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1004. Max Consecutive Ones III <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A binary array; you may flip at most <code>k</code> zeros into ones. What's the longest run of ones you can get?</p>
+        <!-- enrich-top:start 1004 -->
+        <p class="links"><a href="https://leetcode.com/problems/max-consecutive-ones-iii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=HsGKI02yw6M" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,1,0,0,0,1,1,1,1,0], k = 2</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[1,1,1,0,0,1,1,1,1,1,1]
+Bolded numbers were flipped from 0 to 1. The longest subarray is underlined.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,0,1,1,0,0,1,1,1,0,1,1,0,0,0,1,1,1,1], k = 3</code></div><div><strong>Output:</strong> <code class="ex">10</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1]
+Bolded numbers were flipped from 0 to 1. The longest subarray is underlined.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>nums[i]</code> is either 0 or 1. · <code>0 ≤ k ≤ nums.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Flipping at most <code>k</code> zeros = finding the longest window that contains at most <code>k</code> zeros.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Grow the window; when it holds more than <code>k</code> zeros, shrink from the left until it doesn't.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every subarray and counting its zeros is <code>O(n²)</code>. A window that tracks its zero count moves each edge forward only, giving <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1004 -->
         <p><strong>Spot it:</strong> Longest contiguous + "at most k" → variable window whose rule is "at most k zeros inside".</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1423,6 +1597,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:1004:end -->
+        <!-- enrich-edges:start 1004 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 0</code> → the longest run of 1s.</li>
+          <li><code>k ≥</code> number of zeros → <code>n</code>.</li>
+          <li>All zeros.</li>
+        </ul>
+        <!-- enrich-edges:end 1004 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1431,6 +1613,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 567. Permutation in String <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Does <code>s2</code> contain a substring that's a rearrangement (permutation) of <code>s1</code>?</p>
+        <!-- enrich-top:start 567 -->
+        <p class="links"><a href="https://leetcode.com/problems/permutation-in-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=quSfR-uwkZU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s1 = "ab", s2 = "eidbaooo"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">s2 contains one permutation of s1 ("ba").</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s1 = "ab", s2 = "eidboaoo"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s1.length, s2.length ≤ 10⁴</code> · <code>s1</code> and <code>s2</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>s2</code> contains a permutation of <code>s1</code> exactly when some window of length <code>len(s1)</code> has the same letter counts.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Slide a fixed window over <code>s2</code> and update the counts incrementally.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating all permutations of <code>s1</code> is factorial; sorting every window is <code>O(n · m log m)</code>. A fixed-size window with 26 counts checks each position in <code>O(1)</code> (or <code>O(26)</code>): <code>O(n)</code>.</p>
+        <!-- enrich-top:end 567 -->
         <p><strong>Spot it:</strong> A permutation of <code>s1</code> has exactly <code>len(s1)</code> letters → fixed window comparing letter counts.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1495,6 +1688,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:567:end -->
+        <!-- enrich-edges:start 567 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>s1</code> longer than <code>s2</code> → False.</li>
+          <li>The match at the very end of <code>s2</code>.</li>
+          <li>Repeated letters.</li>
+        </ul>
+        <!-- enrich-edges:end 567 -->
         <p><strong>Complexity:</strong> <code>O(26·n) = O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1503,6 +1704,18 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 904. Fruit Into Baskets <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Walk along a row of trees, taking one fruit per tree. You have two baskets, each holding one fruit type. The most fruit you can collect = the longest subarray with at most 2 distinct values.</p>
+        <!-- enrich-top:start 904 -->
+        <p class="links"><a href="https://leetcode.com/problems/fruit-into-baskets/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">fruits = [1,2,1]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can pick from all 3 trees.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">fruits = [0,1,2,2]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can pick from trees [1,2,2].
+If we had started at the first tree, we would only pick from trees [0,1].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ fruits.length ≤ 10⁵</code> · <code>0 ≤ fruits[i] &lt; fruits.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You may only hold two fruit types: find the longest subarray with at most 2 distinct values.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Track counts per type in the window; when a third type appears, shrink from the left until one type's count hits 0.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Every subarray with a distinct-count check is <code>O(n²)</code>. A window with a count map of at most three keys moves each edge forward only: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 904 -->
         <p><strong>Spot it:</strong> Longest contiguous + "at most 2 distinct" → variable window with a count map.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1568,6 +1781,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:904:end -->
+        <!-- enrich-edges:start 904 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One fruit type only → <code>n</code>.</li>
+          <li>Alternating types, e.g. <code>[1, 2, 1, 2]</code> → 4.</li>
+          <li>Fewer than 3 elements.</li>
+        </ul>
+        <!-- enrich-edges:end 904 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space (at most 3 keys).</p>
       </div>
     </details>
@@ -1576,6 +1797,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1658. Minimum Operations to Reduce X to Zero <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each operation removes the leftmost or rightmost number and subtracts it from <code>x</code>. What's the minimum number of operations to make <code>x</code> exactly 0 (or −1 if impossible)?</p>
+        <!-- enrich-top:start 1658 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-operations-to-reduce-x-to-zero/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,4,2,3], x = 5</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The optimal solution is to remove the last two elements to reduce x to zero.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [5,6,7,8,9], x = 4</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>1 ≤ nums[i] ≤ 10⁴</code> · <code>1 ≤ x ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Removing from both ends leaves a contiguous middle. What must the middle's sum be?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the <strong>longest</strong> subarray with sum <code>total − x</code> using a sliding window (all values are positive).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every split between the left and right removals is <code>O(n²)</code>. Inverting the problem (maximise the kept middle with sum <code>total − x</code>) makes it a positive-number sliding window: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1658 -->
         <p><strong>Spot it:</strong> Removing from both ends is awkward. Flip it: what <em>remains</em> is a contiguous middle that sums to <code>total − x</code>. Fewest removals = longest such middle. All values are positive → sliding window.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1652,6 +1884,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:1658:end -->
+        <!-- enrich-edges:start 1658 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>x == total</code> → remove everything (<code>n</code>).</li>
+          <li><code>x &gt; total</code> → −1.</li>
+          <li>No valid middle exists → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 1658 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1660,6 +1900,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 992. Subarrays with K Different Integers <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Count the subarrays that contain exactly <code>k</code> distinct integers.</p>
+        <!-- enrich-top:start 992 -->
+        <p class="links"><a href="https://leetcode.com/problems/subarrays-with-k-different-integers/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,1,2,3], k = 2</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Subarrays formed with exactly 2 different integers: [1,2], [2,1], [1,2], [2,3], [1,2,1], [2,1,2], [1,2,1,2]</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,1,3,4], k = 3</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Subarrays formed with exactly 3 different integers: [1,2,1,3], [2,1,3], [1,3,4].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 2 * 10⁴</code> · <code>1 ≤ nums[i], k ≤ nums.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>"Exactly k distinct" is hard to window directly, but "at most k distinct" is easy.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>exactly(k) = atMost(k) − atMost(k − 1). In atMost, each right edge adds <code>right − left + 1</code> subarrays.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Counting distinct values in every subarray is <code>O(n²)</code>. The at-most trick turns it into two linear sliding-window passes: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 992 -->
         <p><strong>Spot it:</strong> "Exactly k" is not monotonic (growing a window can make it valid, then invalid), but "at most k" is. Use <code>exactly(k) = atMost(k) − atMost(k − 1)</code>.</p>
         <p><strong>Key insight:</strong> In an at-most window <code>[left, right]</code>, every subarray that ends at <code>right</code> and starts anywhere in <code>[left, right]</code> is also valid: that's <code>right − left + 1</code> subarrays.</p>
         <p><strong>Approach:</strong></p>
@@ -1732,6 +1983,14 @@ class Solution:
   </tbody>
 </table>
         <!-- explain:992:end -->
+        <!-- enrich-edges:start 992 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → count runs of equal values.</li>
+          <li><code>k</code> larger than the number of distinct values → 0.</li>
+          <li>All elements the same.</li>
+        </ul>
+        <!-- enrich-edges:end 992 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the counts.</p>
       </div>
     </details>
@@ -1740,6 +1999,18 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 121. Best Time to Buy and Sell Stock <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>prices[i]</code> is a stock's price on day <code>i</code>. Choose one day to buy and a <strong>later</strong> day to sell. Return the maximum profit, or <code>0</code> if no profit is possible.</p>
+        <!-- enrich-top:start 121 -->
+        <p class="links"><a href="https://leetcode.com/problems/best-time-to-buy-and-sell-stock/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=kJZrMGpyWpk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">prices = [7,1,5,3,6,4]</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 6-1 = 5.
+Note that buying on day 2 and selling on day 1 is not allowed because you must buy before you sell.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">prices = [7,6,4,3,1]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">In this case, no transactions are done and the max profit = 0.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ prices.length ≤ 10⁵</code> · <code>0 ≤ prices[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For each possible sell day, which buy day is best?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep the cheapest price seen so far; today's profit is today's price minus that minimum.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every buy day with every later sell day is <code>O(n²)</code>. The best buy for any sell day is simply the minimum so far, which a single variable tracks: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 121 -->
         <p><strong>Spot it:</strong> A pair <code>(buy, sell)</code> with <code>buy &lt; sell</code> that maximises <code>prices[sell] − prices[buy]</code>. Think of it as a window: <code>sell</code> scans forward, and <code>buy</code> stays on the cheapest day seen so far.</p>
         <p><strong>Key insight:</strong> If today's price is lower than the current buy price, any future sale is better from today, so the left edge of the window jumps here. Otherwise, today is a candidate sell day.</p>
         <p><strong>Approach:</strong></p>
@@ -1782,6 +2053,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 121 -->
+        <!-- enrich-edges:start 121 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Prices only fall → 0.</li>
+          <li>A single day → 0.</li>
+          <li>The minimum comes after the maximum, e.g. <code>[3, 5, 1]</code> → 2 (not 4).</li>
+        </ul>
+        <!-- enrich-edges:end 121 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1790,6 +2069,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 219. Contains Duplicate II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if there are two indices <code>i ≠ j</code> with <code>nums[i] == nums[j]</code> and <code>|i − j| ≤ k</code>.</p>
+        <!-- enrich-top:start 219 -->
+        <p class="links"><a href="https://leetcode.com/problems/contains-duplicate-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=SZervFqOHFU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,1], k = 3</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,0,1,1], k = 1</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code> · <code>0 ≤ k ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>"Within distance <code>k</code>" means inside a window of the last <code>k</code> positions.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep those values in a set; when the window grows past <code>k</code>, remove the one that fell out.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair within distance <code>k</code> is <code>O(n · k)</code>. A set holding just the current window answers "seen recently?" in <code>O(1)</code>: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 219 -->
         <p><strong>Spot it:</strong> "Within distance <code>k</code>" = within a window of the last <code>k</code> elements. Keep those values in a set: a value already in the set is a close duplicate.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1835,6 +2125,14 @@ class Solution:
         </table>
         <p>The loop ends without a hit, so the answer is <code>False</code>. With <code>nums = [1, 2, 3, 1]</code>, <code>k = 3</code> the second <code>1</code> would find the first one still in the window.</p>
         <!-- explain:end 219 -->
+        <!-- enrich-edges:start 219 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 0</code> → always False.</li>
+          <li>The duplicate exactly <code>k</code> apart → True.</li>
+          <li>Duplicates only further apart than <code>k</code> → False.</li>
+        </ul>
+        <!-- enrich-edges:end 219 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(k)</code> space.</p>
       </div>
     </details>
@@ -1843,6 +2141,18 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 30. Substring with Concatenation of All Words <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>words</code> are all the same length. Return every starting index in <code>s</code> of a substring that is some concatenation of <strong>all</strong> the words, each used exactly as many times as it appears in <code>words</code> (any order).</p>
+        <!-- enrich-top:start 30 -->
+        <p class="links"><a href="https://leetcode.com/problems/substring-with-concatenation-of-all-words/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=sB7qkEE0s6w" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "barfoothefoobarman", words = ["foo","bar"]</code></div><div><strong>Output:</strong> <code class="ex">[0,9]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The substring starting at 0 is "barfoo". It is the concatenation of ["bar","foo"] which is a permutation of words.
+The substring starting at 9 is "foobar". It is the concatenation of ["foo","bar"] which is a permutation of words.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "wordgoodgoodgoodbestword", words = ["word","good","best","word"]</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is no concatenated substring.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>1 ≤ words.length ≤ 5000</code> · <code>1 ≤ words[i].length ≤ 30</code> · <code>s</code> and <code>words[i]</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All words have the same length <code>L</code>. Read <code>s</code> in chunks of <code>L</code> characters.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Run a sliding window whose unit is one word, once for each starting offset <code>0..L − 1</code>, with a count map of the words inside.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every start index by slicing <code>len(words)</code> words and comparing counts is <code>O(n · m · L)</code>. A word-sized sliding window per offset reuses the counts as it moves, so each word slice is handled a constant number of times: <code>O(n · L)</code>.</p>
+        <!-- enrich-top:end 30 -->
         <p><strong>Spot it:</strong> "Contiguous substring" + "contains exactly these counts" → a variable sliding window with a count map, like Minimum Window Substring. The twist: the window's unit is a whole <strong>word</strong> of length <code>L</code>, so it moves in jumps of <code>L</code>.</p>
         <p><strong>Key insight:</strong> A match can start at any index, but jumping by <code>L</code> only visits indices with the same remainder mod <code>L</code>. So run the word-sized window <code>L</code> times, once for each offset <code>0 .. L − 1</code>. Each run is linear.</p>
         <p><strong>Approach:</strong></p>
@@ -1917,6 +2227,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 30 -->
+        <!-- enrich-edges:start 30 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Repeated words in <code>words</code>, e.g. <code>["foo", "foo"]</code>.</li>
+          <li>A foreign word in the middle resets the window.</li>
+          <li><code>s</code> shorter than all the words together → <code>[]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 30 -->
         <p><strong>Complexity:</strong> <code>O(n · L)</code> time: <code>L</code> offsets, each scanning about <code>n / L</code> words, and slicing a word costs <code>O(L)</code>. <code>O(m)</code> space for the two maps, where <code>m</code> is the number of words.</p>
       </div>
     </details>

@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -671,6 +687,17 @@ def min_candies(ratings):
       <summary><span class="tag medium">Medium</span> 55. Jump Game <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You start at index 0; <code>nums[i]</code> is the <strong>maximum</strong> jump length from index <code>i</code>. Return <code>True</code> if you can reach the last index.</p>
+        <!-- enrich-top:start 55 -->
+        <p class="links"><a href="https://leetcode.com/problems/jump-game/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=PfGypLRcoVA" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,3,1,1,4]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Jump 1 step from index 0 to 1, then 3 steps to the last index.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,2,1,0,4]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You will always arrive at index 3 no matter what. Its maximum jump length is 0, which makes it impossible to reach the last index.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>0 ≤ nums[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If you can reach index <code>i</code>, you can reach every index before it too.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep the farthest reachable index; if the scan ever passes it, you're stuck.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS over all jump choices is exponential; a DP over "can I reach <code>i</code>?" is <code>O(n²)</code>. Tracking only the farthest reach is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 55 -->
         <p><strong>Spot it:</strong> A DP over "can I reach <code>i</code>?" works in <code>O(n²)</code>, but the greedy view is <code>O(n)</code>: everything up to the <strong>farthest</strong> index reached so far is reachable, so only that one number matters.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -711,6 +738,14 @@ def min_candies(ratings):
           </tbody>
         </table>
         <!-- explain:end 55 -->
+        <!-- enrich-edges:start 55 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → True.</li>
+          <li>A zero you can't jump over → False.</li>
+          <li>A zero you can jump over.</li>
+        </ul>
+        <!-- enrich-edges:end 55 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -719,6 +754,28 @@ def min_candies(ratings):
       <summary><span class="tag medium">Medium</span> 134. Gas Station <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A circular route has stations; <code>gas[i]</code> is fuel available at <code>i</code> and <code>cost[i]</code> is fuel to drive from <code>i</code> to <code>i + 1</code>. Return the starting index that lets you drive one full lap with an initially empty tank, or <code>-1</code>. The answer is unique if it exists.</p>
+        <!-- enrich-top:start 134 -->
+        <p class="links"><a href="https://leetcode.com/problems/gas-station/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=TnNW3Oi-IHI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">gas = [1,2,3,4,5], cost = [3,4,5,1,2]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Start at station 3 (index 3) and fill up with 4 unit of gas. Your tank = 0 + 4 = 4
+Travel to station 4. Your tank = 4 - 1 + 5 = 8
+Travel to station 0. Your tank = 8 - 2 + 1 = 7
+Travel to station 1. Your tank = 7 - 3 + 2 = 6
+Travel to station 2. Your tank = 6 - 4 + 3 = 5
+Travel to station 3. The cost is 5. Your gas is just enough to travel back to station 3.
+Therefore, return 3 as the starting index.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">gas = [2,3,4], cost = [3,4,3]</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You can't start at station 0 or 1, as there is not enough gas to travel to the next station.
+Let's start at station 2 and fill up with 4 unit of gas. Your tank = 0 + 4 = 4
+Travel to station 0. Your tank = 4 - 3 + 2 = 3
+Travel to station 1. Your tank = 3 - 3 + 3 = 3
+You cannot travel back to station 2, as it requires 4 unit of gas but you only have 3.
+Therefore, you can't travel around the circuit once no matter where you start.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == gas.length == cost.length</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>0 ≤ gas[i], cost[i] ≤ 10⁴</code> · The input is generated such that the answer is unique.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If the total gas is less than the total cost, no start works.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Drive once from station 0; when the tank goes negative at <code>i</code>, no station up to <code>i</code> can be the start, so restart at <code>i + 1</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every start and simulating a lap is <code>O(n²)</code>. The reset rule rules out whole stretches of starts at once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 134 -->
         <p><strong>Spot it:</strong> Trying every start is <code>O(n²)</code>. Two greedy facts make it <code>O(n)</code>: (1) a lap is possible only if total gas ≥ total cost; (2) if starting at <code>s</code> you run dry before reaching <code>j</code>, then no start between <code>s</code> and <code>j</code> works either.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -761,6 +818,14 @@ def min_candies(ratings):
           </tbody>
         </table>
         <!-- explain:end 134 -->
+        <!-- enrich-edges:start 134 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Total gas &lt; total cost → −1.</li>
+          <li>A single station.</li>
+          <li>The answer is the last station.</li>
+        </ul>
+        <!-- enrich-edges:end 134 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -769,6 +834,18 @@ def min_candies(ratings):
       <summary><span class="tag hard">Hard</span> 135. Candy <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Children stand in a line with <code>ratings</code>. Give each at least one candy, and give a child with a higher rating than an <strong>adjacent</strong> child more candies than that neighbour. Return the minimum total.</p>
+        <!-- enrich-top:start 135 -->
+        <p class="links"><a href="https://leetcode.com/problems/candy/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=bnsn5UePbQE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">ratings = [1,0,2]</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You can allocate to the first, second and third child with 2, 1, 2 candies respectively.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">ratings = [1,2,2]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You can allocate to the first, second and third child with 1, 2, 1 candies respectively.
+The third child gets 1 candy because it satisfies the above two conditions.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n == ratings.length ≤ 5 * 10⁴</code> · <code>0 ≤ ratings[i] ≤ 5 * 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each child has two constraints: its left neighbour and its right neighbour.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Left-to-right pass for left neighbours, right-to-left pass for right neighbours, keeping the max.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly fixing violations until none are left can take <code>O(n²)</code>. Two directional passes satisfy both constraints minimally: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 135 -->
         <p><strong>Spot it:</strong> Each child has two constraints (left and right). Satisfy them one direction at a time: a left-to-right pass fixes "more than my left neighbour", and a right-to-left pass fixes "more than my right neighbour" without breaking the first.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -811,6 +888,14 @@ def min_candies(ratings):
           </tbody>
         </table>
         <!-- explain:end 135 -->
+        <!-- enrich-edges:start 135 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Equal ratings don't need more candy, e.g. <code>[1, 2, 2]</code> → 4.</li>
+          <li>Strictly decreasing ratings.</li>
+          <li>A single child → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 135 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -871,6 +956,20 @@ def min_candies(ratings):
       <summary><span class="tag medium">Medium</span> 122. Best Time to Buy and Sell Stock II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You may buy and sell as many times as you like, holding at most one share at a time (you can sell and buy again on the same day). Return the maximum profit.</p>
+        <!-- enrich-top:start 122 -->
+        <p class="links"><a href="https://leetcode.com/problems/best-time-to-buy-and-sell-stock-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=TSpBHe5vInA" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">prices = [7,1,5,3,6,4]</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Buy on day 2 (price = 1) and sell on day 3 (price = 5), profit = 5-1 = 4.
+Then buy on day 4 (price = 3) and sell on day 5 (price = 6), profit = 6-3 = 3.
+Total profit is 4 + 3 = 7.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">prices = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Buy on day 1 (price = 1) and sell on day 5 (price = 5), profit = 5-1 = 4.
+Total profit is 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ prices.length ≤ 3 * 10⁴</code> · <code>0 ≤ prices[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>With unlimited transactions, would you ever skip a price rise?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Add every positive day-to-day difference.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all buy/sell schedules is exponential; DP with hold/cash states is <code>O(n)</code>. The greedy view (collect every rise) is the same <code>O(n)</code> with one line of logic.</p>
+        <!-- enrich-top:end 122 -->
         <p><strong>Spot it:</strong> Unlimited transactions → any rising stretch <code>a &lt; b &lt; c</code> earns the same as the separate steps <code>(b − a) + (c − b)</code>. So greedily take <strong>every</strong> positive day-to-day difference.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -907,6 +1006,14 @@ def min_candies(ratings):
           </tbody>
         </table>
         <!-- explain:end 122 -->
+        <!-- enrich-edges:start 122 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Prices only fall → 0.</li>
+          <li>Prices only rise → last − first.</li>
+          <li>Flat prices.</li>
+        </ul>
+        <!-- enrich-edges:end 122 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -915,6 +1022,18 @@ def min_candies(ratings):
       <summary><span class="tag medium">Medium</span> 274. H-Index <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>citations[i]</code> is the citation count of paper <code>i</code>. The h-index is the largest <code>h</code> such that at least <code>h</code> papers have at least <code>h</code> citations each. Return it.</p>
+        <!-- enrich-top:start 274 -->
+        <p class="links"><a href="https://leetcode.com/problems/h-index/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=mgG5KFTvfPw" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">citations = [3,0,6,1,5]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[3,0,6,1,5] means the researcher has 5 papers in total and each of them had received 3, 0, 6, 1, 5 citations respectively.
+Since the researcher has 3 papers with at least 3 citations each and the remaining two with no more than 3 citations each, their h-index is 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">citations = [1,3,1]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == citations.length</code> · <code>1 ≤ n ≤ 5000</code> · <code>0 ≤ citations[i] ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Sort the citations from most to least.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>h</code> grows as long as the <code>h</code>-th best paper has at least <code>h</code> citations.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every <code>h</code> and counting papers with ≥ <code>h</code> citations is <code>O(n²)</code>. Sorting is <code>O(n log n)</code>; counting sort (citations capped at <code>n</code>) is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 274 -->
         <p><strong>Spot it:</strong> Sorting papers from most to least cited turns it into a greedy scan: the top <code>h</code> papers are the best candidates for an h-index of <code>h</code>, so keep increasing <code>h</code> while the <code>h</code>-th best paper still has at least <code>h</code> citations.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -953,6 +1072,14 @@ def min_candies(ratings):
           </tbody>
         </table>
         <!-- explain:end 274 -->
+        <!-- enrich-edges:start 274 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All zeros → 0.</li>
+          <li>A single paper.</li>
+          <li>Citations larger than <code>n</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 274 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time for the sort, <code>O(n)</code> space for the sorted copy.</p>
       </div>
     </details>

@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -814,6 +830,19 @@ def stock_cooldown(prices):
       <summary><span class="tag medium">Medium</span> 198. House Robber (1-D linear) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Houses in a row hold <code>nums[i]</code> money. You can't rob two adjacent houses. Maximize the loot.</p>
+        <!-- enrich-top:start 198 -->
+        <p class="links"><a href="https://leetcode.com/problems/house-robber/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=kIII1uT6F8Y" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,1]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Rob house 1 (money = 1) and then rob house 3 (money = 3).
+Total amount you can rob = 1 + 3 = 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [2,7,9,3,1]</code></div><div><strong>Output:</strong> <code class="ex">12</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Rob house 1 (money = 2), rob house 3 (money = 9) and rob house 5 (money = 1).
+Total amount you can rob = 2 + 9 + 1 = 12.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 100</code> · <code>0 ≤ nums[i] ≤ 400</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>At each house you either rob it (then you couldn't rob the previous one) or skip it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[i] = max(dp[i − 1], dp[i − 2] + nums[i])</code>. You only need the last two values.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every set of non-adjacent houses is <code>O(2ⁿ)</code>, and plain recursion recomputes the same sub-problems. Each prefix has one best answer, so DP fills them in order: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 198 -->
         <p><strong>Spot it:</strong> "maximum" + "cannot take two adjacent" + an array. Each house is a take/skip choice, and the choices interact.</p>
         <p><strong>State &amp; transition:</strong> <code>dp[i]</code> = best loot from houses <code>0..i</code>. Last decision: rob house <code>i</code> (then house <code>i−1</code> is off-limits → <code>dp[i−2] + nums[i]</code>) or skip it (<code>dp[i−1]</code>). The 1-D visualizer above fills this table.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -861,6 +890,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 198 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single house.</li>
+          <li>Two houses → the richer one.</li>
+          <li>Skipping two houses in a row can be best, e.g. <code>[2, 1, 1, 2]</code> → 4.</li>
+        </ul>
+        <!-- enrich-edges:end 198 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space (the 2-variable version of the table).</p>
       </div>
     </details>
@@ -869,6 +906,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 416. Partition Equal Subset Sum (0/1 knapsack) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Can the array be split into two subsets with equal sums?</p>
+        <!-- enrich-top:start 416 -->
+        <p class="links"><a href="https://leetcode.com/problems/partition-equal-subset-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,5,11,5]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The array can be partitioned as [1, 5, 5] and [11].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,5]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The array cannot be partitioned into equal sum subsets.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 200</code> · <code>1 ≤ nums[i] ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If the total is odd, it's impossible. Otherwise: can some subset sum to <code>total / 2</code>?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>0/1 knapsack: a boolean <code>dp[s]</code> for reachable sums, filled with <code>s</code> going <strong>down</strong> so each number is used once.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all <code>2ⁿ</code> subsets is exponential. The set of reachable sums is at most <code>total / 2 + 1</code> values, so DP over sums is <code>O(n · total)</code>.</p>
+        <!-- enrich-top:end 416 -->
         <p><strong>Spot it:</strong> "can you partition" means picking a subset that sums to <code>total/2</code>. Each number is used <strong>at most once</strong>, so it's a yes/no 0/1 knapsack.</p>
         <p><strong>State &amp; transition:</strong> <code>dp[s]</code> = "some subset of the items seen so far sums to s". For a new item x: <code>dp[s] = dp[s] or dp[s − x]</code>. Loop <code>s</code> <strong>downwards</strong> so <code>dp[s − x]</code> still means "without x". Looping upwards would let x be used twice.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -923,6 +971,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 416 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An odd total → False.</li>
+          <li>A single element → False.</li>
+          <li>One element equal to half the total.</li>
+        </ul>
+        <!-- enrich-edges:end 416 -->
         <p><strong>Complexity:</strong> <code>O(n · target)</code> time, <code>O(target)</code> space.</p>
       </div>
     </details>
@@ -931,6 +987,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 322. Coin Change (unbounded knapsack) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Fewest coins (unlimited supply of each denomination) that make up <code>amount</code>, or <code>-1</code> if impossible.</p>
+        <!-- enrich-top:start 322 -->
+        <p class="links"><a href="https://leetcode.com/problems/coin-change/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=koE9ly1CFDc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">coins = [1,2,5], amount = 11</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">11 = 5 + 5 + 1</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">coins = [2], amount = 3</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ coins.length ≤ 12</code> · <code>1 ≤ coins[i] ≤ 2³¹ - 1</code> · <code>0 ≤ amount ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>dp[a]</code> = the fewest coins to make amount <code>a</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[a] = 1 + min(dp[a − coin])</code> over coins ≤ <code>a</code>; build up from <code>dp[0] = 0</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Greedy (biggest coin first) can fail, e.g. coins <code>[1, 3, 4]</code> for 6; plain recursion is exponential. Unbounded-knapsack DP over amounts is <code>O(amount · coins)</code>.</p>
+        <!-- enrich-top:end 322 -->
         <p><strong>Spot it:</strong> "fewest" + "infinite number of each coin". That's unbounded knapsack. Greedy fails: with coins [1,3,4] and amount 6, greedy gives 4+1+1, but 3+3 is better.</p>
         <p><strong>State &amp; transition:</strong> <code>dp[a]</code> = fewest coins to make amount <code>a</code>. Last decision: which coin <code>c</code> was added last → <code>dp[a] = 1 + min(dp[a − c])</code>. Fill <code>a</code> upwards.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -986,6 +1053,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 322 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>amount = 0</code> → 0.</li>
+          <li>Impossible amounts → −1.</li>
+          <li>A single coin type.</li>
+        </ul>
+        <!-- enrich-edges:end 322 -->
         <p><strong>Complexity:</strong> <code>O(amount · len(coins))</code> time, <code>O(amount)</code> space.</p>
       </div>
     </details>
@@ -994,6 +1069,23 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 72. Edit Distance (two strings) <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Minimum number of single-character inserts, deletes, or replaces to turn <code>word1</code> into <code>word2</code>.</p>
+        <!-- enrich-top:start 72 -->
+        <p class="links"><a href="https://leetcode.com/problems/edit-distance/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">word1 = "horse", word2 = "ros"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">horse -&gt; rorse (replace 'h' with 'r')
+rorse -&gt; rose (remove 'r')
+rose -&gt; ros (remove 'e')</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">word1 = "intention", word2 = "execution"</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">intention -&gt; inention (remove 't')
+inention -&gt; enention (replace 'i' with 'e')
+enention -&gt; exention (replace 'n' with 'x')
+exention -&gt; exection (replace 'n' with 'c')
+exection -&gt; execution (insert 'u')</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ word1.length, word2.length ≤ 500</code> · <code>word1</code> and <code>word2</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>dp[i][j]</code> = the edits needed to turn <code>word1[:i]</code> into <code>word2[:j]</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>If the last letters match, copy the diagonal; otherwise <code>1 + min(insert, delete, replace)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Recursing on the three operations without memory is exponential. There are only <code>(m + 1)(n + 1)</code> prefix pairs, so a DP table fills them all in <code>O(m · n)</code>.</p>
+        <!-- enrich-top:end 72 -->
         <p><strong>Spot it:</strong> two strings + "minimum operations". That's the 2-D string family, a sibling of LCS (shown in the table-fill visualizer above).</p>
         <p><strong>State &amp; transition:</strong> <code>dp[i][j]</code> = edits to turn <code>word1[:i]</code> into <code>word2[:j]</code>. If the last characters match: <code>dp[i−1][j−1]</code> (free). Otherwise <code>1 + min</code>(delete → <code>dp[i−1][j]</code>, insert → <code>dp[i][j−1]</code>, replace → <code>dp[i−1][j−1]</code>). Base: <code>dp[i][0] = i</code>, <code>dp[0][j] = j</code>.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1053,6 +1145,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 72 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One word empty → the other word's length.</li>
+          <li>Identical words → 0.</li>
+          <li>No letters in common.</li>
+        </ul>
+        <!-- enrich-edges:end 72 -->
         <p><strong>Complexity:</strong> <code>O(m·n)</code> time; <code>O(m·n)</code> space, or <code>O(n)</code> keeping two rows.</p>
       </div>
     </details>
@@ -1061,6 +1161,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 300. Longest Increasing Subsequence (LIS) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Length of the longest strictly increasing <em>subsequence</em> (elements don't have to be contiguous).</p>
+        <!-- enrich-top:start 300 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-increasing-subsequence/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=MrPa5EFcDCU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [10,9,2,5,3,7,101,18]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest increasing subsequence is [2,3,7,101], therefore the length is 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,1,0,3,2,3]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 2500</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>dp[i]</code> = the length of the longest increasing subsequence that ends at index <code>i</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[i] = 1 + max(dp[j])</code> for earlier <code>j</code> with <code>nums[j] &lt; nums[i]</code>. (An <code>O(n log n)</code> version keeps the smallest tail for each length and uses binary search.)</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking all <code>2ⁿ</code> subsequences is exponential. The <code>O(n²)</code> DP reuses the answer for every earlier ending; patience sorting with binary search brings it to <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 300 -->
         <p><strong>Spot it:</strong> "longest" + "subsequence" + one array.</p>
         <p><strong>State &amp; transition:</strong> <code>dp[i]</code> = length of the longest increasing subsequence that <strong>ends at</strong> index <code>i</code>. Last decision: which earlier <code>j</code> (with <code>nums[j] &lt; nums[i]</code>) comes right before <code>i</code>. The answer is <code>max(dp)</code>, because the best subsequence can end anywhere.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1138,6 +1249,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 300 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Strictly decreasing → 1.</li>
+          <li>Equal values don't count as increasing.</li>
+          <li>A single element.</li>
+        </ul>
+        <!-- enrich-edges:end 300 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> / <code>O(n log n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1146,6 +1265,18 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 312. Burst Balloons (interval DP) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bursting balloon <code>i</code> earns <code>nums[left] · nums[i] · nums[right]</code>, using its <em>current</em> neighbors. Missing neighbors count as 1. Maximize total coins.</p>
+        <!-- enrich-top:start 312 -->
+        <p class="links"><a href="https://leetcode.com/problems/burst-balloons/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,1,5,8]</code></div><div><strong>Output:</strong> <code class="ex">167</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">nums = [3,1,5,8] --&gt; [3,5,8] --&gt; [3,8] --&gt; [8] --&gt; []
+coins = 3*1*5 + 3*5*8 + 1*3*8 + 1*8*1 = 167</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,5]</code></div><div><strong>Output:</strong> <code class="ex">10</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 300</code> · <code>0 ≤ nums[i] ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Think about which balloon you burst <strong>last</strong> in a range, not first.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[l][r]</code> = the best coins from bursting everything strictly between <code>l</code> and <code>r</code>; try each <code>k</code> in between as the last burst.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every burst order is <code>O(n!)</code>. Fixing the last balloon splits the range into two independent halves, giving an interval DP in <code>O(n³)</code>.</p>
+        <!-- enrich-top:end 312 -->
         <p><strong>Spot it:</strong> the order of removals changes the neighbors, and the answer for a range depends on sub-ranges. That's interval DP.</p>
         <p><strong>Key insight (the trick):</strong> don't think about which balloon bursts <em>first</em>. That splits the problem into halves that still interact. Think about which balloon <code>k</code> bursts <strong>last</strong> inside the open interval <code>(l, r)</code>. When it bursts, its neighbors are exactly <code>l</code> and <code>r</code>, and the two sides are independent: <code>dp[l][r] = max(dp[l][k] + a[l]·a[k]·a[r] + dp[k][r])</code>.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1202,6 +1333,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 312 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single balloon.</li>
+          <li>Zeros in the array.</li>
+          <li>Pad the array with 1 at both ends.</li>
+        </ul>
+        <!-- enrich-edges:end 312 -->
         <p><strong>Complexity:</strong> <code>O(n³)</code> time, <code>O(n²)</code> space. <code>[3,1,5,8]</code> → <code>167</code>.</p>
       </div>
     </details>
@@ -1210,6 +1349,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 64. Minimum Path Sum (grid DP) <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Move only right or down from the top-left to the bottom-right, minimizing the sum of the cells you pass through.</p>
+        <!-- enrich-top:start 64 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-path-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=JKarY0cOxxo" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[1,3,1],[1,5,1],[4,2,1]]</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Because the path 1 → 3 → 1 → 1 → 1 minimizes the sum.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[1,2,3],[4,5,6]]</code></div><div><strong>Output:</strong> <code class="ex">12</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>0 ≤ grid[i][j] ≤ 200</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You arrive at a cell from above or from the left.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[r][c] = grid[r][c] + min(dp[r − 1][c], dp[r][c − 1])</code>; the first row and column have only one way in.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every right/down path is exponential. Each cell's best cost depends only on its two predecessors, so a grid DP is <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 64 -->
         <p><strong>Spot it:</strong> grid + "only right or down" + "minimum". With one-way moves there are no cycles, so it's grid DP rather than BFS/Dijkstra.</p>
         <p><strong>State &amp; transition:</strong> <code>dp[r][c] = grid[r][c] + min(dp[r−1][c], dp[r][c−1])</code>. Only the previous row is needed, so one 1-D array suffices.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1255,6 +1405,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 64 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single row or column.</li>
+          <li>A 1 × 1 grid.</li>
+          <li>Large values along the edges.</li>
+        </ul>
+        <!-- enrich-edges:end 64 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time, <code>O(C)</code> space.</p>
       </div>
     </details>
@@ -1263,6 +1421,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 309. Best Time to Buy and Sell Stock with Cooldown (state machine) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Unlimited transactions, but after selling you must wait one day before buying again. Maximize profit.</p>
+        <!-- enrich-top:start 309 -->
+        <p class="links"><a href="https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-cooldown/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">prices = [1,2,3,0,2]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">transactions = [buy, sell, cooldown, buy, sell]</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">prices = [1]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ prices.length ≤ 5000</code> · <code>0 ≤ prices[i] ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Track each day's state: holding a share, just sold (cooldown), or resting.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Write a transition for each state from the previous day's states; the answer is the best non-holding state.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every sequence of buy/sell/rest is exponential. Three states per day with constant-time transitions is <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 309 -->
         <p><strong>Spot it:</strong> "after you sell, you cannot buy the next day". What you're allowed to do depends on what you <em>are</em> right now. Model it as a few states with arrows between them.</p>
         <p><strong>States:</strong> <code>hold</code> (own a share), <code>sold</code> (just sold today, so cooling down tomorrow), <code>rest</code> (no share, free to buy). Arrows: <code>hold ← max(hold, rest − p)</code>, <code>sold ← hold + p</code>, <code>rest ← max(rest, sold)</code>.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1314,6 +1483,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 309 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single day → 0.</li>
+          <li>Falling prices → 0.</li>
+          <li>The cooldown forcing you to skip a good buy.</li>
+        </ul>
+        <!-- enrich-edges:end 309 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1390,6 +1567,22 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 70. Climbing Stairs <span class="ds-tags"><span class="ds">Math</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You climb a staircase of <code>n</code> steps, 1 or 2 steps at a time. In how many distinct ways can you reach the top?</p>
+        <!-- enrich-top:start 70 -->
+        <p class="links"><a href="https://leetcode.com/problems/climbing-stairs/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=I-R1XsECJu8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 2</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are two ways to climb to the top.
+1. 1 step + 1 step
+2. 2 steps</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 3</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are three ways to climb to the top.
+1. 1 step + 1 step + 1 step
+2. 1 step + 2 steps
+3. 2 steps + 1 step</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 45</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How can you arrive on step <code>n</code>?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>From step <code>n − 1</code> or step <code>n − 2</code>: <code>ways(n) = ways(n − 1) + ways(n − 2)</code>, like Fibonacci.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Plain recursion recomputes the same steps exponentially often (<code>O(2ⁿ)</code>). Building up from the bottom computes each value once: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 70 -->
         <p><strong>Spot it:</strong> "how many distinct ways" + each move is a small choice is 1-D DP, and it's Fibonacci in disguise.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1430,6 +1623,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 70 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 1</code> → 1.</li>
+          <li><code>n = 2</code> → 2.</li>
+          <li>Large <code>n</code> (the recursion would be far too slow).</li>
+        </ul>
+        <!-- enrich-edges:end 70 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1437,6 +1638,18 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 213. House Robber II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> House Robber (198), but the houses stand in a <strong>circle</strong>: the first and last houses are neighbors.</p>
+        <!-- enrich-top:start 213 -->
+        <p class="links"><a href="https://leetcode.com/problems/house-robber-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,3,2]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You cannot rob house 1 (money = 2) and then rob house 3 (money = 2), because they are adjacent houses.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,1]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Rob house 1 (money = 1) and then rob house 3 (money = 3).
+Total amount you can rob = 1 + 3 = 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 100</code> · <code>0 ≤ nums[i] ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The houses are in a circle, so the first and last are neighbours.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Run House Robber twice: once without the first house and once without the last; take the max.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Handling the circle with complex state is error-prone. Splitting into two straight-line problems reuses House Robber: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 213 -->
         <p><strong>Spot it:</strong> This is the same 1-D take/skip DP. The circle only adds one conflict: you can't rob both house 0 and house n−1.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1489,6 +1702,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 213 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single house (the two ranges would be empty).</li>
+          <li>Two houses.</li>
+          <li>The best answer uses the first house.</li>
+        </ul>
+        <!-- enrich-edges:end 213 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> for the slices (or <code>O(1)</code> with index ranges).</p>
       </div>
     </details>
@@ -1496,6 +1717,21 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 518. Coin Change II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Count the number of <em>combinations</em> of coins (unlimited supply) that make up <code>amount</code>. Order doesn't matter, so 1+2 and 2+1 are the same combination.</p>
+        <!-- enrich-top:start 518 -->
+        <p class="links"><a href="https://leetcode.com/problems/coin-change-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">amount = 5, coins = [1,2,5]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">there are four ways to make up the amount:
+5=5
+5=2+2+1
+5=2+1+1+1
+5=1+1+1+1+1</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">amount = 3, coins = [2]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">the amount of 3 cannot be made up just with coins of 2.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ coins.length ≤ 300</code> · <code>1 ≤ coins[i] ≤ 5000</code> · All the values of <code>coins</code> are <strong>unique</strong>. · <code>0 ≤ amount ≤ 5000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Count <em>combinations</em>, not orderings: <code>[1, 2]</code> and <code>[2, 1]</code> are the same.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Loop over coins in the <strong>outer</strong> loop and amounts in the inner loop: <code>dp[a] += dp[a − coin]</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Recursion over coin choices is exponential, and swapping the two loops counts orderings by mistake. The coins-outer DP counts each combination once in <code>O(amount · coins)</code>.</p>
+        <!-- enrich-top:end 518 -->
         <p><strong>Spot it:</strong> "number of combinations" + unlimited coins is unbounded knapsack, counting version. Loop order decides whether you count combinations or permutations.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1541,6 +1777,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 518 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>amount = 0</code> → 1 (the empty combination).</li>
+          <li>No way to make the amount → 0.</li>
+          <li>A coin larger than the amount.</li>
+        </ul>
+        <!-- enrich-edges:end 518 -->
         <p><strong>Complexity:</strong> <code>O(amount · len(coins))</code> time, <code>O(amount)</code> space.</p>
       </div>
     </details>
@@ -1548,6 +1792,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1143. Longest Common Subsequence <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the length of the longest subsequence that appears in both strings (characters in order, not necessarily contiguous).</p>
+        <!-- enrich-top:start 1143 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-common-subsequence/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=MNykgz1_ONQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">text1 = "abcde", text2 = "ace"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest common subsequence is "ace" and its length is 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">text1 = "abc", text2 = "abc"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest common subsequence is "abc" and its length is 3.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ text1.length, text2.length ≤ 1000</code> · <code>text1</code> and <code>text2</code> consist of only lowercase English characters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>dp[i][j]</code> = the LCS length of <code>text1[:i]</code> and <code>text2[:j]</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Matching last letters → <code>1 + dp[i − 1][j − 1]</code>; otherwise <code>max(dp[i − 1][j], dp[i][j − 1])</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing all subsequences of both strings is <code>O(2^(m + n))</code>. There are only <code>m · n</code> prefix pairs, so the DP table is <code>O(m · n)</code>.</p>
+        <!-- enrich-top:end 1143 -->
         <p><strong>Spot it:</strong> Two strings + "longest common subsequence" is the base two-string DP. The table-filling visualizer in section 2 runs exactly this algorithm.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1597,6 +1852,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 1143 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No common letters → 0.</li>
+          <li>Identical strings → their length.</li>
+          <li>One string empty.</li>
+        </ul>
+        <!-- enrich-edges:end 1143 -->
         <p><strong>Complexity:</strong> <code>O(m·n)</code> time; <code>O(m·n)</code> space, or <code>O(n)</code> with two rows.</p>
       </div>
     </details>
@@ -1604,6 +1867,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 10. Regular Expression Matching <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement matching with <code>'.'</code> (any single character) and <code>'*'</code> (zero or more of the preceding element). The pattern must match the <em>entire</em> string.</p>
+        <!-- enrich-top:start 10 -->
+        <p class="links"><a href="https://leetcode.com/problems/regular-expression-matching/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "aa", p = "a"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"a" does not match the entire string "aa".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "aa", p = "a*"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">'*' means zero or more of the preceding element, 'a'. Therefore, by repeating 'a' once, it becomes "aa".</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 20</code> · <code>1 ≤ p.length ≤ 20</code> · <code>s</code> contains only lowercase English letters. · <code>p</code> contains only lowercase English letters, <code>'.'</code>, and <code>'*'</code>. · It is guaranteed for each appearance of the character <code>'*'</code>, there will be a previous valid character to match.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>dp[i][j]</code> = whether <code>s[i:]</code> matches <code>p[j:]</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>For <code>x*</code>, either skip the pair (zero copies) or, if the current letter matches, consume one letter of <code>s</code> and keep the pattern.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Naive recursion on <code>*</code> branches exponentially. Memoising on <code>(i, j)</code> limits it to <code>m · n</code> states: <code>O(m · n)</code>.</p>
+        <!-- enrich-top:end 10 -->
         <p><strong>Spot it:</strong> Two strings, prefix vs prefix, yes/no is two-string DP. The <code>'*'</code> adds a "use it zero times / use it once more" choice.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1669,6 +1943,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 10 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>.*</code> matches anything, including an empty string.</li>
+          <li><code>a*</code> matching zero <code>a</code>s.</li>
+          <li>The pattern is longer than the string but still matches, e.g. <code>s = ""</code>, <code>p = "a*"</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 10 -->
         <p><strong>Complexity:</strong> <code>O(m·n)</code> time and space.</p>
       </div>
     </details>
@@ -1676,6 +1958,19 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 123. Best Time to Buy and Sell Stock III <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Make at most <strong>two</strong> transactions (buy then sell, never holding two shares at once). Maximize profit.</p>
+        <!-- enrich-top:start 123 -->
+        <p class="links"><a href="https://leetcode.com/problems/best-time-to-buy-and-sell-stock-iii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">prices = [3,3,5,0,0,3,1,4]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Buy on day 4 (price = 0) and sell on day 6 (price = 3), profit = 3-0 = 3.
+Then buy on day 7 (price = 1) and sell on day 8 (price = 4), profit = 4-1 = 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">prices = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Buy on day 1 (price = 1) and sell on day 5 (price = 5), profit = 5-1 = 4.
+Note that you cannot buy on day 1, buy on day 2 and sell them later, as you are engaging multiple transactions at the same time. You must sell before buying again.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ prices.length ≤ 10⁵</code> · <code>0 ≤ prices[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>At most two transactions: track the best profit after the first buy, first sell, second buy and second sell.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Update the four values each day in order; each uses the previous one.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Splitting the days at every point and solving two single-transaction problems is <code>O(n²)</code> (or <code>O(n)</code> with prefix/suffix arrays). Four rolling states do it in <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 123 -->
         <p><strong>Spot it:</strong> This is a state machine: what you may do depends on how many buys and sells you've already made. Four states in a chain: buy1 → sell1 → buy2 → sell2.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1726,6 +2021,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 123 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Prices only fall → 0.</li>
+          <li>One transaction is best.</li>
+          <li>Very few days.</li>
+        </ul>
+        <!-- enrich-edges:end 123 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space. It generalizes to k transactions with 2k states (LeetCode 188).</p>
       </div>
     </details>
@@ -1735,6 +2038,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 509. Fibonacci Number <span class="ds-tags"><span class="ds">Math</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>F(0) = 0</code>, <code>F(1) = 1</code>, and <code>F(n) = F(n − 1) + F(n − 2)</code> for <code>n &gt; 1</code>. Return <code>F(n)</code>.</p>
+        <!-- enrich-top:start 509 -->
+        <p class="links"><a href="https://leetcode.com/problems/fibonacci-number/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=FggXDrgeI20" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 2</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">F(2) = F(1) + F(0) = 1 + 0 = 1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 3</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">F(3) = F(2) + F(1) = 1 + 1 = 2.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ n ≤ 30</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>F(n) = F(n − 1) + F(n − 2)</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Build up from <code>F(0)</code> and <code>F(1)</code>, keeping only the last two values.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Direct recursion recomputes the same values exponentially often (<code>O(2ⁿ)</code>). Bottom-up DP is <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 509 -->
         <p><strong>Spot it:</strong> A recurrence where each value depends on smaller ones is DP's home ground. Plain recursion recomputes the same values exponentially often; building <strong>bottom-up</strong> computes each value once.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1776,6 +2090,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 509 -->
+        <!-- enrich-edges:start 509 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 0</code> → 0.</li>
+          <li><code>n = 1</code> → 1.</li>
+          <li><code>n = 30</code> (too slow for plain recursion).</li>
+        </ul>
+        <!-- enrich-edges:end 509 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space. (Naive recursion is <code>O(2ⁿ)</code>; memoised recursion is <code>O(n)</code> time and space.)</p>
       </div>
     </details>
@@ -1784,6 +2106,26 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 746. Min Cost Climbing Stairs <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>cost[i]</code> is the price of stepping on stair <code>i</code>. After paying you may climb 1 or 2 stairs. You may start on stair 0 or 1. Return the minimum cost to reach the top, just past the last stair.</p>
+        <!-- enrich-top:start 746 -->
+        <p class="links"><a href="https://leetcode.com/problems/min-cost-climbing-stairs/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=fPnQWeFlBCU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">cost = [10,15,20]</code></div><div><strong>Output:</strong> <code class="ex">15</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You will start at index 1.
+- Pay 15 and climb two steps to reach the top.
+The total cost is 15.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">cost = [1,100,1,1,1,100,1,1,100,1]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You will start at index 0.
+- Pay 1 and climb two steps to reach index 2.
+- Pay 1 and climb two steps to reach index 4.
+- Pay 1 and climb two steps to reach index 6.
+- Pay 1 and climb one step to reach index 7.
+- Pay 1 and climb two steps to reach index 9.
+- Pay 1 and climb one step to reach the top.
+The total cost is 6.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ cost.length ≤ 1000</code> · <code>0 ≤ cost[i] ≤ 999</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>dp[i]</code> = the cheapest cost to stand on step <code>i</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[i] = min(dp[i − 1] + cost[i − 1], dp[i − 2] + cost[i − 2])</code>; the top is step <code>n</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every sequence of 1- and 2-steps is exponential. Each step's best cost depends only on the two below it: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 746 -->
         <p><strong>Spot it:</strong> The cheapest way to reach a stair depends only on the cheapest ways to reach the two stairs below it, so this is 1-D DP. <code>dp[i]</code> = minimum cost to <em>stand on</em> stair <code>i</code> (not yet paid).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1821,6 +2163,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 746 -->
+        <!-- enrich-edges:start 746 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two steps.</li>
+          <li>Starting on step 1 is cheaper.</li>
+          <li>Expensive steps in the middle.</li>
+        </ul>
+        <!-- enrich-edges:end 746 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space (<code>O(1)</code> with two variables).</p>
       </div>
     </details>
@@ -1829,6 +2179,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 53. Maximum Subarray <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the largest sum of any non-empty contiguous subarray of <code>nums</code>.</p>
+        <!-- enrich-top:start 53 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-subarray/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=hLPkqd60-28" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-2,1,-3,4,-1,2,1,-5,4]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The subarray [4,-1,2,1] has the largest sum 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The subarray [1] has the largest sum 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>best_ending_here</code> = the best sum of a subarray that ends at the current index.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Either extend the previous best subarray or start fresh: <code>max(x, best_ending_here + x)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Summing every subarray is <code>O(n²)</code>. Kadane's DP keeps only the best sum ending at each index: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 53 -->
         <p><strong>Spot it:</strong> Define <code>dp[i]</code> = the best sum of a subarray that <strong>ends at</strong> <code>i</code>. It either extends the best subarray ending at <code>i − 1</code> or starts fresh at <code>i</code>. That's Kadane's algorithm, a 1-D DP that needs only one variable.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1870,6 +2231,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 53 -->
+        <!-- enrich-edges:start 53 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All negative → the largest single element (don't start the answer at 0).</li>
+          <li>A single element.</li>
+          <li>Zeros in the array.</li>
+        </ul>
+        <!-- enrich-edges:end 53 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1878,6 +2247,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 62. Unique Paths <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A robot starts at the top-left of an <code>m × n</code> grid and moves only right or down. How many distinct paths reach the bottom-right?</p>
+        <!-- enrich-top:start 62 -->
+        <p class="links"><a href="https://leetcode.com/problems/unique-paths/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=3ZFvBlynmls" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">m = 3, n = 7</code></div><div><strong>Output:</strong> <code class="ex">28</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">m = 3, n = 2</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">From the top-left corner, there are a total of 3 ways to reach the bottom-right corner:
+1. Right -&gt; Down -&gt; Down
+2. Down -&gt; Down -&gt; Right
+3. Down -&gt; Right -&gt; Down</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ m, n ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You arrive at a cell from above or from the left.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>dp[r][c] = dp[r − 1][c] + dp[r][c − 1]</code>, with 1s along the first row and column.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating every right/down path is exponential. Counting with a grid DP is <code>O(m · n)</code>; the closed form is <code>C(m + n − 2, m − 1)</code>.</p>
+        <!-- enrich-top:end 62 -->
         <p><strong>Spot it:</strong> The last move into a cell comes from above or from the left, and those two sets of paths never overlap. So <code>dp[r][c] = dp[r − 1][c] + dp[r][c − 1]</code>: grid DP.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1913,6 +2296,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 62 -->
+        <!-- enrich-edges:start 62 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>m = 1</code> or <code>n = 1</code> → 1.</li>
+          <li>A square grid.</li>
+          <li>Large grids (watch overflow in other languages).</li>
+        </ul>
+        <!-- enrich-edges:end 62 -->
         <p><strong>Complexity:</strong> <code>O(m · n)</code> time and space (one row is enough for <code>O(n)</code> space).</p>
       </div>
     </details>
@@ -1921,6 +2312,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 63. Unique Paths II <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Same robot, but <code>obstacleGrid[r][c] == 1</code> marks a blocked cell. Count the paths from the top-left to the bottom-right that avoid obstacles.</p>
+        <!-- enrich-top:start 63 -->
+        <p class="links"><a href="https://leetcode.com/problems/unique-paths-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=4nW5euEwHws" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">obstacleGrid = [[0,0,0],[0,1,0],[0,0,0]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is one obstacle in the middle of the 3x3 grid above.
+There are two ways to reach the bottom-right corner:
+1. Right -&gt; Right -&gt; Down -&gt; Down
+2. Down -&gt; Down -&gt; Right -&gt; Right</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">obstacleGrid = [[0,1],[0,0]]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == obstacleGrid.length</code> · <code>n == obstacleGrid[i].length</code> · <code>1 ≤ m, n ≤ 100</code> · <code>obstacleGrid[i][j]</code> is <code>0</code> or <code>1</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Same as Unique Paths, but an obstacle cell has 0 paths.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Watch the first row and column: an obstacle cuts off every cell after it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating paths is exponential. The grid DP stays <code>O(r · c)</code>, with obstacles simply set to 0.</p>
+        <!-- enrich-top:end 63 -->
         <p><strong>Spot it:</strong> Unique Paths with one change: no path can pass through an obstacle, so its count is 0. The first row and column are no longer all 1s either, because a block cuts off everything after it.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1967,6 +2372,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 63 -->
+        <!-- enrich-edges:start 63 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The start or end cell is blocked → 0.</li>
+          <li>An obstacle in the first row or column.</li>
+          <li>A single cell.</li>
+        </ul>
+        <!-- enrich-edges:end 63 -->
         <p><strong>Complexity:</strong> <code>O(rows · cols)</code> time and space.</p>
       </div>
     </details>
@@ -1975,6 +2388,22 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 120. Triangle <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the minimum path sum from the top of <code>triangle</code> to the bottom. From index <code>i</code> on one row you may move to index <code>i</code> or <code>i + 1</code> on the row below.</p>
+        <!-- enrich-top:start 120 -->
+        <p class="links"><a href="https://leetcode.com/problems/triangle/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=P8rqkb6vWqg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">triangle = [[2],[3,4],[6,5,7],[4,1,8,3]]</code></div><div><strong>Output:</strong> <code class="ex">11</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The triangle looks like:
+ 2
+ 3 4
+ 6 5 7
+4 1 8 3
+The minimum path sum from top to bottom is 2 + 3 + 5 + 1 = 11 (underlined above).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">triangle = [[-10]]</code></div><div><strong>Output:</strong> <code class="ex">-10</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ triangle.length ≤ 200</code> · <code>triangle[0].length == 1</code> · <code>triangle[i].length == triangle[i - 1].length + 1</code> · <code>-10⁴ ≤ triangle[i][j] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Working bottom-up, each cell needs only the two cells beneath it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p><code>best[i] = row[i] + min(best[i], best[i + 1])</code>, from the second-to-last row up to the top.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every top-to-bottom path is <code>O(2ⁿ)</code>. Paths share sub-paths, so bottom-up DP computes each cell once: <code>O(n²)</code> time, <code>O(n)</code> space.</p>
+        <!-- enrich-top:end 120 -->
         <p><strong>Spot it:</strong> Choices that branch and re-merge (two parents share a child) → overlapping sub-problems → DP. Working <strong>from the bottom up</strong>, each cell needs only the two cells beneath it, and the answer ends up at the top.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -2012,6 +2441,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 120 -->
+        <!-- enrich-edges:start 120 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single row.</li>
+          <li>Negative numbers.</li>
+          <li>The greedy choice (always the smaller child) fails, e.g. <code>[[1], [2, 3], [9, 9, 0]]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 120 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time for <code>n</code> rows (every number once), <code>O(n)</code> extra space.</p>
       </div>
     </details>

@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -679,6 +695,17 @@ def previous_smaller(nums):
       <summary><span class="tag medium">Medium</span> 739. Daily Temperatures <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given daily temperatures, for each day return how many days you must wait until a warmer day. If there's none, put 0.</p>
+        <!-- enrich-top:start 739 -->
+        <p class="links"><a href="https://leetcode.com/problems/daily-temperatures/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=_ZEvmycwXHs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">temperatures = [73,74,75,71,69,72,76,73]</code></div><div><strong>Output:</strong> <code class="ex">[1,1,4,2,1,1,0,0]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">temperatures = [30,40,50,60]</code></div><div><strong>Output:</strong> <code class="ex">[1,1,1,0]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ temperatures.length ≤ 10⁵</code> · <code>30 ≤ temperatures[i] ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For each day you need the <em>next</em> warmer day: a "next greater element" question.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a stack of days still waiting for a warmer one (temperatures decreasing upward). Each new day pops and answers every colder day on top.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning forward from every day for a warmer one is <code>O(n²)</code>. A monotonic stack answers each day the moment its warmer day arrives, and each day is pushed and popped once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 739 -->
         <p><strong>Spot it:</strong> "wait until a <em>warmer</em> day" = <strong>next greater element</strong>, but we want the <em>distance</em>, so we store indices.</p>
         <p><strong>Key insight:</strong> Keep a decreasing stack of day-indices that are still waiting. When a warmer day <code>i</code> arrives, it answers every colder day <code>waiting_day</code> it pops: <code>answer[waiting_day] = i - waiting_day</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -733,6 +760,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>[1, 1, 4, 2, 1, 1, 0, 0]</code>.</p>
+        <!-- enrich-edges:start 739 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Strictly decreasing temperatures → all 0.</li>
+          <li>Strictly increasing → all 1 except the last day.</li>
+          <li>Equal temperatures are <em>not</em> warmer.</li>
+        </ul>
+        <!-- enrich-edges:end 739 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -741,6 +776,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 503. Next Greater Element II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The array is <em>circular</em>: after the last element comes the first. For each element, return the next greater value when walking forward (wrapping around), or -1.</p>
+        <!-- enrich-top:start 503 -->
+        <p class="links"><a href="https://leetcode.com/problems/next-greater-element-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,1]</code></div><div><strong>Output:</strong> <code class="ex">[2,-1,2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The first 1's next greater number is 2; 
+The number 2 can't find next greater number. 
+The second 1's next greater number needs to search circularly, which is also 2.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4,3]</code></div><div><strong>Output:</strong> <code class="ex">[2,3,4,-1,4]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The array is circular: after the last element, the search continues from the start.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Run the next-greater stack over the array <strong>twice</strong> (indices <code>0..2n − 1</code>, using <code>i % n</code>), only pushing in the first round.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For each element, scanning up to <code>n − 1</code> steps around the circle is <code>O(n²)</code>. Two laps of a monotonic stack handle the wrap-around in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 503 -->
         <p><strong>Spot it:</strong> "next greater element" → decreasing stack. "Circular" → the answer for an element near the end may be near the start.</p>
         <p><strong>Key insight:</strong> Walk the array <strong>twice</strong> (<code>step</code> from <code>0</code> to <code>2n-1</code>, using <code>step % n</code>). The second lap lets leftover elements find answers at the beginning. Only push indices during the first lap so nothing is answered twice.</p>
         <p><strong>Approach:</strong></p>
@@ -793,6 +841,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>[2, -1, 2]</code>.</p>
+        <!-- enrich-edges:start 503 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All equal values → all −1.</li>
+          <li>The maximum element → −1.</li>
+          <li>The answer wraps around, e.g. <code>[1, 2, 1]</code> → <code>[2, -1, 2]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 503 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (2n steps, each index pushed/popped once), <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -801,6 +857,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 402. Remove K Digits <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a number as a string and an integer <code>k</code>, delete exactly <code>k</code> digits so the remaining number is as small as possible. Return it without leading zeros ("0" if empty).</p>
+        <!-- enrich-top:start 402 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-k-digits/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">num = "1432219", k = 3</code></div><div><strong>Output:</strong> <code class="ex">"1219"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Remove the three digits 4, 3, and 2 to form the new number 1219 which is the smallest.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">num = "10200", k = 1</code></div><div><strong>Output:</strong> <code class="ex">"200"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Remove the leading 1 and the number is 200. Note that the output must not contain leading zeroes.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ num.length ≤ 10⁵</code> · <code>num</code> consists of only digits. · <code>num</code> does not have any leading zeros except for the zero itself.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>To make the number small, the leftmost digits matter most. When is it worth deleting a digit?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep an increasing stack of digits: while the top is bigger than the incoming digit and you can still delete, pop it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every combination of <code>k</code> deletions is exponential; deleting the best single digit <code>k</code> times is <code>O(n · k)</code>. A greedy monotonic stack removes every "peak" digit in one pass: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 402 -->
         <p><strong>Spot it:</strong> "remove k characters to get the smallest result" while keeping order. A digit should be deleted when a <em>smaller</em> digit comes right after it. That's "pop the top while it's bigger than the newcomer": an <strong>increasing</strong> stack.</p>
         <p><strong>Key insight:</strong> Leftmost digits matter most. Greedily, whenever the top of the stack is larger than the incoming digit and you still have deletions left, pop it. If deletions remain at the end, the stack is non-decreasing, so drop from the tail.</p>
         <p><strong>Approach:</strong></p>
@@ -866,6 +933,14 @@ class Solution:
           </tbody>
         </table>
         <p>No deletions are left over and there are no leading zeros, so the answer is <code>"1219"</code>.</p>
+        <!-- enrich-edges:start 402 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k</code> equals the length → <code>"0"</code>.</li>
+          <li>Leading zeros after deletion must be stripped, e.g. <code>"10200"</code>, <code>k = 1</code> → <code>"200"</code>.</li>
+          <li>Increasing digits: remove from the end.</li>
+        </ul>
+        <!-- enrich-edges:end 402 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -874,6 +949,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 907. Sum of Subarray Minimums <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Add up <code>min(sub)</code> over <em>every</em> contiguous subarray of <code>arr</code>. Return the sum modulo 10⁹+7.</p>
+        <!-- enrich-top:start 907 -->
+        <p class="links"><a href="https://leetcode.com/problems/sum-of-subarray-minimums/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">arr = [3,1,2,4]</code></div><div><strong>Output:</strong> <code class="ex">17</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Subarrays are [3], [1], [2], [4], [3,1], [1,2], [2,4], [3,1,2], [1,2,4], [3,1,2,4]. 
+Minimums are 3, 1, 2, 4, 1, 1, 2, 1, 1, 1.
+Sum is 17.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">arr = [11,81,94,43,3]</code></div><div><strong>Output:</strong> <code class="ex">444</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ arr.length ≤ 3 * 10⁴</code> · <code>1 ≤ arr[i] ≤ 3 * 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Instead of finding every subarray's minimum, ask: for how many subarrays is <code>arr[i]</code> the minimum?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Count = (distance to the previous smaller) × (distance to the next smaller). Find both with monotonic stacks, and break ties on one side only.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating all <code>O(n²)</code> subarrays and tracking their minima is <code>O(n²)</code>. Counting each element's contribution with previous/next-smaller stacks is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 907 -->
         <p><strong>Spot it:</strong> There are <code>O(n²)</code> subarrays, so enumerating them is too slow. Flip the question: <em>for each element, in how many subarrays is it the minimum?</em> That depends on the nearest smaller element on each side, which is a Monotonic Stack job.</p>
         <p><strong>Key insight:</strong> If <code>arr[i]</code>'s previous smaller is at <code>L</code> and its next smaller is at <code>R</code>, then any subarray that starts in <code>(L, i]</code> and ends in <code>[i, R)</code> has <code>arr[i]</code> as its minimum. That's <code>(i − L) × (R − i)</code> subarrays. Contribution = <code>arr[i] × (i − L) × (R − i)</code>. To avoid double-counting equal values, use "strictly smaller" on one side and "smaller or equal" on the other.</p>
         <p><strong>Approach:</strong></p>
@@ -947,6 +1035,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>17 % (10⁹+7) = 17</code>.</p>
+        <!-- enrich-edges:start 907 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Equal values: use <code>&lt;</code> on one side and <code>≤</code> on the other so no subarray is counted twice.</li>
+          <li>A single element.</li>
+          <li>Take the answer modulo <code>10⁹ + 7</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 907 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -955,6 +1051,18 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 84. Largest Rectangle in Histogram <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bars of width 1 have heights <code>heights[i]</code>. Find the area of the largest rectangle that fits entirely inside the histogram.</p>
+        <!-- enrich-top:start 84 -->
+        <p class="links"><a href="https://leetcode.com/problems/largest-rectangle-in-histogram/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">heights = [2,1,5,6,2,3]</code></div><div><strong>Output:</strong> <code class="ex">10</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The above is a histogram where width of each bar is 1.
+The largest rectangle is shown in the red area, which has an area = 10 units.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">heights = [2,4]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ heights.length ≤ 10⁵</code> · <code>0 ≤ heights[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For each bar, the widest rectangle of its height extends until a shorter bar on each side.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep an increasing stack of bar indices; when a shorter bar arrives, pop: the popped bar's rectangle ends here and starts after the new top.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Expanding left and right from every bar is <code>O(n²)</code>. An increasing stack finds each bar's left and right boundaries the moment they become known: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 84 -->
         <p><strong>Spot it:</strong> A rectangle that uses bar <code>i</code> as its <em>shortest</em> bar can stretch left and right until it hits a <strong>shorter</strong> bar. "Nearest shorter on both sides" → an increasing stack.</p>
         <p><strong>Key insight:</strong> Keep indices with increasing heights. When bar <code>i</code> is shorter than the top, the top bar can't extend past <code>i</code>, so its rectangle is finished: its right wall is <code>i</code> and its left wall is the new top of the stack after popping. Width = <code>i − left − 1</code>. Append a sentinel height 0 at the end to flush everything.</p>
         <p><strong>Approach:</strong></p>
@@ -1021,6 +1129,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>10</code> (bars of height 5 and 6, using height 5 × width 2).</p>
+        <!-- enrich-edges:start 84 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All bars equal height → height × n.</li>
+          <li>Strictly increasing heights (the end sentinel matters).</li>
+          <li>A single bar.</li>
+        </ul>
+        <!-- enrich-edges:end 84 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1085,6 +1201,22 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 496. Next Greater Element I <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums1</code> is a subset of <code>nums2</code> (all values distinct). For each value in <code>nums1</code>, find the first greater value to its right <em>in <code>nums2</code></em>, or -1.</p>
+        <!-- enrich-top:start 496 -->
+        <p class="links"><a href="https://leetcode.com/problems/next-greater-element-i/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums1 = [4,1,2], nums2 = [1,3,4,2]</code></div><div><strong>Output:</strong> <code class="ex">[-1,3,-1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The next greater element for each value of nums1 is as follows:
+- 4 is underlined in nums2 = [1,3,4,2]. There is no next greater element, so the answer is -1.
+- 1 is underlined in nums2 = [1,3,4,2]. The next greater element is 3.
+- 2 is underlined in nums2 = [1,3,4,2]. There is no next greater element, so the answer is -1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums1 = [2,4], nums2 = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[3,-1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The next greater element for each value of nums1 is as follows:
+- 2 is underlined in nums2 = [1,2,3,4]. The next greater element is 3.
+- 4 is underlined in nums2 = [1,2,3,4]. There is no next greater element, so the answer is -1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums1.length ≤ nums2.length ≤ 1000</code> · <code>0 ≤ nums1[i], nums2[i] ≤ 10⁴</code> · All integers in <code>nums1</code> and <code>nums2</code> are <strong>unique</strong>. · All the integers of <code>nums1</code> also appear in <code>nums2</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Compute the next greater element for every value of <code>nums2</code> once.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a monotonic stack over <code>nums2</code> and store the answers in a dictionary; then look up each <code>nums1</code> value.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For each value of <code>nums1</code>, finding it in <code>nums2</code> and scanning right is <code>O(m · n)</code>. One monotonic-stack pass over <code>nums2</code> plus a hash map gives <code>O(m + n)</code>.</p>
+        <!-- enrich-top:end 496 -->
         <p><strong>Spot it:</strong> "Next greater element" is the template word for word. The only twist is that answers are looked up by value, so store them in a dict.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1136,6 +1268,14 @@ class Solution:
           </tbody>
         </table>
         <p>Queries: 4 is not in the dictionary → -1; 1 → 3; 2 is not in the dictionary → -1. Final answer: <code>[-1, 3, -1]</code>.</p>
+        <!-- enrich-edges:start 496 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The value is the last element of <code>nums2</code> → −1.</li>
+          <li>No greater value exists → −1.</li>
+          <li><code>nums1</code> equal to <code>nums2</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 496 -->
         <p><strong>Complexity:</strong> <code>O(n + m)</code> time, <code>O(m)</code> space.</p>
       </div>
     </details>
@@ -1144,6 +1284,24 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 901. Online Stock Span <span class="ds-tags"><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Prices arrive one per day. For each new price, return its <em>span</em>: how many consecutive days, ending today and going backwards, had a price ≤ today's.</p>
+        <!-- enrich-top:start 901 -->
+        <p class="links"><a href="https://leetcode.com/problems/online-stock-span/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["StockSpanner", "next", "next", "next", "next", "next", "next", "next"]
+[[], [100], [80], [60], [70], [60], [75], [85]]</code></div><div><strong>Output:</strong> <code class="ex">[null, 1, 1, 1, 2, 1, 4, 6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">StockSpanner stockSpanner = new StockSpanner();
+stockSpanner.next(100); // return 1
+stockSpanner.next(80); // return 1
+stockSpanner.next(60); // return 1
+stockSpanner.next(70); // return 2
+stockSpanner.next(60); // return 1
+stockSpanner.next(75); // return 4, because the last 4 prices (including today's price of 75) were less than or equal to today's price.
+stockSpanner.next(85); // return 6</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ price ≤ 10⁵</code> · At most <code>10⁴</code> calls will be made to <code>next</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The span of today = 1 + the spans of the consecutive previous days with price ≤ today's.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a stack of <code>(price, span)</code>; pop every smaller-or-equal price and absorb its span.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Walking back day by day for each new price is <code>O(n)</code> per call. A monotonic stack merges smaller days into the next bigger one, so each price is popped once: amortised <code>O(1)</code> per call.</p>
+        <!-- enrich-top:end 901 -->
         <p><strong>Spot it:</strong> "Going backwards until a bigger price" means you need the previous greater element, in a stream. A decreasing stack that remembers how many days each entry already covers answers it.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1189,6 +1347,14 @@ class Solution:
           </tbody>
         </table>
         <p>Outputs: <code>[1, 1, 1, 2, 1, 4, 6]</code>.</p>
+        <!-- enrich-edges:start 901 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Rising prices → spans grow 1, 2, 3, …</li>
+          <li>Falling prices → every span is 1.</li>
+          <li>Equal prices count as ≤ and are absorbed.</li>
+        </ul>
+        <!-- enrich-edges:end 901 -->
         <p><strong>Complexity:</strong> Amortized <code>O(1)</code> per call (each day is pushed and popped once), <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1197,6 +1363,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1081. Smallest Subsequence of Distinct Characters <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the lexicographically smallest subsequence of <code>s</code> that contains every distinct letter exactly once. (Same as LeetCode 316.)</p>
+        <!-- enrich-top:start 1081 -->
+        <p class="links"><a href="https://leetcode.com/problems/smallest-subsequence-of-distinct-characters/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "bcabc"</code></div><div><strong>Output:</strong> <code class="ex">"abc"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "cbacdcbc"</code></div><div><strong>Output:</strong> <code class="ex">"acdb"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 1000</code> · <code>s</code> consists of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You want the smallest string that uses each distinct letter exactly once. When can you remove a letter you've already placed?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Pop the top if it's bigger than the new letter <strong>and</strong> it appears again later. Skip letters already in the stack.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating subsequences of distinct letters is exponential. A greedy monotonic stack, with each letter's last index and an in-stack set, builds the answer in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1081 -->
         <p><strong>Spot it:</strong> "Smallest result" built by deleting characters while keeping order is the same greedy as Remove K Digits: an increasing stack. The extra rule is that you can only drop a letter if it appears again later.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1252,6 +1429,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>"abc"</code>.</p>
+        <!-- enrich-edges:start 1081 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All letters distinct → the letters in their original order.</li>
+          <li>Letters already in increasing order.</li>
+          <li>A letter whose last occurrence is early, so it can't be popped.</li>
+        </ul>
+        <!-- enrich-edges:end 1081 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space (at most 26 letters).</p>
       </div>
     </details>
@@ -1260,6 +1445,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 456. 132 Pattern <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return True if there are indices <code>i &lt; j &lt; k</code> with <code>nums[i] &lt; nums[k] &lt; nums[j]</code> (small, big, middle).</p>
+        <!-- enrich-top:start 456 -->
+        <p class="links"><a href="https://leetcode.com/problems/132-pattern/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is no 132 pattern in the sequence.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,1,4,2]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is a 132 pattern in the sequence: [1, 4, 2].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 2 * 10⁵</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need <code>i &lt; j &lt; k</code> with <code>nums[i] &lt; nums[k] &lt; nums[j]</code>. Try scanning from the right.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a decreasing stack and a value <code>third</code> (the best <code>nums[k]</code> so far); any number below <code>third</code> completes the pattern.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking all triples is <code>O(n³)</code>; fixing <code>j</code> and tracking the minimum to its left is <code>O(n²)</code>. Scanning from the right with a monotonic stack keeps the largest valid "2" for every "3": <code>O(n)</code>.</p>
+        <!-- enrich-top:end 456 -->
         <p><strong>Spot it:</strong> For each candidate "3" (<code>nums[j]</code>), we want the largest "2" to its right that is smaller than it. That's a previous/next-greater relationship, so use a monotonic stack scanned from the right.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1307,6 +1503,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>True</code> (the pattern is 1, 4, 2).</p>
+        <!-- enrich-edges:start 456 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than 3 elements → False.</li>
+          <li>Strictly increasing → False.</li>
+          <li>Duplicates, e.g. <code>[1, 3, 3]</code> → False.</li>
+        </ul>
+        <!-- enrich-edges:end 456 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1315,6 +1519,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bars of width 1 have heights <code>height[i]</code>. How much rain water is trapped between them after it rains?</p>
+        <!-- enrich-top:start 42 -->
+        <p class="links"><a href="https://leetcode.com/problems/trapping-rain-water/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=KFdHpOlz8hs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">height = [0,1,0,2,1,0,1,3,2,1,2,1]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The above elevation map (black section) is represented by array [0,1,0,2,1,0,1,3,2,1,2,1]. In this case, 6 units of rain water (blue section) are being trapped.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">height = [4,2,0,3,2,5]</code></div><div><strong>Output:</strong> <code class="ex">9</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == height.length</code> · <code>1 ≤ n ≤ 2 * 10⁴</code> · <code>0 ≤ height[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Water above bar <code>i</code> = <code>min(highest bar to its left, highest bar to its right) − height[i]</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>With two pointers, the side whose running maximum is <em>smaller</em> already knows its water level. Settle that side and move it inward.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For every bar, scan left and right for the tallest walls: <code>O(n²)</code>. Precomputing left-max and right-max arrays makes it <code>O(n)</code> time but <code>O(n)</code> space. Two pointers drop the arrays: the lower running maximum decides the water, so one side can always be settled: <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 42 -->
         <p><strong>Spot it:</strong> Water collects in a "valley": a lower bar with a taller bar on each side. When a taller bar arrives, it closes the valleys of the shorter bars before it. That's "pop while the top is smaller".</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1377,6 +1592,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>6</code>.</p>
+        <!-- enrich-edges:start 42 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than 3 bars → 0.</li>
+          <li>Monotonic heights (only rising or only falling) → 0.</li>
+          <li>A deep valley between two tall walls, e.g. <code>[5, 0, 0, 5]</code> → 10.</li>
+        </ul>
+        <!-- enrich-edges:end 42 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1385,6 +1608,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 85. Maximal Rectangle <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a binary matrix of <code>"0"</code>/<code>"1"</code>, find the area of the largest rectangle containing only 1s.</p>
+        <!-- enrich-top:start 85 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximal-rectangle/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [["1","0","1","0","0"],["1","0","1","1","1"],["1","1","1","1","1"],["1","0","0","1","0"]]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The maximal rectangle is shown in the above picture.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [["0"]]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>rows == matrix.length</code> · <code>cols == matrix[i].length</code> · <code>1 ≤ rows, cols ≤ 200</code> · <code>matrix[i][j]</code> is <code>'0'</code> or <code>'1'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Treat each row as the ground of a histogram: the height of a column is the number of consecutive 1s ending at this row.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>For each row, update the heights and run Largest Rectangle in Histogram.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every possible rectangle is <code>O(r² · c²)</code>. Building histograms row by row and solving each in <code>O(c)</code> with a stack gives <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 85 -->
         <p><strong>Spot it:</strong> Treat each row as the floor of a histogram: bar <code>c</code> = how many consecutive 1s stand above (and including) this row in column <code>c</code>. Each row is then exactly problem 84.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1458,6 +1692,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>6</code> (the 2 × 3 block of 1s in rows 1–2, columns 2–4).</p>
+        <!-- enrich-edges:start 85 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All zeros → 0.</li>
+          <li>A single row or column.</li>
+          <li>Values are the strings <code>"0"</code>/<code>"1"</code>, not integers.</li>
+        </ul>
+        <!-- enrich-edges:end 85 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time, <code>O(C)</code> space.</p>
       </div>
     </details>
@@ -1466,6 +1708,24 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the maximum of every contiguous window of size <code>k</code> as it slides from left to right.</p>
+        <!-- enrich-top:start 239 -->
+        <p class="links"><a href="https://leetcode.com/problems/sliding-window-maximum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,-1,-3,5,3,6,7], k = 3</code></div><div><strong>Output:</strong> <code class="ex">[3,3,5,5,6,7]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Window position Max
+--------------- -----
+[1 3 -1] -3 5 3 6 7 3
+ 1 [3 -1 -3] 5 3 6 7 3
+ 1 3 [-1 -3 5] 3 6 7 5
+ 1 3 -1 [-3 5 3] 6 7 5
+ 1 3 -1 -3 [5 3 6] 7 6
+ 1 3 -1 -3 5 [3 6 7] 7</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1], k = 1</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>1 ≤ k ≤ nums.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Recomputing <code>max</code> for each window is <code>O(k)</code>. Which elements can never be a future maximum?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a deque of indices with decreasing values: drop smaller ones from the back when a bigger value arrives, and drop the front when it leaves the window.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Taking <code>max</code> of every window is <code>O(n · k)</code>. A monotonic deque keeps only candidates that could still become a maximum; each index is added and removed once, so <code>O(n)</code>.</p>
+        <!-- enrich-top:end 239 -->
         <p><strong>Spot it:</strong> Each window's max is "the biggest element that hasn't been beaten by a later, bigger one". That's a monotonic structure, but old indices also leave from the front, so use a <strong>deque</strong>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1523,6 +1783,14 @@ class Solution:
           </tbody>
         </table>
         <p>Final answer: <code>[3, 3, 5, 5, 6, 7]</code>.</p>
+        <!-- enrich-edges:start 239 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → the array itself.</li>
+          <li><code>k = n</code> → one value, the overall maximum.</li>
+          <li>Decreasing input, so the deque grows to size <code>k</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 239 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each index enters and leaves the deque once), <code>O(k)</code> space.</p>
       </div>
     </details>
@@ -1532,6 +1800,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 853. Car Fleet <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>n</code> cars drive toward <code>target</code> on a one-lane road. Car <code>i</code> starts at <code>position[i]</code> with <code>speed[i]</code>. A faster car that catches a slower one ahead must slow down and drive with it as one <strong>fleet</strong>. How many fleets arrive at the target?</p>
+        <!-- enrich-top:start 853 -->
+        <p class="links"><a href="https://leetcode.com/problems/car-fleet/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=2Oh--WbRuvw" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">target = 12, position = [10,8,0,5,3], speed = [2,4,1,1,3]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The cars starting at 10 (speed 2) and 8 (speed 4) become a fleet, meeting each other at 12. The fleet forms at target.
+ The car starting at 0 (speed 1) does not catch up to any other car, so it is a fleet by itself.
+ The cars starting at 5 (speed 1) and 3 (speed 3) become a fleet, meeting each other at 6. The fleet moves at speed 1 until it reaches target.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">target = 10, position = [3], speed = [3]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is only one car, hence there is only one fleet.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == position.length == speed.length</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>0 &lt; target ≤ 10⁶</code> · <code>0 ≤ position[i] &lt; target</code> · All the values of <code>position</code> are <strong>unique</strong>. · <code>0 &lt; speed[i] ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Sort the cars by position, closest to the target first. When does a car catch the fleet ahead?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Compute each car's arrival time; a car that would arrive no later than the fleet ahead joins it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating the cars minute by minute is slow and fiddly. Sorting by position and comparing arrival times with a stack (or a single "slowest time ahead" value) is <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 853 -->
         <p><strong>Spot it:</strong> Process cars from closest-to-target to farthest. Each car's solo arrival time is <code>(target − pos) / speed</code>. A car behind can only stay separate if it arrives <strong>later</strong> than the fleet ahead. That's a stack whose times strictly increase.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1576,6 +1857,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 853 -->
+        <!-- enrich-edges:start 853 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single car → 1.</li>
+          <li>Cars that reach the target at exactly the same time merge.</li>
+          <li>A car already at the target.</li>
+        </ul>
+        <!-- enrich-edges:end 853 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time for the sort, <code>O(n)</code> space.</p>
       </div>
     </details>

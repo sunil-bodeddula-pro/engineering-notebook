@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -717,6 +733,17 @@ def search_rotated(nums, target):
       <summary><span class="tag medium">Medium</span> 33. Search in Rotated Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A sorted array of distinct numbers was rotated at an unknown pivot (e.g. <code>[0,1,2,4,5,6,7]</code> → <code>[4,5,6,7,0,1,2]</code>). Find the index of <code>target</code> in <code>O(log n)</code>, or return -1.</p>
+        <!-- enrich-top:start 33 -->
+        <p class="links"><a href="https://leetcode.com/problems/search-in-rotated-sorted-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=4Ik1nCLjwcI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [4,5,6,7,0,1,2], target = 0</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [4,5,6,7,0,1,2], target = 3</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 5000</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · All values of <code>nums</code> are <strong>unique</strong>. · <code>nums</code> is an ascending array that is possibly rotated. · <code>-10⁴ ≤ target ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Cut the array at <code>mid</code>. At least one of the two halves is still fully sorted.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Check whether the target lies inside the sorted half (a simple range test); if yes search there, otherwise search the other half.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A linear scan is <code>O(n)</code>, but the problem asks for <code>O(log n)</code>. Even after rotation, one half around <code>mid</code> is always sorted, so each step can still discard half the array: <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 33 -->
         <p><strong>Spot it:</strong> "sorted" + "rotated" + "O(log n)" → modified binary search.</p>
         <p><strong>Key insight:</strong> Cut a rotated array anywhere and <strong>at least one half is perfectly sorted</strong>. Check which one (<code>nums[lo] ≤ nums[mid]</code> means the left half is sorted). In a sorted half you can tell instantly whether the target is inside by comparing with its two ends. If it is, go there. If not, go to the other half.</p>
         <p><strong>Approach:</strong></p>
@@ -781,6 +808,14 @@ class Solution:
             <tr><td>3</td><td>4</td><td>4</td><td>4</td><td>0</td><td>-</td><td>nums[4] == 0: return 4</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 33 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No rotation at all.</li>
+          <li>Two elements, e.g. <code>[3, 1]</code>.</li>
+          <li>The target is the first or last element, or is missing.</li>
+        </ul>
+        <!-- enrich-edges:end 33 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -789,6 +824,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 34. Find First and Last Position of Element in Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a sorted array (with duplicates), return <code>[first, last]</code> index of <code>target</code>, or <code>[-1, -1]</code>. Must be <code>O(log n)</code>.</p>
+        <!-- enrich-top:start 34 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=SA0ZwbJqf3w" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [5,7,7,8,8,10], target = 8</code></div><div><strong>Output:</strong> <code class="ex">[3,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [5,7,7,8,8,10], target = 6</code></div><div><strong>Output:</strong> <code class="ex">[-1,-1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ nums.length ≤ 10⁵</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code> · <code>nums</code> is a non-decreasing array. · <code>-10⁹ ≤ target ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Run binary search twice: once for the first position, once for the last.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>"First index with <code>nums[i] ≥ target</code>" and "first index with <code>nums[i] &gt; target</code>" give both ends.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Finding the target and then walking left and right is <code>O(n)</code> when the target repeats many times. Two lower-bound searches find both ends in <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 34 -->
         <p><strong>Spot it:</strong> "first and last position" in a sorted array: two boundary searches.</p>
         <p><strong>Key insight:</strong> The first position is <code>lower_bound(target)</code>, the first index with value ≥ target. The last position is one before <code>lower_bound(target + 1)</code>. Same template, called twice.</p>
         <p><strong>Approach:</strong></p>
@@ -851,6 +897,14 @@ class Solution:
           </tbody>
         </table>
         <p><code>nums[3] == 8</code>, so the checks pass and the answer is <strong>[3, 4]</strong>.</p>
+        <!-- enrich-edges:start 34 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Target missing → <code>[-1, -1]</code>.</li>
+          <li>An empty array.</li>
+          <li>Every element equals the target.</li>
+        </ul>
+        <!-- enrich-edges:end 34 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -859,6 +913,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 153. Find Minimum in Rotated Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the minimum of a rotated sorted array of distinct numbers in <code>O(log n)</code>.</p>
+        <!-- enrich-top:start 153 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=H2U24n4bcQQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,4,5,1,2]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The original array was [1,2,3,4,5] rotated 3 times.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [4,5,6,7,0,1,2]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The original array was [0,1,2,4,5,6,7] and it was rotated 4 times.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 5000</code> · <code>-5000 ≤ nums[i] ≤ 5000</code> · All the integers of <code>nums</code> are <strong>unique</strong>. · <code>nums</code> is sorted and rotated between <code>1</code> and <code>n</code> times.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Compare <code>nums[mid]</code> with <code>nums[right]</code>. What does that tell you about where the drop is?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>If <code>nums[mid] &gt; nums[right]</code>, the minimum is to the right of <code>mid</code>; otherwise it is at <code>mid</code> or to its left.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> <code>min(nums)</code> is <code>O(n)</code>. The rotation point (the minimum) splits the array into two sorted runs, and comparing with the right end tells you which run <code>mid</code> is in: <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 153 -->
         <p><strong>Spot it:</strong> The minimum is the "rotation point". Compared with the <em>last</em> element, the array looks like <code>bigger, bigger, …, smaller, smaller</code>: a yes/no boundary.</p>
         <p><strong>Key insight:</strong> If <code>nums[mid] &gt; nums[hi]</code>, mid is in the left (rotated-up) part and the minimum is strictly to its right. Otherwise <code>mid..hi</code> is sorted and the minimum is at <code>mid</code> or to its left. Compare with <code>hi</code>, not <code>lo</code>: comparing with <code>lo</code> fails on arrays that aren't rotated at all.</p>
         <p><strong>Approach:</strong></p>
@@ -907,6 +972,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 3</code>, so the answer is <code>nums[3] = 1</code>.</p>
+        <!-- enrich-edges:start 153 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No rotation → the first element.</li>
+          <li>A single element.</li>
+          <li>Two elements in either order.</li>
+        </ul>
+        <!-- enrich-edges:end 153 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -915,6 +988,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 875. Koko Eating Bananas <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Koko eats at speed <code>k</code> bananas per hour, finishing at most one pile per hour (a pile of <code>p</code> takes <code>ceil(p / k)</code> hours). Find the minimum <code>k</code> that lets her finish all piles within <code>h</code> hours.</p>
+        <!-- enrich-top:start 875 -->
+        <p class="links"><a href="https://leetcode.com/problems/koko-eating-bananas/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=ceYZ5RgwQwQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">piles = [3,6,7,11], h = 8</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">piles = [30,11,23,4,20], h = 5</code></div><div><strong>Output:</strong> <code class="ex">30</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ piles.length ≤ 10⁴</code> · <code>piles.length ≤ h ≤ 10⁹</code> · <code>1 ≤ piles[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If Koko can finish at speed <code>k</code>, she can also finish at any faster speed. That's a monotonic yes/no condition.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Binary-search the smallest speed in <code>1..max(piles)</code> for which the hours <code>Σ ceil(pile / k)</code> are ≤ <code>h</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every speed from 1 upward is <code>O(max(piles) · n)</code>. "Can finish at speed <code>k</code>?" flips from no to yes exactly once, so binary search over speeds needs only <code>O(n log(max pile))</code>.</p>
+        <!-- enrich-top:end 875 -->
         <p><strong>Spot it:</strong> "minimum speed such that…". If speed <code>k</code> works, every faster speed works too. That's monotonic, so <strong>binary search on the answer</strong> over <code>[1, max(piles)]</code>. (See the second visualization above.)</p>
         <p><strong>Key insight:</strong> <code>ok(k) = total hours at speed k ≤ h</code>. Each check costs <code>O(n)</code>, and we need only <code>log(max pile)</code> checks.</p>
         <p><strong>Approach:</strong></p>
@@ -974,6 +1058,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 4</code>, so the answer is <strong>4</strong>.</p>
+        <!-- enrich-edges:start 875 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>h</code> equals the number of piles → the answer is <code>max(piles)</code>.</li>
+          <li>A single pile.</li>
+          <li>Huge piles (use integer ceiling division: <code>(p + k − 1) // k</code>).</li>
+        </ul>
+        <!-- enrich-edges:end 875 -->
         <p><strong>Complexity:</strong> <code>O(n log M)</code> time where <code>M = max(piles)</code>, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -982,6 +1074,19 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 410. Split Array Largest Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split <code>nums</code> (non-negative) into <code>k</code> non-empty contiguous pieces so that the <strong>largest piece-sum is as small as possible</strong>. Return that value.</p>
+        <!-- enrich-top:start 410 -->
+        <p class="links"><a href="https://leetcode.com/problems/split-array-largest-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [7,2,5,10,8], k = 2</code></div><div><strong>Output:</strong> <code class="ex">18</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are four ways to split nums into two subarrays.
+The best way is to split it into [7,2,5] and [10,8], where the largest sum among the two subarrays is only 18.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4,5], k = 2</code></div><div><strong>Output:</strong> <code class="ex">9</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are four ways to split nums into two subarrays.
+The best way is to split it into [1,2,3] and [4,5], where the largest sum among the two subarrays is only 9.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 1000</code> · <code>0 ≤ nums[i] ≤ 10⁶</code> · <code>1 ≤ k ≤ min(50, nums.length)</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Guess a maximum allowed subarray sum. Can you check quickly whether <code>k</code> pieces are enough?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Greedy check: cut whenever adding the next number would exceed the cap. Binary-search the smallest cap that works.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every way to cut into <code>k</code> pieces is exponential; DP is <code>O(k · n²)</code>. The answer lies in <code>[max(nums), sum(nums)]</code>, and feasibility is monotonic in the cap, so binary search with a greedy check is <code>O(n log(sum))</code>.</p>
+        <!-- enrich-top:end 410 -->
         <p><strong>Spot it:</strong> "minimize the largest sum" means "minimize the maximum", the classic binary-search-on-the-answer phrase. If a cap of <code>X</code> per piece is achievable with ≤ k pieces, any bigger cap is too.</p>
         <p><strong>Key insight:</strong> The answer lies between <code>max(nums)</code> (no piece can be smaller than the biggest element) and <code>sum(nums)</code> (one piece). For a guess <code>cap</code>, greedily pack elements left to right and start a new piece only when the next element would overflow. If that uses ≤ k pieces, <code>cap</code> is feasible.</p>
         <p><strong>Approach:</strong></p>
@@ -1045,6 +1150,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 18</code>: the best split is <code>[7, 2, 5] | [10, 8]</code> with sums 14 and 18.</p>
+        <!-- enrich-edges:start 410 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → the total sum.</li>
+          <li><code>k = n</code> → the largest element.</li>
+          <li>Zeros in the array.</li>
+        </ul>
+        <!-- enrich-edges:end 410 -->
         <p><strong>Complexity:</strong> <code>O(n log S)</code> time where <code>S = sum(nums)</code>, <code>O(1)</code> space. (A DP solution is <code>O(k·n²)</code>.)</p>
       </div>
     </details>
@@ -1111,6 +1224,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 35. Search Insert Position <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a sorted array of distinct numbers, return the index of <code>target</code>, or the index where it would be inserted to keep the array sorted.</p>
+        <!-- enrich-top:start 35 -->
+        <p class="links"><a href="https://leetcode.com/problems/search-insert-position/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=4bluwC4wSlI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,5,6], target = 5</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,5,6], target = 2</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>nums</code> contains <strong>distinct</strong> values sorted in <strong>ascending</strong> order. · <code>-10⁴ ≤ target ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If the target isn't present, where would it go?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the first index with <code>nums[i] ≥ target</code> (lower bound).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A linear scan for the first element ≥ target is <code>O(n)</code>. Lower-bound binary search finds the same index in <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 35 -->
         <p><strong>Spot it:</strong> "Where would it go" is the first index with <code>nums[i] ≥ target</code>. That's exactly lower bound.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1156,6 +1280,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 2</code>, so the answer is <strong>2</strong>.</p>
+        <!-- enrich-edges:start 35 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The target is smaller than everything → 0.</li>
+          <li>The target is larger than everything → <code>n</code>.</li>
+          <li>The target is present.</li>
+        </ul>
+        <!-- enrich-edges:end 35 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1164,6 +1296,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 162. Find Peak Element <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the index of any element strictly greater than its neighbors. Treat <code>nums[−1]</code> and <code>nums[n]</code> as −∞. Adjacent values are never equal. Required: <code>O(log n)</code>.</p>
+        <!-- enrich-top:start 162 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-peak-element/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=lZpsxC0GMck" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,1]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">3 is a peak element and your function should return the index number 2.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,1,3,5,6,4]</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your function can return either index number 1 where the peak element is 2, or index number 5 where the peak element is 6.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 1000</code> · <code>-2³¹ ≤ nums[i] ≤ 2³¹ - 1</code> · <code>nums[i] != nums[i + 1]</code> for all valid <code>i</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If <code>nums[mid] &lt; nums[mid + 1]</code>, you're on an uphill slope. Is there definitely a peak to the right?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Move toward the higher neighbour; since the ends count as −∞, a peak always exists in that direction.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning for any element bigger than both neighbours is <code>O(n)</code>. Walking toward the higher neighbour always keeps a peak inside the window, so binary search finds one in <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 162 -->
         <p><strong>Spot it:</strong> The array isn't sorted, but comparing <code>nums[mid]</code> with <code>nums[mid + 1]</code> tells you which way is "uphill". Walking uphill always reaches a peak, because the edge is −∞.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1210,6 +1353,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 5</code>: <code>nums[5] = 6</code> is a peak (index 1 would also be accepted).</p>
+        <!-- enrich-edges:start 162 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → index 0.</li>
+          <li>Strictly increasing → the last index.</li>
+          <li>Several peaks: any one is accepted.</li>
+        </ul>
+        <!-- enrich-edges:end 162 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1218,6 +1369,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 74. Search a 2D Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each row is sorted, and each row's first value is bigger than the previous row's last value. Return whether <code>target</code> is in the matrix.</p>
+        <!-- enrich-top:start 74 -->
+        <p class="links"><a href="https://leetcode.com/problems/search-a-2d-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=x-dYOtIudzc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 3</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 13</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[i].length</code> · <code>1 ≤ m, n ≤ 100</code> · <code>-10⁴ ≤ matrix[i][j], target ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Read the matrix row by row and it's one long sorted list.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Binary-search indices <code>0..rows·cols − 1</code> and map index <code>i</code> to <code>matrix[i // cols][i % cols]</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every cell is <code>O(r · c)</code>; searching each row is <code>O(r log c)</code>. Treating the matrix as one sorted array gives <code>O(log(r · c))</code>.</p>
+        <!-- enrich-top:end 74 -->
         <p><strong>Spot it:</strong> Read row by row, the matrix is one long sorted array. Binary search over flat indices <code>0 … R·C − 1</code> and convert each one to <code>(row, col)</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1275,6 +1437,14 @@ class Solution:
             <tr><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>3</td><td>found: return True</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 74 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single row or a single column.</li>
+          <li>The target smaller than the first or larger than the last element.</li>
+          <li>A 1 × 1 matrix.</li>
+        </ul>
+        <!-- enrich-edges:end 74 -->
         <p><strong>Complexity:</strong> <code>O(log(R·C))</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1283,6 +1453,26 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1011. Capacity To Ship Packages Within D Days <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Packages must ship in their given order. Each day you load packages onto a ship until the next one would exceed its capacity. Find the smallest capacity that ships everything within <code>days</code> days.</p>
+        <!-- enrich-top:start 1011 -->
+        <p class="links"><a href="https://leetcode.com/problems/capacity-to-ship-packages-within-d-days/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">weights = [1,2,3,4,5,6,7,8,9,10], days = 5</code></div><div><strong>Output:</strong> <code class="ex">15</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A ship capacity of 15 is the minimum to ship all the packages in 5 days like this:
+1st day: 1, 2, 3, 4, 5
+2nd day: 6, 7
+3rd day: 8
+4th day: 9
+5th day: 10
+Note that the cargo must be shipped in the order given, so using a ship of capacity 14 and splitting the packages into parts like (2, 3, 4, 5), (1, 6, 7), (8), (9), (10) is not allowed.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">weights = [3,2,2,4,1,4], days = 3</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A ship capacity of 6 is the minimum to ship all the packages in 3 days like this:
+1st day: 3, 2
+2nd day: 2, 4
+3rd day: 1, 4</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ days ≤ weights.length ≤ 5 * 10⁴</code> · <code>1 ≤ weights[i] ≤ 500</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If a capacity works, any bigger capacity also works. Binary-search the capacity.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Check a capacity greedily: load packages in order and start a new day when the next one doesn't fit.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every capacity from <code>max(weights)</code> to <code>sum(weights)</code> is <code>O(n · sum)</code>. Feasibility is monotonic in the capacity, so binary search with a greedy <code>O(n)</code> check is <code>O(n log(sum))</code>.</p>
+        <!-- enrich-top:end 1011 -->
         <p><strong>Spot it:</strong> "Minimum capacity such that…", and a bigger ship never needs more days. That's monotonic, so binary search on the answer (the same shape as 410 and Koko).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1346,6 +1536,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 15</code>, so the answer is <strong>15</strong>.</p>
+        <!-- enrich-edges:start 1011 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>days = 1</code> → the total weight.</li>
+          <li><code>days</code> ≥ the number of packages → the heaviest package.</li>
+          <li>Packages must keep their order (no rearranging).</li>
+        </ul>
+        <!-- enrich-edges:end 1011 -->
         <p><strong>Complexity:</strong> <code>O(n log(sum))</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1354,6 +1552,23 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 981. Time Based Key-Value Store <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement <code>set(key, value, timestamp)</code> and <code>get(key, timestamp)</code>. <code>get</code> returns the value set with the largest timestamp ≤ the given one, or <code>""</code>. Timestamps for <code>set</code> arrive strictly increasing.</p>
+        <!-- enrich-top:start 981 -->
+        <p class="links"><a href="https://leetcode.com/problems/time-based-key-value-store/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=yu-z8eECAtk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["TimeMap", "set", "get", "get", "set", "get", "get"]
+[[], ["foo", "bar", 1], ["foo", 1], ["foo", 3], ["foo", "bar2", 4], ["foo", 4], ["foo", 5]]</code></div><div><strong>Output:</strong> <code class="ex">[null, null, "bar", "bar", null, "bar2", "bar2"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">TimeMap timeMap = new TimeMap();
+timeMap.set("foo", "bar", 1); // store the key "foo" and value "bar" along with timestamp = 1.
+timeMap.get("foo", 1); // return "bar"
+timeMap.get("foo", 3); // return "bar", since there is no value corresponding to foo at timestamp 3 and timestamp 2, then the only value is at timestamp 1 is "bar".
+timeMap.set("foo", "bar2", 4); // store the key "foo" and value "bar2" along with timestamp = 4.
+timeMap.get("foo", 4); // return "bar2"
+timeMap.get("foo", 5); // return "bar2"</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ key.length, value.length ≤ 100</code> · <code>key</code> and <code>value</code> consist of lowercase English letters and digits. · <code>1 ≤ timestamp ≤ 10⁷</code> · All the timestamps <code>timestamp</code> of <code>set</code> are strictly increasing. · At most <code>2 * 10⁵</code> calls will be made to <code>set</code> and <code>get</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Store, per key, the list of <code>(timestamp, value)</code> pairs. The timestamps arrive in increasing order.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>For <code>get</code>, binary-search the last timestamp ≤ the query.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning a key's whole history on each <code>get</code> is <code>O(n)</code> per call. The timestamps of <code>set</code> calls are strictly increasing, so each list is already sorted and <code>bisect</code> finds the answer in <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 981 -->
         <p><strong>Spot it:</strong> Each key's timestamps form a sorted list for free (they arrive in increasing order). "Largest timestamp ≤ t" is a boundary search: <code>bisect_right(t) − 1</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1423,6 +1638,14 @@ class Solution:
             <tr><td>get("foo",5)</td><td>[1, 4]</td><td>low 0, high 2, middle 1: time 4 &lt;= 5 → low = 2</td><td>2</td><td>values[1] = "bar2"</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 981 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A query earlier than every timestamp → <code>""</code>.</li>
+          <li>A key that was never set → <code>""</code>.</li>
+          <li>A query exactly equal to a stored timestamp.</li>
+        </ul>
+        <!-- enrich-edges:end 981 -->
         <p><strong>Complexity:</strong> <code>set</code> <code>O(1)</code>, <code>get</code> <code>O(log n)</code>, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1431,6 +1654,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 4. Median of Two Sorted Arrays <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the median of two sorted arrays combined, in <code>O(log(min(m, n)))</code> time.</p>
+        <!-- enrich-top:start 4 -->
+        <p class="links"><a href="https://leetcode.com/problems/median-of-two-sorted-arrays/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums1 = [1,3], nums2 = [2]</code></div><div><strong>Output:</strong> <code class="ex">2.00000</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">merged array = [1,2,3] and median is 2.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums1 = [1,2], nums2 = [3,4]</code></div><div><strong>Output:</strong> <code class="ex">2.50000</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">merged array = [1,2,3,4] and median is (2 + 3) / 2 = 2.5.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>nums1.length == m</code> · <code>nums2.length == n</code> · <code>0 ≤ m ≤ 1000</code> · <code>0 ≤ n ≤ 1000</code> · <code>1 ≤ m + n ≤ 2000</code> · <code>-10⁶ ≤ nums1[i], nums2[i] ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Merging both arrays and taking the middle is <code>O(m + n)</code>. For <code>O(log(m + n))</code>, binary-search a <strong>cut</strong> in the smaller array.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A correct cut puts the same number of elements on the left as on the right, with every left element ≤ every right element.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Concatenating and sorting is <code>O((m + n) log(m + n))</code>; a two-pointer merge to the middle is <code>O(m + n)</code>. The intended solution binary-searches where to cut the shorter array so both halves balance: <code>O(log(min(m, n)))</code>.</p>
+        <!-- enrich-top:end 4 -->
         <p><strong>Spot it:</strong> Merging would be <code>O(m + n)</code>. Instead, binary search for a <em>partition</em>: take <code>i</code> items from the shorter array A and <code>j = half − i</code> from B so that together they form the smaller half. The partition is valid when everything on the left is ≤ everything on the right.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1521,6 +1755,14 @@ class Solution:
           </tbody>
         </table>
         <p>For the other example <code>[1, 3], [2]</code>: <code>shorter = [2]</code>, <code>half = 2</code>. Try take_short = 0 → short_left = -inf, short_right = 2, long_left = 3: 3 &gt; 2, so low = 1. Try take_short = 1 → short_left = 2, long_left = 1, long_right = 3, short_right = inf: valid, odd total, answer <code>max(2, 1) = 2.0</code>.</p>
+        <!-- enrich-edges:start 4 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One array empty.</li>
+          <li>Total length even → the average of the two middle values.</li>
+          <li>All of one array smaller than all of the other.</li>
+        </ul>
+        <!-- enrich-edges:end 4 -->
         <p><strong>Complexity:</strong> <code>O(log min(m, n))</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1529,6 +1771,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 668. Kth Smallest Number in Multiplication Table <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In an <code>m × n</code> multiplication table (cell <code>(i, j)</code> = <code>i·j</code>, 1-indexed), return the k-th smallest number.</p>
+        <!-- enrich-top:start 668 -->
+        <p class="links"><a href="https://leetcode.com/problems/kth-smallest-number-in-multiplication-table/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">m = 3, n = 3, k = 5</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 5th smallest number is 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">m = 2, n = 3, k = 6</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 6th smallest number is 6.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ m, n ≤ 3 * 10⁴</code> · <code>1 ≤ k ≤ m * n</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Don't build the table. For a value <code>x</code>, how many entries are ≤ <code>x</code>?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Row <code>i</code> contains <code>min(n, x // i)</code> such entries. Binary-search the smallest <code>x</code> with count ≥ <code>k</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating all <code>m · n</code> products and sorting is <code>O(mn log(mn))</code>. Counting entries ≤ <code>x</code> row by row costs <code>O(m)</code>, and the count grows with <code>x</code>, so binary search over values is <code>O(m log(mn))</code>.</p>
+        <!-- enrich-top:end 668 -->
         <p><strong>Spot it:</strong> The table has up to 9·10⁸ cells, far too many to list. But "how many cells are ≤ x?" is quick to count, and that count only grows as x grows. Binary search on the answer value.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1585,6 +1838,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low == high == 3</code>, so the answer is <strong>3</strong>.</p>
+        <!-- enrich-edges:start 668 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → 1.</li>
+          <li><code>k = m · n</code> → <code>m · n</code>.</li>
+          <li>Duplicated products (e.g. 6 appears as 2·3 and 3·2).</li>
+        </ul>
+        <!-- enrich-edges:end 668 -->
         <p><strong>Complexity:</strong> <code>O(m log(m·n))</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1593,6 +1854,20 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 278. First Bad Version <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Versions <code>1..n</code> were released in order and every version after a bad one is also bad. Using the API <code>isBadVersion(v)</code>, find the first bad version while calling the API as few times as possible.</p>
+        <!-- enrich-top:start 278 -->
+        <p class="links"><a href="https://leetcode.com/problems/first-bad-version/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=vnfGi-ucwTE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 5, bad = 4</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">call isBadVersion(3) -&gt; false
+call isBadVersion(5) -&gt; true
+call isBadVersion(4) -&gt; true
+Then 4 is the first bad version.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 1, bad = 1</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ bad ≤ n ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The answers look like <code>false, false, …, true, true</code>. You need the first <code>true</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Binary search: a bad <code>mid</code> might be the first, so keep it (<code>hi = mid</code>); a good <code>mid</code> means the first is to its right.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Calling the API on every version is <code>O(n)</code> calls. The condition is monotonic, so binary search needs only <code>O(log n)</code> API calls.</p>
+        <!-- enrich-top:end 278 -->
         <p><strong>Spot it:</strong> The answers look like <code>False False … False True True … True</code>, a <strong>monotonic condition</strong>. Finding the first <code>True</code> is the lower-bound form of binary search.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1637,6 +1912,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 278 -->
+        <!-- enrich-edges:start 278 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The first version is bad.</li>
+          <li>Only the last version is bad.</li>
+          <li><code>n = 1</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 278 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> API calls and time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1645,6 +1928,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 367. Valid Perfect Square <span class="ds-tags"><span class="ds">Math</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if <code>num</code> is a perfect square (some integer squared), without using a square-root function.</p>
+        <!-- enrich-top:start 367 -->
+        <p class="links"><a href="https://leetcode.com/problems/valid-perfect-square/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=iqD5Fp2E5dM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">num = 16</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We return true because 4 * 4 = 16 and 4 is an integer.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">num = 14</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We return false because 3.742 * 3.742 = 14 and 3.742 is not an integer.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ num ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Squares grow as the root grows, so candidate roots are "sorted" by their squares.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Binary-search <code>x</code> in <code>1..num</code> for <code>x · x == num</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying <code>x = 1, 2, 3, …</code> until <code>x²</code> reaches <code>num</code> is <code>O(√num)</code>. Binary search over candidate roots is <code>O(log num)</code> without any square-root function.</p>
+        <!-- enrich-top:end 367 -->
         <p><strong>Spot it:</strong> <code>x * x</code> grows as <code>x</code> grows, so the candidate roots <code>1..num</code> are "sorted" by their squares. Binary-search for an <code>x</code> with <code>x * x == num</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1686,6 +1980,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 367 -->
+        <!-- enrich-edges:start 367 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>num = 1</code> → True.</li>
+          <li>Large non-squares like <code>2147483647</code>.</li>
+          <li>Numbers just above a square, e.g. 17.</li>
+        </ul>
+        <!-- enrich-edges:end 367 -->
         <p><strong>Complexity:</strong> <code>O(log num)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1694,6 +1996,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 704. Binary Search <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> is sorted ascending. Return the index of <code>target</code>, or <code>-1</code> if it isn't there, in <code>O(log n)</code> time.</p>
+        <!-- enrich-top:start 704 -->
+        <p class="links"><a href="https://leetcode.com/problems/binary-search/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Dt4FKOF25ZY" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-1,0,3,5,9,12], target = 9</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">9 exists in nums and its index is 4</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [-1,0,3,5,9,12], target = 2</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">2 does not exist in nums so return -1</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁴ &lt; nums[i], target &lt; 10⁴</code> · All the integers in <code>nums</code> are <strong>unique</strong>. · <code>nums</code> is sorted in ascending order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The array is sorted. Compare the target with the middle element.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Too small → search the right half; too big → search the left half; stop when the window is empty.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A linear scan is <code>O(n)</code>. Each comparison with the middle element discards half the remaining candidates: <code>O(log n)</code>.</p>
+        <!-- enrich-top:end 704 -->
         <p><strong>Spot it:</strong> Sorted array + "find" + <code>O(log n)</code> → classic binary search on a closed window <code>[lo, hi]</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1739,6 +2052,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 704 -->
+        <!-- enrich-edges:start 704 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element.</li>
+          <li>The target missing.</li>
+          <li>The target at index 0 or at the end.</li>
+        </ul>
+        <!-- enrich-edges:end 704 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>

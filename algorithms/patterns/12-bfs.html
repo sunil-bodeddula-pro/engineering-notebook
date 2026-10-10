@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -811,6 +827,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 994. Rotting Oranges <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A grid holds <code>0</code> (empty), <code>1</code> (fresh orange) and <code>2</code> (rotten orange). Every minute, each rotten orange rots its 4-directional fresh neighbours. Return the minutes until no fresh orange is left, or <code>-1</code> if some can never rot.</p>
+        <!-- enrich-top:start 994 -->
+        <p class="links"><a href="https://leetcode.com/problems/rotting-oranges/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=nAVKrpJ8LUI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[2,1,1],[1,1,0],[0,1,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[2,1,1],[0,1,1],[1,0,1]]</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The orange in the bottom left corner (row 2, column 0) is never rotten, because rotting only happens 4-directionally.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 10</code> · <code>grid[i][j]</code> is <code>0</code>, <code>1</code>, or <code>2</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All rotten oranges spread at the same time. That's BFS from <strong>many</strong> starting points at once.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Put every rotten orange in the queue first; each BFS level is one minute. At the end, any fresh orange left means −1.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating minute by minute by rescanning the whole grid is <code>O((r · c)²)</code>. A multi-source BFS spreads from all rotten oranges together and touches each cell once: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 994 -->
         <p><strong>Spot it:</strong> "every minute, spreads to adjacent" with <strong>many</strong> starting rotten oranges = multi-source, level-by-level BFS.</p>
         <p><strong>Key insight:</strong> Put <em>all</em> rotten oranges in the queue at minute 0. Each frozen-size round is one minute. Count the fresh oranges up front so you can tell at the end whether any were unreachable.</p>
         <p><strong>Approach:</strong></p>
@@ -891,6 +918,14 @@ def multi_source_bfs(graph, sources):
         </table>
         <p><code>fresh</code> is now 0, so the loop stops with <code>minutes = 4</code> and the code returns 4.</p>
         <!-- bfs12:994:end -->
+        <!-- enrich-edges:start 994 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No fresh oranges at the start → 0.</li>
+          <li>A fresh orange that can never be reached → −1.</li>
+          <li>No rotten oranges but some fresh ones → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 994 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -899,6 +934,19 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 752. Open the Lock <span class="ds-tags"><span class="ds">String</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A 4-wheel lock starts at <code>"0000"</code>. One move turns one wheel up or down by one (9 wraps to 0). Avoid every code in <code>deadends</code>. Return the minimum number of moves to reach <code>target</code>, or <code>-1</code>.</p>
+        <!-- enrich-top:start 752 -->
+        <p class="links"><a href="https://leetcode.com/problems/open-the-lock/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">deadends = ["0201","0101","0102","1212","2002"], target = "0202"</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A sequence of valid moves would be "0000" -&gt; "1000" -&gt; "1100" -&gt; "1200" -&gt; "1201" -&gt; "1202" -&gt; "0202".
+Note that a sequence like "0000" -&gt; "0001" -&gt; "0002" -&gt; "0102" -&gt; "0202" would be invalid,
+because the wheels of the lock become stuck after the display becomes the dead end "0102".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">deadends = ["8888"], target = "0009"</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can turn the last wheel in reverse to move from "0000" -&gt; "0009".</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ deadends.length ≤ 500</code> · <code>deadends[i].length == 4</code> · <code>target.length == 4</code> · target <strong>will not be</strong> in the list <code>deadends</code>. · <code>target</code> and <code>deadends[i]</code> consist of digits only.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each lock state is a node; turning one wheel by one notch is an edge.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from <code>"0000"</code>, skipping dead ends and visited states; each level is one more move.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS over all combinations doesn't find the <em>minimum</em> number of moves. BFS over the 10,000 states, each with 8 neighbours, finds it in <code>O(10⁴ · 8)</code>.</p>
+        <!-- enrich-top:end 752 -->
         <p><strong>Spot it:</strong> "minimum number of turns", and each turn costs 1. The graph is <em>implicit</em>: nodes are the 10<sup>4</sup> codes, and every code has 8 neighbours.</p>
         <p><strong>Key insight:</strong> Generate neighbours on the fly and treat deadends as pre-visited walls. Check whether <code>"0000"</code> itself is a deadend.</p>
         <p><strong>Approach:</strong></p>
@@ -965,6 +1013,14 @@ def multi_source_bfs(graph, sources):
         </table>
         <p>Every 4-turn route (like "0000" → "0100" → "0200" → "0201" → "0202") passes through a deadend ("0101", "0201" or "0102"), which is why the answer is 6 turns instead of 4.</p>
         <!-- bfs12:752:end -->
+        <!-- enrich-edges:start 752 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>"0000"</code> itself is a dead end → −1.</li>
+          <li>The target is <code>"0000"</code> → 0.</li>
+          <li>Wrap-around between 9 and 0.</li>
+        </ul>
+        <!-- enrich-edges:end 752 -->
         <p><strong>Complexity:</strong> <code>O(10<sup>4</sup> · 8 · 4)</code> time, i.e. constant for this fixed lock; <code>O(10<sup>4</sup>)</code> space.</p>
       </div>
     </details>
@@ -973,6 +1029,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 310. Minimum Height Trees <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a tree of <code>n</code> nodes (as undirected edges), return every node that, when chosen as the root, gives the minimum possible height.</p>
+        <!-- enrich-top:start 310 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-height-trees/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 4, edges = [[1,0],[1,2],[1,3]]</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">As shown, the height of the tree is 1 when the root is the node with label 1 which is the only MHT.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 6, edges = [[3,0],[3,1],[3,2],[3,4],[5,4]]</code></div><div><strong>Output:</strong> <code class="ex">[3,4]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 2 * 10⁴</code> · <code>edges.length == n - 1</code> · <code>0 ≤ ai, bi &lt; n</code> · <code>ai != bi</code> · All the pairs <code>(ai, bi)</code> are distinct. · The given input is <strong>guaranteed</strong> to be a tree and there will be <strong>no repeated</strong> edges.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The best roots are in the "middle" of the tree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Peel off leaves layer by layer (BFS on degrees); the last 1 or 2 nodes left are the answer.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Running a BFS from every node to measure its height is <code>O(n²)</code>. Trimming leaves inward, like a topological sort, finds the centre in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 310 -->
         <p><strong>Spot it:</strong> Running a BFS from every node is <code>O(n²)</code>. The best roots are the <strong>centre</strong> of the tree, and you can find the centre with a BFS that runs <em>from the outside in</em>.</p>
         <p><strong>Key insight:</strong> Multi-source BFS starting from <strong>all leaves</strong>. Peel off one layer of leaves per round. Nodes whose degree drops to 1 become the next layer. When 2 or fewer nodes remain, those are the centres (a tree has one or two of them).</p>
         <p><strong>Approach:</strong></p>
@@ -1050,6 +1117,14 @@ def multi_source_bfs(graph, sources):
         </table>
         <p><code>remaining = 2</code>, so the loop stops and the answer is <code>[3, 4]</code>.</p>
         <!-- bfs12:310:end -->
+        <!-- enrich-edges:start 310 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 1</code> → <code>[0]</code>.</li>
+          <li><code>n = 2</code> → <code>[0, 1]</code>.</li>
+          <li>A star-shaped tree → the centre node.</li>
+        </ul>
+        <!-- enrich-edges:end 310 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
       </div>
     </details>
@@ -1058,6 +1133,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag hard">Hard</span> 127. Word Ladder <span class="ds-tags"><span class="ds">String</span><span class="ds">Graph</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Transform <code>beginWord</code> into <code>endWord</code> by changing one letter at a time, where every intermediate word must be in <code>wordList</code>. Return the number of words in the shortest sequence (including both ends), or 0.</p>
+        <!-- enrich-top:start 127 -->
+        <p class="links"><a href="https://leetcode.com/problems/word-ladder/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=_YarWAIPQcQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log","cog"]</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One shortest transformation sequence is "hit" -&gt; "hot" -&gt; "dot" -&gt; "dog" -&gt; cog", which is 5 words long.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log"]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The endWord "cog" is not in wordList, therefore there is no valid transformation sequence.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ beginWord.length ≤ 10</code> · <code>endWord.length == beginWord.length</code> · <code>1 ≤ wordList.length ≤ 5000</code> · <code>wordList[i].length == beginWord.length</code> · <code>beginWord</code>, <code>endWord</code>, and <code>wordList[i]</code> consist of lowercase English letters. · <code>beginWord != endWord</code> · All the words in <code>wordList</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Words are nodes; two words are connected if they differ by exactly one letter. You want the shortest path.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from <code>beginWord</code>. To find neighbours fast, try each position × each letter, or group words by patterns like <code>h*t</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair of words to build the graph is <code>O(n² · L)</code>. Generating neighbours with wildcard patterns plus BFS finds the shortest chain in <code>O(n · L²)</code>.</p>
+        <!-- enrich-top:end 127 -->
         <p><strong>Spot it:</strong> "shortest transformation sequence" + "one letter at a time" = BFS on an implicit graph of words.</p>
         <p><strong>Key insight:</strong> Comparing every pair of words is slow. Instead, bucket words by <strong>wildcard patterns</strong>: <code>hot</code> belongs to <code>*ot</code>, <code>h*t</code>, <code>ho*</code>. Two words are neighbours if they share a bucket. Empty each bucket after its first use, because later visits can't produce a shorter path.</p>
         <p><strong>Approach:</strong></p>
@@ -1133,6 +1219,14 @@ def multi_source_bfs(graph, sources):
           </tbody>
         </table>
         <!-- bfs12:127:end -->
+        <!-- enrich-edges:start 127 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>endWord</code> not in the list → 0.</li>
+          <li><code>beginWord</code> one step from <code>endWord</code> → 2.</li>
+          <li>Disconnected words → 0.</li>
+        </ul>
+        <!-- enrich-edges:end 127 -->
         <p><strong>Complexity:</strong> <code>O(N · L²)</code> time (N words of length L, building the strings), <code>O(N · L²)</code> space. Bidirectional BFS (from both ends) speeds it up further in practice.</p>
       </div>
     </details>
@@ -1141,6 +1235,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag hard">Hard</span> 815. Bus Routes <span class="ds-tags"><span class="ds">Array</span><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>routes[i]</code> is the loop of stops bus <code>i</code> visits. Starting at stop <code>source</code>, what's the fewest number of <strong>buses</strong> you must take to reach <code>target</code>? Return <code>-1</code> if it's impossible.</p>
+        <!-- enrich-top:start 815 -->
+        <p class="links"><a href="https://leetcode.com/problems/bus-routes/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">routes = [[1,2,7],[3,6,7]], source = 1, target = 6</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The best strategy is take the first bus to the bus stop 7, then take the second bus to the bus stop 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">routes = [[7,12],[4,5,15],[6],[15,19],[9,12,13]], source = 15, target = 12</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ routes.length ≤ 500</code>. · <code>1 ≤ routes[i].length ≤ 10⁵</code> · All the values of <code>routes[i]</code> are <strong>unique</strong>. · <code>sum(routes[i].length) ≤ 10⁵</code> · <code>0 ≤ routes[i][j] &lt; 10⁶</code> · <code>0 ≤ source, target &lt; 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Count buses, not stops. Which stops connect one bus to another?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS where each level boards one more bus: from a stop, take every unused route through it and visit all its stops.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> BFS over stops, one stop per step, counts stops instead of buses and is slow. BFS by routes, marking each route as used once, gives the minimum number of buses in <code>O(total stops)</code>.</p>
+        <!-- enrich-top:end 815 -->
         <p><strong>Spot it:</strong> "fewest buses" = BFS, but the cost is per <em>bus</em>, not per stop. Each BFS level must be "one more bus".</p>
         <p><strong>Key insight:</strong> Expand a whole bus at once. From a stop, every unused bus through it reaches <strong>all</strong> of that bus's stops at cost +1. Mark buses as used so each route is expanded only once. Otherwise long routes make it <code>O(stops²)</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -1207,6 +1312,14 @@ def multi_source_bfs(graph, sources):
           </tbody>
         </table>
         <!-- bfs12:815:end -->
+        <!-- enrich-edges:start 815 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>source == target</code> → 0.</li>
+          <li>The target is unreachable → −1.</li>
+          <li>A stop shared by many routes.</li>
+        </ul>
+        <!-- enrich-edges:end 815 -->
         <p><strong>Complexity:</strong> <code>O(Σ len(routes[i]))</code> time and space: each bus and each stop is expanded once.</p>
       </div>
     </details>
@@ -1275,6 +1388,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag easy">Easy</span> 111. Minimum Depth of Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the number of nodes on the shortest path from the root down to a <em>leaf</em> (a node with no children).</p>
+        <!-- enrich-top:start 111 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-depth-of-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [2,null,3,null,4,null,5,null,6]</code></div><div><strong>Output:</strong> <code class="ex">5</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 10⁵]</code>. · <code>-1000 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The minimum depth is the distance to the nearest <strong>leaf</strong>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS level by level and stop at the first leaf you meet.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS must explore the whole tree to be sure of the minimum; it also has a trap: a node with one child is not a leaf. BFS stops at the shallowest leaf, often without visiting most of the tree.</p>
+        <!-- enrich-top:end 111 -->
         <p><strong>Spot it:</strong> "minimum depth" is the shortest distance. BFS reaches shallow nodes first, so the first leaf it pops is the answer and it can stop early.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1322,6 +1446,14 @@ def multi_source_bfs(graph, sources):
         </table>
         <p>Nodes 15 and 7 are never visited. That's the advantage over a DFS that would explore the whole tree.</p>
         <!-- bfs12:111:end -->
+        <!-- enrich-edges:start 111 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree → 0.</li>
+          <li>A chain of single children, e.g. <code>[2, null, 3, null, 4]</code> → 3 (not 1).</li>
+          <li>A single node → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 111 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> worst case, but it stops at the first leaf. <code>O(w)</code> space.</p>
       </div>
     </details>
@@ -1330,6 +1462,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 1091. Shortest Path in Binary Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In an <code>n × n</code> grid of 0s (open) and 1s (blocked), find the length (number of cells) of the shortest path from the top-left to the bottom-right, moving in any of the 8 directions. Return -1 if there's no path.</p>
+        <!-- enrich-top:start 1091 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-path-in-binary-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,1],[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[0,0,0],[1,1,0],[1,1,0]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ n ≤ 100</code> · <code>grid[i][j] is 0 or 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every move costs 1, and you may move in 8 directions.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from <code>(0, 0)</code> through cells containing 0, counting path length; check the start and end cells first.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS tries many paths and doesn't naturally give the shortest. BFS reaches each cell first along a shortest path: <code>O(n²)</code>.</p>
+        <!-- enrich-top:end 1091 -->
         <p><strong>Spot it:</strong> "shortest clear path" where every move costs 1, so grid BFS.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1391,6 +1534,14 @@ def multi_source_bfs(graph, sources):
           </tbody>
         </table>
         <!-- bfs12:1091:end -->
+        <!-- enrich-edges:start 1091 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The start or end cell is 1 → −1.</li>
+          <li>A 1 × 1 grid with a 0 → 1.</li>
+          <li>Diagonal shortcuts.</li>
+        </ul>
+        <!-- enrich-edges:end 1091 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time and space.</p>
       </div>
     </details>
@@ -1399,6 +1550,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 542. 01 Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> For every cell of a 0/1 matrix, return the distance to the nearest 0 (moving up, down, left or right).</p>
+        <!-- enrich-top:start 542 -->
+        <p class="links"><a href="https://leetcode.com/problems/01-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">mat = [[0,0,0],[0,1,0],[0,0,0]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,0,0],[0,1,0],[0,0,0]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">mat = [[0,0,0],[0,1,0],[1,1,1]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,0,0],[0,1,0],[1,2,1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == mat.length</code> · <code>n == mat[i].length</code> · <code>1 ≤ m, n ≤ 10⁴</code> · <code>1 ≤ m * n ≤ 10⁴</code> · <code>mat[i][j]</code> is either <code>0</code> or <code>1</code>. · There is at least one <code>0</code> in <code>mat</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Running a BFS from every 1 is slow. Flip the problem around.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Multi-source BFS starting from <strong>all</strong> 0s at once; each cell's first visit gives its distance.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A BFS per cell is <code>O((r · c)²)</code>. One multi-source BFS from every zero computes every distance in <code>O(r · c)</code> (a two-pass DP also works).</p>
+        <!-- enrich-top:end 542 -->
         <p><strong>Spot it:</strong> "distance to the nearest X" for every cell is multi-source BFS starting from all the 0s at once.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1461,6 +1623,14 @@ def multi_source_bfs(graph, sources):
           </tbody>
         </table>
         <!-- bfs12:542:end -->
+        <!-- enrich-edges:start 542 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single 0 in a corner.</li>
+          <li>Every cell is 0 → all distances 0.</li>
+          <li>Large grids (avoid the per-cell BFS).</li>
+        </ul>
+        <!-- enrich-edges:end 542 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1469,6 +1639,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 286. Walls and Gates <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The grid holds <code>-1</code> (wall), <code>0</code> (gate) and <code>INF = 2147483647</code> (empty room). Fill each empty room <em>in place</em> with the distance to its nearest gate, and leave <code>INF</code> where no gate is reachable.</p>
+        <!-- enrich-top:start 286 -->
+        <p class="links"><a href="https://leetcode.com/problems/walls-and-gates/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">rooms = [[INF,-1,0,INF],[INF,INF,INF,-1],[INF,-1,INF,-1],[0,-1,INF,INF]]</code></div><div><strong>Output:</strong> <code class="ex">[[3,-1,0,1],[2,2,1,-1],[1,-1,2,-1],[0,-1,3,4]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">INF = 2147483647 marks an empty room, −1 a wall and 0 a gate. Each empty room is filled with its distance to the nearest gate.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">rooms = [[-1]]</code></div><div><strong>Output:</strong> <code class="ex">[[-1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == rooms.length</code>, <code>n == rooms[i].length</code> · <code>1 ≤ m, n ≤ 250</code> · <code>rooms[i][j]</code> is <code>-1</code>, <code>0</code>, or <code>2³¹ − 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Searching from every room to its nearest gate repeats a lot of work.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Multi-source BFS from all gates at once; fill each room the first time it's reached.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A BFS from every empty room is <code>O((r · c)²)</code>. Starting from all gates together means each room is reached first by its nearest gate: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 286 -->
         <p><strong>Spot it:</strong> "nearest gate" for every room is multi-source BFS from all the gates.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1531,6 +1712,14 @@ def multi_source_bfs(graph, sources):
         </table>
         <p>Final grid: <code>[[3,-1,0,1],[2,2,1,-1],[1,-1,2,-1],[0,-1,3,4]]</code>.</p>
         <!-- bfs12:286:end -->
+        <!-- enrich-edges:start 286 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No gates → nothing changes.</li>
+          <li>Rooms walled off from every gate stay INF.</li>
+          <li>Several gates at the same distance.</li>
+        </ul>
+        <!-- enrich-edges:end 286 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1539,6 +1728,26 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag medium">Medium</span> 1926. Nearest Exit from Entrance in Maze <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A maze has <code>'.'</code> (open) and <code>'+'</code> (wall) cells. From <code>entrance</code>, find the fewest steps to any open cell on the border (an exit). The entrance itself doesn't count as an exit. Return -1 if there's none.</p>
+        <!-- enrich-top:start 1926 -->
+        <p class="links"><a href="https://leetcode.com/problems/nearest-exit-from-entrance-in-maze/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">maze = [["+","+",".","+"],[".",".",".","+"],["+","+","+","."]], entrance = [1,2]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are 3 exits in this maze at [1,0], [0,2], and [2,3].
+Initially, you are at the entrance cell [1,2].
+- You can reach [1,0] by moving 2 steps left.
+- You can reach [0,2] by moving 1 step up.
+It is impossible to reach [2,3] from the entrance.
+Thus, the nearest exit is [0,2], which is 1 step away.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">maze = [["+","+","+"],[".",".","."],["+","+","+"]], entrance = [1,0]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is 1 exit in this maze at [1,2].
+[1,0] does not count as an exit since it is the entrance cell.
+Initially, you are at the entrance cell [1,0].
+- You can reach [1,2] by moving 2 steps right.
+Thus, the nearest exit is [1,2], which is 2 steps away.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>maze.length == m</code> · <code>maze[i].length == n</code> · <code>1 ≤ m, n ≤ 100</code> · <code>maze[i][j]</code> is either <code>'.'</code> or <code>'+'</code>. · <code>entrance.length == 2</code> · <code>0 ≤ entrancerow &lt; m</code> · <code>0 ≤ entrancecol &lt; n</code> · <code>entrance</code> will always be an empty cell.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>An exit is an empty border cell that isn't the entrance.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from the entrance; the first exit you reach is the nearest.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS doesn't give the shortest distance without exploring everything. BFS finds the nearest exit in <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 1926 -->
         <p><strong>Spot it:</strong> "fewest steps" on a grid is BFS. The target is <em>any</em> border cell, so test for it when you enqueue.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1597,6 +1806,14 @@ def multi_source_bfs(graph, sources):
           </tbody>
         </table>
         <!-- bfs12:1926:end -->
+        <!-- enrich-edges:start 1926 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The entrance is on the border (it doesn't count as an exit).</li>
+          <li>No reachable exit → −1.</li>
+          <li>A 1 × 1 maze → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 1926 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1605,6 +1822,17 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag hard">Hard</span> 847. Shortest Path Visiting All Nodes <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a connected undirected graph, return the length of the shortest walk that visits every node. You may start and end anywhere, and revisit nodes and edges.</p>
+        <!-- enrich-top:start 847 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-path-visiting-all-nodes/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">graph = [[1,2,3],[0],[0],[0]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One possible path is [1,0,2,0,3]</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">graph = [[1],[0,2,4],[1,3,4],[2],[1,2]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One possible path is [0,1,4,2,3]</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == graph.length</code> · <code>1 ≤ n ≤ 12</code> · <code>0 ≤ graph[i].length &lt; n</code> · <code>graph[i]</code> does not contain <code>i</code>. · If <code>graph[a]</code> contains <code>b</code>, then <code>graph[b]</code> contains <code>a</code>. · The input graph is always connected.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A state must include which nodes have been visited, not just the current node: <code>(node, visitedMask)</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS over <code>(node, mask)</code> states starting from <strong>every</strong> node at once; stop when the mask contains all nodes.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every order of visiting nodes is <code>O(n!)</code>. BFS over the <code>n · 2ⁿ</code> states finds the shortest walk; that's fine for <code>n ≤ 12</code>.</p>
+        <!-- enrich-top:end 847 -->
         <p><strong>Spot it:</strong> "shortest" with unit edges means BFS, but the position alone isn't enough state. The real state is <code>(node, set of nodes visited so far)</code>, stored as a bitmask. Since you can start anywhere, it's multi-source.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1663,6 +1891,14 @@ def multi_source_bfs(graph, sources):
           </tbody>
         </table>
         <!-- bfs12:847:end -->
+        <!-- enrich-edges:start 847 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → 0.</li>
+          <li>Revisiting nodes is allowed (and sometimes needed).</li>
+          <li>A path graph vs a star graph.</li>
+        </ul>
+        <!-- enrich-edges:end 847 -->
         <p><strong>Complexity:</strong> <code>O(2<sup>n</sup> · n²)</code> time and <code>O(2<sup>n</sup> · n)</code> space. That's fine because <code>n ≤ 12</code>.</p>
       </div>
     </details>
@@ -1671,6 +1907,18 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag hard">Hard</span> 1293. Shortest Path in a Grid with Obstacles Elimination <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Move up, down, left or right through a 0/1 grid from the top-left to the bottom-right. You may remove at most <code>k</code> obstacles (1s). Return the minimum number of steps, or -1.</p>
+        <!-- enrich-top:start 1293 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-path-in-a-grid-with-obstacles-elimination/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,0,0],[1,1,0],[0,0,0],[0,1,1],[0,0,0]], k = 1</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The shortest path without eliminating any obstacle is 10.
+The shortest path with one obstacle elimination at position (3,2) is 6. Such path is (0,0) -&gt; (0,1) -&gt; (0,2) -&gt; (1,2) -&gt; (2,2) -&gt; (3,2) -&gt; (4,2).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[0,1,1],[1,1,1],[1,0,0]], k = 1</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We need to eliminate at least two obstacles to find such a walk.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 40</code> · <code>1 ≤ k ≤ m * n</code> · <code>grid[i][j]</code> is either <code>0</code> <strong>or</strong> <code>1</code>. · <code>grid[0][0] == grid[m - 1][n - 1] == 0</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The state needs the number of obstacles you can still remove: <code>(row, col, k_left)</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS over those states; a cell may be revisited if you arrive with more removals left than before.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Plain BFS ignores removals; DFS over every choice is exponential. BFS over <code>(cell, removals left)</code> states finds the shortest path in <code>O(r · c · k)</code>.</p>
+        <!-- enrich-top:end 1293 -->
         <p><strong>Spot it:</strong> "minimum steps" means BFS, but the same cell reached with more removals left is a <em>better</em> state. So the state is <code>(r, c, removals_left)</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1739,6 +1987,14 @@ def multi_source_bfs(graph, sources):
         </table>
         <p>The winning path goes down the left side, removing the obstacle at (1,0), then along the bottom row.</p>
         <!-- bfs12:1293:end -->
+        <!-- enrich-edges:start 1293 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k</code> ≥ <code>r + c − 3</code> → the Manhattan distance (you can go straight through).</li>
+          <li>A 1 × 1 grid → 0.</li>
+          <li>Unreachable even with removals → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 1293 -->
         <p><strong>Complexity:</strong> <code>O(R·C·k)</code> time and space.</p>
       </div>
     </details>
@@ -1747,6 +2003,18 @@ def multi_source_bfs(graph, sources):
       <summary><span class="tag easy">Easy</span> 637. Average of Levels in Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the average value of the nodes on each level of the tree, from top to bottom.</p>
+        <!-- enrich-top:start 637 -->
+        <p class="links"><a href="https://leetcode.com/problems/average-of-levels-in-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=92zdLCeiumk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,null,null,15,7]</code></div><div><strong>Output:</strong> <code class="ex">[3.00000,14.50000,11.00000]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The average value of nodes on level 0 is 3, on level 1 is 14.5, and on level 2 is 11.
+Hence return [3, 14.5, 11].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [3,9,20,15,7]</code></div><div><strong>Output:</strong> <code class="ex">[3.00000,14.50000,11.00000]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 10⁴]</code>. · <code>-2³¹ ≤ Node.val ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Process the tree one level at a time.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS: sum the values of each level and divide by the level's size.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS collecting <code>(sum, count)</code> per depth also works in <code>O(n)</code>. BFS gives the levels directly in order.</p>
+        <!-- enrich-top:end 637 -->
         <p><strong>Spot it:</strong> "Per level" → BFS with a queue, processing exactly one level per round (<code>len(queue)</code> nodes).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1794,6 +2062,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 637 -->
+        <!-- enrich-edges:start 637 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node.</li>
+          <li>Large values (Python's integers don't overflow).</li>
+          <li>Uneven levels.</li>
+        </ul>
+        <!-- enrich-edges:end 637 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> space for the queue (<code>w</code> = the widest level).</p>
       </div>
     </details>
@@ -1802,6 +2078,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 117. Populating Next Right Pointers in Each Node II <span class="ds-tags"><span class="ds">Binary Tree</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each node has an extra <code>next</code> pointer. Point every node's <code>next</code> at the node directly to its right on the same level, or <code>None</code> if it is the last one. The tree is <strong>not</strong> necessarily perfect.</p>
+        <!-- enrich-top:start 117 -->
+        <p class="links"><a href="https://leetcode.com/problems/populating-next-right-pointers-in-each-node-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=cPexsvQBMEE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3,4,5,null,7]</code></div><div><strong>Output:</strong> <code class="ex">[1,#,2,3,#,4,5,7,#]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Given the above binary tree (Figure A), your function should populate each next pointer to point to its next right node, just like in Figure B. The serialized output is in level order as connected by the next pointers, with '#' signifying the end of each level.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 6000]</code>. · <code>-100 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Nodes on the same level should point to their right neighbour.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS level by level and link each node to the next node popped on that level. (Follow-up: use the <code>next</code> pointers you already built to link the level below in <code>O(1)</code> space.)</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting each level into a list and linking it is <code>O(n)</code> time and space. BFS links as it goes; the follow-up technique walks each level using its own <code>next</code> pointers with <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:end 117 -->
         <p><strong>Spot it:</strong> "Same level, left to right" is exactly the order BFS pops nodes. Within one level, each popped node's <code>next</code> is simply the following node in the queue.</p>
         <p><strong>Key insight:</strong> A follow-up asks for <code>O(1)</code> extra space: walk each level along the <code>next</code> pointers you already built while linking the level below with a dummy head. The BFS version below is the clearest starting point.</p>
         <p><strong>Approach:</strong></p>
@@ -1853,6 +2140,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 117 -->
+        <!-- enrich-edges:start 117 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree.</li>
+          <li>Missing children in the middle of a level.</li>
+          <li>The last node of each level points to <code>None</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 117 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(w)</code> queue space (<code>O(1)</code> with the follow-up technique).</p>
       </div>
     </details>
@@ -1861,6 +2156,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 433. Minimum Genetic Mutation <span class="ds-tags"><span class="ds">String</span><span class="ds">Queue</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A gene is an 8-character string of <code>A</code>, <code>C</code>, <code>G</code>, <code>T</code>. One mutation changes one character, and every intermediate gene must be in <code>bank</code>. Return the minimum number of mutations from <code>startGene</code> to <code>endGene</code>, or <code>-1</code> if impossible.</p>
+        <!-- enrich-top:start 433 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-genetic-mutation/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=H6YrqsdK6VM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">startGene = "AACCGGTT", endGene = "AACCGGTA", bank = ["AACCGGTA"]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">startGene = "AACCGGTT", endGene = "AAACGGTA", bank = ["AACCGGTA","AACCGCTA","AAACGGTA"]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ bank.length ≤ 10</code> · <code>startGene.length == endGene.length == bank[i].length == 8</code> · <code>startGene</code>, <code>endGene</code>, and <code>bank[i]</code> consist of only the characters <code>['A', 'C', 'G', 'T']</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each gene is a node; one valid mutation is an edge.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from <code>startGene</code>, trying all 8 × 3 mutations of each gene and keeping only bank genes.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS doesn't give the minimum number of mutations. BFS finds the shortest chain in <code>O(b · 8 · 4)</code>.</p>
+        <!-- enrich-top:end 433 -->
         <p><strong>Spot it:</strong> "Minimum number of single changes" between states → each gene is a node, each valid mutation an edge, and all edges cost 1. Shortest path in an unweighted graph = BFS.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1913,6 +2219,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 433 -->
+        <!-- enrich-edges:start 433 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>endGene</code> not in the bank → −1.</li>
+          <li><code>startGene == endGene</code> → 0.</li>
+          <li>An empty bank.</li>
+        </ul>
+        <!-- enrich-edges:end 433 -->
         <p><strong>Complexity:</strong> <code>O(b · L · 4)</code> time, where <code>b</code> is the bank size and <code>L = 8</code>; <code>O(b)</code> space for the set, queue and visited.</p>
       </div>
     </details>
@@ -1921,6 +2235,22 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 909. Snakes and Ladders <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> An <code>n × n</code> board is numbered <code>1..n²</code> starting at the <strong>bottom-left</strong>, alternating direction on every row (boustrophedon). Each move, roll a die and go 1–6 squares forward; if you land on a snake or ladder (<code>board[r][c] != -1</code>), you must take it to that square. Return the fewest moves to reach <code>n²</code>, or <code>-1</code>.</p>
+        <!-- enrich-top:start 909 -->
+        <p class="links"><a href="https://leetcode.com/problems/snakes-and-ladders/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=69U-0otVnw8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = [[-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1],[-1,35,-1,-1,13,-1],[-1,-1,-1,-1,-1,-1],[-1,15,-1,-1,-1,-1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">In the beginning, you start at square 1 (at row 5, column 0).
+You decide to move to square 2 and must take the ladder to square 15.
+You then decide to move to square 17 and must take the snake to square 13.
+You then decide to move to square 14 and must take the ladder to square 35.
+You then decide to move to square 36, ending the game.
+This is the lowest possible number of moves to reach the last square, so return 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">board = [[-1,-1],[-1,3]]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == board.length == board[i].length</code> · <code>2 ≤ n ≤ 20</code> · <code>board[i][j]</code> is either <code>-1</code> or in the range <code>[1, n²]</code>. · The squares labeled <code>1</code> and <code>n²</code> are not the starting points of any snake or ladder.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each square is a node; a die roll moves you 1–6 squares, then any snake or ladder is mandatory.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from square 1; the tricky part is converting a square number to <code>(row, col)</code> on the zig-zag board.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every sequence of rolls is exponential. BFS over the <code>n²</code> squares finds the fewest moves in <code>O(n²)</code>.</p>
+        <!-- enrich-top:end 909 -->
         <p><strong>Spot it:</strong> "Fewest moves" where every move costs 1 → BFS over squares. Each square has up to six neighbours (<code>s + 1 .. s + 6</code>, then follow a snake/ladder).</p>
         <p><strong>Key insight:</strong> Convert a square number to its cell: <code>row_from_bottom = (s − 1) // n</code>, <code>col = (s − 1) % n</code>, and flip <code>col</code> on odd rows from the bottom because those rows run right-to-left. The real row index is <code>n − 1 − row_from_bottom</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -1986,6 +2316,14 @@ class Solution:
         </table>
         <p>Rolling a 2 from square 1 lands on the ladder, which is why <code>15</code> is reached in one move and <code>2</code> never appears. Likewise <code>17</code> is a snake down to <code>13</code>, and <code>14</code> is a ladder up to <code>35</code>, which is then one roll from 36.</p>
         <!-- explain:end 909 -->
+        <!-- enrich-edges:start 909 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A ladder or snake on square 1 is never taken (you start there).</li>
+          <li>You can't chain a snake/ladder into another in the same move.</li>
+          <li>The target unreachable → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 909 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time (each square is queued at most once, with 6 tries), <code>O(n²)</code> space.</p>
       </div>
     </details>

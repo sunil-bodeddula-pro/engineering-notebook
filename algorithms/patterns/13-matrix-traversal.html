@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -734,6 +750,27 @@ def rotate_clockwise(matrix):
       <summary><span class="tag medium">Medium</span> 200. Number of Islands <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A grid of <code>'1'</code> (land) and <code>'0'</code> (water). Land cells touching horizontally or vertically form one island. Count the islands.</p>
+        <!-- enrich-top:start 200 -->
+        <p class="links"><a href="https://leetcode.com/problems/number-of-islands/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=gCswsDauXPc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [
+ ["1","1","1","1","0"],
+ ["1","1","0","1","0"],
+ ["1","1","0","0","0"],
+ ["0","0","0","0","0"]
+]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [
+ ["1","1","0","0","0"],
+ ["1","1","0","0","0"],
+ ["0","0","1","0","0"],
+ ["0","0","0","1","1"]
+]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 300</code> · <code>grid[i][j]</code> is <code>'0'</code> or <code>'1'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each island is a connected group of <code>'1'</code> cells.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Scan the grid; when you find unvisited land, count an island and flood-fill (DFS/BFS) the whole island so you don't count it again.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly merging land cells into groups is complex. A flood fill from each new land cell visits every cell once: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 200 -->
         <p><strong>Spot it:</strong> "grid" + "connected horizontally or vertically" + "number of". That's the textbook <em>outer scan + flood fill</em>. The flood visualizer above runs exactly this algorithm.</p>
         <p><strong>Key insight:</strong> Every time the scan lands on unvisited land, you've found a brand-new island. Sink the whole island (turn it to water) so the scan never counts it again.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -808,6 +845,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 200 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All water → 0.</li>
+          <li>All land → 1.</li>
+          <li>Diagonal neighbours do <strong>not</strong> connect islands.</li>
+        </ul>
+        <!-- enrich-edges:end 200 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time; <code>O(R·C)</code> worst-case stack (a grid of all land).</p>
       </div>
     </details>
@@ -816,6 +861,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 54. Spiral Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return all elements of an <code>m × n</code> matrix in clockwise spiral order, starting at the top-left.</p>
+        <!-- enrich-top:start 54 -->
+        <p class="links"><a href="https://leetcode.com/problems/spiral-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=fcn8qkRcFVM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,2,3],[4,5,6],[7,8,9]]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,6,9,8,7,4,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,2,3,4],[5,6,7,8],[9,10,11,12]]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,4,8,12,11,10,9,5,6,7]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[i].length</code> · <code>1 ≤ m, n ≤ 10</code> · <code>-100 ≤ matrix[i][j] ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Keep four fences: <code>top</code>, <code>bottom</code>, <code>left</code>, <code>right</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Walk the top row, the right column, the bottom row and the left column, moving the matching fence inward after each side.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating with a direction vector and a visited matrix uses <code>O(r · c)</code> extra space. Four shrinking fences visit each cell once with <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:end 54 -->
         <p><strong>Spot it:</strong> "spiral order" is a fixed geometric walk. Connectivity doesn't matter, so no visited set is needed.</p>
         <p><strong>Key insight:</strong> Keep four fences: <code>top, bottom, left, right</code>. Walk the top row and move <code>top</code> down. Walk the right column and move <code>right</code> left. Then the bottom row and the left column, but <strong>only if the fences haven't crossed</strong>. Without that check, a single leftover row or column gets added twice.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -889,6 +945,14 @@ class Solution:
         </table>
         <p>Result: <code>[1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]</code></p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 54 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single row or a single column (don't walk back over it).</li>
+          <li>A 1 × 1 matrix.</li>
+          <li>Non-square matrices.</li>
+        </ul>
+        <!-- enrich-edges:end 54 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time, <code>O(1)</code> extra space (besides the output).</p>
       </div>
     </details>
@@ -897,6 +961,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 48. Rotate Image <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rotate an <code>n × n</code> matrix 90° clockwise <strong>in place</strong>.</p>
+        <!-- enrich-top:start 48 -->
+        <p class="links"><a href="https://leetcode.com/problems/rotate-image/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=-jhbxNJijyE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,2,3],[4,5,6],[7,8,9]]</code></div><div><strong>Output:</strong> <code class="ex">[[7,4,1],[8,5,2],[9,6,3]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[5,1,9,11],[2,4,8,10],[13,3,6,7],[15,14,12,16]]</code></div><div><strong>Output:</strong> <code class="ex">[[15,13,2,5],[14,3,4,1],[12,6,8,9],[16,7,10,11]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == matrix.length == matrix[i].length</code> · <code>1 ≤ n ≤ 20</code> · <code>-1000 ≤ matrix[i][j] ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A 90° clockwise rotation = transpose, then reverse every row.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Transpose by swapping <code>matrix[r][c]</code> with <code>matrix[c][r]</code> for <code>c &gt; r</code> only.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying into a new matrix with <code>new[c][n − 1 − r] = old[r][c]</code> uses <code>O(n²)</code> extra space, which the problem forbids. Transpose + reverse rows works in place.</p>
+        <!-- enrich-top:end 48 -->
         <p><strong>Spot it:</strong> "rotate", "in place", square matrix. You need an index identity, not a traversal.</p>
         <p><strong>Key insight:</strong> A clockwise rotation sends <code>(r, c) → (c, n−1−r)</code>. That equals a <em>transpose</em> (<code>(r,c) → (c,r)</code>) followed by a <em>horizontal mirror</em> (<code>(r,c) → (r, n−1−c)</code>). Both are easy to do in place.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -943,6 +1018,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 48 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A 1 × 1 matrix.</li>
+          <li>Even and odd sizes.</li>
+          <li>Swapping both halves of the transpose (undoes it).</li>
+        </ul>
+        <!-- enrich-edges:end 48 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -951,6 +1034,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 994. Rotting Oranges <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Cells are <code>0</code> empty, <code>1</code> fresh orange, <code>2</code> rotten orange. Each minute, every rotten orange rots its 4-directional fresh neighbors. Return the minutes until no fresh orange remains, or <code>-1</code> if that never happens.</p>
+        <!-- enrich-top:start 994 -->
+        <p class="links"><a href="https://leetcode.com/problems/rotting-oranges/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=nAVKrpJ8LUI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[2,1,1],[1,1,0],[0,1,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[2,1,1],[0,1,1],[1,0,1]]</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The orange in the bottom left corner (row 2, column 0) is never rotten, because rotting only happens 4-directionally.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 10</code> · <code>grid[i][j]</code> is <code>0</code>, <code>1</code>, or <code>2</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All rotten oranges spread at the same time. That's BFS from <strong>many</strong> starting points at once.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Put every rotten orange in the queue first; each BFS level is one minute. At the end, any fresh orange left means −1.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating minute by minute by rescanning the whole grid is <code>O((r · c)²)</code>. A multi-source BFS spreads from all rotten oranges together and touches each cell once: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 994 -->
         <p><strong>Spot it:</strong> "minimum minutes", "spreads to adjacent cells", and <em>several</em> starting points. That's <strong>multi-source BFS</strong> on a grid.</p>
         <p><strong>Key insight:</strong> Put <em>every</em> rotten orange in the queue at time 0. Then one BFS layer is exactly one minute. Count fresh oranges up front so you can tell at the end whether any were unreachable.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1026,6 +1120,14 @@ class Solution:
         </table>
         <p>fresh_count is 0, so the answer is <strong>4</strong>.</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 994 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No fresh oranges at the start → 0.</li>
+          <li>A fresh orange that can never be reached → −1.</li>
+          <li>No rotten oranges but some fresh ones → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 994 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1034,6 +1136,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 329. Longest Increasing Path in a Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> From any cell you may step up/down/left/right to a <em>strictly larger</em> value. Return the length of the longest such path.</p>
+        <!-- enrich-top:start 329 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-increasing-path-in-a-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[9,9,4],[6,6,8],[2,1,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest increasing path is [1, 2, 6, 9].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[3,4,5],[3,2,6],[2,2,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest increasing path is [3, 4, 5, 6]. Moving diagonally is not allowed.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[i].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>0 ≤ matrix[i][j] ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>From each cell, the longest increasing path depends only on the cells it can move to.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>DFS with memoisation: <code>best(cell) = 1 + max(best(neighbour))</code> over strictly larger neighbours.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS from every cell without memory recomputes the same paths over and over (exponential). The "strictly increasing" rule means there are no cycles, so caching each cell's answer makes it <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 329 -->
         <p><strong>Spot it:</strong> grid + 4-directional moves + "longest path". A plain DFS from every cell re-explores the same paths again and again (exponential). But "strictly increasing" means a path can never loop back, so the moves form a DAG. On a DAG, <strong>DFS + memoization</strong> works.</p>
         <p><strong>Key insight:</strong> <code>longest_from(row, col) = 1 + max(longest_from(neighbor))</code> over larger neighbors. Each cell's answer never changes, so compute it once and cache it. This is grid traversal meeting <a href="15-dynamic-programming.html">DP</a>.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1102,6 +1215,14 @@ class Solution:
         </table>
         <p>For example, <code>longest_from(2,1)</code> (value 1) tries its bigger neighbours: up (6) gives 1 + 2 = 3 and left (2) gives 1 + 3 = 4. The best is <strong>4</strong>.</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 329 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All values equal → 1.</li>
+          <li>A single cell → 1.</li>
+          <li>A long snake-shaped increasing path.</li>
+        </ul>
+        <!-- enrich-edges:end 329 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time (each cell is solved once, with 4 neighbor checks), <code>O(R·C)</code> space for the cache and recursion.</p>
       </div>
     </details>
@@ -1167,6 +1288,18 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 733. Flood Fill <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> An image is a grid of color numbers. Starting from pixel <code>(sr, sc)</code>, repaint it and every pixel connected to it 4-directionally <em>with the same original color</em> to <code>color</code>. Return the image.</p>
+        <!-- enrich-top:start 733 -->
+        <p class="links"><a href="https://leetcode.com/problems/flood-fill/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2</code></div><div><strong>Output:</strong> <code class="ex">[[2,2,2],[2,2,0],[2,0,1]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">From the center of the image with position (sr, sc) = (1, 1) (i.e., the red pixel), all pixels connected by a path of the same color as the starting pixel (i.e., the blue pixels) are colored with the new color.
+Note the bottom corner is not colored 2, because it is not horizontally or vertically connected to the starting pixel.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">image = [[0,0,0],[0,0,0]], sr = 0, sc = 0, color = 0</code></div><div><strong>Output:</strong> <code class="ex">[[0,0,0],[0,0,0]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The starting pixel is already colored with 0, which is the same as the target color. Therefore, no changes are made to the image.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == image.length</code> · <code>n == image[i].length</code> · <code>1 ≤ m, n ≤ 50</code> · <code>0 ≤ image[i][j], color &lt; 2¹⁶</code> · <code>0 ≤ sr &lt; m</code> · <code>0 ≤ sc &lt; n</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Change the starting pixel's colour, then spread to 4-directional neighbours that had the <strong>original</strong> colour.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>If the new colour equals the original colour, return immediately (otherwise you loop forever).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is already a single flood fill: DFS or BFS from the start touches each pixel of the region once: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 733 -->
         <p><strong>Spot it:</strong> "connected 4-directionally" + "same color" + repaint is the paint-bucket tool, which is the plain flood-fill template.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1226,6 +1359,14 @@ class Solution:
         </table>
         <p>Result <code>[[2,2,2],[2,2,0],[2,0,1]]</code>. The bottom-right 1 isn't connected, so it stays 1.</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 733 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The new colour equals the old colour.</li>
+          <li>A region that touches the border.</li>
+          <li>A 1 × 1 image.</li>
+        </ul>
+        <!-- enrich-edges:end 733 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time, <code>O(R·C)</code> worst-case stack.</p>
       </div>
     </details>
@@ -1233,6 +1374,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 73. Set Matrix Zeroes <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Whenever a cell is 0, set its whole row and whole column to 0, in place. Follow-up: use only <code>O(1)</code> extra memory.</p>
+        <!-- enrich-top:start 73 -->
+        <p class="links"><a href="https://leetcode.com/problems/set-matrix-zeroes/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=w5N49LKaIa8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,1,1],[1,0,1],[1,1,1]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,0,1],[0,0,0],[1,0,1]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[0,1,2,0],[3,4,5,2],[1,3,1,5]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,0,0,0],[0,4,5,0],[0,3,1,0]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[0].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>-2³¹ ≤ matrix[i][j] ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Recording every zero's row and column in sets uses <code>O(r + c)</code> space. Can the matrix store those marks itself?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use the first row and first column as markers (plus two flags for whether they themselves contained a zero).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying the matrix uses <code>O(r · c)</code> space; storing the rows and columns to clear uses <code>O(r + c)</code>. Using the first row and column as marker storage gets it to <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:end 73 -->
         <p><strong>Spot it:</strong> A matrix plus row/column operations is an index walk, not connectivity. The catch: if you zero cells while scanning, the new zeros spread wrongly. You must <em>record</em> first and <em>write</em> later. To use O(1) memory, store the records inside the matrix itself (row 0 and column 0).</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1297,6 +1449,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 73 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A zero in the first row or first column.</li>
+          <li>The whole matrix is zeros.</li>
+          <li>A single row or column.</li>
+        </ul>
+        <!-- enrich-edges:end 73 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1304,6 +1464,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 695. Max Area of Island <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a 0/1 grid, an island is a group of 4-directionally connected 1s. Return the size of the largest island, or 0 if there is none.</p>
+        <!-- enrich-top:start 695 -->
+        <p class="links"><a href="https://leetcode.com/problems/max-area-of-island/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=rowp_Frq_eI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,0,1,0,0,0,0,1,0,0,0,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],[0,1,1,0,1,0,0,0,0,0,0,0,0],[0,1,0,0,1,1,0,0,1,0,1,0,0],[0,1,0,0,1,1,0,0,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0,1,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],[0,0,0,0,0,0,0,1,1,0,0,0,0]]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The answer is not 11, because the island must be connected 4-directionally.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[0,0,0,0,0,0,0,0]]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 50</code> · <code>grid[i][j]</code> is either <code>0</code> or <code>1</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Same as Number of Islands, but count each island's cells.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Flood-fill each new island and return its size; keep the maximum.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is a single pass of flood fills: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 695 -->
         <p><strong>Spot it:</strong> Same as Number of Islands (200), except the flood <em>returns a size</em> and we keep the maximum instead of a count.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1368,6 +1539,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 695 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No land → 0.</li>
+          <li>One large island.</li>
+          <li>Many single-cell islands.</li>
+        </ul>
+        <!-- enrich-edges:end 695 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1375,6 +1554,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 130. Surrounded Regions <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A board holds <code>'X'</code> and <code>'O'</code>. Flip every region of <code>'O'</code>s that is completely surrounded by <code>'X'</code> into <code>'X'</code>. A region that touches the border can't be surrounded, so it stays.</p>
+        <!-- enrich-top:start 130 -->
+        <p class="links"><a href="https://leetcode.com/problems/surrounded-regions/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=T0Hi1_QM6pw" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = [["X","X","X","X"],["X","O","O","X"],["X","X","O","X"],["X","O","X","X"]]</code></div><div><strong>Output:</strong> <code class="ex">[["X","X","X","X"],["X","X","X","X"],["X","X","X","X"],["X","O","X","X"]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">In the above diagram, the bottom region is not captured because it is on the edge of the board and cannot be surrounded.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">board = [["X"]]</code></div><div><strong>Output:</strong> <code class="ex">[["X"]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == board.length</code> · <code>n == board[i].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>board[i][j]</code> is <code>'X'</code> or <code>'O'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>An <code>'O'</code> survives only if it's connected to the border.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Flood-fill from every border <code>'O'</code> and mark it safe; then flip all other <code>'O'</code>s to <code>'X'</code> and restore the safe ones.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Flood-filling from each <code>'O'</code> region and checking whether it touches the border is <code>O((r · c)²)</code> in the worst case. Starting from the border marks every survivor in one pass: <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 130 -->
         <p><strong>Spot it:</strong> Regions on a grid call for a flood. The trick is <em>reverse thinking</em>: instead of testing each region for "is it surrounded?", flood from the border to find the regions that are <em>safe</em>. Everything else gets captured.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1439,6 +1629,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 130 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Everything is <code>'O'</code> → nothing changes.</li>
+          <li>A single row or column.</li>
+          <li>An <code>'O'</code> region that touches the border only at a corner.</li>
+        </ul>
+        <!-- enrich-edges:end 130 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1446,6 +1644,32 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 417. Pacific Atlantic Water Flow <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>heights</code> is an island map. Rain flows from a cell to a 4-neighbor whose height is ≤ the current cell's. The Pacific touches the top and left edges, the Atlantic the bottom and right edges. Return every cell from which water can reach <em>both</em> oceans.</p>
+        <!-- enrich-top:start 417 -->
+        <p class="links"><a href="https://leetcode.com/problems/pacific-atlantic-water-flow/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=pDvvDvgHUKE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">heights = [[1,2,2,3,5],[3,2,3,4,4],[2,4,5,3,1],[6,7,1,4,5],[5,1,1,2,4]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,4],[1,3],[1,4],[2,2],[3,0],[3,1],[4,0]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The following cells can flow to the Pacific and Atlantic oceans, as shown below:
+[0,4]: [0,4] -&gt; Pacific Ocean 
+ [0,4] -&gt; Atlantic Ocean
+[1,3]: [1,3] -&gt; [0,3] -&gt; Pacific Ocean 
+ [1,3] -&gt; [1,4] -&gt; Atlantic Ocean
+[1,4]: [1,4] -&gt; [1,3] -&gt; [0,3] -&gt; Pacific Ocean 
+ [1,4] -&gt; Atlantic Ocean
+[2,2]: [2,2] -&gt; [1,2] -&gt; [0,2] -&gt; Pacific Ocean 
+ [2,2] -&gt; [2,3] -&gt; [2,4] -&gt; Atlantic Ocean
+[3,0]: [3,0] -&gt; Pacific Ocean 
+ [3,0] -&gt; [4,0] -&gt; Atlantic Ocean
+[3,1]: [3,1] -&gt; [3,0] -&gt; Pacific Ocean 
+ [3,1] -&gt; [4,1] -&gt; Atlantic Ocean
+[4,0]: [4,0] -&gt; Pacific Ocean 
+ [4,0] -&gt; Atlantic Ocean
+Note that there are other possible paths for these cells to flow to the Pacific and Atlantic oceans.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">heights = [[1]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,0]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The water can flow from the only cell to the Pacific and Atlantic oceans.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == heights.length</code> · <code>n == heights[r].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>0 ≤ heights[r][c] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Searching from every cell toward the oceans repeats work. Search backwards instead.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Flood-fill "uphill" from each ocean's border; the answer is the cells reached from both oceans.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A DFS from every cell to check whether water reaches each ocean is <code>O((r · c)²)</code>. Two reverse flood fills, one per ocean, solve it in <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 417 -->
         <p><strong>Spot it:</strong> Asking "can every cell reach the border?" separately would be slow. Reverse the flow instead: start at each ocean's border cells (multi-source) and flood <em>uphill</em>, to neighbors that are ≥ the current cell. Then intersect the two reach sets.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1527,6 +1751,14 @@ class Solution:
         </table>
         <p>Both oceans: <code>[[0,1],[1,0],[1,1]]</code>. Cell (0,0) has height 1 and both its neighbours are higher, so its water can only reach the Pacific.</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 417 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A 1 × 1 grid.</li>
+          <li>Flat regions (equal heights let water flow both ways).</li>
+          <li>A single row or column.</li>
+        </ul>
+        <!-- enrich-edges:end 417 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space (each cell is visited at most once per ocean).</p>
       </div>
     </details>
@@ -1534,6 +1766,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1091. Shortest Path in Binary Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In an <code>n × n</code> grid of 0 (open) and 1 (blocked), find the length of the shortest path from the top-left to the bottom-right through open cells, moving in any of <strong>8</strong> directions. The length counts cells, including both ends. Return -1 if there's no path.</p>
+        <!-- enrich-top:start 1091 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-path-in-binary-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,1],[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[0,0,0],[1,1,0],[1,1,0]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ n ≤ 100</code> · <code>grid[i][j] is 0 or 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every move costs 1, and you may move in 8 directions.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS from <code>(0, 0)</code> through cells containing 0, counting path length; check the start and end cells first.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS tries many paths and doesn't naturally give the shortest. BFS reaches each cell first along a shortest path: <code>O(n²)</code>.</p>
+        <!-- enrich-top:end 1091 -->
         <p><strong>Spot it:</strong> "shortest" + unweighted grid moves means BFS. "8-directionally connected" means use the 8-direction list.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1595,6 +1838,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 1091 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The start or end cell is 1 → −1.</li>
+          <li>A 1 × 1 grid with a 0 → 1.</li>
+          <li>Diagonal shortcuts.</li>
+        </ul>
+        <!-- enrich-edges:end 1091 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time and space.</p>
       </div>
     </details>
@@ -1602,6 +1853,18 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 1293. Shortest Path in a Grid with Obstacles Elimination <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Queue</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Grid of 0 (empty) and 1 (obstacle). You move 4-directionally and may knock down at most <code>k</code> obstacles. Return the minimum number of steps from the top-left to the bottom-right, or -1.</p>
+        <!-- enrich-top:start 1293 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-path-in-a-grid-with-obstacles-elimination/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,0,0],[1,1,0],[0,0,0],[0,1,1],[0,0,0]], k = 1</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The shortest path without eliminating any obstacle is 10.
+The shortest path with one obstacle elimination at position (3,2) is 6. Such path is (0,0) -&gt; (0,1) -&gt; (0,2) -&gt; (1,2) -&gt; (2,2) -&gt; (3,2) -&gt; (4,2).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[0,1,1],[1,1,1],[1,0,0]], k = 1</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We need to eliminate at least two obstacles to find such a walk.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ m, n ≤ 40</code> · <code>1 ≤ k ≤ m * n</code> · <code>grid[i][j]</code> is either <code>0</code> <strong>or</strong> <code>1</code>. · <code>grid[0][0] == grid[m - 1][n - 1] == 0</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The state needs the number of obstacles you can still remove: <code>(row, col, k_left)</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>BFS over those states; a cell may be revisited if you arrive with more removals left than before.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Plain BFS ignores removals; DFS over every choice is exponential. BFS over <code>(cell, removals left)</code> states finds the shortest path in <code>O(r · c · k)</code>.</p>
+        <!-- enrich-top:end 1293 -->
         <p><strong>Spot it:</strong> "minimum steps" on a grid means BFS. But the position alone isn't enough to describe where you are: arriving at the same cell with more knock-downs left is genuinely better. So the BFS state is <code>(r, c, removals_left)</code>.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1678,6 +1941,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 1293 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k</code> ≥ <code>r + c − 3</code> → the Manhattan distance (you can go straight through).</li>
+          <li>A 1 × 1 grid → 0.</li>
+          <li>Unreachable even with removals → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 1293 -->
         <p><strong>Complexity:</strong> <code>O(R·C·k)</code> time and space, since each cell can be entered with up to k+1 different removal counts.</p>
       </div>
     </details>
@@ -1685,6 +1956,21 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 778. Swim in Rising Water <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> An <code>n × n</code> grid holds distinct elevations. At time <code>t</code> the water level is <code>t</code>, and you can swim freely between 4-adjacent cells whose elevations are both ≤ <code>t</code>. What is the least time at which you can get from the top-left to the bottom-right?</p>
+        <!-- enrich-top:start 778 -->
+        <p class="links"><a href="https://leetcode.com/problems/swim-in-rising-water/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">grid = [[0,2],[1,3]]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">At time 0, you are in grid location (0, 0).
+You cannot go anywhere else because 4-directionally adjacent neighbors have a higher elevation than t = 0.
+You cannot reach point (1, 1) until time 3.
+When the depth of water is 3, we can swim anywhere inside the grid.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">grid = [[0,1,2,3,4],[24,23,22,21,5],[12,13,14,15,16],[11,17,18,19,20],[10,9,8,7,6]]</code></div><div><strong>Output:</strong> <code class="ex">16</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The final route is shown.
+We need to wait until time 16 so that (0, 0) and (4, 4) are connected.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == grid.length</code> · <code>n == grid[i].length</code> · <code>1 ≤ n ≤ 50</code> · <code>0 ≤ grid[i][j] &lt; n²</code> · Each value <code>grid[i][j]</code> is <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You want the path whose highest cell is as low as possible.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Dijkstra-like: a min-heap keyed by the highest elevation seen so far on the path; the first time you pop the target, that's the answer.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating time <code>t = 0, 1, 2, …</code> with a flood fill each time is <code>O(n⁴)</code>. A min-heap search (or binary search on <code>t</code> plus a flood fill) gives <code>O(n² log n)</code>.</p>
+        <!-- enrich-top:end 778 -->
         <p><strong>Spot it:</strong> The cost of a path is its <em>highest</em> cell (a bottleneck), and you want the path whose highest cell is lowest. That's Dijkstra on a grid with a min-heap, where cost is combined with <code>max</code> instead of <code>+</code>.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1745,6 +2031,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 778 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A 1 × 1 grid → that cell's value.</li>
+          <li>The start cell is high (the answer is at least <code>grid[0][0]</code>).</li>
+          <li>A high wall that must be crossed.</li>
+        </ul>
+        <!-- enrich-edges:end 778 -->
         <p><strong>Complexity:</strong> <code>O(n² log n)</code> time, <code>O(n²)</code> space. (Alternative: binary search on t + flood fill.)</p>
       </div>
     </details>
@@ -1754,6 +2048,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 289. Game of Life <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each cell of <code>board</code> is live (1) or dead (0). Apply Conway's rules to all cells <strong>simultaneously</strong>: a live cell with 2 or 3 live neighbours lives, otherwise it dies; a dead cell with exactly 3 live neighbours becomes live. Update <code>board</code> in place.</p>
+        <!-- enrich-top:start 289 -->
+        <p class="links"><a href="https://leetcode.com/problems/game-of-life/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=u_UOWmXsu3Y" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = [[0,1,0],[0,0,1],[1,1,1],[0,0,0]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,0,0],[1,0,1],[0,1,1],[0,1,0]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">board = [[1,1],[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,1],[1,1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == board.length</code> · <code>n == board[i].length</code> · <code>1 ≤ m, n ≤ 25</code> · <code>board[i][j]</code> is <code>0</code> or <code>1</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All cells update at the same time, so you can't overwrite a cell before its neighbours have read it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store the next state in a second bit of each cell; count live neighbours using only the first bit; shift right at the end.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying the board and reading neighbours from the copy uses <code>O(r · c)</code> extra space. Encoding both states in each cell does it in place.</p>
+        <!-- enrich-top:end 289 -->
         <p><strong>Spot it:</strong> Visit every cell and look at its 8 neighbours: a matrix traversal with a direction list. The difficulty is "simultaneously": once a cell is overwritten, its neighbours would read the <em>new</em> value.</p>
         <p><strong>Key insight:</strong> Keep both states in one integer. Bit 0 (<code>value &amp; 1</code>) is the current state; set bit 1 (<code>value | 2</code>) to mark "alive next round". Neighbours only read bit 0, so they still see the old board. A final pass shifts every cell right by one (<code>value &gt;&gt; 1</code>) to keep just the new state.</p>
         <p><strong>Approach:</strong></p>
@@ -1815,6 +2120,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 289 -->
+        <!-- enrich-edges:start 289 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Cells on the border have fewer neighbours.</li>
+          <li>A 1 × 1 board.</li>
+          <li>Stable patterns (nothing changes).</li>
+        </ul>
+        <!-- enrich-edges:end 289 -->
         <p><strong>Complexity:</strong> <code>O(rows · cols)</code> time (8 checks per cell), <code>O(1)</code> extra space.</p>
       </div>
     </details>

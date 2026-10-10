@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -676,6 +692,23 @@ def append_before(tail, node):              # tail is a dummy end node
       <summary><span class="tag medium">Medium</span> 208. Implement Trie (Prefix Tree) <span class="ds-tags"><span class="ds">Trie</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement a trie with <code>insert(word)</code>, <code>search(word)</code> (is this exact word stored?) and <code>startsWith(prefix)</code> (does any stored word start with it?).</p>
+        <!-- enrich-top:start 208 -->
+        <p class="links"><a href="https://leetcode.com/problems/implement-trie-prefix-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=8mhw5WT2x0U" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["Trie", "insert", "search", "search", "startsWith", "insert", "search"]
+[[], ["apple"], ["apple"], ["app"], ["app"], ["app"], ["app"]]</code></div><div><strong>Output:</strong> <code class="ex">[null, null, true, false, true, null, true]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Trie trie = new Trie();
+trie.insert("apple");
+trie.search("apple"); // return True
+trie.search("app"); // return False
+trie.startsWith("app"); // return True
+trie.insert("app");
+trie.search("app"); // return True</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ word.length, prefix.length ≤ 2000</code> · <code>word</code> and <code>prefix</code> consist only of lowercase English letters. · At most <code>3 * 10⁴</code> calls <strong>in total</strong> will be made to <code>insert</code>, <code>search</code>, and <code>startsWith</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Words with a common prefix should share storage.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Each node has a dictionary of children and an <code>is_end</code> flag; <code>search</code> needs <code>is_end</code>, <code>startsWith</code> doesn't.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Storing the words in a list makes <code>startsWith</code> scan everything: <code>O(n · L)</code>. A trie answers both queries in <code>O(L)</code>.</p>
+        <!-- enrich-top:end 208 -->
         <p><strong>Spot it:</strong> Many words that share prefixes, and questions about prefixes → a <strong>trie</strong>: each node is one character position, its children are the possible next characters, and a flag marks where a word ends.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -740,6 +773,14 @@ class Trie:
           </tbody>
         </table>
         <!-- explain:end 208 -->
+        <!-- enrich-edges:start 208 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>search</code> for a prefix that isn't a whole word → False.</li>
+          <li>Inserting the same word twice.</li>
+          <li>One word being a prefix of another, e.g. <code>app</code> and <code>apple</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 208 -->
         <p><strong>Complexity:</strong> <code>O(L)</code> time per operation for a word of length <code>L</code>; <code>O(total characters inserted)</code> space.</p>
       </div>
     </details>
@@ -748,6 +789,26 @@ class Trie:
       <summary><span class="tag medium">Medium</span> 146. LRU Cache <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a cache with a fixed <code>capacity</code>. <code>get(key)</code> returns the value or <code>-1</code>; <code>put(key, value)</code> inserts or updates, and when the cache is over capacity it evicts the <strong>least recently used</strong> key. Both must be <code>O(1)</code>.</p>
+        <!-- enrich-top:start 146 -->
+        <p class="links"><a href="https://leetcode.com/problems/lru-cache/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=RItxiaoU57M" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["LRUCache", "put", "put", "get", "put", "get", "put", "get", "get", "get"]
+[[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]</code></div><div><strong>Output:</strong> <code class="ex">[null, null, null, 1, null, -1, null, -1, 3, 4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">LRUCache lRUCache = new LRUCache(2);
+lRUCache.put(1, 1); // cache is {1=1}
+lRUCache.put(2, 2); // cache is {1=1, 2=2}
+lRUCache.get(1); // return 1
+lRUCache.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}
+lRUCache.get(2); // returns -1 (not found)
+lRUCache.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}
+lRUCache.get(1); // return -1 (not found)
+lRUCache.get(3); // return 3
+lRUCache.get(4); // return 4</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ capacity ≤ 3000</code> · <code>0 ≤ key ≤ 10⁴</code> · <code>0 ≤ value ≤ 10⁵</code> · At most <code>2 * 10⁵</code> calls will be made to <code>get</code> and <code>put</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need <code>O(1)</code> lookup by key <strong>and</strong> <code>O(1)</code> "move to most recent" / "remove least recent".</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Pair a hash map (key → node) with a doubly linked list ordered by recency.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A list ordered by recency makes moving an item <code>O(n)</code>; a dict alone forgets the order. Map + doubly linked list does every operation in <code>O(1)</code> (<code>OrderedDict</code> packages the same idea).</p>
+        <!-- enrich-top:end 146 -->
         <p><strong>Spot it:</strong> Two needs at once: find a key in <code>O(1)</code> (hash map) and move any entry to "most recent" or drop the oldest in <code>O(1)</code> (doubly linked list). The map stores <code>key → list node</code>, which glues the two together.</p>
         <p><strong>Key insight:</strong> Keep two sentinel nodes, <code>head</code> (least recent side) and <code>tail</code> (most recent side). Every access unlinks the node and re-inserts it just before <code>tail</code>; eviction removes <code>head.next</code>. (Python's <code>OrderedDict</code> packages exactly this, with <code>move_to_end</code> and <code>popitem(last=False)</code>.)</p>
         <p><strong>Approach:</strong></p>
@@ -833,6 +894,14 @@ class LRUCache:
           </tbody>
         </table>
         <!-- explain:end 146 -->
+        <!-- enrich-edges:start 146 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>put</code> on an existing key updates it and makes it most recent.</li>
+          <li>Capacity 1.</li>
+          <li><code>get</code> on a missing key → −1.</li>
+        </ul>
+        <!-- enrich-edges:end 146 -->
         <p><strong>Complexity:</strong> <code>O(1)</code> time for <code>get</code> and <code>put</code>; <code>O(capacity)</code> space.</p>
       </div>
     </details>
@@ -893,6 +962,24 @@ class LRUCache:
       <summary><span class="tag medium">Medium</span> 211. Design Add and Search Words Data Structure <span class="ds-tags"><span class="ds">Trie</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Support <code>addWord(word)</code> and <code>search(word)</code>, where <code>word</code> may contain <code>.</code> meaning "any single letter".</p>
+        <!-- enrich-top:start 211 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-add-and-search-words-data-structure/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=SFHv22RZKww" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["WordDictionary","addWord","addWord","addWord","search","search","search","search"]
+[[],["bad"],["dad"],["mad"],["pad"],["bad"],[".ad"],["b.."]]</code></div><div><strong>Output:</strong> <code class="ex">[null,null,null,null,false,true,true,true]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">WordDictionary wordDictionary = new WordDictionary();
+wordDictionary.addWord("bad");
+wordDictionary.addWord("dad");
+wordDictionary.addWord("mad");
+wordDictionary.search("pad"); // return False
+wordDictionary.search("bad"); // return True
+wordDictionary.search(".ad"); // return True
+wordDictionary.search("b.."); // return True</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ word.length ≤ 25</code> · <code>word</code> in <code>addWord</code> consists of lowercase English letters. · <code>word</code> in <code>search</code> consist of <code>'.'</code> or lowercase English letters. · There will be at most <code>2</code> dots in <code>word</code> for <code>search</code> queries. · At most <code>10⁴</code> calls will be made to <code>addWord</code> and <code>search</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Store the words in a trie.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A <code>.</code> must try every child: search with DFS.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing the pattern against every stored word is <code>O(n · L)</code> per search. A trie follows only matching branches, and only <code>.</code> branches out.</p>
+        <!-- enrich-top:end 211 -->
         <p><strong>Spot it:</strong> Store the words in a trie as in LeetCode 208. A normal letter follows one child; a <code>.</code> must try <strong>every</strong> child, which turns the search into a DFS over the trie.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -956,6 +1043,14 @@ class WordDictionary:
           </tbody>
         </table>
         <!-- explain:end 211 -->
+        <!-- enrich-edges:start 211 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A pattern of only dots, e.g. <code>"..."</code>.</li>
+          <li>A pattern longer than every word.</li>
+          <li>A pattern that matches a prefix but not a whole word.</li>
+        </ul>
+        <!-- enrich-edges:end 211 -->
         <p><strong>Complexity:</strong> <code>addWord</code>: <code>O(L)</code>. <code>search</code>: <code>O(L)</code> without dots, up to <code>O(26^d · L)</code> with <code>d</code> dots in the worst case.</p>
       </div>
     </details>
@@ -964,6 +1059,24 @@ class WordDictionary:
       <summary><span class="tag medium">Medium</span> 380. Insert Delete GetRandom O(1) <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a set with <code>insert(val)</code>, <code>remove(val)</code> (each returns whether it changed the set) and <code>getRandom()</code> (each element equally likely), all in average <code>O(1)</code> time.</p>
+        <!-- enrich-top:start 380 -->
+        <p class="links"><a href="https://leetcode.com/problems/insert-delete-getrandom-o1/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=rCilYdXkPNY" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["RandomizedSet", "insert", "remove", "insert", "getRandom", "remove", "insert", "getRandom"]
+[[], [1], [2], [2], [], [1], [2], []]</code></div><div><strong>Output:</strong> <code class="ex">[null, true, false, true, 2, true, false, 2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">RandomizedSet randomizedSet = new RandomizedSet();
+randomizedSet.insert(1); // Inserts 1 to the set. Returns true as 1 was inserted successfully.
+randomizedSet.remove(2); // Returns false as 2 does not exist in the set.
+randomizedSet.insert(2); // Inserts 2 to the set, returns true. Set now contains [1,2].
+randomizedSet.getRandom(); // getRandom() should return either 1 or 2 randomly.
+randomizedSet.remove(1); // Removes 1 from the set, returns true. Set now contains [2].
+randomizedSet.insert(2); // 2 was already in the set, so return false.
+randomizedSet.getRandom(); // Since 2 is the only number in the set, getRandom() will always return 2.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>-2³¹ ≤ val ≤ 2³¹ - 1</code> · At most <code>2 * </code><code>10⁵</code> calls will be made to <code>insert</code>, <code>remove</code>, and <code>getRandom</code>. · There will be <strong>at least one</strong> element in the data structure when <code>getRandom</code> is called.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A list gives <code>O(1)</code> random picks; a map gives <code>O(1)</code> lookups.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>To remove in <code>O(1)</code>, move the last element into the removed slot and update its index in the map.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A set can't pick a random element in <code>O(1)</code>; a list can't remove from the middle in <code>O(1)</code>. Using both, plus swap-with-last removal, makes every operation average <code>O(1)</code>.</p>
+        <!-- enrich-top:end 380 -->
         <p><strong>Spot it:</strong> A hash set gives <code>O(1)</code> insert/remove but can't pick a random element in <code>O(1)</code>; a list can (<code>random.choice</code>) but removes in <code>O(n)</code>. Use <strong>both</strong>: the list holds the values, and a map records each value's index in the list.</p>
         <p><strong>Key insight:</strong> To delete from the middle of the list in <code>O(1)</code>, move the <strong>last</strong> value into the hole, update its index in the map, then <code>pop()</code> the end.</p>
         <p><strong>Approach:</strong></p>
@@ -1023,6 +1136,14 @@ class RandomizedSet:
           </tbody>
         </table>
         <!-- explain:end 380 -->
+        <!-- enrich-edges:start 380 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Removing the last element (the swap is with itself).</li>
+          <li>Inserting a value that's already present → False.</li>
+          <li>Removing a missing value → False.</li>
+        </ul>
+        <!-- enrich-edges:end 380 -->
         <p><strong>Complexity:</strong> Average <code>O(1)</code> time for every operation, <code>O(n)</code> space.</p>
       </div>
     </details>

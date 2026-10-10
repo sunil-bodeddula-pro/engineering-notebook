@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -667,6 +683,17 @@ def words_reversed(s):
       <summary><span class="tag easy">Easy</span> 13. Roman to Integer <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Convert a Roman numeral (<code>I V X L C D M</code> = 1, 5, 10, 50, 100, 500, 1000) to an integer. <code>IV</code> = 4, <code>IX</code> = 9, <code>XL</code> = 40, etc.</p>
+        <!-- enrich-top:start 13 -->
+        <p class="links"><a href="https://leetcode.com/problems/roman-to-integer/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=JlVOzbOJiv0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "III"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">III = 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "LVIII"</code></div><div><strong>Output:</strong> <code class="ex">58</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">L = 50, V= 5, III = 3.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 15</code> · <code>s</code> contains only the characters <code>('I', 'V', 'X', 'L', 'C', 'D', 'M')</code>. · It is <strong>guaranteed</strong> that <code>s</code> is a valid roman numeral in the range <code>[1, 3999]</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Look up each symbol's value in a dictionary.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Subtract a symbol's value when the next symbol is larger (IV, IX, XL, …); otherwise add it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Listing all six subtractive pairs as special cases works but is clumsy. The "smaller before larger" rule handles them all in one scan: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 13 -->
         <p><strong>Spot it:</strong> A lookup table (symbol → value) plus one left-to-right scan. The only rule: a symbol written <strong>before</strong> a larger one is subtracted; otherwise it is added.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -707,6 +734,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 13 -->
+        <!-- enrich-edges:start 13 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single symbol.</li>
+          <li>Subtractive pairs at the end, e.g. <code>"XIV"</code>.</li>
+          <li>The largest value, <code>"MMMCMXCIX"</code> (3999).</li>
+        </ul>
+        <!-- enrich-edges:end 13 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -715,6 +750,17 @@ def words_reversed(s):
       <summary><span class="tag easy">Easy</span> 14. Longest Common Prefix <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the longest prefix shared by all strings in <code>strs</code>, or <code>""</code> if there is none.</p>
+        <!-- enrich-top:start 14 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-common-prefix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=8C6F8_nM0qs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">strs = ["flower","flow","flight"]</code></div><div><strong>Output:</strong> <code class="ex">"fl"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">strs = ["dog","racecar","car"]</code></div><div><strong>Output:</strong> <code class="ex">""</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is no common prefix among the input strings.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ strs.length ≤ 200</code> · <code>0 ≤ strs[i].length ≤ 200</code> · <code>strs[i]</code> consists of only lowercase English letters if it is non-empty.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The prefix can't be longer than the shortest string.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Compare column by column across all strings; stop at the first mismatch or the end of any string.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Taking every prefix of the first string and checking it against all others is <code>O(L² · n)</code>. Vertical scanning stops at the first mismatch: <code>O(total characters)</code>.</p>
+        <!-- enrich-top:end 14 -->
         <p><strong>Spot it:</strong> Vertical scanning: check character <code>i</code> of every string before moving to <code>i + 1</code>. The prefix can't be longer than the shortest string.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -750,6 +796,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 14 -->
+        <!-- enrich-edges:start 14 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single string → itself.</li>
+          <li>An empty string in the list → <code>""</code>.</li>
+          <li>No common prefix → <code>""</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 14 -->
         <p><strong>Complexity:</strong> <code>O(S)</code> time where <code>S</code> is the total number of characters, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -758,6 +812,20 @@ def words_reversed(s):
       <summary><span class="tag medium">Medium</span> 6. Zigzag Conversion <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Write <code>s</code> in a zigzag on <code>numRows</code> rows (down the rows, then diagonally back up, repeating), then read the rows left to right. Return that string.</p>
+        <!-- enrich-top:start 6 -->
+        <p class="links"><a href="https://leetcode.com/problems/zigzag-conversion/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=2NMMVnxV6lo" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "PAYPALISHIRING", numRows = 3</code></div><div><strong>Output:</strong> <code class="ex">"PAHNAPLSIIGYIR"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "PAYPALISHIRING", numRows = 4</code></div><div><strong>Output:</strong> <code class="ex">"PINALSIGYAHRPI"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">P I N
+A L S I G
+Y A H R
+P I</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 1000</code> · <code>s</code> consists of English letters (lower-case and upper-case), <code>','</code> and <code>'.'</code>. · <code>1 ≤ numRows ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Simulate writing the characters: go down the rows, then back up.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a list per row and a direction that flips at the top and bottom rows.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building a full 2-D grid of the zigzag wastes space. One list per row and a bouncing row index is <code>O(n)</code> (a formula for each row's indices also works).</p>
+        <!-- enrich-top:end 6 -->
         <p><strong>Spot it:</strong> A direct simulation: one string builder per row, and a pointer that bounces between the top and bottom rows.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -802,6 +870,14 @@ def words_reversed(s):
         </table>
         <p>The row index goes <code>0 1 2 1 0 1 2 1 0 …</code>. Reading the rows gives <code>PAHN</code> + <code>APLSIIG</code> + <code>YIR</code>.</p>
         <!-- explain:end 6 -->
+        <!-- enrich-edges:start 6 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>numRows = 1</code> → the string itself.</li>
+          <li><code>numRows</code> ≥ the length → the string itself.</li>
+          <li>Two rows.</li>
+        </ul>
+        <!-- enrich-edges:end 6 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
       </div>
     </details>
@@ -865,6 +941,22 @@ def words_reversed(s):
       <summary><span class="tag easy">Easy</span> 2239. Find Closest Number to Zero <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the number in <code>nums</code> closest to 0. If there is a tie (like <code>-2</code> and <code>2</code>), return the <strong>larger</strong> one.</p>
+        <!-- enrich-top:start 2239 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-closest-number-to-zero/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=dLlKA5DQKYs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-4,-2,1,4,8]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The distance from -4 to 0 is |-4| = 4.
+The distance from -2 to 0 is |-2| = 2.
+The distance from 1 to 0 is |1| = 1.
+The distance from 4 to 0 is |4| = 4.
+The distance from 8 to 0 is |8| = 8.
+Thus, the closest number to 0 in the array is 1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [2,-1,1]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">1 and -1 are both the closest numbers to 0, so 1 being larger is returned.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 1000</code> · <code>-10⁵ ≤ nums[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Track the number closest to zero as you scan.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>On a tie in distance, prefer the larger (positive) number.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting by distance is <code>O(n log n)</code>. One pass with a tie-break rule is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 2239 -->
         <p><strong>Spot it:</strong> A single best-so-far scan. The only subtlety is the tie-break, so compare by distance first and by value second.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -901,6 +993,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 2239 -->
+        <!-- enrich-edges:start 2239 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A tie between <code>-x</code> and <code>x</code> → <code>x</code>.</li>
+          <li>All negative numbers.</li>
+          <li>Zero present → 0.</li>
+        </ul>
+        <!-- enrich-edges:end 2239 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -909,6 +1009,17 @@ def words_reversed(s):
       <summary><span class="tag easy">Easy</span> 58. Length of Last Word <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>s</code> has words separated by spaces (possibly with extra spaces anywhere). Return the length of the last word.</p>
+        <!-- enrich-top:start 58 -->
+        <p class="links"><a href="https://leetcode.com/problems/length-of-last-word/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=49WmHAJVkB0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "Hello World"</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The last word is "World" with length 5.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " fly me to the moon "</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The last word is "moon" with length 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> consists of only English letters and spaces <code>' '</code>. · There will be at least one word in <code>s</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Only the end of the string matters.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Scan backwards: skip trailing spaces, then count letters until the next space.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> <code>s.split()[-1]</code> builds a list of every word: <code>O(n)</code> time and space. Scanning from the end touches only the last word and the trailing spaces.</p>
+        <!-- enrich-top:end 58 -->
         <p><strong>Spot it:</strong> Only the end of the string matters, so read it <strong>backwards</strong> instead of splitting the whole string.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -947,6 +1058,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 58 -->
+        <!-- enrich-edges:start 58 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Trailing spaces, e.g. <code>"moon  "</code>.</li>
+          <li>A single word.</li>
+          <li>Spaces at the start.</li>
+        </ul>
+        <!-- enrich-edges:end 58 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time in the worst case, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -955,6 +1074,18 @@ def words_reversed(s):
       <summary><span class="tag easy">Easy</span> 28. Find the Index of the First Occurrence in a String <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the index of the first occurrence of <code>needle</code> in <code>haystack</code>, or <code>-1</code> if <code>needle</code> isn't part of it.</p>
+        <!-- enrich-top:start 28 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-the-index-of-the-first-occurrence-in-a-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=jOC4RLCaIEM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">haystack = "sadbutsad", needle = "sad"</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"sad" occurs at index 0 and 6.
+The first occurrence is at index 0, so we return 0.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">haystack = "leetcode", needle = "leeto"</code></div><div><strong>Output:</strong> <code class="ex">-1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"leeto" did not occur in "leetcode", so we return -1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ haystack.length, needle.length ≤ 10⁴</code> · <code>haystack</code> and <code>needle</code> consist of only lowercase English characters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Try every start position where the needle could fit.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Compare character by character and stop at the first mismatch. (KMP reaches <code>O(n + m)</code>.)</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Slicing and comparing at every start is <code>O((n − m + 1) · m)</code> in the worst case, which is fine here. KMP or rolling hashes avoid re-comparing characters.</p>
+        <!-- enrich-top:end 28 -->
         <p><strong>Spot it:</strong> A fixed-length window (the length of <code>needle</code>) slid across <code>haystack</code>, comparing at each start. KMP gets <code>O(n + m)</code>, but the straightforward scan is what interviews expect first.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -993,6 +1124,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 28 -->
+        <!-- enrich-edges:start 28 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The needle longer than the haystack → −1.</li>
+          <li>A match at the very start or end.</li>
+          <li>Repetitive text, e.g. <code>"aaaa"</code> / <code>"aab"</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 28 -->
         <p><strong>Complexity:</strong> <code>O((n − m + 1) · m)</code> time in the worst case, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1001,6 +1140,22 @@ def words_reversed(s):
       <summary><span class="tag medium">Medium</span> 12. Integer to Roman <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Convert an integer <code>1..3999</code> to a Roman numeral.</p>
+        <!-- enrich-top:start 12 -->
+        <p class="links"><a href="https://leetcode.com/problems/integer-to-roman/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=uMryv-kuy08" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">num = 3749</code></div><div><strong>Output:</strong> <code class="ex">"MMMDCCXLIX"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">3000 = MMM as 1000 (M) + 1000 (M) + 1000 (M)
+ 700 = DCC as 500 (D) + 100 (C) + 100 (C)
+ 40 = XL as 10 (X) less of 50 (L)
+ 9 = IX as 1 (I) less of 10 (X)
+Note: 49 is not 1 (I) less of 50 (L) because the conversion is based on decimal places</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">num = 58</code></div><div><strong>Output:</strong> <code class="ex">"LVIII"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">50 = L
+ 8 = VIII</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ num ≤ 3999</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>List the symbol values from largest to smallest, including the subtractive pairs (CM, CD, XC, XL, IX, IV).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Greedily take the largest value that fits, as many times as it fits.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Handling each decimal digit with special cases is error-prone. A 13-entry table and greedy subtraction is simple and <code>O(1)</code> for numbers up to 3999.</p>
+        <!-- enrich-top:end 12 -->
         <p><strong>Spot it:</strong> List every symbol value <strong>including</strong> the subtractive forms (<code>CM</code> 900, <code>CD</code> 400, <code>XC</code> 90, <code>XL</code> 40, <code>IX</code> 9, <code>IV</code> 4), largest first. Then greedily take the biggest value that still fits, like making change with coins.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1039,6 +1194,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 12 -->
+        <!-- enrich-edges:start 12 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>4 → <code>"IV"</code>, 9 → <code>"IX"</code>.</li>
+          <li>3999 → <code>"MMMCMXCIX"</code>.</li>
+          <li>Numbers with zeros, e.g. 1004 → <code>"MIV"</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 12 -->
         <p><strong>Complexity:</strong> <code>O(1)</code>: the numeral is at most 15 symbols for numbers up to 3999.</p>
       </div>
     </details>
@@ -1047,6 +1210,17 @@ def words_reversed(s):
       <summary><span class="tag medium">Medium</span> 151. Reverse Words in a String <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the order of the words in <code>s</code>. The result must have exactly one space between words and no leading or trailing spaces, even if <code>s</code> has extra spaces.</p>
+        <!-- enrich-top:start 151 -->
+        <p class="links"><a href="https://leetcode.com/problems/reverse-words-in-a-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=pDzMALTsNYM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "the sky is blue"</code></div><div><strong>Output:</strong> <code class="ex">"blue is sky the"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " hello world "</code></div><div><strong>Output:</strong> <code class="ex">"world hello"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your reversed string should not contain leading or trailing spaces.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> contains English letters (upper-case and lower-case), digits, and spaces <code>' '</code>. · There is <strong>at least one</strong> word in <code>s</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Extract the words first, ignoring extra spaces.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse the list of words and join with single spaces.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly finding and removing the last word is <code>O(n²)</code>. One scan to collect words, a reverse and a join is <code>O(n)</code> (<code>" ".join(reversed(s.split()))</code>).</p>
+        <!-- enrich-top:end 151 -->
         <p><strong>Spot it:</strong> Extract the words with a manual scan (or <code>s.split()</code>, which already drops extra spaces), then output them in reverse. That's string parsing, not a pattern.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1090,6 +1264,14 @@ def words_reversed(s):
           </tbody>
         </table>
         <!-- explain:end 151 -->
+        <!-- enrich-edges:start 151 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Leading and trailing spaces.</li>
+          <li>Several spaces between words.</li>
+          <li>A single word.</li>
+        </ul>
+        <!-- enrich-edges:end 151 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
       </div>
     </details>

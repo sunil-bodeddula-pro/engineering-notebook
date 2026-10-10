@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -823,6 +839,17 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 547. Number of Provinces <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>isConnected[i][j] = 1</code> means city <code>i</code> and city <code>j</code> are directly connected. A province is a group of cities connected directly or indirectly. Count the provinces.</p>
+        <!-- enrich-top:start 547 -->
+        <p class="links"><a href="https://leetcode.com/problems/number-of-provinces/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">isConnected = [[1,1,0],[1,1,0],[0,0,1]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">isConnected = [[1,0,0],[0,1,0],[0,0,1]]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 200</code> · <code>n == isConnected.length</code> · <code>n == isConnected[i].length</code> · <code>isConnected[i][j]</code> is <code>1</code> or <code>0</code>. · <code>isConnected[i][i] == 1</code> · <code>isConnected[i][j] == isConnected[j][i]</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Cities connected directly or indirectly form one province: a connected component.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>For every unvisited city, run a DFS that marks its whole component; count how many DFS runs you start.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly merging groups of cities by scanning the matrix is slow and fiddly. One DFS (or union-find) per unvisited city visits each city once and reads its matrix row: <code>O(n²)</code>, which is the size of the input.</p>
+        <!-- enrich-top:end 547 -->
         <p><strong>Spot it:</strong> "groups connected directly or indirectly" = connected components. The input is an adjacency matrix.</p>
         <p><strong>Key insight:</strong> Loop over cities. Each time you find an unvisited one, that's a new province: DFS from it to chalk-mark every city in that province.</p>
         <p><strong>Approach:</strong></p>
@@ -870,6 +897,14 @@ def topo_sort(n, graph):
             <tr><td>2</td><td>no</td><td><code>dfs(2)</code> (only connected to itself)</td><td><code>[True, True, True]</code></td><td>2</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 547 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No connections → <code>n</code> provinces.</li>
+          <li>Everyone connected → 1.</li>
+          <li>Indirect connections (A–B, B–C) form one province.</li>
+        </ul>
+        <!-- enrich-edges:end 547 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time (matrix input), <code>O(n)</code> space. Union-Find is an equally good alternative.</p>
       </div>
     </details>
@@ -878,6 +913,21 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 133. Clone Graph <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a reference to one node of a connected undirected graph, return a deep copy. Every node has <code>val</code> and a list of <code>neighbors</code>.</p>
+        <!-- enrich-top:start 133 -->
+        <p class="links"><a href="https://leetcode.com/problems/clone-graph/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=wWE7YzuBBkE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">adjList = [[2,4],[1,3],[2,4],[1,3]]</code></div><div><strong>Output:</strong> <code class="ex">[[2,4],[1,3],[2,4],[1,3]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are 4 nodes in the graph.
+1st node (val = 1)'s neighbors are 2nd node (val = 2) and 4th node (val = 4).
+2nd node (val = 2)'s neighbors are 1st node (val = 1) and 3rd node (val = 3).
+3rd node (val = 3)'s neighbors are 2nd node (val = 2) and 4th node (val = 4).
+4th node (val = 4)'s neighbors are 1st node (val = 1) and 3rd node (val = 3).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">adjList = [[]]</code></div><div><strong>Output:</strong> <code class="ex">[[]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Note that the input contains one empty list. The graph consists of only one node with val = 1 and it does not have any neighbors.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the graph is in the range <code>[0, 100]</code>. · <code>1 ≤ Node.val ≤ 100</code> · <code>Node.val</code> is unique for each node. · There are no repeated edges and no self-loops in the graph. · The Graph is connected and all nodes can be visited starting from the given node.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You must create a new node for every node and copy the edges, but the graph can have cycles.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a dictionary old node → copy: create a copy when you first see a node, and reuse it if you meet the node again.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying recursively without remembering what's already copied loops forever on cycles (or duplicates nodes). The old → new map acts as both the visited set and the lookup table: <code>O(V + E)</code>.</p>
+        <!-- enrich-top:end 133 -->
         <p><strong>Spot it:</strong> "copy every node reachable from here", and the graph has cycles. That's DFS with a visited map.</p>
         <p><strong>Key insight:</strong> Use a dict <code>original → clone</code> as the visited set. Register the clone <strong>before</strong> recursing into neighbours. Otherwise a cycle (A ↔ B) would try to clone A again forever.</p>
         <p><strong>Approach:</strong></p>
@@ -926,6 +976,14 @@ def topo_sort(n, graph):
             <tr><td><code>clone(4)</code> (1's second neighbour)</td><td>yes: reuse</td><td>{1, 2, 3, 4}</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 133 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty graph (<code>None</code>) → <code>None</code>.</li>
+          <li>A single node with no neighbours.</li>
+          <li>Cycles in the graph.</li>
+        </ul>
+        <!-- enrich-edges:end 133 -->
         <p><strong>Complexity:</strong> <code>O(V + E)</code> time, <code>O(V)</code> space.</p>
       </div>
     </details>
@@ -934,6 +992,19 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 207. Course Schedule <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> There are <code>numCourses</code> courses. <code>[a, b]</code> means you must take <code>b</code> before <code>a</code>. Can you finish them all?</p>
+        <!-- enrich-top:start 207 -->
+        <p class="links"><a href="https://leetcode.com/problems/course-schedule/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=nz5V5pOiT8w" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">numCourses = 2, prerequisites = [[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are a total of 2 courses to take. 
+To take course 1 you should have finished course 0. So it is possible.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">numCourses = 2, prerequisites = [[1,0],[0,1]]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are a total of 2 courses to take. 
+To take course 1 you should have finished course 0, and to take course 0 you should also have finished course 1. So it is impossible.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ numCourses ≤ 2000</code> · <code>0 ≤ prerequisites.length ≤ 5000</code> · <code>prerequisites[i].length == 2</code> · <code>0 ≤ ai, bi &lt; numCourses</code> · All the pairs prerequisites[i] are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Courses and prerequisites form a directed graph. When is finishing everything impossible?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>It's impossible exactly when the graph has a cycle. Detect it with DFS colours (white/gray/black) or with Kahn's algorithm.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying course orders is factorial. Cycle detection with a three-colour DFS (a gray node met again means a cycle) or Kahn's topological sort runs in <code>O(V + E)</code>.</p>
+        <!-- enrich-top:end 207 -->
         <p><strong>Spot it:</strong> "prerequisites" = a directed graph. You can finish everything if and only if there's <strong>no cycle</strong>.</p>
         <p><strong>Key insight:</strong> Three-colour DFS. A gray node is on the current path. If you reach a gray node again, you've found a loop of courses that all wait on each other.</p>
         <p><strong>Approach:</strong></p>
@@ -997,6 +1068,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <p>With example 1 (<code>[[1,0]]</code>) the same steps paint 1 then 0 BLACK and the answer is <code>True</code>.</p>
+        <!-- enrich-edges:start 207 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No prerequisites → True.</li>
+          <li>A self-loop like <code>[0, 0]</code> → False.</li>
+          <li>Several disconnected groups of courses.</li>
+        </ul>
+        <!-- enrich-edges:end 207 -->
         <p><strong>Complexity:</strong> <code>O(V + E)</code> time and space.</p>
       </div>
     </details>
@@ -1005,6 +1084,18 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 210. Course Schedule II <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Same input as 207, but return <em>an</em> order in which to take all courses, or <code>[]</code> if that's impossible.</p>
+        <!-- enrich-top:start 210 -->
+        <p class="links"><a href="https://leetcode.com/problems/course-schedule-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=2cpihwDznaw" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">numCourses = 2, prerequisites = [[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">[0,1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are a total of 2 courses to take. To take course 1 you should have finished course 0. So the correct course order is [0,1].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">numCourses = 4, prerequisites = [[1,0],[2,0],[3,1],[3,2]]</code></div><div><strong>Output:</strong> <code class="ex">[0,2,1,3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are a total of 4 courses to take. To take course 3 you should have finished both courses 1 and 2. Both courses 1 and 2 should be taken after you finished course 0.
+So one correct course order is [0,1,2,3]. Another correct ordering is [0,2,1,3].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ numCourses ≤ 2000</code> · <code>0 ≤ prerequisites.length ≤ numCourses * (numCourses - 1)</code> · <code>prerequisites[i].length == 2</code> · <code>0 ≤ ai, bi &lt; numCourses</code> · <code>ai != bi</code> · All the pairs <code>[ai, bi]</code> are <strong>distinct</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A valid order is a topological order of the prerequisite graph.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Kahn's algorithm: repeatedly take a course with no remaining prerequisites; or append courses in DFS post-order and reverse.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating orders and checking them is factorial. A topological sort produces a valid order (or detects a cycle) in <code>O(V + E)</code>.</p>
+        <!-- enrich-top:end 210 -->
         <p><strong>Spot it:</strong> "return an ordering that respects dependencies" = topological sort.</p>
         <p><strong>Key insight:</strong> In DFS, a course turns black only after every course that depends on it has turned black. So the finish order lists dependents first. <strong>Reverse it</strong> to put prerequisites first.</p>
         <p><strong>Approach:</strong></p>
@@ -1076,6 +1167,14 @@ def topo_sort(n, graph):
             <tr><td>reverse post → answer</td><td></td><td><code>[0, 2, 1, 3]</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 210 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A cycle → <code>[]</code>.</li>
+          <li>No prerequisites → any order of all courses.</li>
+          <li>Isolated courses must still appear in the answer.</li>
+        </ul>
+        <!-- enrich-edges:end 210 -->
         <p><strong>Complexity:</strong> <code>O(V + E)</code> time and space.</p>
       </div>
     </details>
@@ -1084,6 +1183,17 @@ def topo_sort(n, graph):
       <summary><span class="tag hard">Hard</span> 1192. Critical Connections in a Network <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>n</code> servers and undirected connections. A connection is <em>critical</em> if removing it disconnects some servers. Return all critical connections (these are called <strong>bridges</strong>).</p>
+        <!-- enrich-top:start 1192 -->
+        <p class="links"><a href="https://leetcode.com/problems/critical-connections-in-a-network/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 4, connections = [[0,1],[1,2],[2,0],[1,3]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,3]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[[3,1]] is also accepted.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 2, connections = [[0,1]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ n ≤ 10⁵</code> · <code>n - 1 ≤ connections.length ≤ 10⁵</code> · <code>0 ≤ ai, bi ≤ n - 1</code> · <code>ai != bi</code> · There are no repeated connections.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>An edge is critical if removing it disconnects the graph: it lies on no cycle.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Tarjan's algorithm: DFS discovery times plus the lowest discovery time reachable from each subtree. Edge <code>(u, v)</code> is a bridge if <code>low[v] &gt; disc[u]</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Removing each edge and checking connectivity is <code>O(E · (V + E))</code>. Tarjan's bridge-finding DFS identifies every critical edge in one pass: <code>O(V + E)</code>.</p>
+        <!-- enrich-top:end 1192 -->
         <p><strong>Spot it:</strong> "removing an edge disconnects the graph" = bridges, which Tarjan's DFS finds in one pass.</p>
         <p><strong>Key insight:</strong> Stamp each node with its discovery time <code>disc[u]</code>. Let <code>low[u]</code> be the earliest discovery time reachable from <code>u</code>'s DFS subtree using one back edge. If a child <code>v</code> can't reach anything discovered at or before <code>u</code> (<code>low[v] &gt; disc[u]</code>), the only way out of <code>v</code>'s subtree is the edge <code>u–v</code>, so it's a bridge. An edge on a cycle is never a bridge.</p>
         <p><strong>Approach:</strong></p>
@@ -1149,6 +1259,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <p>(<code>low[3]</code> shows 0 before 3 is entered only because <code>low</code> starts as all zeros; it is overwritten when 3 is discovered.)</p>
+        <!-- enrich-edges:start 1192 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A tree (every edge is critical).</li>
+          <li>One big cycle → <code>[]</code>.</li>
+          <li>Ignore the edge back to your DFS parent when updating <code>low</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 1192 -->
         <p><strong>Complexity:</strong> <code>O(V + E)</code> time and space. For <code>n = 10<sup>5</sup></code> in Python, raise the recursion limit or convert to an iterative DFS.</p>
       </div>
     </details>
@@ -1217,6 +1335,19 @@ def topo_sort(n, graph):
       <summary><span class="tag easy">Easy</span> 1971. Find if Path Exists in Graph <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Set</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <code>n</code> nodes and an undirected edge list, is there a path from <code>source</code> to <code>destination</code>?</p>
+        <!-- enrich-top:start 1971 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-if-path-exists-in-graph/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=knLFe7hEp3Y" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 3, edges = [[0,1],[1,2],[2,0]], source = 0, destination = 2</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are two paths from vertex 0 to vertex 2:
+- 0 → 1 → 2
+- 0 → 2</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 6, edges = [[0,1],[0,2],[3,5],[5,4],[4,3]], source = 0, destination = 5</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is no path from vertex 0 to vertex 5.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 2 * 10⁵</code> · <code>0 ≤ edges.length ≤ 2 * 10⁵</code> · <code>edges[i].length == 2</code> · <code>0 ≤ ui, vi ≤ n - 1</code> · <code>ui != vi</code> · <code>0 ≤ source, destination ≤ n - 1</code> · There are no duplicate edges. · There are no self edges.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Build an adjacency list from the edges.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>DFS or BFS from <code>source</code>, marking visited nodes; check whether <code>destination</code> gets visited.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every path is exponential. A traversal visits each vertex and edge once: <code>O(V + E)</code>. Union-find is another good option.</p>
+        <!-- enrich-top:end 1971 -->
         <p><strong>Spot it:</strong> "is there a path" is plain reachability. DFS from the source and see if you reach the destination.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1264,6 +1395,14 @@ def topo_sort(n, graph):
             <tr><td>2</td><td>yes → return True</td><td></td><td><code>[1]</code></td><td><code>{0, 1, 2}</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 1971 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>source == destination</code> → True.</li>
+          <li>No edges at all.</li>
+          <li>Disconnected components.</li>
+        </ul>
+        <!-- enrich-edges:end 1971 -->
         <p><strong>Complexity:</strong> <code>O(V + E)</code> time and space.</p>
       </div>
     </details>
@@ -1272,6 +1411,21 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 841. Keys and Rooms <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Set</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Room 0 is unlocked, and every other room is locked. <code>rooms[i]</code> lists the keys you find inside room <code>i</code>. Can you get into every room?</p>
+        <!-- enrich-top:start 841 -->
+        <p class="links"><a href="https://leetcode.com/problems/keys-and-rooms/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">rooms = [[1],[2],[3],[]]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We visit room 0 and pick up key 1.
+We then visit room 1 and pick up key 2.
+We then visit room 2 and pick up key 3.
+We then visit room 3.
+Since we were able to visit every room, we return true.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">rooms = [[1,3],[3,0,1],[2],[0]]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can not enter room number 2 since the only key that unlocks it is in that room.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == rooms.length</code> · <code>2 ≤ n ≤ 1000</code> · <code>0 ≤ rooms[i].length ≤ 1000</code> · <code>1 ≤ sum(rooms[i].length) ≤ 3000</code> · <code>0 ≤ rooms[i][j] &lt; n</code> · All the values of <code>rooms[i]</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Rooms are nodes and keys are edges. Can you reach every room from room 0?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>DFS from room 0, collecting keys; at the end, compare the number of visited rooms with <code>n</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly scanning all rooms for ones you can now open is <code>O(n²)</code>. A single DFS/BFS from room 0 over the key graph is <code>O(rooms + keys)</code>.</p>
+        <!-- enrich-top:end 841 -->
         <p><strong>Spot it:</strong> Rooms are nodes and keys are directed edges. "Can I visit all?" means: does a DFS from room 0 reach every node?</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1309,6 +1463,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <p>4 rooms seen out of 4, so the answer is <code>True</code>.</p>
+        <!-- enrich-edges:start 841 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Room 0 contains no keys.</li>
+          <li>Keys to rooms that are already open.</li>
+          <li>A key to room 0 itself.</li>
+        </ul>
+        <!-- enrich-edges:end 841 -->
         <p><strong>Complexity:</strong> <code>O(rooms + keys)</code> time, <code>O(rooms)</code> space.</p>
       </div>
     </details>
@@ -1317,6 +1479,17 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 797. All Paths From Source to Target <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a DAG (directed graph with no cycles) as an adjacency list, return every path from node 0 to node <code>n-1</code>.</p>
+        <!-- enrich-top:start 797 -->
+        <p class="links"><a href="https://leetcode.com/problems/all-paths-from-source-to-target/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">graph = [[1,2],[3],[3],[]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,1,3],[0,2,3]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are two paths: 0 -&gt; 1 -&gt; 3 and 0 -&gt; 2 -&gt; 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">graph = [[4,3,1],[3,2,4],[3],[4],[]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,4],[0,3,4],[0,1,3,4],[0,1,2,3,4],[0,1,4]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == graph.length</code> · <code>2 ≤ n ≤ 15</code> · <code>0 ≤ graph[i][j] &lt; n</code> · <code>graph[i][j] != i</code> (i.e., there will be no self-loops). · All the elements of <code>graph[i]</code> are <strong>unique</strong>. · The input graph is <strong>guaranteed</strong> to be a <strong>DAG</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The graph is a DAG, so paths can't loop.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtracking DFS: extend the path, recurse into each neighbour, record the path when you reach <code>n − 1</code>, then pop.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> There's no shortcut: the output itself can be exponential in size. Backtracking enumerates each path exactly once without needing a visited set, because there are no cycles.</p>
+        <!-- enrich-top:end 797 -->
         <p><strong>Spot it:</strong> "all paths" means explore every branch, which is DFS. The graph has no cycles, so no visited set is needed.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1360,6 +1533,14 @@ def topo_sort(n, graph):
             <tr><td><code>dfs(3)</code>: target, save a copy</td><td><code>[0, 2, 3]</code></td><td><code>[[0, 1, 3], [0, 2, 3]]</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 797 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A direct edge from 0 to <code>n − 1</code>.</li>
+          <li>Several paths that share a prefix.</li>
+          <li>A node with no outgoing edges.</li>
+        </ul>
+        <!-- enrich-edges:end 797 -->
         <p><strong>Complexity:</strong> <code>O(2<sup>n</sup> · n)</code> in the worst case, since there can be exponentially many paths. Extra space is <code>O(n)</code> on top of the output.</p>
       </div>
     </details>
@@ -1368,6 +1549,19 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 802. Find Eventual Safe States <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a directed graph, a node is <em>safe</em> if every path starting from it ends at a terminal node (one with no outgoing edges). Return all safe nodes in sorted order.</p>
+        <!-- enrich-top:start 802 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-eventual-safe-states/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">graph = [[1,2],[2,3],[5],[0],[5],[],[]]</code></div><div><strong>Output:</strong> <code class="ex">[2,4,5,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The given graph is shown above.
+Nodes 5 and 6 are terminal nodes as there are no outgoing edges from either of them.
+Every path starting at nodes 2, 4, 5, and 6 all lead to either node 5 or 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">graph = [[1,2,3,4],[1,2],[3,4],[0,4],[]]</code></div><div><strong>Output:</strong> <code class="ex">[4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Only node 4 is a terminal node, and every path starting at node 4 leads to node 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == graph.length</code> · <code>1 ≤ n ≤ 10⁴</code> · <code>0 ≤ graph[i].length ≤ n</code> · <code>0 ≤ graph[i][j] ≤ n - 1</code> · <code>graph[i]</code> is sorted in a strictly increasing order. · The graph may contain self-loops. · The number of edges in the graph will be in the range <code>[1, 4 * 10⁴]</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A node is safe if every path from it ends at a terminal node, i.e. it can't reach a cycle.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Three-colour DFS: a node is safe if its DFS finishes without meeting a gray node (or run a topological sort on the reversed graph).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Exploring all paths from every node is exponential. Colouring nodes once (unvisited / in progress / safe) gives each node's status in <code>O(V + E)</code>.</p>
+        <!-- enrich-top:end 802 -->
         <p><strong>Spot it:</strong> A node is unsafe exactly when it can reach a cycle. That's 3-colour DFS, and the final colours give the answer.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1418,6 +1612,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <p>Answer: <code>[2, 4, 5, 6]</code>.</p>
+        <!-- enrich-edges:start 802 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Terminal nodes (no outgoing edges) are safe.</li>
+          <li>Self-loops are unsafe.</li>
+          <li>A node that can reach a cycle is unsafe even if some of its paths end.</li>
+        </ul>
+        <!-- enrich-edges:end 802 -->
         <p><strong>Complexity:</strong> <code>O(V + E)</code> time and space.</p>
       </div>
     </details>
@@ -1426,6 +1628,20 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 399. Evaluate Division <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You're given equations like <code>a / b = 2.0</code>. Answer queries like <code>a / c</code>. Return <code>-1.0</code> if a query can't be determined.</p>
+        <!-- enrich-top:start 399 -->
+        <p class="links"><a href="https://leetcode.com/problems/evaluate-division/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=OGF274qcJE8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">equations = [["a","b"],["b","c"]], values = [2.0,3.0], queries = [["a","c"],["b","a"],["a","e"],["a","a"],["x","x"]]</code></div><div><strong>Output:</strong> <code class="ex">[6.00000,0.50000,-1.00000,1.00000,-1.00000]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Given: a / b = 2.0, b / c = 3.0
+queries are: a / c = ?, b / a = ?, a / e = ?, a / a = ?, x / x = ? 
+return: [6.0, 0.5, -1.0, 1.0, -1.0 ]
+note: x is undefined =&gt; -1.0</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">equations = [["a","b"],["b","c"],["bc","cd"]], values = [1.5,2.5,5.0], queries = [["a","c"],["c","b"],["bc","cd"],["cd","bc"]]</code></div><div><strong>Output:</strong> <code class="ex">[3.75000,0.40000,5.00000,0.20000]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ equations.length ≤ 20</code> · <code>equations[i].length == 2</code> · <code>1 ≤ Ai.length, Bi.length ≤ 5</code> · <code>values.length == equations.length</code> · <code>0.0 &lt; values[i] ≤ 20.0</code> · <code>1 ≤ queries.length ≤ 20</code> · <code>queries[i].length == 2</code> · <code>1 ≤ Cj.length, Dj.length ≤ 5</code> · <code>Ai, Bi, Cj, Dj</code> consist of lower case English letters and digits.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>a / b = 2</code> is an edge <code>a → b</code> with weight 2 and <code>b → a</code> with weight ½.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A query <code>x / y</code> is the product of the weights along any path from <code>x</code> to <code>y</code>; find it with DFS.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying to solve the equations algebraically is complicated. Modelling the equations as a weighted graph and multiplying along a DFS path answers each query in <code>O(V + E)</code>.</p>
+        <!-- enrich-top:end 399 -->
         <p><strong>Spot it:</strong> Variables are nodes, and <code>a/b = k</code> is an edge a→b with weight k (plus b→a with weight 1/k). A query is "find any path and multiply the weights along it", which DFS can do.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1490,6 +1706,14 @@ def topo_sort(n, graph):
             <tr><td><code>x / x</code></td><td>none (x unknown)</td><td></td><td>-1.0</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 399 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A variable that never appears → −1.0.</li>
+          <li><code>x / x</code> for a known variable → 1.0.</li>
+          <li>Variables in different components → −1.0.</li>
+        </ul>
+        <!-- enrich-edges:end 399 -->
         <p><strong>Complexity:</strong> <code>O(Q · (V + E))</code> time, <code>O(V + E)</code> space.</p>
       </div>
     </details>
@@ -1498,6 +1722,17 @@ def topo_sort(n, graph):
       <summary><span class="tag hard">Hard</span> 332. Reconstruct Itinerary <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given airline tickets <code>[from, to]</code>, use every ticket exactly once to build an itinerary starting at <code>"JFK"</code>. If several work, return the lexicographically smallest one.</p>
+        <!-- enrich-top:start 332 -->
+        <p class="links"><a href="https://leetcode.com/problems/reconstruct-itinerary/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">tickets = [["MUC","LHR"],["JFK","MUC"],["SFO","SJC"],["LHR","SFO"]]</code></div><div><strong>Output:</strong> <code class="ex">["JFK","MUC","LHR","SFO","SJC"]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">tickets = [["JFK","SFO"],["JFK","ATL"],["SFO","ATL"],["ATL","JFK"],["ATL","SFO"]]</code></div><div><strong>Output:</strong> <code class="ex">["JFK","ATL","JFK","SFO","ATL","SFO"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Another possible reconstruction is ["JFK","SFO","ATL","JFK","ATL","SFO"] but it is larger in lexical order.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ tickets.length ≤ 300</code> · <code>tickets[i].length == 2</code> · <code>fromi.length == 3</code> · <code>toi.length == 3</code> · <code>fromi</code> and <code>toi</code> consist of uppercase English letters. · <code>fromi != toi</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You must use every ticket exactly once: an Eulerian path starting at JFK.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Hierholzer's algorithm: always take the lexicographically smallest unused ticket; add an airport to the route when you get stuck, then reverse.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Backtracking over ticket orders can be exponential. Hierholzer's algorithm (with sorted destinations, consumed as you go) builds the itinerary in <code>O(E log E)</code>.</p>
+        <!-- enrich-top:end 332 -->
         <p><strong>Spot it:</strong> "use every edge exactly once" is an Euler path. Hierholzer's algorithm is a DFS that adds a node to the route when it gets <em>stuck</em> (postorder).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1556,6 +1791,14 @@ def topo_sort(n, graph):
             <tr><td>reverse route</td><td></td><td><code>["JFK", "MUC", "LHR", "SFO", "SJC"]</code></td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 332 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A dead end reached early (that's why airports are added on the way back).</li>
+          <li>Duplicate tickets.</li>
+          <li>Lexicographic ties.</li>
+        </ul>
+        <!-- enrich-edges:end 332 -->
         <p><strong>Complexity:</strong> <code>O(E log E)</code> time (sorting), <code>O(E)</code> space.</p>
       </div>
     </details>
@@ -1564,6 +1807,17 @@ def topo_sort(n, graph):
       <summary><span class="tag hard">Hard</span> 329. Longest Increasing Path in a Matrix <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the length of the longest strictly increasing path in a grid, moving up, down, left or right.</p>
+        <!-- enrich-top:start 329 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-increasing-path-in-a-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[9,9,4],[6,6,8],[2,1,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest increasing path is [1, 2, 6, 9].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[3,4,5],[3,2,6],[2,2,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest increasing path is [3, 4, 5, 6]. Moving diagonally is not allowed.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[i].length</code> · <code>1 ≤ m, n ≤ 200</code> · <code>0 ≤ matrix[i][j] ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>From each cell, the longest increasing path depends only on the cells it can move to.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>DFS with memoisation: <code>best(cell) = 1 + max(best(neighbour))</code> over strictly larger neighbours.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DFS from every cell without memory recomputes the same paths over and over (exponential). The "strictly increasing" rule means there are no cycles, so caching each cell's answer makes it <code>O(r · c)</code>.</p>
+        <!-- enrich-top:end 329 -->
         <p><strong>Spot it:</strong> Edges go only from smaller to larger values, so the grid is an implicit DAG with no cycles. DFS from each cell, with memoization so each cell is computed once.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1626,6 +1880,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <p>The largest value is 4 (path 1 → 2 → 6 → 9).</p>
+        <!-- enrich-edges:start 329 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All values equal → 1.</li>
+          <li>A single cell → 1.</li>
+          <li>A long snake-shaped increasing path.</li>
+        </ul>
+        <!-- enrich-edges:end 329 -->
         <p><strong>Complexity:</strong> <code>O(R·C)</code> time and space.</p>
       </div>
     </details>
@@ -1634,6 +1896,20 @@ def topo_sort(n, graph):
       <summary><span class="tag easy">Easy</span> 112. Path Sum <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if some <strong>root-to-leaf</strong> path has values adding up to <code>targetSum</code>.</p>
+        <!-- enrich-top:start 112 -->
+        <p class="links"><a href="https://leetcode.com/problems/path-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Txzs2maQ_D0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [5,4,8,11,null,13,4,7,2,null,null,null,1], targetSum = 22</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The root-to-leaf path with the target sum is shown.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3], targetSum = 5</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are two root-to-leaf paths in the tree:
+(1 --&gt; 2): The sum is 3.
+(1 --&gt; 3): The sum is 4.
+There is no root-to-leaf path with sum = 5.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[0, 5000]</code>. · <code>-1000 ≤ Node.val ≤ 1000</code> · <code>-1000 ≤ targetSum ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Carry the remaining sum down the tree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>At a <strong>leaf</strong>, check whether the remaining sum equals the leaf's value.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting every root-to-leaf path and summing it is <code>O(n · h)</code>. Passing the remainder down checks each path as you reach its leaf: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 112 -->
         <p><strong>Spot it:</strong> Root-to-leaf paths → DFS that carries state <strong>downward</strong>. Subtracting each node's value from the target means a leaf only has to check whether what is left equals its own value.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1673,6 +1949,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <!-- explain:end 112 -->
+        <!-- enrich-edges:start 112 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty tree → False, even if <code>targetSum = 0</code>.</li>
+          <li>A node with one child is not a leaf.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 112 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1681,6 +1965,22 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 129. Sum Root to Leaf Numbers <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each node holds a digit <code>0..9</code>, and every root-to-leaf path spells a number (<code>1 → 2 → 3</code> is 123). Return the sum of all these numbers.</p>
+        <!-- enrich-top:start 129 -->
+        <p class="links"><a href="https://leetcode.com/problems/sum-root-to-leaf-numbers/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=R4e0CNUMd_w" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">25</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The root-to-leaf path 1-&gt;2 represents the number 12.
+The root-to-leaf path 1-&gt;3 represents the number 13.
+Therefore, sum = 12 + 13 = 25.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [4,9,0,5,1]</code></div><div><strong>Output:</strong> <code class="ex">1026</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The root-to-leaf path 4-&gt;9-&gt;5 represents the number 495.
+The root-to-leaf path 4-&gt;9-&gt;1 represents the number 491.
+The root-to-leaf path 4-&gt;0 represents the number 40.
+Therefore, sum = 495 + 491 + 40 = 1026.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the tree is in the range <code>[1, 1000]</code>. · <code>0 ≤ Node.val ≤ 9</code> · The depth of the tree will not exceed <code>10</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each root-to-leaf path spells a number.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Pass the number formed so far down the tree: <code>number × 10 + node.val</code>; add it to the total at each leaf.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building each path as a string and converting it is <code>O(n · h)</code>. Carrying the number down computes each path's value incrementally: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 129 -->
         <p><strong>Spot it:</strong> Root-to-leaf + state that accumulates on the way down → DFS passing the partial number to the children.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1725,6 +2025,14 @@ def topo_sort(n, graph):
           </tbody>
         </table>
         <!-- explain:end 129 -->
+        <!-- enrich-edges:start 129 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node.</li>
+          <li>Nodes with value 0 inside a path.</li>
+          <li>A node with one child.</li>
+        </ul>
+        <!-- enrich-edges:end 129 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>
@@ -1733,6 +2041,21 @@ def topo_sort(n, graph):
       <summary><span class="tag medium">Medium</span> 1448. Count Good Nodes in Binary Tree <span class="ds-tags"><span class="ds">Binary Tree</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A node is <strong>good</strong> if no node on the path from the root to it has a greater value. Count the good nodes.</p>
+        <!-- enrich-top:start 1448 -->
+        <p class="links"><a href="https://leetcode.com/problems/count-good-nodes-in-binary-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=2AdOBLcj2wk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">root = [3,1,4,3,null,1,5]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Nodes in blue are good.
+Root Node (3) is always a good node.
+Node 4 -&gt; (3,4) is the maximum value in the path starting from the root.
+Node 5 -&gt; (3,4,5) is the maximum value in the path
+Node 3 -&gt; (3,1,3) is the maximum value in the path.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">root = [3,3,null,4,2]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Node 2 -&gt; (3, 3, 2) is not good, because "3" is higher than it.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the binary tree is in the range <code>[1, 10^5]</code>. · Each node's value is between <code>[-10^4, 10^4]</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A node is good if nothing on the path from the root to it is bigger.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>DFS carrying the maximum value seen on the path so far.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For each node, walking back up to the root is <code>O(n · h)</code>. Carrying the path maximum down decides each node in <code>O(1)</code>: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1448 -->
         <p><strong>Spot it:</strong> "Compared with everything on the path from the root" → DFS that carries the largest value seen so far.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1776,6 +2099,14 @@ def topo_sort(n, graph):
         </table>
         <p>Four <code>yes</code> rows → <code>4</code>.</p>
         <!-- explain:end 1448 -->
+        <!-- enrich-edges:start 1448 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → 1.</li>
+          <li>Equal values count as good.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 1448 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(h)</code> recursion space.</p>
       </div>
     </details>

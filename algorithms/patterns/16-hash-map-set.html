@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -675,6 +691,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 1. Two Sum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given an integer array <code>nums</code> and an integer <code>target</code>, return the indices of the two numbers that add up to <code>target</code>. Exactly one answer exists, and you may not use the same element twice.</p>
+        <!-- enrich-top:start 1 -->
+        <p class="links"><a href="https://leetcode.com/problems/two-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=aRE7Nxb3Qfs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,7,11,15], target = 9</code></div><div><strong>Output:</strong> <code class="ex">[0,1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Because nums[0] + nums[1] == 9, we return [0, 1].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,2,4], target = 6</code></div><div><strong>Output:</strong> <code class="ex">[1,2]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ nums.length ≤ 10⁴</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code> · <code>-10⁹ ≤ target ≤ 10⁹</code> · <strong>Only one valid answer exists.</strong></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For each number <code>x</code>, which single value would complete the pair?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store each value's index in a dictionary as you go; look up <code>target − x</code> <strong>before</strong> storing <code>x</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every pair is <code>O(n²)</code>. Sorting loses the original indices. A value → index map finds each complement in <code>O(1)</code>, so one pass: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1 -->
         <p><strong>Spot it:</strong> "Find a pair that sums to a target" in an <strong>unsorted</strong> array. Sorting would lose the original indices, so instead remember every number you have seen in a hash map: <code>value → index</code>.</p>
         <p><strong>Key insight:</strong> For each number <code>x</code>, its partner must be <code>target − x</code>. If the partner was seen earlier, the map answers "where?" in <code>O(1)</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -719,6 +746,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 1 -->
+        <!-- enrich-edges:start 1 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two equal numbers form the pair, e.g. <code>[3, 3]</code>, target 6.</li>
+          <li>Negative numbers.</li>
+          <li>Using the same element twice is not allowed (that's why we look up before storing).</li>
+        </ul>
+        <!-- enrich-edges:end 1 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (one pass, <code>O(1)</code> lookups), <code>O(n)</code> space for the map.</p>
       </div>
     </details>
@@ -727,6 +762,19 @@ def group_by_key(items, key_of):
       <summary><span class="tag medium">Medium</span> 49. Group Anagrams <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Group the strings that are anagrams of each other. Return the groups in any order.</p>
+        <!-- enrich-top:start 49 -->
+        <p class="links"><a href="https://leetcode.com/problems/group-anagrams/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=eDmxPfVa81k" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">strs = ["eat","tea","tan","ate","nat","bat"]</code></div><div><strong>Output:</strong> <code class="ex">[["bat"],["nat","tan"],["ate","eat","tea"]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is no string in strs that can be rearranged to form "bat".
+ The strings "nat" and "tan" are anagrams as they can be rearranged to form each other.
+ The strings "ate", "eat", and "tea" are anagrams as they can be rearranged to form each other.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">strs = [""]</code></div><div><strong>Output:</strong> <code class="ex">[[""]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ strs.length ≤ 10⁴</code> · <code>0 ≤ strs[i].length ≤ 100</code> · <code>strs[i]</code> consists of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All anagrams of each other share some canonical form.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use the sorted letters (or a tuple of 26 counts) as a dictionary key, and group the words under it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair of words for being anagrams is <code>O(n² · k)</code>. One canonical key per word puts each word straight into its group: <code>O(n · k log k)</code> (or <code>O(n · k)</code> with count keys).</p>
+        <!-- enrich-top:end 49 -->
         <p><strong>Spot it:</strong> "Group items that share a property" → a hash map from a <strong>canonical key</strong> to a list. All anagrams sort to the same string, so <code>"".join(sorted(word))</code> is a perfect key.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -767,6 +815,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 49 -->
+        <!-- enrich-edges:start 49 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty string <code>""</code> forms its own group.</li>
+          <li>A single word.</li>
+          <li>No two words are anagrams → every group has one word.</li>
+        </ul>
+        <!-- enrich-edges:end 49 -->
         <p><strong>Complexity:</strong> <code>O(n · k log k)</code> time for <code>n</code> words of length up to <code>k</code>, <code>O(n · k)</code> space.</p>
       </div>
     </details>
@@ -775,6 +831,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag medium">Medium</span> 128. Longest Consecutive Sequence <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the length of the longest run of consecutive integers that can be formed from <code>nums</code> (in any order), in <code>O(n)</code> time.</p>
+        <!-- enrich-top:start 128 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-consecutive-sequence/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=joIEdeOGqjQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [100,4,200,1,3,2]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The longest consecutive elements sequence is [1, 2, 3, 4]. Therefore its length is 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,3,7,2,5,8,4,6,0,1]</code></div><div><strong>Output:</strong> <code class="ex">9</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ nums.length ≤ 10⁵</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Sorting is <code>O(n log n)</code>. A set gives <code>O(1)</code> "is <code>x + 1</code> here?" checks.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Only start counting from <code>x</code> when <code>x − 1</code> is <strong>not</strong> in the set; then walk upward.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting and scanning is <code>O(n log n)</code>; walking upward from every number is <code>O(n²)</code>. Starting only at run beginnings walks each number once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 128 -->
         <p><strong>Spot it:</strong> <code>O(n)</code> rules out sorting. A <strong>set</strong> lets you ask "is <code>x + 1</code> here?" in <code>O(1)</code>. The trick is to count each run only once, from its smallest number.</p>
         <p><strong>Key insight:</strong> <code>x</code> starts a run exactly when <code>x − 1</code> is <strong>not</strong> in the set. Counting only from run starts means each number is stepped over at most once in total.</p>
         <p><strong>Approach:</strong></p>
@@ -819,6 +886,14 @@ def group_by_key(items, key_of):
         </table>
         <p>(A set's iteration order isn't guaranteed; the rows follow the input order for readability. The answer doesn't depend on the order.)</p>
         <!-- explain:end 128 -->
+        <!-- enrich-edges:start 128 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty array → 0.</li>
+          <li>Duplicates, e.g. <code>[1, 2, 2, 3]</code> → 3.</li>
+          <li>Negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 128 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -885,6 +960,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 217. Contains Duplicate <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if any value appears at least twice in <code>nums</code>, otherwise <code>False</code>.</p>
+        <!-- enrich-top:start 217 -->
+        <p class="links"><a href="https://leetcode.com/problems/contains-duplicate/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=a1_r3cLQ6wg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,1]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The element 1 occurs at the indices 0 and 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">All elements are distinct.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need to know whether you've seen a value before.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a set; return True the moment a value is already in it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair is <code>O(n²)</code>; sorting and checking neighbours is <code>O(n log n)</code>. A set answers "seen before?" in <code>O(1)</code>: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 217 -->
         <p><strong>Spot it:</strong> "Have I seen this before?" is the textbook question a <strong>hash set</strong> answers in <code>O(1)</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -920,6 +1006,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 217 -->
+        <!-- enrich-edges:start 217 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → False.</li>
+          <li>The duplicate appears at the very end.</li>
+          <li>Negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 217 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space. (Sorting first is <code>O(n log n)</code> time but <code>O(1)</code> extra space.)</p>
       </div>
     </details>
@@ -928,6 +1022,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 242. Valid Anagram <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if <code>t</code> is an anagram of <code>s</code>: the same letters, each used the same number of times, in any order.</p>
+        <!-- enrich-top:start 242 -->
+        <p class="links"><a href="https://leetcode.com/problems/valid-anagram/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=_cCTcPQik6A" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "anagram", t = "nagaram"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "rat", t = "car"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length, t.length ≤ 5 * 10⁴</code> · <code>s</code> and <code>t</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Order doesn't matter, only how many of each letter.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Count the letters (+1 for <code>s</code>, −1 for <code>t</code>) and check that every count is 0.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting both strings and comparing is <code>O(n log n)</code>. Counting letters is <code>O(n)</code>, and for lowercase letters an array of 26 counts works too.</p>
+        <!-- enrich-top:end 242 -->
         <p><strong>Spot it:</strong> Order doesn't matter, only <strong>how many</strong> of each letter. A count map (<code>letter → count</code>) is the fingerprint.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -969,6 +1074,14 @@ def group_by_key(items, key_of):
         </table>
         <p><code>c</code> is <code>−1</code> (and <code>t</code> is <code>1</code>), so the answer is <strong>False</strong>.</p>
         <!-- explain:end 242 -->
+        <!-- enrich-edges:start 242 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Different lengths → False immediately.</li>
+          <li>Same letters with different counts, e.g. <code>"aab"</code> vs <code>"abb"</code>.</li>
+          <li>Unicode letters (a dictionary handles them; a 26-array doesn't).</li>
+        </ul>
+        <!-- enrich-edges:end 242 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(k)</code> space for <code>k</code> distinct letters (at most 26 for lowercase English).</p>
       </div>
     </details>
@@ -977,6 +1090,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 383. Ransom Note <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if <code>ransomNote</code> can be built from the letters of <code>magazine</code>, each magazine letter used at most once.</p>
+        <!-- enrich-top:start 383 -->
+        <p class="links"><a href="https://leetcode.com/problems/ransom-note/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=i3bvxJyUB40" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">ransomNote = "a", magazine = "b"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">ransomNote = "aa", magazine = "ab"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ ransomNote.length, magazine.length ≤ 10⁵</code> · <code>ransomNote</code> and <code>magazine</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How many of each letter does the magazine offer?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Count the magazine's letters, then use one up for each letter of the note.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For each note letter, searching and removing it from the magazine string is <code>O(m · n)</code>. Counting once and decrementing is <code>O(m + n)</code>.</p>
+        <!-- enrich-top:end 383 -->
         <p><strong>Spot it:</strong> A supply-and-demand question about letter <strong>counts</strong> → count the magazine's letters in a map, then use them up.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1013,6 +1137,14 @@ def group_by_key(items, key_of):
         </table>
         <p>Every letter was available → <strong>True</strong>. With <code>magazine = "ab"</code> the second <code>a</code> would find 0 left → <code>False</code>.</p>
         <!-- explain:end 383 -->
+        <!-- enrich-edges:start 383 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The note needs more copies of a letter than the magazine has.</li>
+          <li>An empty note → True.</li>
+          <li>Identical strings → True.</li>
+        </ul>
+        <!-- enrich-edges:end 383 -->
         <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(k)</code> space for <code>k</code> distinct letters.</p>
       </div>
     </details>
@@ -1021,6 +1153,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 771. Jewels and Stones <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>jewels</code> lists the stone types that are jewels (case-sensitive). Return how many of your <code>stones</code> are jewels.</p>
+        <!-- enrich-top:start 771 -->
+        <p class="links"><a href="https://leetcode.com/problems/jewels-and-stones/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=IOt4dS1IWWU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">jewels = "aA", stones = "aAAbbbb"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">jewels = "z", stones = "ZZ"</code></div><div><strong>Output:</strong> <code class="ex">0</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ jewels.length, stones.length ≤ 50</code> · <code>jewels</code> and <code>stones</code> consist of only English letters. · All the characters of <code>jewels</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You check each stone against the set of jewel types.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Put the jewels in a set so each check is <code>O(1)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking each stone against the jewels string is <code>O(j · s)</code>. A set makes it <code>O(j + s)</code>.</p>
+        <!-- enrich-top:end 771 -->
         <p><strong>Spot it:</strong> Many "is this one of those?" checks → turn the list of types into a <strong>set</strong> so each check is <code>O(1)</code> instead of scanning <code>jewels</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1054,6 +1197,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 771 -->
+        <!-- enrich-edges:start 771 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No jewels among the stones → 0.</li>
+          <li>Case matters: <code>a</code> and <code>A</code> are different.</li>
+          <li>Every stone is a jewel.</li>
+        </ul>
+        <!-- enrich-edges:end 771 -->
         <p><strong>Complexity:</strong> <code>O(j + s)</code> time, <code>O(j)</code> space for the set.</p>
       </div>
     </details>
@@ -1062,6 +1213,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 1189. Maximum Number of Balloons <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Using the letters of <code>text</code> at most once each, how many copies of the word <code>"balloon"</code> can you form?</p>
+        <!-- enrich-top:start 1189 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-number-of-balloons/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=fVCBqMHwhww" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">text = "nlaebolko"</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">text = "loonbalxballpoon"</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ text.length ≤ 10⁴</code> · <code>text</code> consists of lower case English letters only.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The word needs <code>b, a, n</code> once and <code>l, o</code> twice.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Count the text's letters and take the minimum of <code>have // need</code> over those five letters.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly removing the letters of <code>"balloon"</code> from the text is <code>O(n · words)</code>. Counting once and dividing is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1189 -->
         <p><strong>Spot it:</strong> Supply vs demand of letter counts → count map. <code>"balloon"</code> needs <code>b, a, n</code> once and <code>l, o</code> <strong>twice</strong>; the scarcest letter, relative to its need, limits the answer.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1102,6 +1264,14 @@ def group_by_key(items, key_of):
         </table>
         <p>The minimum is <strong>2</strong>.</p>
         <!-- explain:end 1189 -->
+        <!-- enrich-edges:start 1189 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A missing letter → 0.</li>
+          <li>Only one <code>l</code> or one <code>o</code> → 0.</li>
+          <li>Lots of extra unrelated letters.</li>
+        </ul>
+        <!-- enrich-edges:end 1189 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space (at most 26 letters).</p>
       </div>
     </details>
@@ -1110,6 +1280,19 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 205. Isomorphic Strings <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>s</code> and <code>t</code> are isomorphic if the characters of <code>s</code> can be replaced to get <code>t</code>: every occurrence of a character maps to the same character, and no two characters map to the same one. Check it.</p>
+        <!-- enrich-top:start 205 -->
+        <p class="links"><a href="https://leetcode.com/problems/isomorphic-strings/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=z-EKYGB_vcE" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "egg", t = "add"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The strings s and t can be made identical by:
+Mapping 'e' to 'a'.
+ Mapping 'g' to 'd'.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "f11", t = "b23"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The strings s and t can not be made identical as '1' needs to be mapped to both '2' and '3'.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 5 * 10⁴</code> · <code>t.length == s.length</code> · <code>s</code> and <code>t</code> consist of any valid ascii character.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each character of <code>s</code> must always map to the same character of <code>t</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Also, two different characters may not map to the same one: keep a second map in the other direction.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every pair of positions for consistency is <code>O(n²)</code>. Two dictionaries (one per direction) check each position in <code>O(1)</code>: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 205 -->
         <p><strong>Spot it:</strong> A consistent character-to-character mapping is a <strong>dictionary</strong>. "No two map to the same" means it must also be consistent backwards, so keep a second map for <code>t → s</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1150,6 +1333,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 205 -->
+        <!-- enrich-edges:start 205 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two different letters mapping to the same letter, e.g. <code>"ab"</code> → <code>"aa"</code> → False.</li>
+          <li>Identical strings → True.</li>
+          <li>Single characters.</li>
+        </ul>
+        <!-- enrich-edges:end 205 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(k)</code> space for <code>k</code> distinct characters.</p>
       </div>
     </details>
@@ -1158,6 +1349,19 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 290. Word Pattern <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Does <code>s</code> (words separated by single spaces) follow <code>pattern</code>? Each letter must map to exactly one word and each word to exactly one letter.</p>
+        <!-- enrich-top:start 290 -->
+        <p class="links"><a href="https://leetcode.com/problems/word-pattern/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=J17qBu00n9o" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">pattern = "abba", s = "dog cat cat dog"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The bijection can be established as:
+'a' maps to "dog".
+ 'b' maps to "cat".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">pattern = "abba", s = "dog cat cat fish"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ pattern.length ≤ 300</code> · <code>pattern</code> contains only lower-case English letters. · <code>1 ≤ s.length ≤ 3000</code> · <code>s</code> contains only lowercase English letters and spaces <code>' '</code>. · <code>s</code> <strong>does not contain</strong> any leading or trailing spaces. · All the words in <code>s</code> are separated by a <strong>single space</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Split <code>s</code> into words first. The counts must match.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep letter → word and word → letter maps; any contradiction means False.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair of positions is <code>O(n²)</code>. Two maps check the one-to-one mapping in a single pass: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 290 -->
         <p><strong>Spot it:</strong> A one-to-one (bijective) mapping → two dictionaries, letter → word and word → letter, exactly like LeetCode 205.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1202,6 +1406,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 290 -->
+        <!-- enrich-edges:start 290 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Different numbers of letters and words → False.</li>
+          <li>Different letters mapping to the same word → False.</li>
+          <li>A single letter and a single word.</li>
+        </ul>
+        <!-- enrich-edges:end 290 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space, where <code>n</code> is the length of <code>s</code>.</p>
       </div>
     </details>
@@ -1210,6 +1422,17 @@ def group_by_key(items, key_of):
       <summary><span class="tag easy">Easy</span> 169. Majority Element <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The majority element appears more than <code>n / 2</code> times, and it always exists. Return it.</p>
+        <!-- enrich-top:start 169 -->
+        <p class="links"><a href="https://leetcode.com/problems/majority-element/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=c1B3LZQtZ_s" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,2,3]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [2,2,1,1,1,2,2]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 5 * 10⁴</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code> · The input is generated such that a majority element will exist in the array.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Count each value; the one with more than <code>n / 2</code> occurrences is the answer.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Follow-up in <code>O(1)</code> space: Boyer–Moore voting cancels pairs of different values.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Counting the occurrences of every value separately is <code>O(n²)</code>; sorting and taking the middle is <code>O(n log n)</code>. A count map is <code>O(n)</code>, and voting is <code>O(n)</code> with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 169 -->
         <p><strong>Spot it:</strong> "How often does each value appear?" → a count map; return the value whose count passes <code>n // 2</code>. The follow-up asks for <code>O(1)</code> space, which is Boyer–Moore voting (shown second).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1262,6 +1485,14 @@ def group_by_key(items, key_of):
           </tbody>
         </table>
         <!-- explain:end 169 -->
+        <!-- enrich-edges:start 169 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element.</li>
+          <li>The majority at the start or the end.</li>
+          <li>Negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 169 -->
         <p><strong>Complexity:</strong> Count map: <code>O(n)</code> time and space. Voting: <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1270,6 +1501,35 @@ def group_by_key(items, key_of):
       <summary><span class="tag medium">Medium</span> 36. Valid Sudoku <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Check whether a partially filled 9 × 9 Sudoku board is valid: no digit may repeat within a row, a column, or a 3 × 3 box. Empty cells are <code>"."</code>. (It doesn't have to be solvable.)</p>
+        <!-- enrich-top:start 36 -->
+        <p class="links"><a href="https://leetcode.com/problems/valid-sudoku/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=HyiAKwasi3M" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = 
+[["5","3",".",".","7",".",".",".","."]
+,["6",".",".","1","9","5",".",".","."]
+,[".","9","8",".",".",".",".","6","."]
+,["8",".",".",".","6",".",".",".","3"]
+,["4",".",".","8",".","3",".",".","1"]
+,["7",".",".",".","2",".",".",".","6"]
+,[".","6",".",".",".",".","2","8","."]
+,[".",".",".","4","1","9",".",".","5"]
+,[".",".",".",".","8",".",".","7","9"]]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">board = 
+[["8","3",".",".","7",".",".",".","."]
+,["6",".",".","1","9","5",".",".","."]
+,[".","9","8",".",".",".",".","6","."]
+,["8",".",".",".","6",".",".",".","3"]
+,["4",".",".","8",".","3",".",".","1"]
+,["7",".",".",".","2",".",".",".","6"]
+,[".","6",".",".",".",".","2","8","."]
+,[".",".",".","4","1","9",".",".","5"]
+,[".",".",".",".","8",".",".","7","9"]]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Same as Example 1, except with the 5 in the top left corner being modified to 8. Since there are two 8's in the top left 3x3 sub-box, it is invalid.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>board.length == 9</code> · <code>board[i].length == 9</code> · <code>board[i][j]</code> is a digit <code>1-9</code> or <code>'.'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each filled cell belongs to one row, one column and one 3 × 3 box.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a set per row, column and box (box index <code>(r // 3) * 3 + c // 3</code>); a repeat in any set means invalid.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Re-scanning the row, column and box of every filled cell is <code>O(81 · 27)</code>, which is small but repetitive. Twenty-seven sets check each cell in <code>O(1)</code>, in one pass.</p>
+        <!-- enrich-top:end 36 -->
         <p><strong>Spot it:</strong> "No repeats within a group" → a <strong>set per group</strong>. A cell belongs to row <code>r</code>, column <code>c</code> and box <code>(r // 3, c // 3)</code>; check all three sets before adding the digit.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1319,6 +1579,14 @@ def group_by_key(items, key_of):
         </table>
         <p>The <code>8</code> at <code>(2, 2)</code> repeats the <code>8</code> at <code>(0, 0)</code> inside the same top-left box, so the scan stops there.</p>
         <!-- explain:end 36 -->
+        <!-- enrich-edges:start 36 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty board → True.</li>
+          <li>A duplicate only inside a box.</li>
+          <li>A valid board that isn't solvable still counts as valid.</li>
+        </ul>
+        <!-- enrich-edges:end 36 -->
         <p><strong>Complexity:</strong> <code>O(81)</code> = <code>O(1)</code> for a fixed 9 × 9 board (<code>O(n²)</code> for an <code>n × n</code> one), <code>O(1)</code> space.</p>
       </div>
     </details>

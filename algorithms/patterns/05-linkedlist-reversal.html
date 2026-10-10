@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -701,6 +717,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag hard">Hard</span> 25. Reverse Nodes in k-Group <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the nodes of the list <code>k</code> at a time. If the last group has fewer than <code>k</code> nodes, leave it as it is. Only change links, not values.</p>
+        <!-- enrich-top:start 25 -->
+        <p class="links"><a href="https://leetcode.com/problems/reverse-nodes-in-k-group/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5], k = 2</code></div><div><strong>Output:</strong> <code class="ex">[2,1,4,3,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5], k = 3</code></div><div><strong>Output:</strong> <code class="ex">[3,2,1,4,5]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is <code>n</code>. · <code>1 ≤ k ≤ n ≤ 5000</code> · <code>0 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Handle the list one group of <code>k</code> nodes at a time. Check that a full group exists before touching it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse the group with prev/cur/next, then reconnect: the node before the group points to the new group head, and the old group head (now its tail) points to what came after.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying values into an array, reversing chunks and rebuilding uses <code>O(n)</code> space. Reversing each full group in place with careful reconnection is <code>O(n)</code> time and <code>O(1)</code> space; a dummy node avoids special-casing the first group.</p>
+        <!-- enrich-top:end 25 -->
         <p><strong>Spot it:</strong> "reverse" + "k at a time" + "only nodes may be changed": repeated sub-list reversal with stitching.</p>
         <p><strong>Key insight:</strong> keep <code>group_prev</code> (the node before the group). First check that <code>k</code> nodes exist (find <code>kth</code>). Reverse the group with <code>prev_node</code> initialised to <code>group_next</code> instead of <code>None</code>: that way the group's old first node automatically points to the rest of the list. Then hook <code>group_prev.next = kth</code> and move <code>group_prev</code> to the old first node (now the group's tail).</p>
         <div id="viz-25"></div>
@@ -770,6 +797,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:25 -->
+        <!-- enrich-edges:start 25 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → unchanged.</li>
+          <li>Length not a multiple of <code>k</code>: the last partial group stays as is.</li>
+          <li><code>k</code> equal to the length → the whole list reversed.</li>
+        </ul>
+        <!-- enrich-edges:end 25 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (each node visited twice), <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -778,6 +813,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 92. Reverse Linked List II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse only positions <code>left..right</code> (1-indexed) of the list, in one pass.</p>
+        <!-- enrich-top:start 92 -->
+        <p class="links"><a href="https://leetcode.com/problems/reverse-linked-list-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5], left = 2, right = 4</code></div><div><strong>Output:</strong> <code class="ex">[1,4,3,2,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [5], left = 1, right = 1</code></div><div><strong>Output:</strong> <code class="ex">[5]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is <code>n</code>. · <code>1 ≤ n ≤ 500</code> · <code>-500 ≤ Node.val ≤ 500</code> · <code>1 ≤ left ≤ right ≤ n</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Walk to the node just before position <code>left</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse exactly <code>right − left + 1</code> nodes, then reconnect both ends of the reversed piece.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying the values between <code>left</code> and <code>right</code> into an array and writing them back reversed uses <code>O(n)</code> space. Reversing in place in a single pass, with a dummy node for <code>left = 1</code>, is <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 92 -->
         <p><strong>Spot it:</strong> "reverse from position left to right". Partial reversal: needs a dummy (left may be 1) and stitching. The second visualizer above traces it.</p>
         <p><strong>Key insight:</strong> "head insertion": the part's first node (<code>tail</code>) stays put while each following node is unhooked and moved to the front of the part. After <code>right − left</code> moves, the part is reversed and both ends are already connected.</p>
         <p><strong>Approach:</strong></p>
@@ -832,6 +878,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:92 -->
+        <!-- enrich-edges:start 92 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>left == right</code> → unchanged.</li>
+          <li><code>left = 1</code> (the head changes).</li>
+          <li><code>right</code> is the last node.</li>
+        </ul>
+        <!-- enrich-edges:end 92 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -840,6 +894,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 24. Swap Nodes in Pairs <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Swap every two adjacent nodes (1→2→3→4 becomes 2→1→4→3) without changing values.</p>
+        <!-- enrich-top:start 24 -->
+        <p class="links"><a href="https://leetcode.com/problems/swap-nodes-in-pairs/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[2,1,4,3]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[0, 100]</code>. · <code>0 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Swap nodes, not values: re-point three <code>next</code> pointers per pair.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a pointer to the node before each pair (a dummy for the first pair), then advance two at a time.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Swapping the values is simple but is not what's asked (nodes must move). Re-linking each pair in place is <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 24 -->
         <p><strong>Spot it:</strong> it's k-group reversal with <code>k = 2</code>, small enough to write the three re-links by hand.</p>
         <p><strong>Key insight:</strong> with <code>prev_node → first → second → rest</code>, set <code>first.next = rest</code>, <code>second.next = first</code>, <code>prev_node.next = second</code>. Then <code>first</code> is the new <code>prev_node</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -893,6 +958,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:24 -->
+        <!-- enrich-edges:start 24 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Empty list or a single node → unchanged.</li>
+          <li>Odd length: the last node stays put.</li>
+          <li>Exactly two nodes.</li>
+        </ul>
+        <!-- enrich-edges:end 24 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -901,6 +974,22 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 2130. Maximum Twin Sum of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a list of even length <code>n</code>, node <code>i</code> and node <code>n−1−i</code> are twins. Return the largest twin sum.</p>
+        <!-- enrich-top:start 2130 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-twin-sum-of-a-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [5,4,2,1]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Nodes 0 and 1 are the twins of nodes 3 and 2, respectively. All have twin sum = 6.
+There are no other nodes with twins in the linked list.
+Thus, the maximum twin sum of the linked list is 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [4,2,2,3]</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The nodes with twins present in this linked list are:
+- Node 0 is the twin of node 3 having a twin sum of 4 + 3 = 7.
+- Node 1 is the twin of node 2 having a twin sum of 2 + 2 = 4.
+Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is an <strong>even</strong> integer in the range <code>[2, 10⁵]</code>. · <code>1 ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Node <code>i</code> pairs with node <code>n − 1 − i</code>: the first half pairs with the second half read backwards.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the middle, reverse the second half, then walk both halves together summing pairs.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying values to an array and summing <code>a[i] + a[n − 1 − i]</code> is <code>O(n)</code> space. Middle + reverse + walk does it in place with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 2130 -->
         <p><strong>Spot it:</strong> you need to walk the first half forwards and the second half <em>backwards</em> at the same time. Reverse the second half in place.</p>
         <p><strong>Key insight:</strong> find the start of the second half with <a href="04-fast-slow-pointers.html">fast &amp; slow</a>, reverse from there, then walk both halves together.</p>
         <p><strong>Approach:</strong></p>
@@ -967,6 +1056,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:2130 -->
+        <!-- enrich-edges:start 2130 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two nodes → their sum.</li>
+          <li>All equal values.</li>
+          <li>The maximum pair is in the middle.</li>
+        </ul>
+        <!-- enrich-edges:end 2130 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -975,6 +1072,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag easy">Easy</span> 206. Reverse Linked List (iterative + recursive) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the entire list and return the new head.</p>
+        <!-- enrich-top:start 206 -->
+        <p class="links"><a href="https://leetcode.com/problems/reverse-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=KRxeMng7fBU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[5,4,3,2,1]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2]</code></div><div><strong>Output:</strong> <code class="ex">[2,1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is the range <code>[0, 5000]</code>. · <code>-5000 ≤ Node.val ≤ 5000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each node's <code>next</code> must point backwards. What do you need to remember before changing it?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep <code>prev</code> and <code>cur</code>; save <code>cur.next</code>, point <code>cur.next</code> to <code>prev</code>, then step both forward.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Pushing the values on a stack and rebuilding uses <code>O(n)</code> extra space. Re-pointing every <code>next</code> in one pass is <code>O(n)</code> time and <code>O(1)</code> space (the recursive version uses <code>O(n)</code> stack).</p>
+        <!-- enrich-top:end 206 -->
         <p><strong>Spot it:</strong> template A word for word. Interviewers often ask for the recursive version too.</p>
         <p><strong>Recursive insight:</strong> reverse everything after <code>head</code>; now <code>head.next</code> is the <em>tail</em> of that reversed part, so hang <code>head</code> after it: <code>head.next.next = head</code>, and cut <code>head.next = None</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -1046,6 +1154,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:206 -->
+        <!-- enrich-edges:start 206 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Empty list → <code>None</code>.</li>
+          <li>A single node.</li>
+          <li>Two nodes.</li>
+        </ul>
+        <!-- enrich-edges:end 206 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time; <code>O(1)</code> space iterative, <code>O(n)</code> stack recursive.</p>
       </div>
     </details>
@@ -1091,10 +1207,10 @@ def reverse_between(head, left, right):
         <tr><td>206</td><td><a href="#p-206">Reverse Linked List</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Warm-up: template A, then recursive</td></tr>
         <tr><td>21</td><td><a href="#p-21">Merge Two Sorted Lists</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Re-link existing nodes behind a dummy; no new nodes</td></tr>
         <tr><td>83</td><td><a href="#p-83">Remove Duplicates from Sorted List</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Skip the next node while it repeats the current value</td></tr>
+        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + compare</td></tr>
         <tr><td>92</td><td><a href="#p-92">Reverse Linked List II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Dummy + head insertion</td></tr>
         <tr><td>24</td><td><a href="#p-24">Swap Nodes in Pairs</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>k-group with k = 2</td></tr>
         <tr><td>2130</td><td><a href="#p-2130">Maximum Twin Sum of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Reverse the second half</td></tr>
-        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + compare</td></tr>
         <tr><td>143</td><td><a href="#p-143">Reorder List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + weave</td></tr>
         <tr><td>61</td><td><a href="#p-61">Rotate List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Close into a ring, cut at n − k</td></tr>
         <tr><td>445</td><td><a href="#p-445">Add Two Numbers II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Reverse both, add with carry, prepend each digit</td></tr>
@@ -1110,9 +1226,20 @@ def reverse_between(head, left, right):
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-234">
-      <summary><span class="tag medium">Medium</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Do the list's values read the same forwards and backwards, using only <code>O(1)</code> extra space?</p>
+        <!-- enrich-top:start 234 -->
+        <p class="links"><a href="https://leetcode.com/problems/palindrome-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,2,1]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 10⁵]</code>. · <code>0 ≤ Node.val ≤ 9</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Copying the values into an array and comparing with its reverse uses <code>O(n)</code> space. How can you avoid that?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the middle, reverse the second half in place, then compare the two halves node by node.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> An array copy or a stack gives <code>O(n)</code> space. Middle-finding plus an in-place reversal of the second half compares the halves with <code>O(1)</code> extra space (and you can reverse it back afterwards).</p>
+        <!-- enrich-top:end 234 -->
         <p><strong>Spot it:</strong> Comparing the front with the back means reading the second half backwards. Reverse it in place instead of copying into an array.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1176,6 +1303,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:234 -->
+        <!-- enrich-edges:start 234 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → True.</li>
+          <li>Even and odd lengths.</li>
+          <li>Two nodes with different values → False.</li>
+        </ul>
+        <!-- enrich-edges:end 234 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1184,6 +1319,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange <code>L0 → L1 → … → Ln</code> into <code>L0 → Ln → L1 → Ln−1 → …</code> by changing links only.</p>
+        <!-- enrich-top:start 143 -->
+        <p class="links"><a href="https://leetcode.com/problems/reorder-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=tC70VM0jzz0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[1,4,2,3]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[1,5,2,4,3]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 5 * 10⁴]</code>. · <code>1 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The result interleaves the first half with the <strong>reversed</strong> second half.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Three steps: find the middle (fast/slow), reverse the second half, then weave the two halves together.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying the nodes into an array and re-linking with two indices is <code>O(n)</code> time but <code>O(n)</code> space. Middle + reverse + merge does it in place in <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 143 -->
         <p><strong>Spot it:</strong> You need the back half in reverse order → split at the middle, reverse the second half, then weave.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1253,6 +1399,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:143 -->
+        <!-- enrich-edges:start 143 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One or two nodes → unchanged.</li>
+          <li>Odd length: the middle node ends up last.</li>
+          <li>Forgetting to cut the first half off (set its tail's <code>next</code> to <code>None</code>) creates a cycle.</li>
+        </ul>
+        <!-- enrich-edges:end 143 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1261,6 +1415,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 61. Rotate List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rotate the list to the right by <code>k</code> places: the last <code>k</code> nodes move to the front.</p>
+        <!-- enrich-top:start 61 -->
+        <p class="links"><a href="https://leetcode.com/problems/rotate-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5], k = 2</code></div><div><strong>Output:</strong> <code class="ex">[4,5,1,2,3]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [0,1,2], k = 4</code></div><div><strong>Output:</strong> <code class="ex">[2,0,1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[0, 500]</code>. · <code>-100 ≤ Node.val ≤ 100</code> · <code>0 ≤ k ≤ 2 * 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Rotating by the list's length changes nothing, so use <code>k % length</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Make the list circular, then break it <code>length − k</code> nodes after the old head.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Rotating one step at a time is <code>O(n · k)</code>. Measuring the length once, closing the ring and cutting in the right place is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 61 -->
         <p><strong>Spot it:</strong> Re-linking pointers in place, like reversal. The trick is to close the list into a ring and cut it at the right spot.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1328,6 +1493,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:61 -->
+        <!-- enrich-edges:start 61 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 0</code> or <code>k</code> a multiple of the length → unchanged.</li>
+          <li>Empty list or a single node.</li>
+          <li>Very large <code>k</code> (e.g. 2·10⁹): you must take <code>% length</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 61 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1336,6 +1509,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 445. Add Two Numbers II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two non-negative numbers are stored as lists with the most-significant digit first. Return their sum as a list in the same order.</p>
+        <!-- enrich-top:start 445 -->
+        <p class="links"><a href="https://leetcode.com/problems/add-two-numbers-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">l1 = [7,2,4,3], l2 = [5,6,4]</code></div><div><strong>Output:</strong> <code class="ex">[7,8,0,7]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">l1 = [2,4,3], l2 = [5,6,4]</code></div><div><strong>Output:</strong> <code class="ex">[8,0,7]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in each linked list is in the range <code>[1, 100]</code>. · <code>0 ≤ Node.val ≤ 9</code> · It is guaranteed that the list represents a number that does not have leading zeros.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The most significant digit comes first, but addition starts from the least significant one.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse both lists (or push the digits onto stacks), add with a carry, and build the result from the front.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Converting to integers works in Python but defeats the purpose and fails in languages with fixed-size integers. Reversing the lists, adding column by column with a carry, and reversing back is <code>O(m + n)</code>.</p>
+        <!-- enrich-top:end 445 -->
         <p><strong>Spot it:</strong> Addition starts from the least-significant digit, which is at the <em>end</em>. Reverse both lists in place first.</p>
         <p><strong>Key insight:</strong> Build the answer by <strong>prepending</strong> each new digit node. It comes out most-significant first, so no final reversal is needed.</p>
         <p><strong>Approach:</strong></p>
@@ -1406,6 +1590,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:445 -->
+        <!-- enrich-edges:start 445 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Different lengths, e.g. <code>[7, 2, 4, 3]</code> + <code>[5, 6, 4]</code>.</li>
+          <li>A final carry adds a new leading digit, e.g. <code>[5]</code> + <code>[5]</code> → <code>[1, 0]</code>.</li>
+          <li>One number is 0.</li>
+        </ul>
+        <!-- enrich-edges:end 445 -->
         <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(1)</code> extra space besides the output.</p>
       </div>
     </details>
@@ -1414,6 +1606,22 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 2074. Reverse Nodes in Even Length Groups <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split the list into consecutive groups of sizes 1, 2, 3, … (the last group may be shorter). Reverse every group whose <em>actual</em> length is even.</p>
+        <!-- enrich-top:start 2074 -->
+        <p class="links"><a href="https://leetcode.com/problems/reverse-nodes-in-even-length-groups/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [5,2,6,3,9,1,7,3,8,4]</code></div><div><strong>Output:</strong> <code class="ex">[5,6,2,3,9,1,4,8,3,7]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">- The length of the first group is 1, which is odd, hence no reversal occurs.
+- The length of the second group is 2, which is even, hence the nodes are reversed.
+- The length of the third group is 3, which is odd, hence no reversal occurs.
+- The length of the last group is 4, which is even, hence the nodes are reversed.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,1,0,6]</code></div><div><strong>Output:</strong> <code class="ex">[1,0,1,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">- The length of the first group is 1. No reversal occurs.
+- The length of the second group is 2. The nodes are reversed.
+- The length of the last group is 1. No reversal occurs.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 10⁵]</code>. · <code>0 ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Groups have lengths 1, 2, 3, … except the last group, which may be shorter. Measure each group's real length first.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse a group only if its actual length is even, then reconnect it like in Reverse Nodes in k-Group.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying values into an array, reversing even-length chunks and writing them back uses <code>O(n)</code> space. Walking group by group and reversing in place is <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 2074 -->
         <p><strong>Spot it:</strong> Reversing chunks in place → k-group reversal where <code>k</code> grows each time and a parity check decides whether to reverse.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1484,6 +1692,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- /explain:2074 -->
+        <!-- enrich-edges:start 2074 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The last group is shorter and its length is even → reverse it.</li>
+          <li>The last group is shorter and odd → leave it.</li>
+          <li>A list of 1 or 2 nodes.</li>
+        </ul>
+        <!-- enrich-edges:end 2074 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1492,6 +1708,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag easy">Easy</span> 21. Merge Two Sorted Lists <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Merge two sorted linked lists into one sorted list by splicing their nodes together. Return the new head.</p>
+        <!-- enrich-top:start 21 -->
+        <p class="links"><a href="https://leetcode.com/problems/merge-two-sorted-lists/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=5Rec4JS9H5o" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">list1 = [1,2,4], list2 = [1,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[1,1,2,3,4,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">list1 = [], list2 = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in both lists is in the range <code>[0, 50]</code>. · <code>-100 ≤ Node.val ≤ 100</code> · Both <code>list1</code> and <code>list2</code> are sorted in <strong>non-decreasing</strong> order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Compare the two front nodes. Which goes first?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Attach the smaller front node to a tail pointer behind a dummy node; at the end, attach whatever is left.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying all values into an array, sorting and rebuilding is <code>O((m + n) log(m + n))</code> and allocates new nodes. Merging by re-linking the existing nodes is <code>O(m + n)</code> time and <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:end 21 -->
         <p><strong>Spot it:</strong> Two sorted sequences → compare the two fronts and take the smaller (the merge step of merge sort). With linked lists we re-point <code>next</code> pointers instead of copying values.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1541,6 +1768,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- explain:end 21 -->
+        <!-- enrich-edges:start 21 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One or both lists empty.</li>
+          <li>Equal values in both lists.</li>
+          <li>Every value of one list smaller than every value of the other.</li>
+        </ul>
+        <!-- enrich-edges:end 21 -->
         <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(1)</code> extra space (nodes are re-linked, not copied).</p>
       </div>
     </details>
@@ -1549,6 +1784,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag easy">Easy</span> 83. Remove Duplicates from Sorted List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The linked list is sorted. Delete duplicates so each value appears only once, and return the head.</p>
+        <!-- enrich-top:start 83 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Nvf9Yt1EElg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,1,2]</code></div><div><strong>Output:</strong> <code class="ex">[1,2]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,1,2,3,3]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[0, 300]</code>. · <code>-100 ≤ Node.val ≤ 100</code> · The list is guaranteed to be <strong>sorted</strong> in ascending order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The list is sorted, so duplicates are next to each other.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>If <code>cur.next</code> has the same value as <code>cur</code>, skip it by re-pointing <code>cur.next</code>; otherwise move on.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A set of seen values plus rebuilding the list uses <code>O(n)</code> space. Because the list is sorted, comparing each node with its neighbour removes duplicates in place: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 83 -->
         <p><strong>Spot it:</strong> Sorted means equal values sit next to each other. Stay on a node and unlink its <code>next</code> for as long as it has the same value. That's in-place pointer surgery with one pointer.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1591,6 +1837,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- explain:end 83 -->
+        <!-- enrich-edges:start 83 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty list.</li>
+          <li>All values equal → one node remains.</li>
+          <li>Duplicates at the end of the list.</li>
+        </ul>
+        <!-- enrich-edges:end 83 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1599,6 +1853,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 2. Add Two Numbers <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two non-empty linked lists store non-negative integers with their digits in <strong>reverse</strong> order (<code>2 → 4 → 3</code> is 342). Return their sum as a linked list in the same reverse format.</p>
+        <!-- enrich-top:start 2 -->
+        <p class="links"><a href="https://leetcode.com/problems/add-two-numbers/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=IKdbKhBDjWs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">l1 = [2,4,3], l2 = [5,6,4]</code></div><div><strong>Output:</strong> <code class="ex">[7,0,8]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">342 + 465 = 807.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">l1 = [0], l2 = [0]</code></div><div><strong>Output:</strong> <code class="ex">[0]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in each linked list is in the range <code>[1, 100]</code>. · <code>0 ≤ Node.val ≤ 9</code> · It is guaranteed that the list represents a number that does not have leading zeros.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The digits are stored least significant first, which is exactly the order you add them in.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Walk both lists at the same time, adding digit + digit + carry; keep going while either list or the carry remains.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Converting both lists to integers and back works in Python but would overflow in most languages and misses the point. Column addition with a carry, one node at a time, is <code>O(max(m, n))</code>.</p>
+        <!-- enrich-top:end 2 -->
         <p><strong>Spot it:</strong> Reverse order means the head is the ones digit, exactly where column addition starts. So walk both lists together, add digit + digit + carry, and append one new node per column.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1647,6 +1912,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- explain:end 2 -->
+        <!-- enrich-edges:start 2 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Different lengths.</li>
+          <li>A carry at the very end, e.g. <code>[9, 9]</code> + <code>[1]</code> → <code>[0, 0, 1]</code>.</li>
+          <li>Both numbers are 0.</li>
+        </ul>
+        <!-- enrich-edges:end 2 -->
         <p><strong>Complexity:</strong> <code>O(max(m, n))</code> time, <code>O(max(m, n))</code> for the output list.</p>
       </div>
     </details>
@@ -1655,6 +1928,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 82. Remove Duplicates from Sorted List II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The linked list is sorted. Delete <strong>every</strong> node whose value appears more than once, leaving only values that were distinct. Return the head.</p>
+        <!-- enrich-top:start 82 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=_s0-r67USQY" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,3,4,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,1,1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">[2,3]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[0, 300]</code>. · <code>-100 ≤ Node.val ≤ 100</code> · The list is guaranteed to be <strong>sorted</strong> in ascending order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every copy of a repeated value must go, including the first one, and the head might be one of them.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a dummy node and a <code>prev</code> pointer on the last node you're sure to keep; skip whole runs of equal values.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Counting each value's occurrences and rebuilding the list uses <code>O(n)</code> space. Since the list is sorted, duplicates form runs that can be skipped in place: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 82 -->
         <p><strong>Spot it:</strong> Unlike LeetCode 83, the first copy must go too, and that may be the head. A <code>dummy</code> node plus a <code>prev</code> pointer that always sits on the last node we are sure to keep makes this a clean in-place splice.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1704,6 +1988,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- explain:end 82 -->
+        <!-- enrich-edges:start 82 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All values duplicated → empty list.</li>
+          <li>The head is part of a duplicate run.</li>
+          <li>No duplicates → unchanged.</li>
+        </ul>
+        <!-- enrich-edges:end 82 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1712,6 +2004,17 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 138. Copy List with Random Pointer <span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each node has a <code>next</code> pointer and a <code>random</code> pointer that may point to any node or <code>None</code>. Return a <strong>deep copy</strong>: brand-new nodes whose pointers mirror the original structure.</p>
+        <!-- enrich-top:start 138 -->
+        <p class="links"><a href="https://leetcode.com/problems/copy-list-with-random-pointer/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=DAzEniVtkMQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [[7,null],[13,0],[11,4],[10,2],[1,0]]</code></div><div><strong>Output:</strong> <code class="ex">[[7,null],[13,0],[11,4],[10,2],[1,0]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [[1,1],[2,1]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,1],[2,1]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ n ≤ 1000</code> · <code>-10⁴ ≤ Node.val ≤ 10⁴</code> · <code>Node.random</code> is <code>null</code> or is pointing to some node in the linked list.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p><code>random</code> can point to a node whose copy doesn't exist yet.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Create every copy first (map old node → new node), then wire up <code>next</code> and <code>random</code> in a second pass.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Searching the list to find where each <code>random</code> points is <code>O(n²)</code>. An old → new hash map makes every lookup <code>O(1)</code>: two passes, <code>O(n)</code>. (Weaving the copies between the originals gets the space down to <code>O(1)</code>.)</p>
+        <!-- enrich-top:end 138 -->
         <p><strong>Spot it:</strong> The trouble is <code>random</code>: it may point to a node whose copy doesn't exist yet. A hash map from <strong>old node → new node</strong> solves it. Create all copies first, then connect them.</p>
         <p><strong>Key insight:</strong> Two passes. Pass 1 creates a copy of every node. Pass 2 sets <code>copy.next = old_to_new[old.next]</code> and <code>copy.random = old_to_new[old.random]</code>. Mapping <code>None → None</code> avoids special cases. (An <code>O(1)</code>-space variant weaves copies between the originals, but the map version is far easier to get right.)</p>
         <p><strong>Approach:</strong></p>
@@ -1761,6 +2064,14 @@ def reverse_between(head, left, right):
         </table>
         <p>Pass 1 already created <code>A'..E'</code>, so every lookup in pass 2 succeeds. The copy has the same shape, <code>[[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]</code>, with no shared nodes.</p>
         <!-- explain:end 138 -->
+        <!-- enrich-edges:start 138 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty list.</li>
+          <li><code>random</code> pointing to the node itself.</li>
+          <li><code>random</code> is <code>None</code> everywhere.</li>
+        </ul>
+        <!-- enrich-edges:end 138 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space for the map.</p>
       </div>
     </details>
@@ -1769,6 +2080,22 @@ def reverse_between(head, left, right):
       <summary><span class="tag medium">Medium</span> 2807. Insert Greatest Common Divisors in Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Between every pair of adjacent nodes, insert a new node whose value is the <strong>greatest common divisor</strong> (GCD) of the two values. Return the head.</p>
+        <!-- enrich-top:start 2807 -->
+        <p class="links"><a href="https://leetcode.com/problems/insert-greatest-common-divisors-in-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=SVnSiD95r-0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [18,6,10,3]</code></div><div><strong>Output:</strong> <code class="ex">[18,6,6,2,10,1,3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 1st diagram denotes the initial linked list and the 2nd diagram denotes the linked list after inserting the new nodes (nodes in blue are the inserted nodes).
+- We insert the greatest common divisor of 18 and 6 = 6 between the 1st and the 2nd nodes.
+- We insert the greatest common divisor of 6 and 10 = 2 between the 2nd and the 3rd nodes.
+- We insert the greatest common divisor of 10 and 3 = 1 between the 3rd and the 4th nodes.
+There are no more adjacent nodes, so we return the linked list.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [7]</code></div><div><strong>Output:</strong> <code class="ex">[7]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 1st diagram denotes the initial linked list and the 2nd diagram denotes the linked list after inserting the new nodes.
+There are no pairs of adjacent nodes, so we return the initial linked list.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 5000]</code>. · <code>1 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For every adjacent pair, a new node goes between them.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Create the node already pointing at the next original node, then link the current node to it and jump over it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting values into an array and building a new list works but allocates the whole list again. Inserting in place while walking once is <code>O(n · log(max value))</code> for the GCDs.</p>
+        <!-- enrich-top:end 2807 -->
         <p><strong>Spot it:</strong> Pure in-place pointer surgery: for each pair <code>(cur, cur.next)</code>, create a node, point it at <code>cur.next</code>, point <code>cur</code> at it, then jump over it to the old next node.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1817,6 +2144,14 @@ def reverse_between(head, left, right):
           </tbody>
         </table>
         <!-- explain:end 2807 -->
+        <!-- enrich-edges:start 2807 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → nothing to insert.</li>
+          <li>Equal neighbours: the GCD is the value itself.</li>
+          <li>Coprime neighbours → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 2807 -->
         <p><strong>Complexity:</strong> <code>O(n · log(max value))</code> time (one GCD per pair), <code>O(1)</code> extra space besides the new nodes.</p>
       </div>
     </details>

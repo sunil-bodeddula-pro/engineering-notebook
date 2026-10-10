@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -700,6 +716,17 @@ def cycle_start(head):
       <summary><span class="tag medium">Medium</span> 287. Find the Duplicate Number <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> has <code>n + 1</code> integers, each in <code>1..n</code>. Exactly one value repeats (possibly many times). Find it <em>without modifying</em> the array and with <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:start 287 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-the-duplicate-number/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,4,2,2]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,1,3,4,2]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 10⁵</code> · <code>nums.length == n + 1</code> · <code>1 ≤ nums[i] ≤ n</code> · All the integers in <code>nums</code> appear only <strong>once</strong> except for <strong>precisely one integer</strong> which appears <strong>two or more</strong> times.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Values are in <code>1..n</code> and there are <code>n + 1</code> of them. Treat <code>i → nums[i]</code> as a "next" pointer.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>The duplicate value has two arrows pointing at it: it's the entrance of a cycle. Use Floyd's two phases.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A set of seen values is <code>O(n)</code> space; sorting modifies the array; checking every pair is <code>O(n²)</code>. Following <code>i → nums[i]</code> turns the array into a linked list with a cycle whose entrance is the duplicate, which Floyd finds in <code>O(n)</code> time and <code>O(1)</code> space without changing anything.</p>
+        <!-- enrich-top:end 287 -->
         <p><strong>Spot it:</strong> values are valid indices, so treat <code>i → nums[i]</code> as a "next" pointer. Index 0 is never a target (values ≥ 1), so it's the head of a tail. Two indices point at the duplicate value, so that node has two arrows coming in: the <strong>entrance of a cycle</strong>. "Duplicate + O(1) space + read-only" means Floyd.</p>
         <p><strong>Key insight:</strong> the duplicate is the cycle start. Run template C with <code>slow = nums[slow]</code> and <code>fast = nums[nums[fast]]</code>.</p>
         <div id="viz-287"></div>
@@ -763,6 +790,14 @@ class Solution:
 </table>
 <p>The function returns <code>2</code>.</p>
 <!-- /explain-04:287 -->
+        <!-- enrich-edges:start 287 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The duplicate appears many times, e.g. <code>[2, 2, 2, 2]</code>.</li>
+          <li>The smallest case, <code>[1, 1]</code>.</li>
+          <li>The duplicate is at index 0.</li>
+        </ul>
+        <!-- enrich-edges:end 287 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -771,6 +806,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 142. Linked List Cycle II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the node where the cycle begins, or <code>None</code> if the list has no cycle. Don't modify the list.</p>
+        <!-- enrich-top:start 142 -->
+        <p class="links"><a href="https://leetcode.com/problems/linked-list-cycle-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [3,2,0,-4], pos = 1</code></div><div><strong>Output:</strong> <code class="ex">tail connects to node index 1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is a cycle in the linked list, where tail connects to the second node.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2], pos = 0</code></div><div><strong>Output:</strong> <code class="ex">tail connects to node index 0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is a cycle in the linked list, where tail connects to the first node.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of the nodes in the list is in the range <code>[0, 10⁴]</code>. · <code>-10⁵ ≤ Node.val ≤ 10⁵</code> · <code>pos</code> is <code>-1</code> or a <strong>valid index</strong> in the linked-list.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>First detect the cycle with slow (1 step) and fast (2 steps).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>After they meet, move one pointer back to the head and step both one at a time; they meet at the entrance.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A set of visited nodes returns the first repeat in <code>O(n)</code> time but <code>O(n)</code> space. Floyd's algorithm gets the entrance with two pointers: the distance from the head to the entrance equals the distance from the meeting point to it (modulo the loop length): <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 142 -->
         <p><strong>Spot it:</strong> "where the cycle begins" + linked list. It's template C exactly; the second visualizer above traces it.</p>
         <p><strong>Key insight:</strong> distance from head to entrance = distance from meeting point to entrance (mod the loop length).</p>
         <p><strong>Approach:</strong></p>
@@ -830,6 +876,14 @@ class Solution:
 </table>
 <p>The function returns the node with value <code>2</code> (index 1).</p>
 <!-- /explain-04:142 -->
+        <!-- enrich-edges:start 142 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No cycle → <code>None</code>.</li>
+          <li>The cycle starts at the head.</li>
+          <li>A single node pointing to itself.</li>
+        </ul>
+        <!-- enrich-edges:end 142 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -838,6 +892,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange <code>L0 → L1 → … → Ln</code> into <code>L0 → Ln → L1 → Ln−1 → …</code> in place.</p>
+        <!-- enrich-top:start 143 -->
+        <p class="links"><a href="https://leetcode.com/problems/reorder-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=tC70VM0jzz0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[1,4,2,3]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[1,5,2,4,3]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 5 * 10⁴]</code>. · <code>1 ≤ Node.val ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The result interleaves the first half with the <strong>reversed</strong> second half.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Three steps: find the middle (fast/slow), reverse the second half, then weave the two halves together.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying the nodes into an array and re-linking with two indices is <code>O(n)</code> time but <code>O(n)</code> space. Middle + reverse + merge does it in place in <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 143 -->
         <p><strong>Spot it:</strong> you need the back half in reverse order. That's (1) find the middle with fast/slow, (2) reverse the second half (<a href="05-linkedlist-reversal.html">pattern 05</a>), (3) weave.</p>
         <p><strong>Key insight:</strong> stop slow at the <em>end of the first half</em> (<code>while fast.next and fast.next.next</code>) so you can cut <code>slow.next = None</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -913,6 +978,14 @@ class Solution:
 </table>
 <p>Final list: <code>1 → 5 → 2 → 4 → 3</code>.</p>
 <!-- /explain-04:143 -->
+        <!-- enrich-edges:start 143 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One or two nodes → unchanged.</li>
+          <li>Odd length: the middle node ends up last.</li>
+          <li>Forgetting to cut the first half off (set its tail's <code>next</code> to <code>None</code>) creates a cycle.</li>
+        </ul>
+        <!-- enrich-edges:end 143 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -921,6 +994,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 457. Circular Array Loop <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> From index <code>i</code> you jump <code>nums[i]</code> steps (wrapping around). Is there a cycle of length &gt; 1 where every jump goes the <em>same direction</em>?</p>
+        <!-- enrich-top:start 457 -->
+        <p class="links"><a href="https://leetcode.com/problems/circular-array-loop/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,-1,1,2,2]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The graph shows how the indices are connected. White nodes are jumping forward, while red is jumping backward.
+We can see the cycle 0 --&gt; 2 --&gt; 3 --&gt; 0 --&gt; ..., and all of its nodes are white (jumping in the same direction).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [-1,-2,-3,-4,-5,6]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The graph shows how the indices are connected. White nodes are jumping forward, while red is jumping backward.
+The only cycle is of size 1, so we return false.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 5000</code> · <code>-1000 ≤ nums[i] ≤ 1000</code> · <code>nums[i] != 0</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>From each index, jump by <code>nums[i]</code> (wrapping around). A valid loop moves in one direction only and has length &gt; 1.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Run fast/slow from each start, stopping if the direction changes or a self-loop appears. Mark dead-end paths so they're never re-walked.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating from every start with a visited set is <code>O(n²)</code>. Fast/slow pointers detect a loop from a start in <code>O(n)</code> with <code>O(1)</code> space, and marking failed paths as 0 keeps the total at <code>O(n)</code>.</p>
+        <!-- enrich-top:end 457 -->
         <p><strong>Spot it:</strong> "circular" + "jump by nums[i]" defines a next function <code>(i + nums[i]) % n</code>. Detect a cycle with fast/slow, with extra rules.</p>
         <p><strong>Key insight:</strong> abort a run as soon as fast would step onto a node of the opposite direction or a self-loop (<code>next(j) == j</code>). Afterwards, zero out the path you walked so each index is explored once overall: <code>O(n)</code>.</p>
         <p><strong>Approach:</strong></p>
@@ -1012,6 +1098,14 @@ class Solution:
 </table>
 <p>The function returns <code>True</code>.</p>
 <!-- /explain-04:457 -->
+        <!-- enrich-edges:start 457 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A self-loop (<code>nums[i] % n == 0</code>) doesn't count.</li>
+          <li>A loop that mixes forward and backward moves doesn't count.</li>
+          <li>Large jumps, so take <code>% n</code> (and handle negatives).</li>
+        </ul>
+        <!-- enrich-edges:end 457 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space (it modifies the input as a visited marker).</p>
       </div>
     </details>
@@ -1020,6 +1114,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 141. Linked List Cycle <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Does the linked list contain a cycle?</p>
+        <!-- enrich-top:start 141 -->
+        <p class="links"><a href="https://leetcode.com/problems/linked-list-cycle/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=y-ckZ2hpC8Y" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [3,2,0,-4], pos = 1</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is a cycle in the linked list, where the tail connects to the 1st node (0-indexed).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2], pos = 0</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is a cycle in the linked list, where the tail connects to the 0th node.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of the nodes in the list is in the range <code>[0, 10⁴]</code>. · <code>-10⁵ ≤ Node.val ≤ 10⁵</code> · <code>pos</code> is <code>-1</code> or a <strong>valid index</strong> in the linked-list.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If there's a loop, a faster runner eventually laps a slower one.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Move <code>slow</code> one step and <code>fast</code> two steps; if they ever point at the same node, there's a cycle.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Storing every visited node in a set detects a repeat in <code>O(n)</code> time but <code>O(n)</code> space. Two pointers at different speeds detect the cycle with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 141 -->
         <p><strong>Spot it:</strong> the warm-up. Template B; the follow-up "O(1) memory" rules out the visited-set solution.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1063,6 +1168,14 @@ class Solution:
 </table>
 <p>The function returns <code>True</code>.</p>
 <!-- /explain-04:141 -->
+        <!-- enrich-edges:start 141 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty list → False.</li>
+          <li>A single node with no cycle.</li>
+          <li>A cycle back to the head.</li>
+        </ul>
+        <!-- enrich-edges:end 141 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1108,10 +1221,10 @@ class Solution:
         <tr><td>876</td><td><a href="#p-876">Middle of the Linked List</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Warm-up: template A</td></tr>
         <tr><td>141</td><td><a href="#p-141">Linked List Cycle</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Template B</td></tr>
         <tr><td>202</td><td><a href="#p-202">Happy Number</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Math</span><span class="ds">Hash Set</span></span></td><td>Implicit "next" = sum of digit squares</td></tr>
+        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag easy">Easy</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse half + compare</td></tr>
         <tr><td>142</td><td><a href="#p-142">Linked List Cycle II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Phase 2: find the entrance</td></tr>
         <tr><td>287</td><td><a href="#p-287">Find the Duplicate Number</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Array as a linked list</td></tr>
         <tr><td>2095</td><td><a href="#p-2095">Delete the Middle Node of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Stop one before the middle</td></tr>
-        <tr><td>234</td><td><a href="#p-234">Palindrome Linked List (O(1) space)</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse half + compare</td></tr>
         <tr><td>143</td><td><a href="#p-143">Reorder List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse + weave</td></tr>
         <tr><td>148</td><td><a href="#p-148">Sort List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Fast/slow split for merge sort</td></tr>
         <tr><td>457</td><td><a href="#p-457">Circular Array Loop</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Direction rule + mark dead paths</td></tr>
@@ -1126,6 +1239,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 876. Middle of the Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the middle node of a linked list (the second middle when the length is even).</p>
+        <!-- enrich-top:start 876 -->
+        <p class="links"><a href="https://leetcode.com/problems/middle-of-the-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=OKq-WEwHDPQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[3,4,5]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The middle node of the list is node 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5,6]</code></div><div><strong>Output:</strong> <code class="ex">[4,5,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Since the list has two middle nodes with values 3 and 4, we return the second one.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 100]</code>. · <code>1 ≤ Node.val ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Count the nodes, then walk half way? Can you do it in one pass?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Move <code>fast</code> two steps for each step of <code>slow</code>; when <code>fast</code> reaches the end, <code>slow</code> is in the middle.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Counting the length and then walking <code>n / 2</code> steps is two passes; copying into an array uses <code>O(n)</code> space. Fast/slow finds the middle in one pass with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 876 -->
         <p><strong>Spot it:</strong> "Middle" + singly linked list → template A.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1167,6 +1291,14 @@ class Solution:
 </table>
 <p>The function returns the node <code>4</code> (so the answer list is <code>[4, 5, 6]</code>).</p>
 <!-- /explain-04:876 -->
+        <!-- enrich-edges:start 876 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Even length → return the <strong>second</strong> middle.</li>
+          <li>A single node.</li>
+          <li>Two nodes → the second.</li>
+        </ul>
+        <!-- enrich-edges:end 876 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1175,6 +1307,20 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 202. Happy Number <span class="ds-tags"><span class="ds">Math</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Keep replacing <code>n</code> with the sum of the squares of its digits. If you reach 1, <code>n</code> is happy; otherwise the numbers loop forever. Is <code>n</code> happy?</p>
+        <!-- enrich-top:start 202 -->
+        <p class="links"><a href="https://leetcode.com/problems/happy-number/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=deKNKqtSuHY" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 19</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">1² + 9² = 82
+8² + 2² = 68
+6² + 8² = 100
+1² + 0² + 0² = 1</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 2</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Repeatedly replacing <code>n</code> by the sum of the squares of its digits either reaches 1 or loops forever.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Detect the loop with a set, or with fast/slow pointers on this "next number" function.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Following the sequence while storing seen numbers in a set works (<code>O(log n)</code> steps per number) but uses memory. Treating "next = sum of digit squares" as a linked list lets Floyd's fast/slow detect the cycle in <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 202 -->
         <p><strong>Spot it:</strong> "Loops forever" + a well-defined next value → cycle detection on numbers instead of nodes.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1236,6 +1382,14 @@ class Solution:
 </table>
 <p>fast reached 1, so the function returns <code>True</code>.</p>
 <!-- /explain-04:202 -->
+        <!-- enrich-edges:start 202 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 1</code> → True immediately.</li>
+          <li><code>n = 7</code> → True (it takes a few steps).</li>
+          <li><code>n = 2</code> → False (falls into the 4 → 16 → … loop).</li>
+        </ul>
+        <!-- enrich-edges:end 202 -->
         <p><strong>Complexity:</strong> Each step is <code>O(log n)</code> digits, and the sequence quickly drops below a few hundred, so the time is effectively <code>O(log n)</code>. <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1244,6 +1398,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 2095. Delete the Middle Node of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Delete the node at index <code>⌊n/2⌋</code> and return the head.</p>
+        <!-- enrich-top:start 2095 -->
+        <p class="links"><a href="https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,3,4,7,1,2,6]</code></div><div><strong>Output:</strong> <code class="ex">[1,3,4,1,2,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The above figure represents the given linked list. The indices of the nodes are written below.
+Since n = 7, node 3 with value 7 is the middle node, which is marked in red.
+We return the new list after removing this node.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The above figure represents the given linked list.
+For n = 4, node 2 with value 3 is the middle node, which is marked in red.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 10⁵]</code>. · <code>1 ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>To delete the middle you need the node <strong>before</strong> it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Start <code>fast</code> one step ahead (at <code>head.next.next</code>) so that <code>slow</code> stops just before the middle.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Counting the nodes and walking to <code>n // 2 − 1</code> takes two passes. An offset fast/slow pair stops one node early in a single pass.</p>
+        <!-- enrich-top:end 2095 -->
         <p><strong>Spot it:</strong> To unlink a node you need the node <em>before</em> it. Use fast &amp; slow, but give fast a one-round head start so slow stops one node early.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1291,14 +1459,33 @@ class Solution:
 </table>
 <p>The function returns <code>1 → 3 → 4 → 1 → 2 → 6</code>.</p>
 <!-- /explain-04:2095 -->
+        <!-- enrich-edges:start 2095 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → empty list.</li>
+          <li>Two nodes → delete the second.</li>
+          <li>Even length → delete node <code>n // 2</code> (0-indexed).</li>
+        </ul>
+        <!-- enrich-edges:end 2095 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
 
     <details class="problem" id="p-234">
-      <summary><span class="tag medium">Medium</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Do the list's values read the same forwards and backwards? Follow-up: use <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:start 234 -->
+        <p class="links"><a href="https://leetcode.com/problems/palindrome-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,2,1]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1,2]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 10⁵]</code>. · <code>0 ≤ Node.val ≤ 9</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Copying the values into an array and comparing with its reverse uses <code>O(n)</code> space. How can you avoid that?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the middle, reverse the second half in place, then compare the two halves node by node.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> An array copy or a stack gives <code>O(n)</code> space. Middle-finding plus an in-place reversal of the second half compares the halves with <code>O(1)</code> extra space (and you can reverse it back afterwards).</p>
+        <!-- enrich-top:end 234 -->
         <p><strong>Spot it:</strong> You need to compare the first half with the second half read backwards → find the middle with fast/slow, then reverse half (<a href="05-linkedlist-reversal.html">pattern 05</a>).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1361,6 +1548,14 @@ class Solution:
 </table>
 <p>The function returns <code>True</code>.</p>
 <!-- /explain-04:234 -->
+        <!-- enrich-edges:start 234 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single node → True.</li>
+          <li>Even and odd lengths.</li>
+          <li>Two nodes with different values → False.</li>
+        </ul>
+        <!-- enrich-edges:end 234 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space. (It leaves the second half reversed; reverse it back if the caller cares.)</p>
       </div>
     </details>
@@ -1369,6 +1564,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 148. Sort List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Sort a linked list in <code>O(n log n)</code> time.</p>
+        <!-- enrich-top:start 148 -->
+        <p class="links"><a href="https://leetcode.com/problems/sort-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=kRs64RYa0V8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [4,2,1,3]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [-1,5,3,4,0]</code></div><div><strong>Output:</strong> <code class="ex">[-1,0,3,4,5]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[0, 5 * 10⁴]</code>. · <code>-10⁵ ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Merge sort works well on linked lists because merging needs no extra arrays.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Split at the middle with fast/slow, sort each half recursively, then merge the two sorted halves.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying values into an array and calling <code>sort()</code> uses <code>O(n)</code> space. Merge sort on the list itself is <code>O(n log n)</code> time with only the recursion stack; the split uses fast/slow pointers.</p>
+        <!-- enrich-top:end 148 -->
         <p><strong>Spot it:</strong> Merge sort suits linked lists because it never needs random access; fast/slow finds the split point.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1449,6 +1655,14 @@ class Solution:
 </table>
 <p>The function returns <code>1 → 2 → 3 → 4</code>.</p>
 <!-- /explain-04:148 -->
+        <!-- enrich-edges:start 148 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Empty or single-node list.</li>
+          <li>Already sorted or reverse sorted.</li>
+          <li>Duplicates and negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 148 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(log n)</code> recursion stack.</p>
       </div>
     </details>
@@ -1457,6 +1671,22 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 2130. Maximum Twin Sum of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a list of even length <code>n</code>, node <code>i</code> and node <code>n−1−i</code> are twins. Return the largest twin sum.</p>
+        <!-- enrich-top:start 2130 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-twin-sum-of-a-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [5,4,2,1]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Nodes 0 and 1 are the twins of nodes 3 and 2, respectively. All have twin sum = 6.
+There are no other nodes with twins in the linked list.
+Thus, the maximum twin sum of the linked list is 6.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [4,2,2,3]</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The nodes with twins present in this linked list are:
+- Node 0 is the twin of node 3 having a twin sum of 4 + 3 = 7.
+- Node 1 is the twin of node 2 having a twin sum of 2 + 2 = 4.
+Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is an <strong>even</strong> integer in the range <code>[2, 10⁵]</code>. · <code>1 ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Node <code>i</code> pairs with node <code>n − 1 − i</code>: the first half pairs with the second half read backwards.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the middle, reverse the second half, then walk both halves together summing pairs.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying values to an array and summing <code>a[i] + a[n − 1 − i]</code> is <code>O(n)</code> space. Middle + reverse + walk does it in place with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 2130 -->
         <p><strong>Spot it:</strong> Pair the first half with the second half read backwards → middle (fast/slow) + reverse the second half.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1522,6 +1752,14 @@ class Solution:
 </table>
 <p>The function returns <code>6</code>.</p>
 <!-- /explain-04:2130 -->
+        <!-- enrich-edges:start 2130 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two nodes → their sum.</li>
+          <li>All equal values.</li>
+          <li>The maximum pair is in the middle.</li>
+        </ul>
+        <!-- enrich-edges:end 2130 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1530,6 +1768,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 19. Remove Nth Node From End of List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Remove the <code>n</code>-th node from the <strong>end</strong> of the linked list and return its head, in one pass.</p>
+        <!-- enrich-top:start 19 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-nth-node-from-end-of-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=fbi4UdayLSA" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5], n = 2</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [1], n = 1</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is <code>sz</code>. · <code>1 ≤ sz ≤ 30</code> · <code>0 ≤ Node.val ≤ 100</code> · <code>1 ≤ n ≤ sz</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If <code>fast</code> starts <code>n</code> nodes ahead of <code>slow</code>, where is <code>slow</code> when <code>fast</code> falls off the end?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Start <code>slow</code> at a dummy node before the head so it stops right <strong>before</strong> the node to delete.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Counting the length, then walking to position <code>length − n</code>, is two passes. A fixed gap between two pointers finds the node in one pass; the dummy node handles deleting the head.</p>
+        <!-- enrich-top:end 19 -->
         <p><strong>Spot it:</strong> "N-th from the end" without knowing the length → two runners. Here they move at the <strong>same</strong> speed but with a head start of <code>n</code>, so when the leader falls off the end, the follower stands just before the target.</p>
         <p><strong>Key insight:</strong> A dummy node before <code>head</code> means the node <em>before</em> the target always exists, even when the target is the head itself (<code>n</code> equal to the length).</p>
         <p><strong>Approach:</strong></p>
@@ -1580,6 +1829,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 19 -->
+        <!-- enrich-edges:start 19 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Remove the head (<code>n</code> equals the length).</li>
+          <li>A single-node list → empty.</li>
+          <li>Remove the last node (<code>n = 1</code>).</li>
+        </ul>
+        <!-- enrich-edges:end 19 -->
         <p><strong>Complexity:</strong> <code>O(L)</code> time (one pass over the list), <code>O(1)</code> space.</p>
       </div>
     </details>

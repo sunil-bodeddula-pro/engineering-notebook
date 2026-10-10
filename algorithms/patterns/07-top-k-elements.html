@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -706,6 +722,17 @@ def top_k_by_key(items, k, key):
       <summary><span class="tag medium">Medium</span> 215. Kth Largest Element in an Array <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the k-th largest value in an unsorted array (counting duplicates: in <code>[3,3,2]</code> the 2nd largest is 3).</p>
+        <!-- enrich-top:start 215 -->
+        <p class="links"><a href="https://leetcode.com/problems/kth-largest-element-in-an-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=ZmGk7h8KZLs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,2,1,5,6,4], k = 2</code></div><div><strong>Output:</strong> <code class="ex">5</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,2,3,1,2,4,5,5,6], k = 4</code></div><div><strong>Output:</strong> <code class="ex">4</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ nums.length ≤ 10⁵</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You don't need the whole array sorted, just the <code>k</code> largest values.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a min-heap of size <code>k</code>; whenever it grows past <code>k</code>, pop the smallest. The root is the answer.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting is <code>O(n log n)</code>. A size-<code>k</code> min-heap is <code>O(n log k)</code>; quickselect averages <code>O(n)</code> but is <code>O(n²)</code> in the worst case.</p>
+        <!-- enrich-top:end 215 -->
         <p><strong>Spot it:</strong> "k-th largest", unsorted, no need for the full order → size-k min-heap.</p>
         <p><strong>Key insight:</strong> After every element has been offered, a min-heap of the k biggest values has the k-th biggest at its root. Once the heap is full, a newcomer only gets in if it beats the root, and then the root is thrown out to make room.</p>
         <p><strong>Approach:</strong></p>
@@ -759,6 +786,14 @@ class Solution:
           </tbody>
         </table>
         <p>The heap holds the two largest numbers, 5 and 6, so the answer is <code>heap[0]</code> = <strong>5</strong>.</p>
+        <!-- enrich-edges:start 215 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → the maximum.</li>
+          <li><code>k = n</code> → the minimum.</li>
+          <li>Duplicates count separately, e.g. <code>[3, 3, 3]</code>, <code>k = 2</code> → 3.</li>
+        </ul>
+        <!-- enrich-edges:end 215 -->
         <p><strong>Complexity:</strong> <code>O(n log k)</code> time, <code>O(k)</code> space. (Quickselect averages <code>O(n)</code> but is <code>O(n²)</code> in the worst case.)</p>
       </div>
     </details>
@@ -767,6 +802,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 347. Top K Frequent Elements <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the <code>k</code> values that appear most often in <code>nums</code> (any order).</p>
+        <!-- enrich-top:start 347 -->
+        <p class="links"><a href="https://leetcode.com/problems/top-k-frequent-elements/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=phNDYf1xzco" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,1,2,2,3], k = 2</code></div><div><strong>Output:</strong> <code class="ex">[1,2]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1], k = 1</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>k</code> is in the range <code>[1, the number of unique elements in the array]</code>. · It is <strong>guaranteed</strong> that the answer is <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>First count how often each value appears.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep the <code>k</code> most frequent with a min-heap of <code>(count, value)</code> of size <code>k</code>, or use bucket sort by count.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting all distinct values by frequency is <code>O(u log u)</code>. A size-<code>k</code> heap is <code>O(u log k)</code>, and bucket sort (index = frequency) is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 347 -->
         <p><strong>Spot it:</strong> "k most frequent" → count first, then Top K by the <em>frequency</em> score.</p>
         <p><strong>Key insight:</strong> Count with a plain dictionary, then run the size-k min-heap on <code>(frequency, value)</code> tuples. The least frequent of the current top k sits at the root and is evicted first.</p>
         <p><strong>Approach:</strong></p>
@@ -824,6 +870,14 @@ class Solution:
           </tbody>
         </table>
         <p>Reading field <code>[1]</code> from each remaining pair gives <strong>[2, 1]</strong>, i.e. the values 1 and 2 (any order is accepted).</p>
+        <!-- enrich-edges:start 347 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k</code> equals the number of distinct values → all of them.</li>
+          <li>A single element.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 347 -->
         <p><strong>Complexity:</strong> <code>O(n + m log k)</code> where <code>m</code> = distinct values; <code>O(m)</code> space. Follow-up: bucket sort by frequency gives <code>O(n)</code> (see the Python file).</p>
       </div>
     </details>
@@ -832,6 +886,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 973. K Closest Points to Origin <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given points <code>[x, y]</code>, return the <code>k</code> closest to <code>(0, 0)</code>.</p>
+        <!-- enrich-top:start 973 -->
+        <p class="links"><a href="https://leetcode.com/problems/k-closest-points-to-origin/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=IGRUukbD6p8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">points = [[1,3],[-2,2]], k = 1</code></div><div><strong>Output:</strong> <code class="ex">[[-2,2]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The distance between (1, 3) and the origin is sqrt(10).
+The distance between (-2, 2) and the origin is sqrt(8).
+Since sqrt(8) &lt; sqrt(10), (-2, 2) is closer to the origin.
+We only want the closest k = 1 points from the origin, so the answer is just [[-2,2]].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">points = [[3,3],[5,-1],[-2,4]], k = 2</code></div><div><strong>Output:</strong> <code class="ex">[[3,3],[-2,4]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The answer [[-2,4],[3,3]] would also be accepted.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ points.length ≤ 10⁴</code> · <code>-10⁴ ≤ xi, yi ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You only need to compare squared distances; no square root needed.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a <strong>max</strong>-heap of size <code>k</code> (negate the distances); pop when it grows past <code>k</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting every point by distance is <code>O(n log n)</code>. A size-<code>k</code> heap keeps just the best <code>k</code>: <code>O(n log k)</code>.</p>
+        <!-- enrich-top:end 973 -->
         <p><strong>Spot it:</strong> "k closest" = k <em>smallest</em> distances → size-k <strong>max</strong>-heap (negate the key).</p>
         <p><strong>Key insight:</strong> Compare squared distances <code>x² + y²</code>; the square root never changes the order. The root of the max-heap is the farthest of the current k, so it's evicted when a closer point appears.</p>
         <p><strong>Approach:</strong></p>
@@ -884,6 +952,14 @@ class Solution:
           </tbody>
         </table>
         <p>The survivors give the answer <strong>[[-2, 4], [3, 3]]</strong> (any order is accepted). For LeetCode's first example, <code>[[1,3],[-2,2]]</code> with <code>k = 1</code>: distances 10 and 8, so <code>[1,3]</code> is popped and the answer is <code>[[-2,2]]</code>.</p>
+        <!-- enrich-edges:start 973 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = n</code> → every point.</li>
+          <li>Ties in distance (any of them may be returned).</li>
+          <li>Points with negative coordinates.</li>
+        </ul>
+        <!-- enrich-edges:end 973 -->
         <p><strong>Complexity:</strong> <code>O(n log k)</code> time, <code>O(k)</code> space.</p>
       </div>
     </details>
@@ -892,6 +968,24 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 23. Merge k Sorted Lists <span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Merge <code>k</code> sorted linked lists into one sorted list.</p>
+        <!-- enrich-top:start 23 -->
+        <p class="links"><a href="https://leetcode.com/problems/merge-k-sorted-lists/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=RyrVWP76lVo" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">lists = [[1,4,5],[1,3,4],[2,6]]</code></div><div><strong>Output:</strong> <code class="ex">[1,1,2,3,4,4,5,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The linked-lists are:
+[
+ 1-&gt;4-&gt;5,
+ 1-&gt;3-&gt;4,
+ 2-&gt;6
+]
+merging them into one sorted linked list:
+1-&gt;1-&gt;2-&gt;3-&gt;4-&gt;4-&gt;5-&gt;6</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">lists = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>k == lists.length</code> · <code>0 ≤ k ≤ 10⁴</code> · <code>0 ≤ lists[i].length ≤ 500</code> · <code>-10⁴ ≤ lists[i][j] ≤ 10⁴</code> · <code>lists[i]</code> is sorted in <strong>ascending order</strong>. · The sum of <code>lists[i].length</code> will not exceed <code>10⁴</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>At every step, the next node of the result is the smallest of the <code>k</code> current heads.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Put the heads in a min-heap (with a tie-breaker index); pop the smallest, append it, push its <code>next</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting all values and sorting is <code>O(N log N)</code>; merging the lists one by one is <code>O(k · N)</code>. A heap of the <code>k</code> heads always yields the next smallest in <code>O(log k)</code>: <code>O(N log k)</code> total.</p>
+        <!-- enrich-top:end 23 -->
         <p><strong>Spot it:</strong> At every step you need "the smallest head among k lists". Repeatedly taking the minimum of a changing set is a heap's job.</p>
         <p><strong>Key insight:</strong> Put each list's head in a min-heap. Pop the smallest, attach it to the result, and push that node's <code>next</code>. The heap never holds more than <code>k</code> nodes. Add the list index <code>i</code> as a tie-breaker because <code>ListNode</code> objects can't be compared.</p>
         <p><strong>Approach:</strong></p>
@@ -964,6 +1058,14 @@ class Solution:
           </tbody>
         </table>
         <p>The heap is empty, so the merged list is <strong>1 → 1 → 2 → 3 → 4 → 4 → 5 → 6</strong>. Notice loop 4→5: the two 4s tie on value, and the list index (0 before 1) decides.</p>
+        <!-- enrich-edges:start 23 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty array of lists, or lists that are all empty.</li>
+          <li>One list only.</li>
+          <li>Equal values across lists (the heap needs a tie-breaker so it never compares nodes).</li>
+        </ul>
+        <!-- enrich-edges:end 23 -->
         <p><strong>Complexity:</strong> <code>O(N log k)</code> for <code>N</code> total nodes, <code>O(k)</code> heap space.</p>
       </div>
     </details>
@@ -972,6 +1074,22 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 295. Find Median from Data Stream <span class="ds-tags"><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a structure with <code>addNum(num)</code> and <code>findMedian()</code> over all numbers added so far.</p>
+        <!-- enrich-top:start 295 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-median-from-data-stream/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["MedianFinder", "addNum", "addNum", "findMedian", "addNum", "findMedian"]
+[[], [1], [2], [], [3], []]</code></div><div><strong>Output:</strong> <code class="ex">[null, null, null, 1.5, null, 2.0]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">MedianFinder medianFinder = new MedianFinder();
+medianFinder.addNum(1); // arr = [1]
+medianFinder.addNum(2); // arr = [1, 2]
+medianFinder.findMedian(); // return 1.5 (i.e., (1 + 2) / 2)
+medianFinder.addNum(3); // arr[1, 2, 3]
+medianFinder.findMedian(); // return 2.0</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>-10⁵ ≤ num ≤ 10⁵</code> · There will be at least one element in the data structure before calling <code>findMedian</code>. · At most <code>5 * 10⁴</code> calls will be made to <code>addNum</code> and <code>findMedian</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Keep the smaller half and the larger half of the numbers separately.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A max-heap for the lower half and a min-heap for the upper half, balanced so their sizes differ by at most one; the median is at their tops.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting on every <code>findMedian</code> call is <code>O(n log n)</code> each; keeping a sorted list makes inserts <code>O(n)</code>. Two balanced heaps make <code>addNum</code> <code>O(log n)</code> and <code>findMedian</code> <code>O(1)</code>.</p>
+        <!-- enrich-top:end 295 -->
         <p><strong>Spot it:</strong> "median" of a "stream". The median is the boundary between the smaller half and the larger half, so keep <strong>two heaps</strong>: a max-heap for the lower half and a min-heap for the upper half.</p>
         <p><strong>Key insight:</strong> Keep two rules. (1) Every value in <code>lo</code> ≤ every value in <code>hi</code>. (2) <code>len(lo)</code> equals <code>len(hi)</code> or is one more. Then the median is <code>lo</code>'s top, or the average of both tops. To insert, push into <code>lo</code>, move <code>lo</code>'s max over to <code>hi</code> (this fixes rule 1), then move one back if <code>hi</code> got bigger (this fixes rule 2).</p>
         <p><strong>Approach:</strong></p>
@@ -1034,6 +1152,14 @@ class MedianFinder:
           </tbody>
         </table>
         <p>Inside <code>addNum(3)</code>: 3 goes into <code>lo</code>, is immediately moved to <code>hi</code> (now <code>[2, 3]</code>), and then <code>hi</code> is bigger than <code>lo</code>, so its smallest, 2, moves back to <code>lo</code>.</p>
+        <!-- enrich-edges:start 295 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One number → it is the median.</li>
+          <li>Even count → the average of the two middle numbers.</li>
+          <li>Duplicates and negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 295 -->
         <p><strong>Complexity:</strong> <code>addNum</code> <code>O(log n)</code>, <code>findMedian</code> <code>O(1)</code>, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1098,6 +1224,28 @@ class MedianFinder:
       <summary><span class="tag easy">Easy</span> 703. Kth Largest Element in a Stream <span class="ds-tags"><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a class that's given <code>k</code> and some starting numbers. Each call <code>add(val)</code> inserts a number and returns the current k-th largest.</p>
+        <!-- enrich-top:start 703 -->
+        <p class="links"><a href="https://leetcode.com/problems/kth-largest-element-in-a-stream/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["KthLargest", "add", "add", "add", "add", "add"]
+[[3, [4, 5, 8, 2]], [3], [5], [10], [9], [4]]</code></div><div><strong>Output:</strong> <code class="ex">[null, 4, 5, 5, 8, 8]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">KthLargest kthLargest = new KthLargest(3, [4, 5, 8, 2]);
+kthLargest.add(3); // return 4
+kthLargest.add(5); // return 5
+kthLargest.add(10); // return 5
+kthLargest.add(9); // return 8
+kthLargest.add(4); // return 8</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">["KthLargest", "add", "add", "add", "add"]
+[[4, [7, 7, 7, 7, 8, 3]], [2], [10], [9], [9]]</code></div><div><strong>Output:</strong> <code class="ex">[null, 7, 7, 7, 8]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">KthLargest kthLargest = new KthLargest(4, [7, 7, 7, 7, 8, 3]);
+kthLargest.add(2); // return 7
+kthLargest.add(10); // return 7
+kthLargest.add(9); // return 7
+kthLargest.add(9); // return 8</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ nums.length ≤ 10⁴</code> · <code>1 ≤ k ≤ nums.length + 1</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>-10⁴ ≤ val ≤ 10⁴</code> · At most <code>10⁴</code> calls will be made to <code>add</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The <code>k</code>-th largest is the smallest of the <code>k</code> largest values.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a min-heap of exactly the <code>k</code> largest values; after each <code>add</code>, pop if it grows past <code>k</code> and return the root.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting after each <code>add</code> is <code>O(n log n)</code> per call. A size-<code>k</code> min-heap makes each <code>add</code> <code>O(log k)</code>.</p>
+        <!-- enrich-top:end 703 -->
         <p><strong>Spot it:</strong> A stream plus "k-th largest" is the size-k min-heap in its purest form.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1150,6 +1298,14 @@ class KthLargest:
           </tbody>
         </table>
         <p>The returned values are <strong>4, 5, 5, 8, 8</strong>, matching LeetCode's expected output.</p>
+        <!-- enrich-edges:start 703 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The initial array has fewer than <code>k</code> elements.</li>
+          <li>Adding values smaller than everything in the heap.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 703 -->
         <p><strong>Complexity:</strong> <code>O(n log k)</code> to build, <code>O(log k)</code> per <code>add</code>, <code>O(k)</code> space.</p>
       </div>
     </details>
@@ -1158,6 +1314,18 @@ class KthLargest:
       <summary><span class="tag medium">Medium</span> 692. Top K Frequent Words <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the <code>k</code> most frequent words, sorted by frequency (highest first). Break ties alphabetically.</p>
+        <!-- enrich-top:start 692 -->
+        <p class="links"><a href="https://leetcode.com/problems/top-k-frequent-words/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">words = ["i","love","leetcode","i","love","coding"], k = 2</code></div><div><strong>Output:</strong> <code class="ex">["i","love"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"i" and "love" are the two most frequent words.
+Note that "i" comes before "love" due to a lower alphabetical order.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">words = ["the","day","is","sunny","the","the","the","sunny","is","is"], k = 4</code></div><div><strong>Output:</strong> <code class="ex">["the","is","sunny","day"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"the", "is", "sunny" and "day" are the four most frequent words, with the number of occurrence being 4, 3, 2 and 1 respectively.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ words.length ≤ 500</code> · <code>1 ≤ words[i].length ≤ 10</code> · <code>words[i]</code> consists of lowercase English letters. · <code>k</code> is in the range <code>[1, The number of unique words[i]]</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Count the words, then rank them by frequency (descending) and alphabetically for ties.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort with the key <code>(-count, word)</code>, or use a heap with that same ordering.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting all distinct words with the combined key is <code>O(u log u)</code> and is perfectly fine. A heap of size <code>k</code> with a careful comparator brings it to <code>O(u log k)</code>.</p>
+        <!-- enrich-top:end 692 -->
         <p><strong>Spot it:</strong> "k most frequent" → count, then a heap. The twist is the exact output order, including ties.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1213,6 +1381,14 @@ class Solution:
           </tbody>
         </table>
         <p>After <code>k = 2</code> pops the answer is <strong>["i", "love"]</strong>.</p>
+        <!-- enrich-edges:start 692 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Ties in frequency must be ordered alphabetically.</li>
+          <li><code>k</code> equals the number of distinct words.</li>
+          <li>One word repeated.</li>
+        </ul>
+        <!-- enrich-edges:end 692 -->
         <p><strong>Complexity:</strong> <code>O(n + k log m)</code> time (m = distinct words), <code>O(m)</code> space. A size-k heap with a reversed comparator gives <code>O(n log k)</code>, but it's trickier to get right.</p>
       </div>
     </details>
@@ -1221,6 +1397,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 658. Find K Closest Elements <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a <strong>sorted</strong> array, return the <code>k</code> values closest to <code>x</code>, in ascending order. On a tie in distance, the smaller value wins.</p>
+        <!-- enrich-top:start 658 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-k-closest-elements/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">arr = [1,2,3,4,5], k = 4, x = 3</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">arr = [1,1,2,3,4,5], k = 4, x = -1</code></div><div><strong>Output:</strong> <code class="ex">[1,1,2,3]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ arr.length</code> · <code>1 ≤ arr.length ≤ 10⁴</code> · <code>arr</code> is sorted in <strong>ascending</strong> order. · <code>-10⁴ ≤ arr[i], x ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The answer is a contiguous window of length <code>k</code> in the sorted array.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Binary-search the window's left edge: compare <code>x − arr[mid]</code> with <code>arr[mid + k] − x</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting by distance to <code>x</code> is <code>O(n log n)</code>; shrinking a window from both ends is <code>O(n − k)</code>. Binary-searching the start of the window is <code>O(log(n − k) + k)</code>.</p>
+        <!-- enrich-top:end 658 -->
         <p><strong>Spot it:</strong> It looks like Top K (heap by distance works in <code>O(n log k)</code>), but the input is sorted, so the answer is a contiguous window. Binary search for where that window starts (see <a href="09-modified-binary-search.html">Modified Binary Search</a>).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1272,6 +1459,14 @@ class Solution:
           </tbody>
         </table>
         <p>Now <code>low = high = 0</code>, so the loop stops. The window starts at 0 and the answer is <strong>[1, 2, 3, 4]</strong>.</p>
+        <!-- enrich-edges:start 658 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>x</code> smaller than every element → the first <code>k</code>.</li>
+          <li><code>x</code> larger than every element → the last <code>k</code>.</li>
+          <li>Ties: the smaller element wins.</li>
+        </ul>
+        <!-- enrich-edges:end 658 -->
         <p><strong>Complexity:</strong> <code>O(log(n − k) + k)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1280,6 +1475,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 767. Reorganize String <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange the letters of <code>s</code> so that no two adjacent letters are equal. Return any valid arrangement, or <code>""</code> if it's impossible.</p>
+        <!-- enrich-top:start 767 -->
+        <p class="links"><a href="https://leetcode.com/problems/reorganize-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "aab"</code></div><div><strong>Output:</strong> <code class="ex">"aba"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "aaab"</code></div><div><strong>Output:</strong> <code class="ex">""</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 500</code> · <code>s</code> consists of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If some letter appears more than <code>(n + 1) / 2</code> times, it's impossible.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Repeatedly place the most frequent remaining letter that differs from the last one placed (a max-heap of counts).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying permutations is factorial. A greedy max-heap always places the most frequent available letter, holding the previous one back for a step: <code>O(n log 26)</code>.</p>
+        <!-- enrich-top:end 767 -->
         <p><strong>Spot it:</strong> Greedy: always place the letter with the most copies left, but never the same letter twice in a row. "Repeatedly take the current max" → max-heap.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1357,6 +1563,14 @@ class Solution:
           </tbody>
         </table>
         <p><code>output</code> has 3 letters, the same as <code>s</code>, so the answer is <strong>"aba"</strong>. (For <code>"aaab"</code> the heap runs dry while an <code>a</code> is still held, so the answer is <code>""</code>.)</p>
+        <!-- enrich-edges:start 767 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Impossible inputs, e.g. <code>"aaab"</code> → <code>""</code>.</li>
+          <li>A single letter.</li>
+          <li>Two letters with equal counts.</li>
+        </ul>
+        <!-- enrich-edges:end 767 -->
         <p><strong>Complexity:</strong> <code>O(n log σ)</code> time where σ = alphabet size (≤ 26), <code>O(σ)</code> space.</p>
       </div>
     </details>
@@ -1365,6 +1579,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 378. Kth Smallest Element in a Sorted Matrix <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Every row and every column of an <code>n × n</code> matrix is sorted ascending. Return the k-th smallest element overall.</p>
+        <!-- enrich-top:start 378 -->
+        <p class="links"><a href="https://leetcode.com/problems/kth-smallest-element-in-a-sorted-matrix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,5,9],[10,11,13],[12,13,15]], k = 8</code></div><div><strong>Output:</strong> <code class="ex">13</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The elements in the matrix are [1,5,9,10,11,12,13,13,15], and the 8th smallest number is 13</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[-5]], k = 1</code></div><div><strong>Output:</strong> <code class="ex">-5</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == matrix.length == matrix[i].length</code> · <code>1 ≤ n ≤ 300</code> · <code>-10⁹ ≤ matrix[i][j] ≤ 10⁹</code> · All the rows and columns of <code>matrix</code> are <strong>guaranteed</strong> to be sorted in <strong>non-decreasing order</strong>. · <code>1 ≤ k ≤ n²</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each row is sorted, so the smallest unseen element is always one of the row fronts.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a min-heap of row fronts (pop <code>k</code> times), or binary-search the value and count how many elements are ≤ it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Flattening and sorting is <code>O(n² log n)</code>. A heap of row fronts is <code>O(k log n)</code>; binary search on the value range with a staircase count is <code>O(n log(max − min))</code>.</p>
+        <!-- enrich-top:end 378 -->
         <p><strong>Spot it:</strong> Each row is a sorted list, so this is "merge n sorted lists and stop at the k-th item": a k-way merge with a min-heap. (Binary search on the value also works.)</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1422,6 +1647,14 @@ class Solution:
           </tbody>
         </table>
         <p>Seven values (k − 1) were thrown away. <code>heap[0][0]</code> is <strong>13</strong>, the 8th smallest.</p>
+        <!-- enrich-edges:start 378 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code> → the top-left corner.</li>
+          <li><code>k = n²</code> → the bottom-right corner.</li>
+          <li>Duplicate values.</li>
+        </ul>
+        <!-- enrich-edges:end 378 -->
         <p><strong>Complexity:</strong> <code>O(k log min(n, k))</code> time, <code>O(min(n, k))</code> space.</p>
       </div>
     </details>
@@ -1430,6 +1663,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 621. Task Scheduler <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> CPU tasks are letters. Each unit of time runs one task or stays idle. The same letter must be at least <code>n</code> units apart. Return the minimum total time.</p>
+        <!-- enrich-top:start 621 -->
+        <p class="links"><a href="https://leetcode.com/problems/task-scheduler/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">tasks = ["A","A","A","B","B","B"], n = 2</code></div><div><strong>Output:</strong> <code class="ex">8</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A possible sequence is: A -&gt; B -&gt; idle -&gt; A -&gt; B -&gt; idle -&gt; A -&gt; B.
+After completing task A, you must wait two intervals before doing A again. The same applies to task B. In the 3rd interval, neither A nor B can be done, so you idle. By the 4th interval, you can do A again as 2 intervals have passed.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">tasks = ["A","C","A","B","D","B"], n = 1</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A possible sequence is: A -&gt; B -&gt; C -&gt; D -&gt; A -&gt; B.
+With a cooling interval of 1, you can repeat a task after just one other task.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ tasks.length ≤ 10⁴</code> · <code>tasks[i]</code> is an uppercase English letter. · <code>0 ≤ n ≤ 100</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The most frequent task decides the frame: it needs <code>n</code> slots between its copies.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Answer = <code>max(len(tasks), (maxCount − 1) × (n + 1) + number of tasks with maxCount)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating time step by step with a heap and a cooldown queue works (<code>O(total time · log 26)</code>). Counting the frame formed by the most frequent task gives the answer in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 621 -->
         <p><strong>Spot it:</strong> Greedy: at each tick, run the available task with the most copies left. "Most remaining" → max-heap. "Not available until time t" → a queue of cooling tasks.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1506,6 +1752,14 @@ class Solution:
           </tbody>
         </table>
         <p>Both the heap and the queue are empty, so the loop stops and the answer is <strong>8</strong> (the schedule A B idle A B idle A B).</p>
+        <!-- enrich-edges:start 621 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 0</code> → <code>len(tasks)</code>.</li>
+          <li>Several tasks tied for the most frequent.</li>
+          <li>Enough variety that no idle slots are needed.</li>
+        </ul>
+        <!-- enrich-edges:end 621 -->
         <p><strong>Complexity:</strong> <code>O(T log 26)</code> where T = answer, <code>O(26)</code> space. (A counting formula, <code>max(len(tasks), (maxCount−1)(n+1) + numMax)</code>, gives <code>O(len(tasks))</code>.)</p>
       </div>
     </details>
@@ -1514,6 +1768,21 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 502. IPO <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You start with capital <code>w</code> and may finish at most <code>k</code> projects. Project <code>i</code> needs <code>capital[i]</code> to start and adds <code>profits[i]</code> to your capital. Maximize your final capital.</p>
+        <!-- enrich-top:start 502 -->
+        <p class="links"><a href="https://leetcode.com/problems/ipo/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">k = 2, w = 0, profits = [1,2,3], capital = [0,1,1]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Since your initial capital is 0, you can only start the project indexed 0.
+After finishing it you will obtain profit 1 and your capital becomes 1.
+With capital 1, you can either start the project indexed 1 or the project indexed 2.
+Since you can choose at most 2 projects, you need to finish the project indexed 2 to get the maximum capital.
+Therefore, output the final maximized capital, which is 0 + 1 + 3 = 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">k = 3, w = 0, profits = [1,2,3], capital = [0,1,2]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ 10⁵</code> · <code>0 ≤ w ≤ 10⁹</code> · <code>n == profits.length</code> · <code>n == capital.length</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>0 ≤ profits[i] ≤ 10⁴</code> · <code>0 ≤ capital[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>With capital <code>w</code>, you may only start projects whose capital requirement is ≤ <code>w</code>. Among those, which one should you pick?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort projects by capital; push newly affordable ones into a max-heap of profits; take the best <code>k</code> times.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning all projects for the best affordable one each round is <code>O(k · n)</code>. Sorting by capital plus a max-heap of affordable profits is <code>O(n log n + k log n)</code>.</p>
+        <!-- enrich-top:end 502 -->
         <p><strong>Spot it:</strong> Two heap ideas at once: projects <em>unlock</em> as your capital grows (sort by required capital), and among the unlocked ones you always take the most profitable (max-heap).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1572,6 +1841,14 @@ class Solution:
           </tbody>
         </table>
         <p>After <code>k = 2</code> rounds the loop ends and the answer is <strong>4</strong>.</p>
+        <!-- enrich-edges:start 502 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No project is affordable at the start → <code>w</code>.</li>
+          <li><code>k</code> larger than the number of projects.</li>
+          <li>Projects with zero profit.</li>
+        </ul>
+        <!-- enrich-edges:end 502 -->
         <p><strong>Complexity:</strong> <code>O(n log n + k log n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1580,6 +1857,20 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 1046. Last Stone Weight <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each turn, take the two heaviest stones <code>x ≤ y</code> and smash them: if equal both vanish, otherwise a stone of weight <code>y − x</code> remains. Return the last stone's weight, or <code>0</code> if none remain.</p>
+        <!-- enrich-top:start 1046 -->
+        <p class="links"><a href="https://leetcode.com/problems/last-stone-weight/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=a2dEXlmA1nc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">stones = [2,7,4,1,8,1]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We combine 7 and 8 to get 1 so the array converts to [2,4,1,1,1] then,
+we combine 2 and 4 to get 2 so the array converts to [2,1,1,1] then,
+we combine 2 and 1 to get 1 so the array converts to [1,1,1] then,
+we combine 1 and 1 to get 0 so the array converts to [1] then that's the value of the last stone.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">stones = [1]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ stones.length ≤ 30</code> · <code>1 ≤ stones[i] ≤ 1000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You always need the two heaviest stones.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a max-heap (negate the values for Python's <code>heapq</code>).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting the stones before every smash is <code>O(n² log n)</code>. A max-heap gives the two largest in <code>O(log n)</code> per smash: <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 1046 -->
         <p><strong>Spot it:</strong> "Repeatedly take the two largest" → a max-heap. Python's <code>heapq</code> is a min-heap, so store negated weights.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1627,6 +1918,14 @@ class Solution:
         </table>
         <p>One stone of weight <code>1</code> remains.</p>
         <!-- explain:end 1046 -->
+        <!-- enrich-edges:start 1046 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single stone → its weight.</li>
+          <li>Two equal stones → 0.</li>
+          <li>All stones equal.</li>
+        </ul>
+        <!-- enrich-edges:end 1046 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>

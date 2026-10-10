@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -671,6 +687,17 @@ def prim(n, edges_of):
       <summary><span class="tag medium">Medium</span> 743. Network Delay Time <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>times[i] = (u, v, w)</code> is a directed edge from node <code>u</code> to <code>v</code> taking <code>w</code> time. A signal starts at <code>k</code>. Return the time until <strong>all</strong> <code>n</code> nodes have received it, or <code>-1</code> if some never do.</p>
+        <!-- enrich-top:start 743 -->
+        <p class="links"><a href="https://leetcode.com/problems/network-delay-time/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Bp7STMWMMQw" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">times = [[2,1,1],[2,3,1],[3,4,1]], n = 4, k = 2</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">times = [[1,2,1]], n = 2, k = 1</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ n ≤ 100</code> · <code>1 ≤ times.length ≤ 6000</code> · <code>times[i].length == 3</code> · <code>1 ≤ ui, vi ≤ n</code> · <code>ui != vi</code> · <code>0 ≤ wi ≤ 100</code> · All the pairs <code>(ui, vi)</code> are <strong>unique</strong>. (i.e., no multiple edges.)</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need the shortest travel time from <code>k</code> to every node, with different edge weights.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Dijkstra with a min-heap; the answer is the largest shortest time, or −1 if some node is unreachable.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> BFS ignores weights; trying all paths is exponential; Bellman–Ford is <code>O(V · E)</code>. With non-negative weights Dijkstra is <code>O(E log E)</code>.</p>
+        <!-- enrich-top:end 743 -->
         <p><strong>Spot it:</strong> Shortest travel times from one source with <strong>non-negative weights</strong> → Dijkstra. The answer is the largest of those shortest times (the last node to hear the signal).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -724,6 +751,14 @@ class Solution:
         </table>
         <p>All 4 nodes are settled; the largest time is <strong>2</strong>.</p>
         <!-- explain:end 743 -->
+        <!-- enrich-edges:start 743 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An unreachable node → −1.</li>
+          <li>A single node → 0.</li>
+          <li>Several edges between the same pair.</li>
+        </ul>
+        <!-- enrich-edges:end 743 -->
         <p><strong>Complexity:</strong> <code>O(E log E)</code> time with a binary heap, <code>O(V + E)</code> space.</p>
       </div>
     </details>
@@ -732,6 +767,18 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1584. Min Cost to Connect All Points <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Connect all <code>points</code> on a plane so every pair is connected by some path. The cost of an edge between two points is their Manhattan distance <code>|x1 − x2| + |y1 − y2|</code>. Return the minimum total cost.</p>
+        <!-- enrich-top:start 1584 -->
+        <p class="links"><a href="https://leetcode.com/problems/min-cost-to-connect-all-points/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=8VPIrqwQ8sQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">points = [[0,0],[2,2],[3,10],[5,2],[7,0]]</code></div><div><strong>Output:</strong> <code class="ex">20</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can connect the points as shown above to get the minimum cost of 20.
+Notice that there is a unique path between every pair of points.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">points = [[3,12],[-2,5],[-4,1]]</code></div><div><strong>Output:</strong> <code class="ex">18</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ points.length ≤ 1000</code> · <code>-10⁶ ≤ xi, yi ≤ 10⁶</code> · All pairs <code>(xi, yi)</code> are distinct.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Connecting everything at minimum total cost is a minimum spanning tree.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Prim's algorithm: grow from point 0, always adding the cheapest edge out of the tree (min-heap keyed by Manhattan distance).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all spanning trees is exponential. Prim's with a heap is <code>O(n² log n)</code> on this complete graph (or <code>O(n²)</code> with an array); Kruskal sorts the <code>n²</code> edges.</p>
+        <!-- enrich-top:end 1584 -->
         <p><strong>Spot it:</strong> "Connect everything as cheaply as possible" is a <strong>minimum spanning tree</strong>. The graph is complete (every pair can be connected), so Prim's algorithm, which grows one tree from a start point, is a natural fit.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -788,6 +835,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 1584 -->
+        <!-- enrich-edges:start 1584 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single point → 0.</li>
+          <li>Duplicate points (distance 0).</li>
+          <li>Collinear points.</li>
+        </ul>
+        <!-- enrich-edges:end 1584 -->
         <p><strong>Complexity:</strong> <code>O(n² log n)</code> time (up to <code>n²</code> heap pushes), <code>O(n²)</code> heap space. (An array-based Prim without a heap is <code>O(n²)</code> time, <code>O(n)</code> space.)</p>
       </div>
     </details>

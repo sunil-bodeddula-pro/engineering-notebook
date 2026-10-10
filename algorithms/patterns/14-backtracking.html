@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -746,6 +762,17 @@ def subsets_with_dup_helper(nums, start, path, results):
       <summary><span class="tag medium">Medium</span> 78. Subsets <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given distinct integers, return every possible subset (the power set), in any order.</p>
+        <!-- enrich-top:start 78 -->
+        <p class="links"><a href="https://leetcode.com/problems/subsets/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=UP3dOYJa05s" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">[[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0]</code></div><div><strong>Output:</strong> <code class="ex">[[],[0]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10</code> · <code>-10 ≤ nums[i] ≤ 10</code> · All the numbers of <code>nums</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every element is either in the subset or not.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack: record the current path at every node of the recursion, then try adding each later element.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> There are <code>2ⁿ</code> subsets, so any solution is at least <code>O(n · 2ⁿ)</code> to output them. Backtracking (or iterating over bitmasks) generates each subset exactly once without duplicates.</p>
+        <!-- enrich-top:end 78 -->
         <p><strong>Spot it:</strong> "all possible subsets" plus <code>n ≤ 10</code>. The output alone has 2ⁿ items, so exponential time is unavoidable and expected.</p>
         <p><strong>Key insight:</strong> Each element gives a yes/no decision: take it or skip it. That's a binary decision tree of depth n with 2ⁿ leaves, and each leaf is one subset. The first visualizer above draws exactly this tree.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -804,6 +831,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 78 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty array → <code>[[]]</code>.</li>
+          <li>A single element → <code>[[], [x]]</code>.</li>
+          <li>Negative numbers (they don't matter).</li>
+        </ul>
+        <!-- enrich-edges:end 78 -->
         <p><strong>Complexity:</strong> <code>O(n·2ⁿ)</code> time (2ⁿ subsets, each copied in O(n)), <code>O(n)</code> recursion depth.</p>
       </div>
     </details>
@@ -812,6 +847,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 46. Permutations <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every ordering of a list of distinct integers.</p>
+        <!-- enrich-top:start 46 -->
+        <p class="links"><a href="https://leetcode.com/problems/permutations/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=gFm1lEfnzUQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">[[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,1]</code></div><div><strong>Output:</strong> <code class="ex">[[0,1],[1,0]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 6</code> · <code>-10 ≤ nums[i] ≤ 10</code> · All the integers of <code>nums</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Build a permutation one position at a time.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>At each step, try every unused number (track <code>used</code>), recurse, then undo the choice.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> There are <code>n!</code> permutations, so the output alone is <code>O(n · n!)</code>. Backtracking with a <code>used</code> array produces each permutation once.</p>
+        <!-- enrich-top:end 46 -->
         <p><strong>Spot it:</strong> "all possible permutations". Order matters, so <code>[1,2]</code> and <code>[2,1]</code> both count. A <code>start</code> index would lose orderings. Use <code>used</code> flags.</p>
         <p><strong>Key insight:</strong> At depth d you pick which unused number goes in position d. That gives n choices, then n−1, then n−2… for n! leaves. The second visualizer above shows the tree growing.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -869,6 +915,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 46 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element.</li>
+          <li>Negative numbers.</li>
+          <li>(All numbers are distinct here; with duplicates see Permutations II.)</li>
+        </ul>
+        <!-- enrich-edges:end 46 -->
         <p><strong>Complexity:</strong> <code>O(n·n!)</code> time, <code>O(n)</code> extra space.</p>
       </div>
     </details>
@@ -877,6 +931,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 39. Combination Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given distinct positive <code>candidates</code> and a <code>target</code>, list every unique combination that sums to <code>target</code>. You may reuse a number any number of times.</p>
+        <!-- enrich-top:start 39 -->
+        <p class="links"><a href="https://leetcode.com/problems/combination-sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=utBw5FbYswk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">candidates = [2,3,6,7], target = 7</code></div><div><strong>Output:</strong> <code class="ex">[[2,2,3],[7]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">2 and 3 are candidates, and 2 + 2 + 3 = 7. Note that 2 can be used multiple times.
+7 is a candidate, and 7 = 7.
+These are the only two combinations.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">candidates = [2,3,5], target = 8</code></div><div><strong>Output:</strong> <code class="ex">[[2,2,2,2],[2,3,3],[3,5]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ candidates.length ≤ 30</code> · <code>2 ≤ candidates[i] ≤ 40</code> · All elements of <code>candidates</code> are <strong>distinct</strong>. · <code>1 ≤ target ≤ 40</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You may reuse a number, but <code>[2, 3]</code> and <code>[3, 2]</code> count as the same combination.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack with a <code>start</code> index: after choosing <code>candidates[i]</code>, recurse from <code>i</code> (not <code>i + 1</code>) so it can be reused. Stop when the remaining sum is negative.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating all sequences up to the target and de-duplicating is wasteful. Choosing in non-decreasing index order avoids duplicates, and pruning on a negative remainder (faster after sorting) cuts dead branches early.</p>
+        <!-- enrich-top:end 39 -->
         <p><strong>Spot it:</strong> "all unique combinations" + "sum to target". Combinations (order doesn't matter), so use <code>start</code>. Reuse is allowed, so recurse with <code>i</code>, not <code>i+1</code>.</p>
         <p><strong>Key insight:</strong> Track the <em>remaining</em> amount. Sort first: the moment a candidate exceeds the remainder, every later one does too, so you can <code>break</code>. That's powerful pruning.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -935,6 +1002,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end -->
+        <!-- enrich-edges:start 39 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No combination exists → <code>[]</code>.</li>
+          <li>A candidate equal to the target.</li>
+          <li>A target smaller than every candidate.</li>
+        </ul>
+        <!-- enrich-edges:end 39 -->
         <p><strong>Complexity:</strong> exponential, roughly <code>O(N^(T/m))</code> where <code>T</code> = target and <code>m</code> = smallest candidate. Recursion depth is at most <code>T/m</code>.</p>
       </div>
     </details>
@@ -943,6 +1018,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 51. N-Queens <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Place <code>n</code> queens on an <code>n × n</code> board so that no two share a row, column or diagonal. Return every such board.</p>
+        <!-- enrich-top:start 51 -->
+        <p class="links"><a href="https://leetcode.com/problems/n-queens/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 4</code></div><div><strong>Output:</strong> <code class="ex">[[".Q..","...Q","Q...","..Q."],["..Q.","Q...","...Q",".Q.."]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There exist two distinct solutions to the 4-queens puzzle as shown above</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 1</code></div><div><strong>Output:</strong> <code class="ex">[["Q"]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 9</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Place exactly one queen per row; for each row, choose a column.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Track used columns and both diagonals (<code>r − c</code> and <code>r + c</code>) in sets so each safety check is <code>O(1)</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every placement of <code>n</code> queens on <code>n²</code> squares is astronomically large. One queen per row with <code>O(1)</code> column/diagonal checks prunes almost everything: about <code>O(n!)</code>.</p>
+        <!-- enrich-top:end 51 -->
         <p><strong>Spot it:</strong> "return all distinct solutions" + placement constraints. That's classic constraint-satisfaction backtracking.</p>
         <p><strong>Key insight:</strong> Put exactly one queen per row, so the row is the depth of the tree. For O(1) conflict checks, keep three sets: used <strong>columns</strong>, used <strong>diagonals</strong> (<code>r − c</code> is constant along ↘), and used <strong>anti-diagonals</strong> (<code>r + c</code> is constant along ↙).</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1021,6 +1107,14 @@ class Solution:
         </table>
         <p>(Traced on n = 4 until the first solution; the search continues the same way and finds the mirror-image board too.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 51 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 1</code> → one board.</li>
+          <li><code>n = 2</code> or <code>n = 3</code> → no solutions.</li>
+          <li>Building the output strings correctly.</li>
+        </ul>
+        <!-- enrich-edges:end 51 -->
         <p><strong>Complexity:</strong> <code>O(n!)</code> time in the worst case (far less in practice thanks to pruning), <code>O(n)</code> space for the sets and recursion. n = 8 has 92 solutions.</p>
       </div>
     </details>
@@ -1029,6 +1123,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 79. Word Search <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a letter grid and a word, return whether the word can be traced through 4-directionally adjacent cells, using each cell at most once.</p>
+        <!-- enrich-top:start 79 -->
+        <p class="links"><a href="https://leetcode.com/problems/word-search/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Sn2DqF-S2h8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = [["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], word = "ABCCED"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">board = [["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], word = "SEE"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == board.length</code> · <code>n = board[i].length</code> · <code>1 ≤ m, n ≤ 6</code> · <code>1 ≤ word.length ≤ 15</code> · <code>board</code> and <code>word</code> consists of only lowercase and uppercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Start a DFS from every cell that matches the first letter.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Mark a cell as used while it's on the current path (e.g. replace it with <code>#</code>), and restore it when you backtrack.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every path in the grid is exponential no matter what, but backtracking prunes as soon as a letter doesn't match: <code>O(r · c · 3^L)</code>.</p>
+        <!-- enrich-top:end 79 -->
         <p><strong>Spot it:</strong> it looks like <a href="13-matrix-traversal.html">grid traversal</a>, but "each cell at most once <em>per path</em>" means a cell used by one attempt must be available again to the next attempt. So you must <strong>un-mark</strong> it when you back out. That's backtracking.</p>
         <p><strong>Key insight:</strong> DFS from each cell with index <code>k</code> into the word. Mark the cell with <code>'#'</code> while it's on the current path and restore it afterwards. Return early on the first success.</p>
         <p><strong>Approach (step by step):</strong></p>
@@ -1103,6 +1208,14 @@ class Solution:
         </table>
         <p>(Board <code>ABCE / SFCS / ADEE</code>, word <code>"ABCCED"</code>.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 79 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The word is longer than the number of cells.</li>
+          <li>The same cell can't be used twice, e.g. <code>"ABA"</code> on a 1 × 2 grid.</li>
+          <li>A single-letter word.</li>
+        </ul>
+        <!-- enrich-edges:end 79 -->
         <p><strong>Complexity:</strong> <code>O(R·C·3<sup>L</sup>)</code> time (after the first step, each cell has at most 3 unvisited directions), <code>O(L)</code> recursion depth. Interview bonus: prune early if the board's letter counts can't cover the word.</p>
       </div>
     </details>
@@ -1167,6 +1280,31 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 1863. Sum of All Subset XOR Totals <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The XOR total of a subset is the XOR of all its elements (0 for the empty subset). Return the sum of the XOR totals over <em>every</em> subset of <code>nums</code>.</p>
+        <!-- enrich-top:start 1863 -->
+        <p class="links"><a href="https://leetcode.com/problems/sum-of-all-subset-xor-totals/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,3]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 4 subsets of [1,3] are:
+- The empty subset has an XOR total of 0.
+- [1] has an XOR total of 1.
+- [3] has an XOR total of 3.
+- [1,3] has an XOR total of 1 XOR 3 = 2.
+0 + 1 + 3 + 2 = 6</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [5,1,6]</code></div><div><strong>Output:</strong> <code class="ex">28</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 8 subsets of [5,1,6] are:
+- The empty subset has an XOR total of 0.
+- [5] has an XOR total of 5.
+- [1] has an XOR total of 1.
+- [6] has an XOR total of 6.
+- [5,1] has an XOR total of 5 XOR 1 = 4.
+- [5,6] has an XOR total of 5 XOR 6 = 3.
+- [1,6] has an XOR total of 1 XOR 6 = 7.
+- [5,1,6] has an XOR total of 5 XOR 1 XOR 6 = 2.
+0 + 5 + 1 + 6 + 4 + 3 + 7 + 2 = 28</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 12</code> · <code>1 ≤ nums[i] ≤ 20</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Visit every subset and add up their XORs.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack with two choices per element (take it or skip it), carrying the running XOR.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating all <code>2ⁿ</code> subsets is fine for <code>n ≤ 12</code>. (A neat trick: the answer is <code>(OR of all numbers) × 2ⁿ⁻¹</code>.)</p>
+        <!-- enrich-top:end 1863 -->
         <p><strong>Spot it:</strong> "every subset" with a tiny n (≤ 12) is the take/skip decision tree.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1214,6 +1352,14 @@ class Solution:
         </table>
         <p>(<code>nums = [1, 3]</code>; rows are listed in the order the calls <em>finish</em>.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 1863 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → that element.</li>
+          <li>Duplicate values.</li>
+          <li>Zeros in the array.</li>
+        </ul>
+        <!-- enrich-edges:end 1863 -->
         <p><strong>Complexity:</strong> <code>O(2ⁿ)</code> time, <code>O(n)</code> recursion depth. (Math shortcut: OR of all numbers × 2ⁿ⁻¹.)</p>
       </div>
     </details>
@@ -1221,6 +1367,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 17. Letter Combinations of a Phone Number <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each digit 2–9 maps to letters as on a phone keypad. Given a digit string, return every letter string it could spell.</p>
+        <!-- enrich-top:start 17 -->
+        <p class="links"><a href="https://leetcode.com/problems/letter-combinations-of-a-phone-number/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=F7EoBxhPmBk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">digits = "23"</code></div><div><strong>Output:</strong> <code class="ex">["ad","ae","af","bd","be","bf","cd","ce","cf"]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">digits = "2"</code></div><div><strong>Output:</strong> <code class="ex">["a","b","c"]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ digits.length ≤ 4</code> · <code>digits[i]</code> is a digit in the range <code>['2', '9']</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each digit maps to 3 or 4 letters, and you need one letter per digit.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack over the digits: for the current digit, try each of its letters and recurse on the next digit.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> There are up to <code>4ⁿ</code> combinations, so the output is that size. Backtracking (or iteratively extending a list of prefixes) builds each combination once.</p>
+        <!-- enrich-top:end 17 -->
         <p><strong>Spot it:</strong> "return all possible combinations": one decision per digit, and the choices are that digit's letters.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1277,6 +1434,14 @@ class Solution:
         </table>
         <p>(<code>digits = "23"</code>, 3 &times; 3 = 9 strings.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 17 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty input → <code>[]</code> (not <code>[""]</code>).</li>
+          <li>Digits 7 and 9 have four letters.</li>
+          <li>A single digit.</li>
+        </ul>
+        <!-- enrich-edges:end 17 -->
         <p><strong>Complexity:</strong> <code>O(4ⁿ · n)</code> time (up to 4 letters per digit), <code>O(n)</code> recursion depth.</p>
       </div>
     </details>
@@ -1284,6 +1449,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 90. Subsets II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Like Subsets (78), but <code>nums</code> may contain duplicates. Return all subsets without duplicate subsets.</p>
+        <!-- enrich-top:start 90 -->
+        <p class="links"><a href="https://leetcode.com/problems/subsets-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,2]</code></div><div><strong>Output:</strong> <code class="ex">[[],[1],[1,2],[1,2,2],[2],[2,2]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0]</code></div><div><strong>Output:</strong> <code class="ex">[[],[0]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10</code> · <code>-10 ≤ nums[i] ≤ 10</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Like Subsets, but the input has duplicates and the output must not.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort first; at each level of the recursion, skip a value that's equal to the previous one at that same level.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating every subset and de-duplicating with a set of tuples works but wastes effort. Sorting plus the "skip equal siblings" rule never creates a duplicate in the first place.</p>
+        <!-- enrich-top:end 90 -->
         <p><strong>Spot it:</strong> "all subsets" + "may contain duplicates" calls for the sort + skip-equal-siblings template.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1335,6 +1511,14 @@ class Solution:
         </table>
         <p>(<code>nums = [1, 2, 2]</code>.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 90 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All elements equal, e.g. <code>[2, 2, 2]</code>.</li>
+          <li>No duplicates → same as Subsets.</li>
+          <li>The empty subset is always included.</li>
+        </ul>
+        <!-- enrich-edges:end 90 -->
         <p><strong>Complexity:</strong> <code>O(n · 2ⁿ)</code> time, <code>O(n)</code> recursion depth.</p>
       </div>
     </details>
@@ -1342,6 +1526,25 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 40. Combination Sum II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given <code>candidates</code> (may contain duplicates) and <code>target</code>, return every unique combination that sums to <code>target</code>. Each candidate may be used <strong>at most once</strong>.</p>
+        <!-- enrich-top:start 40 -->
+        <p class="links"><a href="https://leetcode.com/problems/combination-sum-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">candidates = [10,1,2,7,6,1,5], target = 8</code></div><div><strong>Output:</strong> <code class="ex">[
+[1,1,6],
+[1,2,5],
+[1,7],
+[2,6]
+]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">candidates = [2,5,2,1,2], target = 5</code></div><div><strong>Output:</strong> <code class="ex">[
+[1,2,2],
+[5]
+]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ candidates.length ≤ 100</code> · <code>1 ≤ candidates[i] ≤ 50</code> · <code>1 ≤ target ≤ 30</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Each candidate may be used once, and duplicate combinations aren't allowed.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort; recurse from <code>i + 1</code>; skip a candidate equal to the previous one at the same recursion level; stop once a candidate exceeds the remainder.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating subsets and filtering by sum with de-duplication is <code>O(2ⁿ)</code> with wasted duplicates. Sorted backtracking with sibling skipping and early stopping explores only distinct combinations.</p>
+        <!-- enrich-top:end 40 -->
         <p><strong>Spot it:</strong> This is Combination Sum (39) with two changes: no reuse (recurse with <code>i + 1</code>) and duplicate inputs (skip equal siblings).</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1400,6 +1603,14 @@ class Solution:
         </table>
         <p>(<code>candidates = [10,1,2,7,6,1,5]</code> sorted to <code>[1,1,2,5,6,7,10]</code>, <code>target = 8</code>.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 40 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Many repeated candidates, e.g. <code>[1, 1, 1, 1]</code>.</li>
+          <li>No combination exists.</li>
+          <li>Candidates larger than the target.</li>
+        </ul>
+        <!-- enrich-edges:end 40 -->
         <p><strong>Complexity:</strong> <code>O(2ⁿ · n)</code> time in the worst case, <code>O(n)</code> recursion depth.</p>
       </div>
     </details>
@@ -1407,6 +1618,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 22. Generate Parentheses <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every well-formed string made of <code>n</code> pairs of parentheses.</p>
+        <!-- enrich-top:start 22 -->
+        <p class="links"><a href="https://leetcode.com/problems/generate-parentheses/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=oC4saZRNwfI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 3</code></div><div><strong>Output:</strong> <code class="ex">["((()))","(()())","(())()","()(())","()()()"]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 1</code></div><div><strong>Output:</strong> <code class="ex">["()"]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 8</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>At any point, you may add <code>(</code> if you have some left, and <code>)</code> only if it wouldn't close more than you've opened.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack with counts <code>open</code> and <code>close</code>: add <code>(</code> while <code>open &lt; n</code>, add <code>)</code> while <code>close &lt; open</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating all <code>2²ⁿ</code> strings and filtering the valid ones is wasteful. Respecting the two rules while building generates only valid strings (the Catalan number of them).</p>
+        <!-- enrich-top:end 22 -->
         <p><strong>Spot it:</strong> "generate all" valid strings is backtracking where the validity rules prune as you go, so you never build an invalid string.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1464,6 +1686,14 @@ class Solution:
         </table>
         <p>(<code>n = 3</code>: 5 strings.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 22 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 1</code> → <code>["()"]</code>.</li>
+          <li>Never letting <code>close</code> exceed <code>open</code>.</li>
+          <li>Larger <code>n</code>: the count grows like the Catalan numbers (5 for <code>n = 3</code>).</li>
+        </ul>
+        <!-- enrich-edges:end 22 -->
         <p><strong>Complexity:</strong> Catalan number of results, <code>O(4ⁿ / √n)</code> time overall; <code>O(n)</code> recursion depth.</p>
       </div>
     </details>
@@ -1471,6 +1701,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 131. Palindrome Partitioning <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split a string into pieces so that every piece is a palindrome. Return every possible split.</p>
+        <!-- enrich-top:start 131 -->
+        <p class="links"><a href="https://leetcode.com/problems/palindrome-partitioning/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "aab"</code></div><div><strong>Output:</strong> <code class="ex">[["a","a","b"],["aa","b"]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "a"</code></div><div><strong>Output:</strong> <code class="ex">[["a"]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 16</code> · <code>s</code> contains only lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Choose the first piece: some palindromic prefix. Then partition the rest the same way.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack over the end index of the next piece; precomputing which substrings are palindromes (a DP table) speeds up the checks.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every cut pattern is <code>2ⁿ⁻¹</code> partitions and checking each is <code>O(n)</code>. Backtracking only continues from palindromic pieces, and a palindrome table makes each check <code>O(1)</code>.</p>
+        <!-- enrich-top:end 131 -->
         <p><strong>Spot it:</strong> "return all possible partitions". The choice at each step is <em>where to cut next</em>. That's backtracking over cut positions.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1533,6 +1774,14 @@ class Solution:
         </table>
         <p>(<code>s = "aab"</code>.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 131 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single character → <code>[["a"]]</code>.</li>
+          <li>All the same letter (many partitions).</li>
+          <li>No palindrome longer than 1 → just single letters.</li>
+        </ul>
+        <!-- enrich-edges:end 131 -->
         <p><strong>Complexity:</strong> <code>O(n · 2ⁿ)</code> time (2ⁿ⁻¹ ways to cut, O(n) palindrome checks), <code>O(n)</code> recursion depth. Precompute a palindrome table to speed up the checks.</p>
       </div>
     </details>
@@ -1540,6 +1789,16 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 37. Sudoku Solver <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Fill the empty cells (<code>'.'</code>) of a 9×9 Sudoku so that every row, column and 3×3 box contains the digits 1–9 exactly once. Modify the board in place. A unique solution is guaranteed.</p>
+        <!-- enrich-top:start 37 -->
+        <p class="links"><a href="https://leetcode.com/problems/sudoku-solver/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = [["5","3",".",".","7",".",".",".","."],["6",".",".","1","9","5",".",".","."],[".","9","8",".",".",".",".","6","."],["8",".",".",".","6",".",".",".","3"],["4",".",".","8",".","3",".",".","1"],["7",".",".",".","2",".",".",".","6"],[".","6",".",".",".",".","2","8","."],[".",".",".","4","1","9",".",".","5"],[".",".",".",".","8",".",".","7","9"]]</code></div><div><strong>Output:</strong> <code class="ex">[["5","3","4","6","7","8","9","1","2"],["6","7","2","1","9","5","3","4","8"],["1","9","8","3","4","2","5","6","7"],["8","5","9","7","6","1","4","2","3"],["4","2","6","8","5","3","7","9","1"],["7","1","3","9","2","4","8","5","6"],["9","6","1","5","3","7","2","8","4"],["2","8","7","4","1","9","6","3","5"],["3","4","5","2","8","6","1","7","9"]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The input board is shown above and the only valid solution is shown below:</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>board.length == 9</code> · <code>board[i].length == 9</code> · <code>board[i][j]</code> is a digit or <code>'.'</code>. · It is <strong>guaranteed</strong> that the input board has only one solution.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Find an empty cell and try digits 1–9 that don't break its row, column or box.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep sets for each row, column and box so validity checks are <code>O(1)</code>; undo on failure. Filling the most constrained cell first is much faster.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Filling every empty cell with every digit and checking at the end is astronomically slow. Backtracking checks each placement immediately and abandons a branch as soon as a contradiction appears.</p>
+        <!-- enrich-top:end 37 -->
         <p><strong>Spot it:</strong> This is constraint satisfaction: fill blanks one by one, prune clashing digits, and undo on dead ends. Because one solution is enough, the recursion returns True to stop everything as soon as it finds one.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1629,6 +1888,14 @@ class Solution:
         </table>
         <p>(The first few steps on the LeetCode example; the full search is too long to list. Note that the early guess <code>1</code> at (0,2) is later undone and replaced by <code>4</code>.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 37 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Puzzles that need deep backtracking.</li>
+          <li>A nearly complete board.</li>
+          <li>Restoring the sets correctly when undoing a choice.</li>
+        </ul>
+        <!-- enrich-edges:end 37 -->
         <p><strong>Complexity:</strong> Exponential in the worst case (≤ 9<sup>blanks</sup>), but the set-based pruning makes real puzzles fast. <code>O(81)</code> extra space.</p>
       </div>
     </details>
@@ -1636,6 +1903,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 212. Word Search II <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Trie</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a letter grid and a list of words, return every word that can be traced through 4-adjacent cells without reusing a cell inside a word.</p>
+        <!-- enrich-top:start 212 -->
+        <p class="links"><a href="https://leetcode.com/problems/word-search-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">board = [["o","a","a","n"],["e","t","a","e"],["i","h","k","r"],["i","f","l","v"]], words = ["oath","pea","eat","rain"]</code></div><div><strong>Output:</strong> <code class="ex">["eat","oath"]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">board = [["a","b"],["c","d"]], words = ["abcb"]</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == board.length</code> · <code>n == board[i].length</code> · <code>1 ≤ m, n ≤ 12</code> · <code>board[i][j]</code> is a lowercase English letter. · <code>1 ≤ words.length ≤ 3 * 10⁴</code> · <code>1 ≤ words[i].length ≤ 10</code> · <code>words[i]</code> consists of lowercase English letters. · All the strings of <code>words</code> are unique.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Running Word Search once per word repeats the same grid exploration many times.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Put all the words in a trie and DFS the grid once, walking the trie in parallel; stop as soon as the path isn't a prefix of any word.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> One backtracking search per word is <code>O(words · r · c · 4^L)</code>. A trie lets one DFS check every word at once and prune any path that isn't a prefix; removing found words keeps it from repeating work.</p>
+        <!-- enrich-top:end 212 -->
         <p><strong>Spot it:</strong> This is Word Search (79) for many words at once. Running 79 once per word is too slow. Put all words in a <strong>Trie</strong> and backtrack over the grid once, pruning the moment the current path isn't a prefix of any word.</p>
         <p><strong>Approach (step by step):</strong></p>
         <ol class="steps-list">
@@ -1713,6 +1991,14 @@ class Solution:
         </table>
         <p>(Board <code>oaan / etae / ihkr / iflv</code>, words <code>[oath, pea, eat, rain]</code>; only the meaningful steps are listed.)</p>
         <!-- explain:end -->
+        <!-- enrich-edges:start 212 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The same word reachable by several paths (report it once).</li>
+          <li>Words that are prefixes of other words.</li>
+          <li>No words found → <code>[]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 212 -->
         <p><strong>Complexity:</strong> <code>O(R·C·4·3<sup>L−1</sup>)</code> time in the worst case (L = longest word), but Trie pruning keeps it far lower in practice. <code>O(total letters in words)</code> space for the Trie.</p>
       </div>
     </details>
@@ -1722,6 +2008,18 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 77. Combinations <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return all combinations of <code>k</code> numbers chosen from <code>1..n</code> (order inside a combination doesn't matter).</p>
+        <!-- enrich-top:start 77 -->
+        <p class="links"><a href="https://leetcode.com/problems/combinations/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=v1hg8rDIryg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 4, k = 2</code></div><div><strong>Output:</strong> <code class="ex">[[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are 4 choose 2 = 6 total combinations.
+Note that combinations are unordered, i.e., [1,2] and [2,1] are considered to be the same combination.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 1, k = 1</code></div><div><strong>Output:</strong> <code class="ex">[[1]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is 1 choose 1 = 1 total combination.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 20</code> · <code>1 ≤ k ≤ n</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Choose numbers in increasing order to avoid duplicates like <code>[2, 1]</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Backtrack with a <code>start</code> value; record the path when it has <code>k</code> numbers.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating all orderings and de-duplicating is wasteful. Increasing order produces each combination once; pruning when not enough numbers remain skips dead branches. <code>O(k · C(n, k))</code>.</p>
+        <!-- enrich-top:end 77 -->
         <p><strong>Spot it:</strong> "All combinations" → backtracking. Choosing numbers in increasing order (each choice starts after the previous one) produces every combination exactly once, never <code>[2, 1]</code> as well as <code>[1, 2]</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1766,6 +2064,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 77 -->
+        <!-- enrich-edges:start 77 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = n</code> → one combination.</li>
+          <li><code>k = 1</code> → <code>n</code> single numbers.</li>
+          <li><code>n = 1</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 77 -->
         <p><strong>Complexity:</strong> <code>O(k · C(n, k))</code> time (each of the <code>C(n, k)</code> answers is copied in <code>O(k)</code>), <code>O(k)</code> recursion space besides the output.</p>
       </div>
     </details>

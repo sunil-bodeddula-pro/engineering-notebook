@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -710,6 +726,17 @@ def dedupe_sorted(nums):
       <summary><span class="tag medium">Medium</span> 11. Container With Most Water <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>height[i]</code> is a vertical wall at position <code>i</code>. Pick two walls so that, together with the x-axis, they hold the most water. Return that area.</p>
+        <!-- enrich-top:start 11 -->
+        <p class="links"><a href="https://leetcode.com/problems/container-with-most-water/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Y_4_or0Sc7I" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">height = [1,8,6,2,5,4,8,3,7]</code></div><div><strong>Output:</strong> <code class="ex">49</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The above vertical lines are represented by array [1,8,6,2,5,4,8,3,7]. In this case, the max area of water (blue section) the container can contain is 49.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">height = [1,1]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == height.length</code> · <code>2 ≤ n ≤ 10⁵</code> · <code>0 ≤ height[i] ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The water between two lines is <code>min(height[l], height[r]) × (r − l)</code>. Start with the widest possible pair.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Moving the <em>taller</em> line inward can never help (width shrinks, height is still capped by the shorter one). Which line should move?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every pair of lines is <code>O(n²)</code>. Start at both ends (maximum width) and always move the <strong>shorter</strong> wall inward: every pair you skip by doing so is provably no better, because the shorter wall already limits it. One pass: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 11 -->
         <p><strong>Spot it:</strong> the answer depends on <em>two ends</em> (width × shorter wall) and the brute force checks all pairs. Start with the widest container and squeeze.</p>
         <p><strong>Key insight:</strong> area = <code>(r − l) × min(h[l], h[r])</code>. If <code>h[l]</code> is the shorter wall, every container that keeps <code>l</code> and moves <code>r</code> inward is narrower <em>and</em> no taller, so it can't win. Discard <code>l</code>.</p>
         <div id="viz-11"></div>
@@ -772,6 +799,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 11 -->
+        <!-- enrich-edges:start 11 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Two lines only, e.g. <code>[1, 1]</code> → 1.</li>
+          <li>Equal heights at both ends: moving either is safe.</li>
+          <li>Strictly decreasing heights, e.g. <code>[5, 4, 3, 2, 1]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 11 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -780,6 +815,21 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 15. 3Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every <em>unique</em> triplet <code>[a, b, c]</code> from <code>nums</code> with <code>a + b + c = 0</code>.</p>
+        <!-- enrich-top:start 15 -->
+        <p class="links"><a href="https://leetcode.com/problems/3sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=TBePcj8DgxM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-1,0,1,2,-1,-4]</code></div><div><strong>Output:</strong> <code class="ex">[[-1,-1,2],[-1,0,1]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">nums[0] + nums[1] + nums[2] = (-1) + 0 + 1 = 0.
+nums[1] + nums[2] + nums[4] = 0 + 1 + (-1) = 0.
+nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0.
+The distinct triplets are [-1,0,1] and [-1,-1,2].
+Notice that the order of the output and the order of the triplets does not matter.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,1,1]</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The only possible triplet does not sum up to 0.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>3 ≤ nums.length ≤ 3000</code> · <code>-10⁵ ≤ nums[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Sort first. Fix the first number <code>nums[i]</code>; now you need a pair summing to <code>−nums[i]</code> in a sorted range.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>That pair search is Two Sum II with two pointers. To avoid duplicate triplets, skip equal values for <code>i</code> and after each found triplet.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Three nested loops over all triplets is <code>O(n³)</code>, and removing duplicate triplets needs a set. Sorting lets you fix one number and find the other two with opposite-end pointers in <code>O(n)</code>, so <code>O(n²)</code> total, and sorted order makes skipping duplicates trivial.</p>
+        <!-- enrich-top:end 15 -->
         <p><strong>Spot it:</strong> "triplets that sum to a target", values (not indices) returned, so we may sort. Fix the first number, then it's Two Sum II on the rest.</p>
         <p><strong>Key insight:</strong> sorting gives both the squeeze rule and an easy way to skip duplicates: skip an <code>i</code> equal to the previous <code>i</code>, and after a hit skip <code>l</code> values equal to the one just used.</p>
         <div id="viz-15"></div>
@@ -857,6 +907,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 15 -->
+        <!-- enrich-edges:start 15 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All zeros, e.g. <code>[0, 0, 0, 0]</code> → just <code>[[0, 0, 0]]</code> (duplicate skipping).</li>
+          <li>No triplet exists, e.g. <code>[0, 1, 1]</code> → <code>[]</code>.</li>
+          <li>Many repeated values, e.g. <code>[-2, 0, 0, 2, 2]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 15 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time, <code>O(1)</code> extra space (ignoring sort/output).</p>
       </div>
     </details>
@@ -865,6 +923,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 167. Two Sum II – Input Array Is Sorted <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A sorted array and a target; exactly one pair sums to it. Return their <strong>1-based</strong> indices using constant extra space.</p>
+        <!-- enrich-top:start 167 -->
+        <p class="links"><a href="https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=ciPrKYoOQkI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">numbers = [2,7,11,15], target = 9</code></div><div><strong>Output:</strong> <code class="ex">[1,2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The sum of 2 and 7 is 9. Therefore, index1 = 1, index2 = 2. We return [1, 2].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">numbers = [2,3,4], target = 6</code></div><div><strong>Output:</strong> <code class="ex">[1,3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The sum of 2 and 4 is 6. Therefore index1 = 1, index2 = 3. We return [1, 3].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ numbers.length ≤ 3 * 10⁴</code> · <code>-1000 ≤ numbers[i] ≤ 1000</code> · <code>numbers</code> is sorted in <strong>non-decreasing order</strong>. · <code>-1000 ≤ target ≤ 1000</code> · The tests are generated such that there is <strong>exactly one solution</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The array is sorted. If the current pair's sum is too small, which pointer should move?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Start at both ends: too small → move <code>left</code> right; too big → move <code>right</code> left.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every pair is <code>O(n²)</code>; a hash map is <code>O(n)</code> but uses <code>O(n)</code> space. Because the input is sorted, two pointers at the ends find the pair in <code>O(n)</code> time and <code>O(1)</code> space: every move discards a value that can't be part of the answer.</p>
+        <!-- enrich-top:end 167 -->
         <p><strong>Spot it:</strong> "sorted" + "pair sums to target" + "constant space" is the textbook opposite-ends case (the first visualizer above is exactly this).</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -924,6 +993,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 167 -->
+        <!-- enrich-edges:start 167 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The answer uses the first and last elements.</li>
+          <li>Negative numbers, e.g. <code>[-1, 0]</code>, target <code>-1</code> → <code>[1, 2]</code>.</li>
+          <li>Remember the answer is <strong>1-indexed</strong>.</li>
+        </ul>
+        <!-- enrich-edges:end 167 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -932,6 +1009,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 75. Sort Colors (Dutch National Flag) <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Sort an array of 0s, 1s and 2s in place, in one pass, without a library sort.</p>
+        <!-- enrich-top:start 75 -->
+        <p class="links"><a href="https://leetcode.com/problems/sort-colors/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=1DJ2kGoNPWQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,0,2,1,1,0]</code></div><div><strong>Output:</strong> <code class="ex">[0,0,1,1,2,2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The array has two 0s, two 1s, and two 2s. Sorting them in-place places all 0s first, then all 1s, then all 2s.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [2,0,1]</code></div><div><strong>Output:</strong> <code class="ex">[0,1,2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The array has one each of 0, 1, and 2, arranged in-place in the order 0, 1, 2.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 300</code> · <code>nums[i]</code> is either 0, 1, or 2.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Only three values exist. Could you keep the 0s at the front and the 2s at the back while scanning once?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use three pointers: <code>low</code> (next slot for 0), <code>mid</code> (scanner), <code>high</code> (next slot for 2). After swapping with <code>high</code>, don't advance <code>mid</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Calling <code>sort()</code> is <code>O(n log n)</code>; counting 0s, 1s and 2s and rewriting needs two passes. The Dutch-flag partition puts every element in its zone in a single pass: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 75 -->
         <p><strong>Spot it:</strong> "in place" + "partition into groups". Use <em>three</em> pointers: <code>low</code> (next slot for a 0), <code>mid</code> (reader), <code>high</code> (next slot for a 2).</p>
         <p><strong>Key insight:</strong> after swapping a 2 to <code>high</code>, don't advance <code>mid</code>: the value that came back hasn't been inspected yet. After swapping a 0 to <code>low</code>, the value that came back is a 1 (already inspected), so advance both.</p>
         <p><strong>Approach:</strong></p>
@@ -994,6 +1082,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 75 -->
+        <!-- enrich-edges:start 75 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Already sorted, e.g. <code>[0, 1, 2]</code>.</li>
+          <li>All one colour, e.g. <code>[2, 2, 2]</code>.</li>
+          <li>Swapping a 2 from <code>high</code> that lands another 2 at <code>mid</code>: that's why <code>mid</code> stays put.</li>
+        </ul>
+        <!-- enrich-edges:end 75 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1002,6 +1098,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>height</code> is an elevation map of bars of width 1. How much rain water is trapped after it rains?</p>
+        <!-- enrich-top:start 42 -->
+        <p class="links"><a href="https://leetcode.com/problems/trapping-rain-water/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=KFdHpOlz8hs" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">height = [0,1,0,2,1,0,1,3,2,1,2,1]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The above elevation map (black section) is represented by array [0,1,0,2,1,0,1,3,2,1,2,1]. In this case, 6 units of rain water (blue section) are being trapped.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">height = [4,2,0,3,2,5]</code></div><div><strong>Output:</strong> <code class="ex">9</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == height.length</code> · <code>1 ≤ n ≤ 2 * 10⁴</code> · <code>0 ≤ height[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Water above bar <code>i</code> = <code>min(highest bar to its left, highest bar to its right) − height[i]</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>With two pointers, the side whose running maximum is <em>smaller</em> already knows its water level. Settle that side and move it inward.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For every bar, scan left and right for the tallest walls: <code>O(n²)</code>. Precomputing left-max and right-max arrays makes it <code>O(n)</code> time but <code>O(n)</code> space. Two pointers drop the arrays: the lower running maximum decides the water, so one side can always be settled: <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 42 -->
         <p><strong>Spot it:</strong> water above bar <code>i</code> = <code>min(tallest on the left, tallest on the right) − height[i]</code>. Depends on both ends, so squeeze from both sides.</p>
         <p><strong>Key insight:</strong> if <code>height[l] &lt; height[r]</code>, then the right side certainly has a wall at least as tall as <code>height[r]</code>, so the water at <code>l</code> is decided by <code>left_max</code> alone. Settle <code>l</code> and move on. Mirror for the right.</p>
         <div id="viz-42"></div>
@@ -1068,6 +1175,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 42 -->
+        <!-- enrich-edges:start 42 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than 3 bars → 0.</li>
+          <li>Monotonic heights (only rising or only falling) → 0.</li>
+          <li>A deep valley between two tall walls, e.g. <code>[5, 0, 0, 5]</code> → 10.</li>
+        </ul>
+        <!-- enrich-edges:end 42 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space (versus <code>O(n)</code> for the prefix-max/suffix-max arrays version).</p>
       </div>
     </details>
@@ -1138,6 +1253,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 125. Valid Palindrome <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> After lower-casing and ignoring everything that isn't a letter or digit, does <code>s</code> read the same forwards and backwards?</p>
+        <!-- enrich-top:start 125 -->
+        <p class="links"><a href="https://leetcode.com/problems/valid-palindrome/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Nxzstmv_U0U" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "A man, a plan, a canal: Panama"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"amanaplanacanalpanama" is a palindrome.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "race a car"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"raceacar" is not a palindrome.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 2 * 10⁵</code> · <code>s</code> consists only of printable ASCII characters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Compare characters from both ends moving inward.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Skip anything that isn't a letter or digit, and compare letters case-insensitively.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building a cleaned, lower-cased copy and comparing it with its reverse is <code>O(n)</code> time but <code>O(n)</code> extra space. Two pointers skip junk characters in place and compare as they go: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 125 -->
         <p><strong>Spot it:</strong> "Compare from both ends" → opposite-end pointers. No need to build a cleaned copy of the string.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1193,6 +1319,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 125 -->
+        <!-- enrich-edges:start 125 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Only punctuation, e.g. <code>" , . "</code> → True (nothing left to mismatch).</li>
+          <li>Digits next to letters, e.g. <code>"0P"</code> → False.</li>
+          <li>Mixed case, e.g. <code>"Aa"</code> → True.</li>
+        </ul>
+        <!-- enrich-edges:end 125 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1201,6 +1335,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 80. Remove Duplicates from Sorted Array II <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A sorted array; remove extra copies <em>in place</em> so every value appears at most twice. Return the new length <code>k</code> (the first <code>k</code> slots hold the result).</p>
+        <!-- enrich-top:start 80 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-array-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=Jg4zXJAH_Kg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,1,2,2,3]</code></div><div><strong>Output:</strong> <code class="ex">5, nums = [1,1,2,2,3,_]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your function should return k = 5, with the first five elements of nums being 1, 1, 2, 2 and 3 respectively.
+It does not matter what you leave beyond the returned k (hence they are underscores).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,0,1,1,1,1,2,3,3]</code></div><div><strong>Output:</strong> <code class="ex">7, nums = [0,0,1,1,2,3,3,_,_]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your function should return k = 7, with the first seven elements of nums being 0, 0, 1, 1, 2, 3 and 3 respectively.
+It does not matter what you leave beyond the returned k (hence they are underscores).</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 3 * 10⁴</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>nums</code> is sorted in <strong>non-decreasing</strong> order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A reader scans every element; a writer marks where the next kept element goes.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep <code>nums[read]</code> only if it differs from <code>nums[write − 2]</code>: then no value appears more than twice.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Deleting extra copies from a Python list shifts everything after them: <code>O(n²)</code>. A read/write pointer pair copies keepers forward in one pass. Comparing with the element two slots back is all the bookkeeping needed: <code>O(n)</code>, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 80 -->
         <p><strong>Spot it:</strong> "In place" + keep-or-drop each element → reader/writer pointers. Sorted, so copies sit next to each other.</p>
         <p><strong>Key insight:</strong> Compare with the value <strong>two slots back</strong> in the kept part, <code>nums[write − 2]</code>. If they're equal, keeping <code>value</code> would make three copies.</p>
         <p><strong>Approach:</strong></p>
@@ -1257,6 +1404,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 80 -->
+        <!-- enrich-edges:start 80 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Length ≤ 2 → return the length unchanged.</li>
+          <li>All the same value, e.g. <code>[1, 1, 1, 1]</code> → 2.</li>
+          <li>No duplicates at all.</li>
+        </ul>
+        <!-- enrich-edges:end 80 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space. Change the 2 to any <code>k</code> for "at most k copies".</p>
       </div>
     </details>
@@ -1265,6 +1420,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 16. 3Sum Closest <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Choose three numbers whose sum is as close as possible to <code>target</code>; return that sum.</p>
+        <!-- enrich-top:start 16 -->
+        <p class="links"><a href="https://leetcode.com/problems/3sum-closest/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-1,2,1,-4], target = 1</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The sum that is closest to the target is 2. (-1 + 2 + 1 = 2).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,0,0], target = 1</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The sum that is closest to the target is 0. (0 + 0 + 0 = 0).</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>3 ≤ nums.length ≤ 500</code> · <code>-1000 ≤ nums[i] ≤ 1000</code> · <code>-10⁴ ≤ target ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Same shape as 3Sum: sort, fix <code>nums[i]</code>, squeeze the other two from both ends.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Track the triplet whose sum is closest to <code>target</code>; move the pointer that brings the sum toward the target.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> All triplets in <code>O(n³)</code>. Sorting plus a two-pointer squeeze per fixed element covers the useful triplets in <code>O(n²)</code>: when the sum is below target only moving <code>left</code> can help, and above it only moving <code>right</code> can.</p>
+        <!-- enrich-top:end 16 -->
         <p><strong>Spot it:</strong> Same skeleton as 3Sum, but instead of looking for <code>== 0</code> we track the smallest <code>|sum − target|</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1323,6 +1489,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 16 -->
+        <!-- enrich-edges:start 16 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An exact match → return immediately.</li>
+          <li>Exactly three numbers → their sum.</li>
+          <li>Large negative and positive values mixed.</li>
+        </ul>
+        <!-- enrich-edges:end 16 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1331,6 +1505,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 18. 4Sum <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return every unique quadruplet <code>[a, b, c, d]</code> with <code>a + b + c + d == target</code>.</p>
+        <!-- enrich-top:start 18 -->
+        <p class="links"><a href="https://leetcode.com/problems/4sum/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,0,-1,0,-2,2], target = 0</code></div><div><strong>Output:</strong> <code class="ex">[[-2,-1,1,2],[-2,0,0,2],[-1,0,0,1]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [2,2,2,2,2], target = 8</code></div><div><strong>Output:</strong> <code class="ex">[[2,2,2,2]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 200</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code> · <code>-10⁹ ≤ target ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Generalise 3Sum: fix two numbers with two loops, then squeeze the remaining pair.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Skip duplicates at both fixed levels and after each found quadruplet.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Four nested loops: <code>O(n⁴)</code>. Fixing two elements and squeezing the other two after sorting gives <code>O(n³)</code>, with sorted order making duplicate handling easy.</p>
+        <!-- enrich-top:end 18 -->
         <p><strong>Spot it:</strong> k-Sum: fix the first two numbers with loops, then squeeze the last two with opposite-end pointers.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1400,6 +1585,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 18 -->
+        <!-- enrich-edges:start 18 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Sums that overflow 32-bit in other languages (Python is fine).</li>
+          <li>Many duplicates, e.g. <code>[2, 2, 2, 2, 2]</code>, target 8 → one quadruplet.</li>
+          <li>Fewer than four numbers → <code>[]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 18 -->
         <p><strong>Complexity:</strong> <code>O(n³)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1408,6 +1601,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 881. Boats to Save People <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each boat holds at most two people with total weight ≤ <code>limit</code>. What's the minimum number of boats to carry everyone?</p>
+        <!-- enrich-top:start 881 -->
+        <p class="links"><a href="https://leetcode.com/problems/boats-to-save-people/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">people = [1,2], limit = 3</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">1 boat (1, 2)</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">people = [3,2,2,1], limit = 3</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">3 boats (1, 2), (2) and (3)</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ people.length ≤ 5 * 10⁴</code> · <code>1 ≤ people[i] ≤ limit ≤ 3 * 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Sort the weights. Who is the hardest person to pair?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Always put the heaviest remaining person in a boat; add the lightest too if they fit together.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all pairings is exponential. Greedy with two pointers on the sorted weights is optimal: the heaviest person must go now, and pairing them with the lightest person is the best chance of sharing. <code>O(n log n)</code> for the sort.</p>
+        <!-- enrich-top:end 881 -->
         <p><strong>Spot it:</strong> Pair the lightest with the heaviest after sorting: a greedy opposite-end squeeze.</p>
         <p><strong>Key insight:</strong> The heaviest person must ride in some boat. Giving them the lightest partner (if one fits) is never worse than any other choice.</p>
         <p><strong>Approach:</strong></p>
@@ -1455,6 +1659,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 881 -->
+        <!-- enrich-edges:start 881 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Everyone exactly at the limit → one boat each.</li>
+          <li>Everyone pairs perfectly → <code>n / 2</code> boats.</li>
+          <li>A single person → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 881 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time for the sort, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1463,6 +1675,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 4. Median of Two Sorted Arrays <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given two sorted arrays, return the median of all their numbers combined. The required time is <code>O(log(m + n))</code>.</p>
+        <!-- enrich-top:start 4 -->
+        <p class="links"><a href="https://leetcode.com/problems/median-of-two-sorted-arrays/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums1 = [1,3], nums2 = [2]</code></div><div><strong>Output:</strong> <code class="ex">2.00000</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">merged array = [1,2,3] and median is 2.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums1 = [1,2], nums2 = [3,4]</code></div><div><strong>Output:</strong> <code class="ex">2.50000</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">merged array = [1,2,3,4] and median is (2 + 3) / 2 = 2.5.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>nums1.length == m</code> · <code>nums2.length == n</code> · <code>0 ≤ m ≤ 1000</code> · <code>0 ≤ n ≤ 1000</code> · <code>1 ≤ m + n ≤ 2000</code> · <code>-10⁶ ≤ nums1[i], nums2[i] ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Merging both arrays and taking the middle is <code>O(m + n)</code>. For <code>O(log(m + n))</code>, binary-search a <strong>cut</strong> in the smaller array.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A correct cut puts the same number of elements on the left as on the right, with every left element ≤ every right element.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Concatenating and sorting is <code>O((m + n) log(m + n))</code>; a two-pointer merge to the middle is <code>O(m + n)</code>. The intended solution binary-searches where to cut the shorter array so both halves balance: <code>O(log(min(m, n)))</code>.</p>
+        <!-- enrich-top:end 4 -->
         <p><strong>Spot it:</strong> Two sorted arrays → a two-pointer <em>merge</em> reaches the middle in <code>O(m + n)</code> (shown as <code>findMedianMerge</code>). To get logarithmic time, binary-search the cut point instead (see <a href="09-modified-binary-search.html">Modified Binary Search</a>).</p>
         <p><strong>Key insight:</strong> Cut both arrays so that the left parts together hold half the numbers and every left number ≤ every right number. Then the median sits right at the cut.</p>
         <p><strong>Approach:</strong></p>
@@ -1602,6 +1825,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 4 -->
+        <!-- enrich-edges:start 4 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One array empty.</li>
+          <li>Total length even → the average of the two middle values.</li>
+          <li>All of one array smaller than all of the other.</li>
+        </ul>
+        <!-- enrich-edges:end 4 -->
         <p><strong>Complexity:</strong> Binary search: <code>O(log min(m, n))</code> time; merge: <code>O(m + n)</code>. Both <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1610,6 +1841,19 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 26. Remove Duplicates from Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> is sorted. Remove the duplicates <strong>in place</strong> so each value appears once, keep the order, and return <code>k</code>, the number of unique values. The first <code>k</code> slots must hold them; the rest don't matter.</p>
+        <!-- enrich-top:start 26 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=dIzcHKy5FkI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,2]</code></div><div><strong>Output:</strong> <code class="ex">2, nums = [1,2,_]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your function should return k = 2, with the first two elements of nums being 1 and 2 respectively.
+It does not matter what you leave beyond the returned k (hence they are underscores).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,0,1,1,1,2,2,3,3,4]</code></div><div><strong>Output:</strong> <code class="ex">5, nums = [0,1,2,3,4,_,_,_,_,_]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your function should return k = 5, with the first five elements of nums being 0, 1, 2, 3, and 4 respectively.
+It does not matter what you leave beyond the returned k (hence they are underscores).</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 3 * 10⁴</code> · <code>-100 ≤ nums[i] ≤ 100</code> · <code>nums</code> is sorted in <strong>non-decreasing</strong> order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The array is sorted, so duplicates sit next to each other.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a writer index; copy a value forward only when it differs from the last value you kept.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Removing each duplicate from the list shifts the rest of it: <code>O(n²)</code>. A reader/writer pointer pair rewrites the unique values to the front in one pass: <code>O(n)</code>, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 26 -->
         <p><strong>Spot it:</strong> "In place" + "sorted" + "remove" → two pointers moving the <strong>same</strong> direction: a fast <code>read</code> pointer scans everything and a slow <code>write</code> pointer marks where the next keeper goes.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1656,6 +1900,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 26 -->
+        <!-- enrich-edges:start 26 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → 1.</li>
+          <li>All the same, e.g. <code>[1, 1, 1]</code> → 1.</li>
+          <li>No duplicates → <code>n</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 26 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1664,6 +1916,19 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 88. Merge Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums1</code> has length <code>m + n</code>: its first <code>m</code> values are sorted and the last <code>n</code> slots are zeros. <code>nums2</code> holds <code>n</code> sorted values. Merge <code>nums2</code> into <code>nums1</code> <strong>in place</strong> so <code>nums1</code> ends up sorted.</p>
+        <!-- enrich-top:start 88 -->
+        <p class="links"><a href="https://leetcode.com/problems/merge-sorted-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=0-KuWOcHZuk" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums1 = [1,2,3,0,0,0], m = 3, nums2 = [2,5,6], n = 3</code></div><div><strong>Output:</strong> <code class="ex">[1,2,2,3,5,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The arrays we are merging are [1,2,3] and [2,5,6].
+The result of the merge is [1,2,2,3,5,6] with the underlined elements coming from nums1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums1 = [1], m = 1, nums2 = [], n = 0</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The arrays we are merging are [1] and [].
+The result of the merge is [1].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>nums1.length == m + n</code> · <code>nums2.length == n</code> · <code>0 ≤ m, n ≤ 200</code> · <code>1 ≤ m + n ≤ 200</code> · <code>-10⁹ ≤ nums1[i], nums2[j] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Filling <code>nums1</code> from the front would overwrite values you still need. Where is the free space?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Fill from the back: compare the largest remaining values of both arrays and place the larger at the end.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying <code>nums2</code> in and calling <code>sort()</code> is <code>O((m + n) log(m + n))</code>; merging into a new list costs <code>O(m + n)</code> extra space. Three pointers filling from the back merge in place in <code>O(m + n)</code> with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 88 -->
         <p><strong>Spot it:</strong> Two sorted inputs → one pointer per array. Filling from the front would overwrite values of <code>nums1</code> we still need, but the empty space is at the <strong>end</strong>, so fill backwards: always place the <em>larger</em> of the two tails.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1711,6 +1976,14 @@ class Solution:
         </table>
         <p><code>j</code> is now <code>−1</code>, so the loop stops. The <code>[1, 2]</code> at the front never had to move.</p>
         <!-- explain:end 88 -->
+        <!-- enrich-edges:start 88 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 0</code>: nothing to merge.</li>
+          <li><code>m = 0</code>: copy <code>nums2</code> entirely.</li>
+          <li>Every <code>nums2</code> value smaller than every <code>nums1</code> value.</li>
+        </ul>
+        <!-- enrich-edges:end 88 -->
         <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1719,6 +1992,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 344. Reverse String <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the list of characters <code>s</code> <strong>in place</strong>, using <code>O(1)</code> extra memory.</p>
+        <!-- enrich-top:start 344 -->
+        <p class="links"><a href="https://leetcode.com/problems/reverse-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=OD9PjLapAOQ" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = ["h","e","l","l","o"]</code></div><div><strong>Output:</strong> <code class="ex">["o","l","l","e","h"]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = ["H","a","n","n","a","h"]</code></div><div><strong>Output:</strong> <code class="ex">["h","a","n","n","a","H"]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁵</code> · <code>s[i]</code> is a printable ascii character.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Swap the first and last characters. Then what?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Move both pointers inward and repeat until they meet.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> <code>s[::-1]</code> builds a new list (<code>O(n)</code> extra space), which the problem forbids. Swapping from both ends in place does it with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 344 -->
         <p><strong>Spot it:</strong> "Reverse" + "in place" → one pointer at each end; swap and walk inward until they meet.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1758,6 +2042,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 344 -->
+        <!-- enrich-edges:start 344 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One character → unchanged.</li>
+          <li>Even length: the pointers cross without ever meeting.</li>
+          <li>A palindrome → looks unchanged.</li>
+        </ul>
+        <!-- enrich-edges:end 344 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1766,6 +2058,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 392. Is Subsequence <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if <code>s</code> is a <strong>subsequence</strong> of <code>t</code>: you can delete some (or no) characters of <code>t</code>, without reordering the rest, to get <code>s</code>.</p>
+        <!-- enrich-top:start 392 -->
+        <p class="links"><a href="https://leetcode.com/problems/is-subsequence/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=M_OB20n4hfo" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "abc", t = "ahbgdc"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "axc", t = "ahbgdc"</code></div><div><strong>Output:</strong> <code class="ex">false</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ s.length ≤ 100</code> · <code>0 ≤ t.length ≤ 10⁴</code> · <code>s</code> and <code>t</code> consist only of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Walk through <code>t</code> once. When do you advance in <code>s</code>?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Advance the pointer in <code>s</code> only on a match; at the end, did it reach the end of <code>s</code>?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating subsequences of <code>t</code> is exponential. Two pointers scan both strings once, greedily matching each character of <code>s</code> at its earliest possible position in <code>t</code>: <code>O(len(t))</code>.</p>
+        <!-- enrich-top:end 392 -->
         <p><strong>Spot it:</strong> Two sequences scanned left to right at different speeds → two pointers moving the same way. <code>t</code> is always consumed; <code>s</code> only moves forward when its current character is found.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1807,6 +2110,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 392 -->
+        <!-- enrich-edges:start 392 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Empty <code>s</code> → True.</li>
+          <li><code>s</code> longer than <code>t</code> → False.</li>
+          <li>Repeated letters, e.g. <code>s = "aaa"</code>, <code>t = "aa"</code> → False.</li>
+        </ul>
+        <!-- enrich-edges:end 392 -->
         <p><strong>Complexity:</strong> <code>O(len(t))</code> time, <code>O(1)</code> space.</p>
       </div>
     </details>
@@ -1815,6 +2126,18 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 977. Squares of a Sorted Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> is sorted in non-decreasing order and may contain negatives. Return the squares of each number, also sorted.</p>
+        <!-- enrich-top:start 977 -->
+        <p class="links"><a href="https://leetcode.com/problems/squares-of-a-sorted-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=z0InhrjK3es" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [-4,-1,0,3,10]</code></div><div><strong>Output:</strong> <code class="ex">[0,1,9,16,100]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">After squaring, the array becomes [16,1,0,9,100].
+After sorting, it becomes [0,1,9,16,100].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [-7,-3,2,3,11]</code></div><div><strong>Output:</strong> <code class="ex">[4,9,9,49,121]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁴ ≤ nums[i] ≤ 10⁴</code> · <code>nums</code> is sorted in <strong>non-decreasing</strong> order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Big negative numbers become big squares. Where are the largest squares in the sorted input?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>The largest square is at one of the two ends. Fill the result from the back.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Squaring everything and sorting is <code>O(n log n)</code>. Because the largest absolute values sit at the ends, two pointers pick the next largest square in <code>O(1)</code>, building the sorted result in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 977 -->
         <p><strong>Spot it:</strong> Squaring breaks the order because big negatives become big positives. But the <strong>largest</strong> square must come from one of the two ends. Opposite-end pointers pick it, and we fill the answer from the back.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1864,6 +2187,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 977 -->
+        <!-- enrich-edges:start 977 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All negative, e.g. <code>[-3, -2, -1]</code> → reversed squares.</li>
+          <li>All non-negative → squares already sorted.</li>
+          <li>Zeros in the middle.</li>
+        </ul>
+        <!-- enrich-edges:end 977 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> for the output (<code>O(1)</code> extra besides it).</p>
       </div>
     </details>
@@ -1872,6 +2203,23 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 1768. Merge Strings Alternately <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Merge <code>word1</code> and <code>word2</code> by taking letters in alternating order, starting with <code>word1</code>. If one word is longer, append its remaining letters at the end.</p>
+        <!-- enrich-top:start 1768 -->
+        <p class="links"><a href="https://leetcode.com/problems/merge-strings-alternately/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=qq-AqEPKsI8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">word1 = "abc", word2 = "pqr"</code></div><div><strong>Output:</strong> <code class="ex">"apbqcr"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The merged string will be merged as so:
+word1: a b c
+word2: p q r
+merged: a p b q c r</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">word1 = "ab", word2 = "pqrs"</code></div><div><strong>Output:</strong> <code class="ex">"apbqrs"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Notice that as word2 is longer, "rs" is appended to the end.
+word1: a b 
+word2: p q r s
+merged: a p b q r s</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ word1.length, word2.length ≤ 100</code> · <code>word1</code> and <code>word2</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Use one index per word and take a letter from each in turn.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>When one word runs out, append the rest of the other.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building the string with <code>+=</code> in a loop can be <code>O(n²)</code>. Collecting letters in a list with two pointers and joining once is <code>O(m + n)</code>.</p>
+        <!-- enrich-top:end 1768 -->
         <p><strong>Spot it:</strong> Two strings consumed side by side → one pointer per string, moving together.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1914,6 +2262,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 1768 -->
+        <!-- enrich-edges:start 1768 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Equal lengths.</li>
+          <li>One word much longer than the other.</li>
+          <li>One-letter words.</li>
+        </ul>
+        <!-- enrich-edges:end 1768 -->
         <p><strong>Complexity:</strong> <code>O(m + n)</code> time and space.</p>
       </div>
     </details>
@@ -1922,6 +2278,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 5. Longest Palindromic Substring <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the longest substring of <code>s</code> that reads the same forwards and backwards.</p>
+        <!-- enrich-top:start 5 -->
+        <p class="links"><a href="https://leetcode.com/problems/longest-palindromic-substring/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=gt1HGpVyjns" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "babad"</code></div><div><strong>Output:</strong> <code class="ex">"bab"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"aba" is also a valid answer.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "cbbd"</code></div><div><strong>Output:</strong> <code class="ex">"bb"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 1000</code> · <code>s</code> consist of only digits and English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every palindrome has a centre: a character (odd length) or a gap between two characters (even length).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>From each of the <code>2n − 1</code> centres, expand outward while the two ends match.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every substring for being a palindrome is <code>O(n³)</code>. Expanding around each centre reuses the matching work: each centre costs at most <code>O(n)</code>, so <code>O(n²)</code> total with <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 5 -->
         <p><strong>Spot it:</strong> A palindrome is a mirror around its centre. Instead of squeezing two pointers inward, put them <em>on</em> a centre and walk them <strong>outward</strong> while the characters match. There are only <code>2n − 1</code> centres: every character (odd length) and every gap between two characters (even length).</p>
         <p><strong>Key insight:</strong> Checking every substring is <code>O(n³)</code>. Growing from each centre reuses the matching work, so each centre costs at most <code>O(n)</code> and the whole thing is <code>O(n²)</code> with <code>O(1)</code> space.</p>
         <p><strong>Approach:</strong></p>
@@ -1974,6 +2341,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 5 -->
+        <!-- enrich-edges:start 5 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single character → itself.</li>
+          <li>An even-length palindrome, e.g. <code>"cbbd"</code> → <code>"bb"</code> (needs the gap centres).</li>
+          <li>All the same character, e.g. <code>"aaaa"</code> → the whole string.</li>
+        </ul>
+        <!-- enrich-edges:end 5 -->
         <p><strong>Complexity:</strong> <code>O(n²)</code> time (<code>2n − 1</code> centres, each expanding up to <code>n</code>), <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1982,6 +2357,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 189. Rotate Array <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rotate <code>nums</code> to the right by <code>k</code> steps, in place. For example <code>[1,2,3,4,5,6,7]</code>, <code>k = 3</code> becomes <code>[5,6,7,1,2,3,4]</code>.</p>
+        <!-- enrich-top:start 189 -->
+        <p class="links"><a href="https://leetcode.com/problems/rotate-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=CxH9x2Z3Od4" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4,5,6,7], k = 3</code></div><div><strong>Output:</strong> <code class="ex">[5,6,7,1,2,3,4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">rotate 1 steps to the right: [7,1,2,3,4,5,6]
+rotate 2 steps to the right: [6,7,1,2,3,4,5]
+rotate 3 steps to the right: [5,6,7,1,2,3,4]</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [-1,-100,3,99], k = 2</code></div><div><strong>Output:</strong> <code class="ex">[3,99,-1,-100]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">rotate 1 steps to the right: [99,-1,-100,3]
+rotate 2 steps to the right: [3,99,-1,-100]</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-2³¹ ≤ nums[i] ≤ 2³¹ - 1</code> · <code>0 ≤ k ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Rotating right by <code>k</code> moves the last <code>k</code> elements to the front. Is <code>k</code> bigger than <code>n</code> a problem?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Reverse the whole array, then reverse the first <code>k</code> and the remaining <code>n − k</code> separately.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Rotating one step <code>k</code> times is <code>O(n · k)</code>; copying into a new array uses <code>O(n)</code> space. Three in-place reversals give the rotation in <code>O(n)</code> time and <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 189 -->
         <p><strong>Spot it:</strong> "In place" with <code>O(1)</code> extra space rules out building a new array. Reversing a range in place is the classic opposite-end two-pointer swap, and three reversals produce a rotation.</p>
         <p><strong>Key insight:</strong> Rotating right by <code>k</code> moves the last <code>k</code> values to the front. Reverse the whole array (the last <code>k</code> are now first, but backwards), then reverse the first <code>k</code> and the rest separately to fix their order.</p>
         <p><strong>Approach:</strong></p>
@@ -2031,6 +2420,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 189 -->
+        <!-- enrich-edges:start 189 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k ≥ n</code>: use <code>k % n</code> (e.g. <code>k = n</code> changes nothing).</li>
+          <li><code>k = 0</code>.</li>
+          <li>A single element.</li>
+        </ul>
+        <!-- enrich-edges:end 189 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time (every element is swapped at most twice), <code>O(1)</code> extra space.</p>
       </div>
     </details>

@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -719,6 +735,17 @@ def max_non_overlapping(intervals):
       <summary><span class="tag medium">Medium</span> 56. Merge Intervals <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a list of intervals, merge all overlapping ones and return the non-overlapping result. Touching intervals like <code>[1,4]</code> and <code>[4,5]</code> count as overlapping.</p>
+        <!-- enrich-top:start 56 -->
+        <p class="links"><a href="https://leetcode.com/problems/merge-intervals/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=HCbKvBOlMVI" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,3],[2,6],[8,10],[15,18]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,6],[8,10],[15,18]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Since intervals [1,3] and [2,6] overlap, merge them into [1,6].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,4],[4,5]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,5]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Intervals [1,4] and [4,5] are considered overlapping.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ intervals.length ≤ 10⁴</code> · <code>intervals[i].length == 2</code> · <code>0 ≤ starti ≤ endi ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If the intervals were sorted by start, where could an interval overlap?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>After sorting, each interval either overlaps the last merged block (start ≤ its end) or starts a new block.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair and merging repeatedly until nothing changes is <code>O(n²)</code> or worse. Sorting by start puts every possible overlap next to each other, so one sweep merges everything: <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 56 -->
         <p><strong>Spot it:</strong> The word "merge" plus a list of ranges: this is the canonical problem of the pattern.</p>
         <p><strong>Key insight:</strong> Once sorted by start, an interval can only overlap the <em>last</em> merged block. Either stretch that block's end with <code>max</code>, or start a new block. (The first visualization above runs exactly this.)</p>
         <p><strong>Approach:</strong></p>
@@ -783,6 +810,14 @@ class Solution:
           </tbody>
         </table>
         <p>Answer: <code>[[1,6],[8,10],[15,18]]</code>.</p>
+        <!-- enrich-edges:start 56 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Touching intervals, e.g. <code>[1, 4]</code> and <code>[4, 5]</code> → <code>[1, 5]</code>.</li>
+          <li>One interval inside another, e.g. <code>[1, 10]</code> and <code>[2, 3]</code>.</li>
+          <li>Unsorted input.</li>
+        </ul>
+        <!-- enrich-edges:end 56 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> output space.</p>
       </div>
     </details>
@@ -791,6 +826,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 57. Insert Interval <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The intervals are already sorted and don't overlap. Insert <code>newInterval</code>, merging wherever needed, and return the result.</p>
+        <!-- enrich-top:start 57 -->
+        <p class="links"><a href="https://leetcode.com/problems/insert-interval/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=vW6Yd9M3YIg" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,3],[6,9]], newInterval = [2,5]</code></div><div><strong>Output:</strong> <code class="ex">[[1,5],[6,9]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,2],[3,5],[6,7],[8,10],[12,16]], newInterval = [4,8]</code></div><div><strong>Output:</strong> <code class="ex">[[1,2],[3,10],[12,16]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Because the new interval [4,8] overlaps with [3,5],[6,7],[8,10].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ intervals.length ≤ 10⁴</code> · <code>intervals[i].length == 2</code> · <code>0 ≤ starti ≤ endi ≤ 10⁵</code> · <code>intervals</code> is sorted by <code>starti</code> in <strong>ascending</strong> order. · <code>newInterval.length == 2</code> · <code>0 ≤ start ≤ end ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The list is already sorted and non-overlapping. Split it into three parts relative to <code>newInterval</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Copy the intervals that end before it, merge everything that overlaps it, then copy the rest.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Appending <code>newInterval</code> and re-running Merge Intervals is <code>O(n log n)</code>. Because the input is already sorted, one linear pass with three phases is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 57 -->
         <p><strong>Spot it:</strong> It's sorted already, so <em>don't</em> re-sort. A single pass splits the list into three zones.</p>
         <p><strong>Key insight:</strong> (1) Copy intervals that end <em>before</em> the new one starts. (2) Absorb every interval that starts <em>before</em> the new one ends, growing it with min/max. (3) Copy the rest.</p>
         <p><strong>Approach:</strong></p>
@@ -855,6 +901,14 @@ class Solution:
           </tbody>
         </table>
         <p>Answer: <code>[[1,5],[6,9]]</code>.</p>
+        <!-- enrich-edges:start 57 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty list → <code>[newInterval]</code>.</li>
+          <li><code>newInterval</code> before all or after all intervals.</li>
+          <li><code>newInterval</code> covering every interval.</li>
+        </ul>
+        <!-- enrich-edges:end 57 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> output space.</p>
       </div>
     </details>
@@ -863,6 +917,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 435. Non-overlapping Intervals <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the minimum number of intervals to remove so the rest don't overlap. Touching (<code>[1,2]</code>, <code>[2,3]</code>) is allowed.</p>
+        <!-- enrich-top:start 435 -->
+        <p class="links"><a href="https://leetcode.com/problems/non-overlapping-intervals/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,2],[2,3],[3,4],[1,3]]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[1,3] can be removed and the rest of the intervals are non-overlapping.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,2],[1,2],[1,2]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You need to remove two [1,2] to make the rest of the intervals non-overlapping.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ intervals.length ≤ 10⁵</code> · <code>intervals[i].length == 2</code> · <code>-5 * 10⁴ ≤ starti &lt; endi ≤ 5 * 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Equivalently: keep as many non-overlapping intervals as possible.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort by <strong>end</strong> time and greedily keep each interval that starts at or after the last kept end.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every subset to remove is exponential; DP over sorted intervals is <code>O(n²)</code>. Greedy by earliest end time is optimal (it leaves the most room for the rest): <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 435 -->
         <p><strong>Spot it:</strong> "remove the fewest" = "keep the most". That's the classic activity-selection greedy: sort by <strong>end</strong>.</p>
         <p><strong>Key insight:</strong> Always keep the interval that finishes earliest, because it leaves the most room for everything after it. Any later interval that starts before the kept end has to go.</p>
         <p><strong>Approach:</strong></p>
@@ -919,6 +984,14 @@ class Solution:
           </tbody>
         </table>
         <p>Answer: <code>1</code>.</p>
+        <!-- enrich-edges:start 435 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Touching intervals like <code>[1, 2]</code> and <code>[2, 3]</code> do <strong>not</strong> overlap.</li>
+          <li>Identical intervals.</li>
+          <li>Nothing overlaps → 0.</li>
+        </ul>
+        <!-- enrich-edges:end 435 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -927,6 +1000,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 253. Meeting Rooms II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given meeting times <code>[start, end)</code>, return the minimum number of conference rooms needed.</p>
+        <!-- enrich-top:start 253 -->
+        <p class="links"><a href="https://leetcode.com/problems/meeting-rooms-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">intervals = [[0,30],[5,10],[15,20]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The meeting [0,30] overlaps both others, but [5,10] and [15,20] can share a room.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">intervals = [[7,10],[2,4]]</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ intervals.length ≤ 10⁴</code> · <code>0 ≤ startᵢ &lt; endᵢ ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The answer is the maximum number of meetings happening at the same moment.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort by start; keep a min-heap of end times of the rooms in use. Reuse a room if its earliest end is ≤ the next start.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking, for every meeting, how many others overlap it is <code>O(n²)</code>. Sorting by start and keeping room end times in a min-heap gives the maximum overlap in <code>O(n log n)</code> (or sort starts and ends separately and sweep).</p>
+        <!-- enrich-top:end 253 -->
         <p><strong>Spot it:</strong> "minimum rooms" = the maximum number of meetings happening at the same moment.</p>
         <p><strong>Key insight:</strong> Sort by start. Keep a min-heap of end times for the rooms in use. If the earliest-ending room is free by the time the next meeting starts (<code>ends[0] ≤ s</code>), reuse it. Otherwise open a new room. The heap's final size is the answer. (See the second visualization above.)</p>
         <p><strong>Approach:</strong></p>
@@ -989,6 +1073,14 @@ class Solution:
           </tbody>
         </table>
         <p>Answer: <code>len(room_ends) = 2</code>.</p>
+        <!-- enrich-edges:start 253 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A meeting ending exactly when another starts can reuse the room.</li>
+          <li>All meetings overlap → <code>n</code> rooms.</li>
+          <li>A single meeting → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 253 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -997,6 +1089,17 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 759. Employee Free Time <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each employee has a sorted list of non-overlapping working intervals. Return the finite intervals when <em>all</em> employees are free, in sorted order.</p>
+        <!-- enrich-top:start 759 -->
+        <p class="links"><a href="https://leetcode.com/problems/employee-free-time/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">schedule = [[[1,2],[5,6]],[[1,3]],[[4,10]]]</code></div><div><strong>Output:</strong> <code class="ex">[[3,4]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Everyone is free from 3 to 4. Times before 1 and after 10 are infinite and don't count.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">schedule = [[[1,3],[6,7]],[[2,4]],[[2,5],[9,12]]]</code></div><div><strong>Output:</strong> <code class="ex">[[5,6],[7,9]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ schedule.length, schedule[i].length ≤ 50</code> · <code>0 ≤ schedule[i].start &lt; schedule[i].end ≤ 10⁸</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Everyone's busy times together form one big list of intervals. What are the gaps in it?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Flatten and sort by start (or merge the sorted lists with a heap); sweep with the furthest end seen so far, and every gap is free time.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Marking every time unit as busy or free is impossible for times up to 10⁸. Sorting all intervals and sweeping once finds every gap in <code>O(N log N)</code>; a heap over the employees' sorted lists makes it <code>O(N log k)</code>.</p>
+        <!-- enrich-top:end 759 -->
         <p><strong>Spot it:</strong> "Common free time" is the <em>gaps</em> between the merged busy blocks of everyone combined.</p>
         <p><strong>Key insight:</strong> Flatten all intervals, sort by start, and sweep while tracking the furthest <code>end</code> seen so far. Whenever the next start is strictly greater than <code>end</code>, the stretch <code>[end, start]</code> is a moment nobody is working. (A k-way heap merge gives <code>O(n log k)</code>; plain sorting is simpler.)</p>
         <p><strong>Approach:</strong></p>
@@ -1063,6 +1166,14 @@ class Solution:
           </tbody>
         </table>
         <p><strong>Example:</strong> <code>[[[1,3],[6,7]], [[2,4]], [[2,5],[9,12]]]</code> → busy blocks <code>[1,5]</code>, <code>[6,7]</code>, <code>[9,12]</code> → free <code>[[5,6],[7,9]]</code>.</p>
+        <!-- enrich-edges:start 759 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Overlapping intervals from different employees.</li>
+          <li>Intervals that touch (no gap between them).</li>
+          <li>No common free time → <code>[]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 759 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time for <code>n</code> total intervals, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1127,6 +1238,17 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 252. Meeting Rooms <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given meeting times <code>[start, end)</code>, can one person attend all of them?</p>
+        <!-- enrich-top:start 252 -->
+        <p class="links"><a href="https://leetcode.com/problems/meeting-rooms/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">intervals = [[0,30],[5,10],[15,20]]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">[0,30] overlaps both other meetings.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">intervals = [[7,10],[2,4]]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ intervals.length ≤ 10⁴</code> · <code>0 ≤ startᵢ &lt; endᵢ ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>After sorting by start time, which meetings could clash?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Only neighbours: check whether each meeting starts before the previous one ends.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every pair of meetings is <code>O(n²)</code>. Sorting by start means only adjacent meetings can overlap, so one pass checks it: <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 252 -->
         <p><strong>Spot it:</strong> Possible exactly when no two meetings overlap. Sort by start, and any overlap has to show up between neighbors.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1168,6 +1290,14 @@ class Solution:
           </tbody>
         </table>
         <p>Answer: <code>False</code> (the meeting at 5 starts while <code>[0,30)</code> is still running).</p>
+        <!-- enrich-edges:start 252 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No meetings → True.</li>
+          <li>Back-to-back meetings, e.g. <code>[1, 2]</code> and <code>[2, 3]</code> → True.</li>
+          <li>Unsorted input.</li>
+        </ul>
+        <!-- enrich-edges:end 252 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1176,6 +1306,17 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 986. Interval List Intersections <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two lists of closed intervals are each sorted and internally disjoint. Return their intersection: every range that's covered by both lists.</p>
+        <!-- enrich-top:start 986 -->
+        <p class="links"><a href="https://leetcode.com/problems/interval-list-intersections/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">firstList = [[0,2],[5,10],[13,23],[24,25]], secondList = [[1,5],[8,12],[15,24],[25,26]]</code></div><div><strong>Output:</strong> <code class="ex">[[1,2],[5,5],[8,10],[15,23],[24,24],[25,25]]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">firstList = [[1,3],[5,9]], secondList = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ firstList.length, secondList.length ≤ 1000</code> · <code>firstList.length + secondList.length ≥ 1</code> · <code>0 ≤ starti &lt; endi ≤ 10⁹</code> · <code>endi &lt; starti+1</code> · <code>0 ≤ startj &lt; endj ≤ 10⁹ </code> · <code>endj &lt; startj+1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Both lists are sorted and disjoint. Use one pointer per list.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>The overlap of two intervals is <code>[max(starts), min(ends)]</code> if non-empty; then advance the interval that ends first.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparing every interval of A with every interval of B is <code>O(m · n)</code>. Two pointers walk both sorted lists once, because the interval that ends first can't overlap anything later: <code>O(m + n)</code>.</p>
+        <!-- enrich-top:end 986 -->
         <p><strong>Spot it:</strong> Both lists are already sorted, so walk them together with <a href="02-two-pointers.html">Two Pointers</a>. The overlap of two intervals is <code>[max(starts), min(ends)]</code> when that's non-empty.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1229,6 +1370,14 @@ class Solution:
           </tbody>
         </table>
         <p>Then <code>i = 4</code> runs off the end. Result: <code>[[1,2],[5,5],[8,10],[15,23],[24,24],[25,25]]</code>.</p>
+        <!-- enrich-edges:start 986 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One list empty → <code>[]</code>.</li>
+          <li>Single-point overlaps, e.g. <code>[5, 5]</code>.</li>
+          <li>One interval covering many in the other list.</li>
+        </ul>
+        <!-- enrich-edges:end 986 -->
         <p><strong>Complexity:</strong> <code>O(m + n)</code> time, <code>O(1)</code> extra space (besides the output).</p>
       </div>
     </details>
@@ -1237,6 +1386,19 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 452. Minimum Number of Arrows to Burst Balloons <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each balloon spans <code>[x_start, x_end]</code> on the x-axis. A vertical arrow shot at <code>x</code> bursts every balloon with <code>start ≤ x ≤ end</code>. What's the fewest arrows that burst them all?</p>
+        <!-- enrich-top:start 452 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-number-of-arrows-to-burst-balloons/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=bqxyjXFlOMU" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">points = [[10,16],[2,8],[1,6],[7,12]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The balloons can be burst by 2 arrows:
+- Shoot an arrow at x = 6, bursting the balloons [2,8] and [1,6].
+- Shoot an arrow at x = 11, bursting the balloons [10,16] and [7,12].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">points = [[1,2],[3,4],[5,6],[7,8]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One arrow needs to be shot for each balloon for a total of 4 arrows.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ points.length ≤ 10⁵</code> · <code>points[i].length == 2</code> · <code>-2³¹ ≤ xstart &lt; xend ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>One arrow at <code>x</code> bursts every balloon whose range contains <code>x</code>. Where should the first arrow go?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort by end; shoot at the end of the first balloon, skip every balloon it bursts, repeat.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying arrow positions or subsets is far too slow. Greedy by earliest end is optimal: shooting at the smallest end bursts the most balloons that must be burst anyway. <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 452 -->
         <p><strong>Spot it:</strong> Same greedy as 435: sort by <strong>end</strong>. Shooting at the earliest end bursts the most balloons that are still standing. Touching counts as overlapping here.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1291,6 +1453,14 @@ class Solution:
           </tbody>
         </table>
         <p>Answer: <code>2</code>.</p>
+        <!-- enrich-edges:start 452 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Touching balloons like <code>[1, 2]</code> and <code>[2, 3]</code> share one arrow.</li>
+          <li>All balloons overlap → 1.</li>
+          <li>Huge coordinates (sorting by end avoids overflow issues in other languages).</li>
+        </ul>
+        <!-- enrich-edges:end 452 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(1)</code> extra space.</p>
       </div>
     </details>
@@ -1299,6 +1469,23 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 1094. Car Pooling <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A car with <code>capacity</code> seats drives east. Trip <code>[num, from, to]</code> picks up <code>num</code> passengers at <code>from</code> and drops them off at <code>to</code>. Can every trip be served?</p>
+        <!-- enrich-top:start 1094 -->
+        <p class="links"><a href="https://leetcode.com/problems/car-pooling/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">trips = [[2,1,5],[3,3,7]], capacity = 4</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">At kilometer 1, 2 passengers are picked up, so the car holds 2.
+At kilometer 3, 3 more are picked up, so the car holds 5.
+Since 5 &gt; capacity = 4, the trips cannot all be completed.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">trips = [[2,1,5],[3,3,7]], capacity = 5</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">At kilometer 1, the car holds 2 passengers.
+At kilometer 3, the car holds 5 passengers.
+At kilometer 5, the first 2 are dropped off, so the car holds 3.
+At kilometer 7, the last 3 are dropped off, so the car holds 0.
+The maximum occupancy is 5, which never exceeds capacity = 5.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ trips.length ≤ 1000</code> · <code>trips[i].length == 3</code> · <code>1 ≤ numPassengersi ≤ 100</code> · <code>0 ≤ fromi &lt; toi ≤ 1000</code> · <code>1 ≤ capacity ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Track the number of passengers at each location.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Record <code>+passengers</code> at each pickup and <code>−passengers</code> at each drop-off, then sweep left to right checking the running total.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating each trip over every kilometre is <code>O(n · distance)</code>. A difference array (or sorted events) adds each trip in <code>O(1)</code> and checks capacity in one sweep: <code>O(n + max location)</code>.</p>
+        <!-- enrich-top:end 1094 -->
         <p><strong>Spot it:</strong> This is "how much overlaps at the busiest point", weighted by passengers. Use a sweep line: +num at pickup, −num at drop-off.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1351,6 +1538,14 @@ class Solution:
           </tbody>
         </table>
         <p>Sorted events were <code>[(1,2), (3,3), (5,-2), (7,-3)]</code>; the last two are never reached. Answer: <code>False</code>.</p>
+        <!-- enrich-edges:start 1094 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A drop-off and a pickup at the same location: drop off first.</li>
+          <li>A single trip over capacity → False.</li>
+          <li>Trips that don't overlap at all.</li>
+        </ul>
+        <!-- enrich-edges:end 1094 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> space. (A difference array over locations ≤ 1000 gives <code>O(n + 1000)</code>.)</p>
       </div>
     </details>
@@ -1359,6 +1554,20 @@ class Solution:
       <summary><span class="tag medium">Medium</span> 729. My Calendar I <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement <code>book(start, end)</code> for half-open events <code>[start, end)</code>. Accept and store the booking only if it doesn't overlap any existing one.</p>
+        <!-- enrich-top:start 729 -->
+        <p class="links"><a href="https://leetcode.com/problems/my-calendar-i/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["MyCalendar", "book", "book", "book"]
+[[], [10, 20], [15, 25], [20, 30]]</code></div><div><strong>Output:</strong> <code class="ex">[null, true, false, true]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">MyCalendar myCalendar = new MyCalendar();
+myCalendar.book(10, 20); // return True
+myCalendar.book(15, 25); // return False, It can not be booked because time 15 is already booked by another event.
+myCalendar.book(20, 30); // return True, The event can be booked, as the first event takes every time less than 20, but not including 20.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ start &lt; end ≤ 10⁹</code> · At most <code>1000</code> calls will be made to <code>book</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A new booking <code>[start, end)</code> clashes with an existing <code>[s, e)</code> when <code>start &lt; e and s &lt; end</code>.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Check every existing booking (or keep them sorted and check only the neighbours).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking all existing bookings is <code>O(n)</code> per call, which is fine for these limits. A sorted list with binary search (or a balanced BST) makes it <code>O(log n)</code> per call.</p>
+        <!-- enrich-top:end 729 -->
         <p><strong>Spot it:</strong> Intervals arrive one at a time (online), so you can't sort once. Keep the bookings sorted, and a new booking only needs to be checked against its two neighbors. Find them with <a href="09-modified-binary-search.html">binary search</a>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1415,6 +1624,14 @@ class Solution:
             <tr><td>book(20, 30)</td><td>1</td><td>left ends at 20, not &gt; 20; no right neighbour</td><td>True</td><td>[10, 20] / [20, 30]</td></tr>
           </tbody>
         </table>
+        <!-- enrich-edges:start 729 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Back-to-back bookings, e.g. <code>[10, 20)</code> then <code>[20, 30)</code> → both allowed.</li>
+          <li>A booking inside an existing one.</li>
+          <li>A booking covering an existing one.</li>
+        </ul>
+        <!-- enrich-edges:end 729 -->
         <p><strong>Complexity:</strong> <code>O(log n)</code> search + <code>O(n)</code> insert per booking, <code>O(n)</code> space. (A balanced BST / <code>SortedList</code> makes inserts <code>O(log n)</code>.)</p>
       </div>
     </details>
@@ -1423,6 +1640,25 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 1851. Minimum Interval to Include Each Query <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> For each query point <code>q</code>, return the size (<code>right − left + 1</code>) of the smallest interval that contains <code>q</code>, or -1 if no interval does.</p>
+        <!-- enrich-top:start 1851 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-interval-to-include-each-query/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">intervals = [[1,4],[2,4],[3,6],[4,4]], queries = [2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[3,3,1,4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The queries are processed as follows:
+- Query = 2: The interval [2,4] is the smallest interval containing 2. The answer is 4 - 2 + 1 = 3.
+- Query = 3: The interval [2,4] is the smallest interval containing 3. The answer is 4 - 2 + 1 = 3.
+- Query = 4: The interval [4,4] is the smallest interval containing 4. The answer is 4 - 4 + 1 = 1.
+- Query = 5: The interval [3,6] is the smallest interval containing 5. The answer is 6 - 3 + 1 = 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">intervals = [[2,3],[2,5],[1,8],[20,25]], queries = [2,19,5,22]</code></div><div><strong>Output:</strong> <code class="ex">[2,-1,4,6]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The queries are processed as follows:
+- Query = 2: The interval [2,3] is the smallest interval containing 2. The answer is 3 - 2 + 1 = 2.
+- Query = 19: None of the intervals contain 19. The answer is -1.
+- Query = 5: The interval [2,5] is the smallest interval containing 5. The answer is 5 - 2 + 1 = 4.
+- Query = 22: The interval [20,25] is the smallest interval containing 22. The answer is 25 - 20 + 1 = 6.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ intervals.length ≤ 10⁵</code> · <code>1 ≤ queries.length ≤ 10⁵</code> · <code>intervals[i].length == 2</code> · <code>1 ≤ lefti ≤ righti ≤ 10⁷</code> · <code>1 ≤ queries[j] ≤ 10⁷</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Process the queries in increasing order (remember their original positions).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort the intervals by start; for each query, push intervals that have started into a heap keyed by size, and pop those that already ended.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For every query, scanning all intervals is <code>O(n · q)</code>. Sorting both and using a min-heap of <code>(size, end)</code> answers each query in <code>O(log n)</code>: <code>O((n + q) log n)</code>.</p>
+        <!-- enrich-top:end 1851 -->
         <p><strong>Spot it:</strong> Answer the queries <em>offline</em> in sorted order. As <code>q</code> grows, intervals "start" (left ≤ q) and "expire" (right &lt; q), which is a sweep. "Smallest live interval" → min-heap by size.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1511,6 +1747,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result in original order: <code>[3, 3, 1, 4]</code>.</p>
+        <!-- enrich-edges:start 1851 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A query no interval contains → −1.</li>
+          <li>Duplicate queries.</li>
+          <li>Intervals of length 1 (start == end).</li>
+        </ul>
+        <!-- enrich-edges:end 1851 -->
         <p><strong>Complexity:</strong> <code>O(n log n + q log q)</code> time, <code>O(n + q)</code> space.</p>
       </div>
     </details>
@@ -1519,6 +1763,18 @@ class Solution:
       <summary><span class="tag hard">Hard</span> 218. The Skyline Problem <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Buildings are <code>[left, right, height]</code> rectangles on the ground. Return the skyline's "key points": <code>[x, height]</code> wherever the outline's height changes.</p>
+        <!-- enrich-top:start 218 -->
+        <p class="links"><a href="https://leetcode.com/problems/the-skyline-problem/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">buildings = [[2,9,10],[3,7,15],[5,12,12],[15,20,10],[19,24,8]]</code></div><div><strong>Output:</strong> <code class="ex">[[2,10],[3,15],[7,12],[12,0],[15,10],[20,8],[24,0]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Figure A shows the buildings of the input.
+Figure B shows the skyline formed by those buildings. The red points in figure B represent the key points in the output list.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">buildings = [[0,2,3],[2,5,3]]</code></div><div><strong>Output:</strong> <code class="ex">[[0,3],[5,0]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ buildings.length ≤ 10⁴</code> · <code>0 ≤ lefti &lt; righti ≤ 2³¹ - 1</code> · <code>1 ≤ heighti ≤ 2³¹ - 1</code> · <code>buildings</code> is sorted by <code>lefti</code> in non-decreasing order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The skyline only changes at a building's left or right edge. Process those edges in x-order.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a max-heap of the heights of buildings covering the current x; record a key point whenever the maximum height changes.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking the height at every x coordinate is far too slow for large coordinates. A sweep over sorted edges with a max-heap (lazy removal) gives <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 218 -->
         <p><strong>Spot it:</strong> Sweep left to right over building edges. At each x, the skyline's height is the tallest building that is currently "live", so use a max-heap of live heights. When that maximum changes, record a key point.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1611,6 +1867,14 @@ class Solution:
           </tbody>
         </table>
         <p>Result: <code>[[2,10],[3,15],[7,12],[12,0],[15,10],[20,8],[24,0]]</code>.</p>
+        <!-- enrich-edges:start 218 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Buildings sharing an edge with the same height (don't emit duplicate points).</li>
+          <li>Nested buildings.</li>
+          <li>Adjacent buildings of different heights.</li>
+        </ul>
+        <!-- enrich-edges:end 218 -->
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -1620,6 +1884,24 @@ class Solution:
       <summary><span class="tag easy">Easy</span> 228. Summary Ranges <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> is sorted with unique values. Return the smallest list of ranges that covers all the numbers exactly: <code>"a-&gt;b"</code> for a run <code>a..b</code>, or <code>"a"</code> for a single number.</p>
+        <!-- enrich-top:start 228 -->
+        <p class="links"><a href="https://leetcode.com/problems/summary-ranges/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=ZHJDwbfqoa8" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [0,1,2,4,5,7]</code></div><div><strong>Output:</strong> <code class="ex">["0-&gt;2","4-&gt;5","7"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The ranges are:
+[0,2] --&gt; "0-&gt;2"
+[4,5] --&gt; "4-&gt;5"
+[7,7] --&gt; "7"</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [0,2,3,4,6,8,9]</code></div><div><strong>Output:</strong> <code class="ex">["0","2-&gt;4","6","8-&gt;9"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The ranges are:
+[0,0] --&gt; "0"
+[2,4] --&gt; "2-&gt;4"
+[6,6] --&gt; "6"
+[8,9] --&gt; "8-&gt;9"</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ nums.length ≤ 20</code> · <code>-2³¹ ≤ nums[i] ≤ 2³¹ - 1</code> · All the values of <code>nums</code> are <strong>unique</strong>. · <code>nums</code> is sorted in ascending order.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Walk through the sorted numbers and group consecutive ones.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Close a range whenever the next number isn't exactly one more than the current one.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is already a linear scan; the only work is careful formatting: <code>"a"</code> for a single number and <code>"a-&gt;b"</code> for a range. <code>O(n)</code>.</p>
+        <!-- enrich-top:end 228 -->
         <p><strong>Spot it:</strong> The reverse of merging: <em>build</em> intervals. Consecutive numbers (<code>next == current + 1</code>) belong to the same interval, and any gap closes it.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -1666,6 +1948,14 @@ class Solution:
           </tbody>
         </table>
         <!-- explain:end 228 -->
+        <!-- enrich-edges:start 228 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty array → <code>[]</code>.</li>
+          <li>A single number.</li>
+          <li>Negative numbers, e.g. <code>[-3, -2]</code> → <code>["-3-&gt;-2"]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 228 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space besides the output.</p>
       </div>
     </details>

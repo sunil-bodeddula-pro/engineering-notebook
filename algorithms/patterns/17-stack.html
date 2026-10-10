@@ -175,6 +175,22 @@ details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
 details.problem .body { padding: 0 20px 18px; }
+/* learning aids inside a problem: links, examples, constraints, hints, brute-force bridge, edge cases */
+details.problem .links { font-size: .86rem; margin: -2px 0 12px; }
+details.problem .example { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: .92rem; line-height: 1.7; }
+details.problem .example .ex-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+details.problem .example .ex-why { color: var(--ink-2); font-size: .88rem; }
+details.problem .example code.ex { white-space: pre-wrap; word-break: break-word; }
+details.problem .example .ex-why .pre { white-space: pre-line; }
+details.problem .constraints { font-size: .88rem; color: var(--ink-2); }
+details.problem .hints { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+details.hint { border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; background: var(--surface); }
+details.hint > summary { cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--accent); }
+details.hint > summary::after { content: " — click to reveal"; font-weight: 400; color: var(--ink-3); }
+details.hint[open] > summary::after { content: ""; }
+details.hint > p { margin: 6px 0 2px; }
+details.problem .bridge { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
+details.problem ul.edges { margin-top: 4px; }
 .steps-list { counter-reset: s; list-style: none; padding: 0; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
@@ -671,6 +687,17 @@ class MinStack:
       <summary><span class="tag easy">Easy</span> 20. Valid Parentheses <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>s</code> contains only <code>()[]{}</code>. It is valid if every bracket is closed by the same type, in the correct order. Check it.</p>
+        <!-- enrich-top:start 20 -->
+        <p class="links"><a href="https://leetcode.com/problems/valid-parentheses/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=7-_V-ufnF4c" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "()"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "()[]{}"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> consists of parentheses only <code>'()[]{}'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The most recently opened bracket must close first.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Push openers; for a closer, the top of the stack must be the matching opener. At the end, the stack must be empty.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly deleting <code>()</code>, <code>[]</code> and <code>{}</code> pairs from the string until nothing changes is <code>O(n²)</code>. A stack matches each bracket once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 20 -->
         <p><strong>Spot it:</strong> "Most recent unmatched opener must close first" is last-in, first-out → a <strong>stack</strong>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -717,6 +744,14 @@ class MinStack:
           </tbody>
         </table>
         <!-- explain:end 20 -->
+        <!-- enrich-edges:start 20 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Only openers, e.g. <code>"(("</code> → False.</li>
+          <li>A closer first, e.g. <code>")("</code> → False.</li>
+          <li>Interleaved types, e.g. <code>"([)]"</code> → False.</li>
+        </ul>
+        <!-- enrich-edges:end 20 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -725,6 +760,17 @@ class MinStack:
       <summary><span class="tag medium">Medium</span> 150. Evaluate Reverse Polish Notation <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Evaluate an arithmetic expression in Reverse Polish Notation, where operators come <em>after</em> their two operands (<code>["2", "1", "+", "3", "*"]</code> means <code>(2 + 1) * 3</code>). Division truncates toward zero.</p>
+        <!-- enrich-top:start 150 -->
+        <p class="links"><a href="https://leetcode.com/problems/evaluate-reverse-polish-notation/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=ffgmKxRqiMc" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">tokens = ["2","1","+","3","*"]</code></div><div><strong>Output:</strong> <code class="ex">9</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">((2 + 1) * 3) = 9</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">tokens = ["4","13","5","/","+"]</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">(4 + (13 / 5)) = 6</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ tokens.length ≤ 10⁴</code> · <code>tokens[i]</code> is either an operator: <code>"+"</code>, <code>"-"</code>, <code>"*"</code>, or <code>"/"</code>, or an integer in the range <code>[-200, 200]</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Numbers wait until an operator arrives.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Push numbers; for an operator, pop <code>b</code> then <code>a</code>, push <code>a op b</code>. Truncate division toward zero.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Converting back to infix and evaluating is roundabout. A stack evaluates postfix in one pass: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 150 -->
         <p><strong>Spot it:</strong> In postfix, an operator always applies to the two most recent results → stack evaluation.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -772,6 +818,14 @@ class MinStack:
           </tbody>
         </table>
         <!-- explain:end 150 -->
+        <!-- enrich-edges:start 150 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Negative numbers like <code>"-11"</code> (not an operator!).</li>
+          <li>Division truncating toward zero, e.g. <code>-7 / 2</code> → <code>-3</code>.</li>
+          <li>A single number.</li>
+        </ul>
+        <!-- enrich-edges:end 150 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
       </div>
     </details>
@@ -780,6 +834,24 @@ class MinStack:
       <summary><span class="tag medium">Medium</span> 155. Min Stack <span class="ds-tags"><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a stack that supports <code>push</code>, <code>pop</code>, <code>top</code> and <code>getMin</code> (the smallest element currently in the stack), <strong>all</strong> in <code>O(1)</code> time.</p>
+        <!-- enrich-top:start 155 -->
+        <p class="links"><a href="https://leetcode.com/problems/min-stack/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=RfMroCV17-4" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["MinStack","push","push","push","getMin","pop","top","getMin"]
+[[],[-2],[0],[-3],[],[],[],[]]</code></div><div><strong>Output:</strong> <code class="ex">[null,null,null,null,-3,null,0,-2]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">MinStack minStack = new MinStack();
+minStack.push(-2);
+minStack.push(0);
+minStack.push(-3);
+minStack.getMin(); // return -3
+minStack.pop();
+minStack.top(); // return 0
+minStack.getMin(); // return -2</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>-2³¹ ≤ val ≤ 2³¹ - 1</code> · Methods <code>pop</code>, <code>top</code> and <code>getMin</code> operations will always be called on <strong>non-empty</strong> stacks. · At most <code>3 * 10⁴</code> calls will be made to <code>push</code>, <code>pop</code>, <code>top</code>, and <code>getMin</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>After popping the minimum, you need the previous minimum immediately.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store, with each entry, the minimum of everything at or below it.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning the stack for the minimum is <code>O(n)</code> per <code>getMin</code>. Keeping the running minimum with every entry makes all four operations <code>O(1)</code>.</p>
+        <!-- enrich-top:end 155 -->
         <p><strong>Spot it:</strong> Popping can remove the current minimum, and then you need the previous one immediately. So remember, for every position, what the minimum <em>was</em> at that height: push pairs <code>(value, min so far)</code>.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -831,6 +903,14 @@ class MinStack:
           </tbody>
         </table>
         <!-- explain:end 155 -->
+        <!-- enrich-edges:start 155 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Pushing duplicates of the minimum.</li>
+          <li>Popping the minimum.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 155 -->
         <p><strong>Complexity:</strong> <code>O(1)</code> time for every operation, <code>O(n)</code> space.</p>
       </div>
     </details>
@@ -890,6 +970,30 @@ class MinStack:
       <summary><span class="tag easy">Easy</span> 682. Baseball Game <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Process the operations: an integer records that score; <code>"+"</code> records the sum of the previous two scores; <code>"D"</code> records double the previous score; <code>"C"</code> removes the previous score. Return the total.</p>
+        <!-- enrich-top:start 682 -->
+        <p class="links"><a href="https://leetcode.com/problems/baseball-game/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=365VRBxje4E" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">ops = ["5","2","C","D","+"]</code></div><div><strong>Output:</strong> <code class="ex">30</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"5" - Add 5 to the record, record is now [5].
+"2" - Add 2 to the record, record is now [5, 2].
+"C" - Invalidate and remove the previous score, record is now [5].
+"D" - Add 2 * 5 = 10 to the record, record is now [5, 10].
+"+" - Add 5 + 10 = 15 to the record, record is now [5, 10, 15].
+The total sum is 5 + 10 + 15 = 30.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">ops = ["5","-2","4","C","D","9","+","+"]</code></div><div><strong>Output:</strong> <code class="ex">27</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"5" - Add 5 to the record, record is now [5].
+"-2" - Add -2 to the record, record is now [5, -2].
+"4" - Add 4 to the record, record is now [5, -2, 4].
+"C" - Invalidate and remove the previous score, record is now [5, -2].
+"D" - Add 2 * -2 = -4 to the record, record is now [5, -2, -4].
+"9" - Add 9 to the record, record is now [5, -2, -4, 9].
+"+" - Add -4 + 9 = 5 to the record, record is now [5, -2, -4, 9, 5].
+"+" - Add 9 + 5 = 14 to the record, record is now [5, -2, -4, 9, 5, 14].
+The total sum is 5 + -2 + -4 + 9 + 5 + 14 = 27.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ operations.length ≤ 1000</code> · <code>operations[i]</code> is <code>"C"</code>, <code>"D"</code>, <code>"+"</code>, or a string representing an integer in the range <code>[-3 * 10⁴, 3 * 10⁴]</code>. · For operation <code>"+"</code>, there will always be at least two previous scores on the record. · For operations <code>"C"</code> and <code>"D"</code>, there will always be at least one previous score on the record.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Every operation looks at the most recent valid scores.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a stack: <code>C</code> pops, <code>D</code> pushes double the top, <code>+</code> pushes the sum of the top two.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Keeping a plain list and re-reading it works the same way. The stack view makes it clear that only the top entries ever matter: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 682 -->
         <p><strong>Spot it:</strong> Every operation refers to the <strong>most recent</strong> scores, and <code>C</code> undoes the last one. Recent-first access + undo = a stack.</p>
         <p><strong>Approach:</strong></p>
         <ol class="steps-list">
@@ -932,6 +1036,14 @@ class MinStack:
           </tbody>
         </table>
         <!-- explain:end 682 -->
+        <!-- enrich-edges:start 682 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>C</code> removing the only score.</li>
+          <li>Negative scores.</li>
+          <li><code>+</code> right after a <code>C</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 682 -->
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
       </div>
     </details>
