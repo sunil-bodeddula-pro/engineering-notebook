@@ -90,6 +90,11 @@ a:hover { text-decoration-thickness: 2px; }
 
 .page { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 40px) 96px; }
 @media (max-width: 960px) { .page { grid-template-columns: 1fr; } .toc { display: none; } }
+/* Phones: wide tables scroll inside their own box; problem headers wrap their tags and badges. */
+@media (max-width: 640px) {
+  main table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  details.problem > summary { flex-wrap: wrap; row-gap: 6px; }
+}
 
 .toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; font-size: .9rem; }
 .toc h4 { margin: 0 0 8px; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
@@ -231,7 +236,8 @@ details.problem ul.edges { margin-top: 4px; }
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
 .viz .viz-sub { font-size: .9rem; color: var(--ink-2); margin-bottom: 12px; }
-.viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
+.viz-sub code { overflow-wrap: anywhere; }
+.viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: safe center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
 .viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
@@ -265,6 +271,7 @@ details.problem ul.edges { margin-top: 4px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .chip { font: 600 .8rem var(--mono); padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
 
+svg.tree { max-width: 100%; height: auto; }
 svg.tree text { font: 600 13px var(--mono); fill: var(--ink); }
 svg.tree circle { fill: var(--surface); stroke: var(--line); stroke-width: 2; transition: fill .25s, stroke .25s; }
 svg.tree circle.active { fill: var(--blue-soft); stroke: var(--blue); }
