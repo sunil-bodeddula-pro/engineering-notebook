@@ -84,9 +84,18 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .topbar .brand { font-family: var(--serif); font-weight: 600; font-size: 1.1rem; color: var(--ink); text-decoration: none; letter-spacing: -.01em; }
 .topbar .spacer { flex: 1; }
-.topbar nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.topbar nav { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .topbar nav a { font-size: .88rem; padding: 6px 12px; border-radius: 999px; color: var(--ink-2); text-decoration: none; }
 .topbar nav a:hover { background: var(--surface-2); color: var(--ink); }
+.navmenu { position: relative; }
+.navmenu summary { list-style: none; cursor: pointer; font-size: .88rem; padding: 6px 12px; border-radius: 999px; color: var(--ink-2); user-select: none; }
+.navmenu summary::-webkit-details-marker { display: none; }
+.navmenu summary::after { content: "▾"; margin-left: 5px; font-size: .75em; }
+.navmenu summary:hover, .navmenu[open] summary { background: var(--surface-2); color: var(--ink); }
+.navmenu-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.topbar nav .navmenu-panel a { border-radius: 8px; }
+.topbar nav .navmenu-panel a[aria-current] { color: var(--ink); font-weight: 600; background: var(--surface-2); }
+@media (max-width: 640px) { .navmenu-panel { position: fixed; left: 16px; right: 16px; top: auto; min-width: 0; margin-top: 6px; } }
 
 .page { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 40px) 96px; }
 @media (max-width: 960px) { .page { grid-template-columns: 1fr; } .toc { display: none; } }
@@ -155,6 +164,8 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .mstag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--red-soft); color: var(--red); letter-spacing: .02em; vertical-align: 1px; }
 .aptag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: hsl(220 10% 91%); color: hsl(220 12% 26%); letter-spacing: .02em; vertical-align: 1px; }
 @media (prefers-color-scheme: dark) { .aptag { background: hsl(215 12% 26%); color: hsl(220 10% 86%); } }
+.nftag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: hsl(0 0% 13%); color: hsl(357 92% 62%); letter-spacing: .02em; vertical-align: 1px; }
+@media (prefers-color-scheme: dark) { .nftag { background: hsl(0 0% 4%); box-shadow: inset 0 0 0 1px hsl(357 60% 40%); } }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -675,6 +686,14 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 
   window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
+
+// Company-lists menu in the top bar: close it on an outside click or Escape.
+document.addEventListener("click", (e) => {
+  document.querySelectorAll("details.navmenu[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.querySelectorAll("details.navmenu[open]").forEach((d) => { d.open = false; d.querySelector("summary").focus(); });
+});
 </script>
 <!-- inline-assets:end -->
 </head>
@@ -682,7 +701,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../nvidia.html">Nvidia</a><a href="../amazon.html">Amazon</a><a href="../microsoft.html">Microsoft</a><a href="../apple.html">Apple</a><a href="../cisco.html">Cisco</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><details class="navmenu"><summary>Company lists</summary><div class="navmenu-panel"><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../amazon.html">Amazon</a><a href="../microsoft.html">Microsoft</a><a href="../apple.html">Apple</a><a href="../nvidia.html">Nvidia</a><a href="../cisco.html">Cisco</a><a href="../netflix.html">Netflix</a></div></details><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -2113,7 +2132,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
 
     <!-- gen:start 41 -->
     <details class="problem" id="p-41">
-      <summary><span class="tag hard">Hard</span> 41. First Missing Positive <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="mstag" title="On Microsoft's six-month interview list">Microsoft</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 41. First Missing Positive <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="mstag" title="On Microsoft's six-month interview list">Microsoft</span> <span class="nftag" title="On Netflix's all-time interview list">Netflix</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the smallest positive integer that is <strong>not</strong> in <code>nums</code>, in <code>O(n)</code> time and <code>O(1)</code> extra space.</p>
         <!-- enrich-top:start 41 -->

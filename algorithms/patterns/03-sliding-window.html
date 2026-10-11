@@ -84,9 +84,18 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .topbar .brand { font-family: var(--serif); font-weight: 600; font-size: 1.1rem; color: var(--ink); text-decoration: none; letter-spacing: -.01em; }
 .topbar .spacer { flex: 1; }
-.topbar nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.topbar nav { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .topbar nav a { font-size: .88rem; padding: 6px 12px; border-radius: 999px; color: var(--ink-2); text-decoration: none; }
 .topbar nav a:hover { background: var(--surface-2); color: var(--ink); }
+.navmenu { position: relative; }
+.navmenu summary { list-style: none; cursor: pointer; font-size: .88rem; padding: 6px 12px; border-radius: 999px; color: var(--ink-2); user-select: none; }
+.navmenu summary::-webkit-details-marker { display: none; }
+.navmenu summary::after { content: "▾"; margin-left: 5px; font-size: .75em; }
+.navmenu summary:hover, .navmenu[open] summary { background: var(--surface-2); color: var(--ink); }
+.navmenu-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.topbar nav .navmenu-panel a { border-radius: 8px; }
+.topbar nav .navmenu-panel a[aria-current] { color: var(--ink); font-weight: 600; background: var(--surface-2); }
+@media (max-width: 640px) { .navmenu-panel { position: fixed; left: 16px; right: 16px; top: auto; min-width: 0; margin-top: 6px; } }
 
 .page { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 40px) 96px; }
 @media (max-width: 960px) { .page { grid-template-columns: 1fr; } .toc { display: none; } }
@@ -155,6 +164,8 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .mstag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--red-soft); color: var(--red); letter-spacing: .02em; vertical-align: 1px; }
 .aptag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: hsl(220 10% 91%); color: hsl(220 12% 26%); letter-spacing: .02em; vertical-align: 1px; }
 @media (prefers-color-scheme: dark) { .aptag { background: hsl(215 12% 26%); color: hsl(220 10% 86%); } }
+.nftag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: hsl(0 0% 13%); color: hsl(357 92% 62%); letter-spacing: .02em; vertical-align: 1px; }
+@media (prefers-color-scheme: dark) { .nftag { background: hsl(0 0% 4%); box-shadow: inset 0 0 0 1px hsl(357 60% 40%); } }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -675,6 +686,14 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 
   window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
+
+// Company-lists menu in the top bar: close it on an outside click or Escape.
+document.addEventListener("click", (e) => {
+  document.querySelectorAll("details.navmenu[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.querySelectorAll("details.navmenu[open]").forEach((d) => { d.open = false; d.querySelector("summary").focus(); });
+});
 </script>
 <!-- inline-assets:end -->
 </head>
@@ -682,7 +701,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../nvidia.html">Nvidia</a><a href="../amazon.html">Amazon</a><a href="../microsoft.html">Microsoft</a><a href="../apple.html">Apple</a><a href="../cisco.html">Cisco</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><details class="navmenu"><summary>Company lists</summary><div class="navmenu-panel"><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../amazon.html">Amazon</a><a href="../microsoft.html">Microsoft</a><a href="../apple.html">Apple</a><a href="../nvidia.html">Nvidia</a><a href="../cisco.html">Cisco</a><a href="../netflix.html">Netflix</a></div></details><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -1012,7 +1031,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-3">
-      <summary><span class="tag medium">Medium</span> 3. Longest Substring Without Repeating Characters <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="ctag" title="On Cisco's all-time interview list">Cisco</span> <span class="mstag" title="On Microsoft's six-month interview list">Microsoft</span> <span class="aptag" title="On Apple's six-month interview list">Apple</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 3. Longest Substring Without Repeating Characters <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="ctag" title="On Cisco's all-time interview list">Cisco</span> <span class="mstag" title="On Microsoft's six-month interview list">Microsoft</span> <span class="aptag" title="On Apple's six-month interview list">Apple</span> <span class="nftag" title="On Netflix's all-time interview list">Netflix</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Length of the longest substring of <code>s</code> with all distinct characters.</p>
         <!-- enrich-top:start 3 -->
@@ -1630,6 +1649,7 @@ class Solution:
         <tr><td>30</td><td><a href="#p-30">Substring with Concatenation of All Words</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></td><td>Window that moves one <em>word</em> at a time, once per starting offset</td></tr>
         <tr><td>1703</td><td><a href="#p-1703">Minimum Adjacent Swaps for K Consecutive Ones</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Shift positions by their rank (p_i − i), then slide a window of k ones and gather around the median using prefix sums</td></tr>
         <tr><td>2009</td><td><a href="#p-2009">Minimum Number of Operations to Make Array Continuous</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Sort the distinct values; slide a value window of width n − 1; keep as many values as fit, replace the rest</td></tr>
+        <tr><td>220</td><td><a href="#p-220">Contains Duplicate III</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>Sliding window of the last indexDiff values, bucketed by width valueDiff + 1</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
@@ -1915,7 +1935,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-904">
-      <summary><span class="tag medium">Medium</span> 904. Fruit Into Baskets <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 904. Fruit Into Baskets <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="nftag" title="On Netflix's all-time interview list">Netflix</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Walk along a row of trees, taking one fruit per tree. You have two baskets, each holding one fruit type. The most fruit you can collect = the longest subarray with at most 2 distinct values.</p>
         <!-- enrich-top:start 904 -->
@@ -2296,7 +2316,7 @@ Note that buying on day 2 and selling on day 1 is not allowed because you must b
     </details>
 
     <details class="problem" id="p-219">
-      <summary><span class="tag easy">Easy</span> 219. Contains Duplicate II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="mstag" title="On Microsoft's six-month interview list">Microsoft</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 219. Contains Duplicate II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="mstag" title="On Microsoft's six-month interview list">Microsoft</span> <span class="nftag" title="On Netflix's all-time interview list">Netflix</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return <code>True</code> if there are two indices <code>i ≠ j</code> with <code>nums[i] == nums[j]</code> and <code>|i − j| ≤ k</code>.</p>
         <!-- enrich-top:start 219 -->
@@ -2716,7 +2736,7 @@ Note that [10, 5, 2] is not included as the product of 100 is not strictly less 
 
     <!-- gen:start 718 -->
     <details class="problem" id="p-718">
-      <summary><span class="tag medium">Medium</span> 718. Maximum Length of Repeated Subarray <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 718. Maximum Length of Repeated Subarray <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="nftag" title="On Netflix's all-time interview list">Netflix</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the length of the longest subarray that appears in both <code>nums1</code> and <code>nums2</code>.</p>
         <!-- enrich-top:start 718 -->
@@ -4281,6 +4301,76 @@ That costs 3, so the maximum length is 3.</span></div></div>
       </div>
     </details>
     <!-- gen:end 1208 -->
+
+    <!-- gen:start 220 -->
+    <details class="problem" id="p-220">
+      <summary><span class="tag hard">Hard</span> 220. Contains Duplicate III <span class="nftag" title="On Netflix's all-time interview list">Netflix</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return whether two indices <code>i ≠ j</code> exist with <code>|i − j| ≤ indexDiff</code> and <code>|nums[i] − nums[j]| ≤ valueDiff</code>.</p>
+        <!-- enrich-top:start 220 -->
+        <p class="links"><a href="https://leetcode.com/problems/contains-duplicate-iii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,1], indexDiff = 3, valueDiff = 0</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can choose (i, j) = (0, 3).
+We satisfy the three conditions:
+i != j --&gt; 0 != 3
+abs(i - j) &lt;= indexDiff --&gt; abs(0 - 3) &lt;= 3
+abs(nums[i] - nums[j]) &lt;= valueDiff --&gt; abs(1 - 1) &lt;= 0</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,5,9,1,5,9], indexDiff = 2, valueDiff = 3</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">After trying all the possible pairs (i, j), we cannot satisfy the three conditions, so we return false.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ nums.length ≤ 10⁵</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code> · <code>1 ≤ indexDiff ≤ nums.length</code> · <code>0 ≤ valueDiff ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The index condition is a sliding window.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Group values into buckets of width valueDiff + 1. Where can a close value be?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Check all pairs within <code>indexDiff</code>: <code>O(n · indexDiff)</code>; buckets make it <code>O(n)</code>.</p>
+        <!-- enrich-top:end 220 -->
+        <p><strong>Spot it:</strong> The index limit is a <strong>sliding window</strong> of the last <code>indexDiff</code> values. To find a close value inside it in <code>O(1)</code>, put values into <strong>buckets</strong> of width <code>valueDiff + 1</code> (a <strong>hash map</strong> bucket → value): two values in one bucket are close, and a match can otherwise only be in a neighbouring bucket.</p>
+        <p><strong>Why not another pattern?</strong> Comparing each value with the whole window is <code>O(n · indexDiff)</code>; a sorted container works in <code>O(n log k)</code> but buckets are <code>O(n)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>w = valueDiff + 1</code>; bucket id <code>x // w</code> (floor division handles negatives).</li>
+          <li>For each value: if its bucket is occupied → true; if a neighbouring bucket holds a value within <code>valueDiff</code> → true.</li>
+          <li>Store the value in its bucket; drop <code>nums[i − indexDiff]</code>'s bucket so the window stays <code>indexDiff</code> wide.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def containsNearbyAlmostDuplicate(self, nums: List[int], indexDiff: int, valueDiff: int) -&gt; bool:
+        width = valueDiff + 1  # any two values in one bucket differ by at most valueDiff
+        buckets = {}  # bucket id -&gt; the value in the window that falls there
+        for i, x in enumerate(nums):
+            b = x // width
+            if b in buckets:
+                return True
+            if b - 1 in buckets and x - buckets[b - 1] &lt;= valueDiff:
+                return True
+            if b + 1 in buckets and buckets[b + 1] - x &lt;= valueDiff:
+                return True
+            buckets[b] = x
+            if i &gt;= indexDiff:
+                del buckets[nums[i - indexDiff] // width]  # slide the window: that index is now too far back
+        return False</code></pre>
+        <!-- trace:start 220 -->
+        <div class="trace-viz" id="trace-p220"></div>
+        <script type="application/json" id="trace-p220-data">{"src":["class Solution:","    def containsNearbyAlmostDuplicate(self, nums: List[int], indexDiff: int, valueDiff: int) -> bool:","        width = valueDiff + 1  # any two values in one bucket differ by at most valueDiff","        buckets = {}  # bucket id -> the value in the window that falls there","        for i, x in enumerate(nums):","            b = x // width","            if b in buckets:","                return True","            if b - 1 in buckets and x - buckets[b - 1] <= valueDiff:","                return True","            if b + 1 in buckets and buckets[b + 1] - x <= valueDiff:","                return True","            buckets[b] = x","            if i >= indexDiff:","                del buckets[nums[i - indexDiff] // width]  # slide the window: that index is now too far back","        return False"],"notes":{"3":"any two values in one bucket differ by at most valueDiff","4":"bucket id -> the value in the window that falls there","15":"slide the window: that index is now too far back"},"input":"nums = [1,2,3,1], indexDiff = 3, valueDiff = 0","output":"true","values":[{"~":"list","v":[1,2,3,1]},3,0,1,{"~":"dict","v":[]},{"~":"dict","v":[[1,1]]},2,{"~":"dict","v":[[1,1],[2,2]]},{"~":"dict","v":[[1,1],[2,2],[3,3]]},true],"steps":[[3,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2},null],[4,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3},null],[5,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":4},null],[6,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":4,"i":2,"x":3},null],[7,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":4,"i":2,"x":3,"b":3},null],[9,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":4,"i":2,"x":3,"b":3},null],[11,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":4,"i":2,"x":3,"b":3},null],[13,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":4,"i":2,"x":3,"b":3},null],[14,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":2,"x":3,"b":3},null],[5,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":2,"x":3,"b":3},null],[6,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":3,"x":6,"b":3},null],[7,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":3,"x":6,"b":6},null],[9,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":3,"x":6,"b":6},null],[11,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":3,"x":6,"b":6},null],[13,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":5,"i":3,"x":6,"b":6},null],[14,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":3,"x":6,"b":6},null],[5,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":3,"x":6,"b":6},null],[6,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":6,"x":1,"b":6},null],[7,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":6,"x":1,"b":1},null],[9,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":6,"x":1,"b":1},null],[11,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":6,"x":1,"b":1},null],[13,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":7,"i":6,"x":1,"b":1},null],[14,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":8,"i":6,"x":1,"b":1},null],[5,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":8,"i":6,"x":1,"b":1},null],[6,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":8,"i":1,"x":3,"b":1},null],[7,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":8,"i":1,"x":3,"b":3},null],[8,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":8,"i":1,"x":3,"b":3},null],[8,1,"containsNearbyAlmostDuplicate",{"nums":0,"indexDiff":1,"valueDiff":2,"width":3,"buckets":8,"i":1,"x":3,"b":3},null,9]],"truncated":false}</script>
+        <!-- trace:end 220 -->
+        <!-- explain:start 220 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each bucket holds at most one value: a second one would already have returned true.</li>
+          <li>A close value is either in the same bucket or in a neighbour; anything two buckets away differs by more than <code>valueDiff</code>.</li>
+          <li>Removing the value from <code>indexDiff</code> positions back keeps only indices within range.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 220 -->
+        <!-- enrich-edges:start 220 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>valueDiff = 0 (exact duplicates).</li>
+          <li>Negative numbers (floor division).</li>
+          <li>indexDiff ≥ n.</li>
+        </ul>
+        <!-- enrich-edges:end 220 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(min(n, indexDiff))</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 220 -->
 
     <nav class="pager">
       <a href="02-two-pointers.html"><small>Previous pattern</small>← 02 · Two Pointers</a>

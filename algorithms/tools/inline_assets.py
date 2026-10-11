@@ -27,7 +27,7 @@ def block():
 
 
 def pages():
-    names = ["index.html", "cheatsheet.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html"] + sorted(glob.glob(os.path.join("patterns", "*.html")))
+    names = ["index.html", "cheatsheet.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html")))
     return [os.path.join(ROOT, n) for n in names]
 
 
