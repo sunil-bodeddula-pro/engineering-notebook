@@ -23,7 +23,7 @@ Every problem is also tagged with the **data structures** it is built on (Array,
 
 The practice lists cover every LeetCode problem from the YouTube playlist [Data Structures & Algorithms in Python – The Complete Pathway](https://www.youtube.com/playlist?list=PLKYEe2WisBTFEr6laH5bR2J19j7sl5O8R), each sorted into the pattern it belongs to.
 
-Every Medium and Hard Python problem on **Google's, Meta's and Nvidia's six-month interview lists** is solved on its pattern page too, marked with a **Google**, **Meta** or **Nvidia** badge. Each one says which pattern to choose and why (and why not the obvious alternatives), gives hints, the brute-force-to-pattern bridge, edge cases, and the official LeetCode examples and constraints.
+Every Medium and Hard Python problem on **Google's, Meta's and Nvidia's six-month interview lists** (from [leetcode-company-wise-problems](https://github.com/liquidslr/leetcode-company-wise-problems), see [Sources](#sources)) is solved on its pattern page too, marked with a **Google**, **Meta** or **Nvidia** badge. Each one says which pattern to choose and why (and why not the obvious alternatives), gives hints, the brute-force-to-pattern bridge, edge cases, and the official LeetCode examples and constraints.
 
 Under every solution there is a **Step through the solution** player: it runs that exact Python code on a LeetCode example and lets you step line by line, watching the variables, arrays, grids and the call stack change.
 
@@ -69,6 +69,12 @@ Click inside a visualizer, then use <kbd>←</kbd> / <kbd>→</kbd> to step and 
 | 22 | Math & Bit Manipulation | Square and skip |
 | 23 | Union-Find | Ask the boss |
 | 24 | Segment Tree & Fenwick Tree | Up by the low bit, down by the low bit |
+
+## Sources
+
+- **[liquidslr/leetcode-company-wise-problems](https://github.com/liquidslr/leetcode-company-wise-problems)**: a community-maintained GitHub repository that collects the LeetCode problems companies have asked in interviews. Each company has its own folder of CSV files, one per time window, and each row lists a problem's difficulty, title, frequency, acceptance rate, LeetCode link and topics. The company lists here use the **six-month** file (`3. Six Months.csv`) for [Google](https://github.com/liquidslr/leetcode-company-wise-problems/blob/main/Google/3.%20Six%20Months.csv), [Meta](https://github.com/liquidslr/leetcode-company-wise-problems/blob/main/Meta/3.%20Six%20Months.csv) and [Nvidia](https://github.com/liquidslr/leetcode-company-wise-problems/blob/main/Nvidia/3.%20Six%20Months.csv). The difficulty, frequency and topics shown on `google.html`, `meta.html` and `nvidia.html` come from those files, as downloaded in October 2026; the lists change over time, so re-check the repository for the latest version.
+- **[LeetCode](https://leetcode.com/)**: the official problem statements, examples and constraints quoted on each problem, and the examples every solution is tested against.
+- **[Data Structures & Algorithms in Python – The Complete Pathway](https://www.youtube.com/playlist?list=PLKYEe2WisBTFEr6laH5bR2J19j7sl5O8R)** (YouTube playlist): the problems in the practice lists, and the video links shown next to them.
 
 ## Hosting it as a website (free)
 
