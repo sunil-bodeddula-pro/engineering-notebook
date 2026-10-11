@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 17 of 21</div>
+    <div class="eyebrow">Pattern 17 of 24</div>
     <h1>Stack</h1>
     <p class="lede">Last in, first out. When the most recent unfinished thing is always the next one to finish (an open bracket, a pending operand, a score you might cancel), keep those things on a stack and work on its top.</p>
 
@@ -684,7 +827,7 @@ class MinStack:
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-20" open>
-      <summary><span class="tag easy">Easy</span> 20. Valid Parentheses <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 20. Valid Parentheses <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>s</code> contains only <code>()[]{}</code>. It is valid if every bracket is closed by the same type, in the correct order. Check it.</p>
         <!-- enrich-top:start 20 -->
@@ -720,6 +863,10 @@ class MinStack:
                 stack.append(ch)          # an opener waits for its closer
         # leftover openers were never closed
         return len(stack) == 0</code></pre>
+        <!-- trace:start 20 -->
+        <div class="trace-viz" id="trace-p20"></div>
+        <script type="application/json" id="trace-p20-data">{"src":["class Solution:","    def isValid(self, s: str) -> bool:","        opener_of = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}","        stack = []","        for ch in s:","            if ch in opener_of:","                # a closer: it must close the most recent unmatched opener","                if not stack or stack[-1] != opener_of[ch]:","                    return False","                stack.pop()","            else:","                stack.append(ch)          # an opener waits for its closer","        # leftover openers were never closed","        return len(stack) == 0"],"notes":{"8":"a closer: it must close the most recent unmatched opener","12":"an opener waits for its closer","14":"leftover openers were never closed"},"input":"s = \"(]\"","output":"false","values":["(]",{"~":"dict","v":[[")","("],["]","["],["}","{"]]},{"~":"list","v":[]},"(",{"~":"list","v":["("]},"]",false],"steps":[[3,1,"isValid",{"s":0},null],[4,1,"isValid",{"s":0,"opener_of":1},null],[5,1,"isValid",{"s":0,"opener_of":1,"stack":2},null],[6,1,"isValid",{"s":0,"opener_of":1,"stack":2,"ch":3},null],[12,1,"isValid",{"s":0,"opener_of":1,"stack":2,"ch":3},null],[5,1,"isValid",{"s":0,"opener_of":1,"stack":4,"ch":3},null],[6,1,"isValid",{"s":0,"opener_of":1,"stack":4,"ch":5},null],[8,1,"isValid",{"s":0,"opener_of":1,"stack":4,"ch":5},null],[9,1,"isValid",{"s":0,"opener_of":1,"stack":4,"ch":5},null],[9,1,"isValid",{"s":0,"opener_of":1,"stack":4,"ch":5},null,6]],"truncated":false}</script>
+        <!-- trace:end 20 -->
         <!-- explain:start 20 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -757,7 +904,7 @@ class MinStack:
     </details>
 
     <details class="problem" id="p-150">
-      <summary><span class="tag medium">Medium</span> 150. Evaluate Reverse Polish Notation <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 150. Evaluate Reverse Polish Notation <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Evaluate an arithmetic expression in Reverse Polish Notation, where operators come <em>after</em> their two operands (<code>["2", "1", "+", "3", "*"]</code> means <code>(2 + 1) * 3</code>). Division truncates toward zero.</p>
         <!-- enrich-top:start 150 -->
@@ -797,6 +944,10 @@ class MinStack:
             else:
                 stack.append(int(token))
         return stack[0]</code></pre>
+        <!-- trace:start 150 -->
+        <div class="trace-viz" id="trace-p150"></div>
+        <script type="application/json" id="trace-p150-data">{"src":["class Solution:","    def evalRPN(self, tokens: List[str]) -> int:","        stack = []","        for token in tokens:","            if token in (\"+\", \"-\", \"*\", \"/\"):","                b = stack.pop()       # the RIGHT operand is on top","                a = stack.pop()","                if token == \"+\":","                    stack.append(a + b)","                elif token == \"-\":","                    stack.append(a - b)","                elif token == \"*\":","                    stack.append(a * b)","                else:","                    # int(a / b) truncates toward zero; a // b would round down","                    stack.append(int(a / b))","            else:","                stack.append(int(token))","        return stack[0]"],"notes":{"6":"the RIGHT operand is on top","16":"int(a / b) truncates toward zero; a // b would round down"},"input":"tokens = [\"2\",\"1\",\"+\",\"3\",\"*\"]","output":"9","values":[{"~":"list","v":["2","1","+","3","*"]},{"~":"list","v":[]},"2",{"~":"list","v":[2]},"1",{"~":"list","v":[2,1]},"+",1,2,{"~":"list","v":[3]},"3",{"~":"list","v":[3,3]},"*",3,{"~":"list","v":[9]},9],"steps":[[3,1,"evalRPN",{"tokens":0},null],[4,1,"evalRPN",{"tokens":0,"stack":1},null],[5,1,"evalRPN",{"tokens":0,"stack":1,"token":2},null],[18,1,"evalRPN",{"tokens":0,"stack":1,"token":2},null],[4,1,"evalRPN",{"tokens":0,"stack":3,"token":2},null],[5,1,"evalRPN",{"tokens":0,"stack":3,"token":4},null],[18,1,"evalRPN",{"tokens":0,"stack":3,"token":4},null],[4,1,"evalRPN",{"tokens":0,"stack":5,"token":4},null],[5,1,"evalRPN",{"tokens":0,"stack":5,"token":6},null],[6,1,"evalRPN",{"tokens":0,"stack":5,"token":6},null],[7,1,"evalRPN",{"tokens":0,"stack":3,"token":6,"b":7},null],[8,1,"evalRPN",{"tokens":0,"stack":1,"token":6,"b":7,"a":8},null],[9,1,"evalRPN",{"tokens":0,"stack":1,"token":6,"b":7,"a":8},null],[4,1,"evalRPN",{"tokens":0,"stack":9,"token":6,"b":7,"a":8},null],[5,1,"evalRPN",{"tokens":0,"stack":9,"token":10,"b":7,"a":8},null],[18,1,"evalRPN",{"tokens":0,"stack":9,"token":10,"b":7,"a":8},null],[4,1,"evalRPN",{"tokens":0,"stack":11,"token":10,"b":7,"a":8},null],[5,1,"evalRPN",{"tokens":0,"stack":11,"token":12,"b":7,"a":8},null],[6,1,"evalRPN",{"tokens":0,"stack":11,"token":12,"b":7,"a":8},null],[7,1,"evalRPN",{"tokens":0,"stack":9,"token":12,"b":13,"a":8},null],[8,1,"evalRPN",{"tokens":0,"stack":1,"token":12,"b":13,"a":13},null],[10,1,"evalRPN",{"tokens":0,"stack":1,"token":12,"b":13,"a":13},null],[12,1,"evalRPN",{"tokens":0,"stack":1,"token":12,"b":13,"a":13},null],[13,1,"evalRPN",{"tokens":0,"stack":1,"token":12,"b":13,"a":13},null],[4,1,"evalRPN",{"tokens":0,"stack":14,"token":12,"b":13,"a":13},null],[19,1,"evalRPN",{"tokens":0,"stack":14,"token":12,"b":13,"a":13},null],[19,1,"evalRPN",{"tokens":0,"stack":14,"token":12,"b":13,"a":13},null,15]],"truncated":false}</script>
+        <!-- trace:end 150 -->
         <!-- explain:start 150 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -831,7 +982,7 @@ class MinStack:
     </details>
 
     <details class="problem" id="p-155">
-      <summary><span class="tag medium">Medium</span> 155. Min Stack <span class="ds-tags"><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 155. Min Stack <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a stack that supports <code>push</code>, <code>pop</code>, <code>top</code> and <code>getMin</code> (the smallest element currently in the stack), <strong>all</strong> in <code>O(1)</code> time.</p>
         <!-- enrich-top:start 155 -->
@@ -880,6 +1031,10 @@ minStack.getMin(); // return -2</span></div></div>
 
     def getMin(self) -&gt; int:
         return self.stack[-1][1]</code></pre>
+        <!-- trace:start 155 -->
+        <div class="trace-viz" id="trace-p155"></div>
+        <script type="application/json" id="trace-p155-data">{"src":["class MinStack:","    def __init__(self):","        # each entry is (value, smallest value at or below this entry)","        self.stack = []","","    def push(self, val: int) -> None:","        if self.stack:","            current_min = min(val, self.stack[-1][1])","        else:","            current_min = val","        self.stack.append((val, current_min))","","    def pop(self) -> None:","        self.stack.pop()","","    def top(self) -> int:","        return self.stack[-1][0]","","    def getMin(self) -> int:","        return self.stack[-1][1]"],"notes":{"4":"each entry is (value, smallest value at or below this entry)"},"input":"[\"MinStack\",\"push\",\"push\",\"push\",\"getMin\",\"pop\",\"top\",\"getMin\"]\n[[],[-2],[0],[-3],[],[],[],[]]","output":"[null,null,null,null,-3,null,0,-2]","values":[null,-2,0,-3],"steps":[[4,1,"__init__",{},null],[4,1,"__init__",{},null,0],[7,1,"push",{"val":1},null],[10,1,"push",{"val":1},null],[11,1,"push",{"val":1,"current_min":1},null],[11,1,"push",{"val":1,"current_min":1},null,0],[7,1,"push",{"val":2},null],[8,1,"push",{"val":2},null],[11,1,"push",{"val":2,"current_min":1},null],[11,1,"push",{"val":2,"current_min":1},null,0],[7,1,"push",{"val":3},null],[8,1,"push",{"val":3},null],[11,1,"push",{"val":3,"current_min":3},null],[11,1,"push",{"val":3,"current_min":3},null,0],[20,1,"getMin",{},null],[20,1,"getMin",{},null,3],[14,1,"pop",{},null],[14,1,"pop",{},null,0],[17,1,"top",{},null],[17,1,"top",{},null,2],[20,1,"getMin",{},null],[20,1,"getMin",{},null,1]],"truncated":false}</script>
+        <!-- trace:end 155 -->
         <!-- explain:start 155 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -961,6 +1116,18 @@ minStack.getMin(); // return -2</span></div></div>
         <tr><td>739</td><td><a href="06-monotonic-stack.html#p-739">Daily Temperatures</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Solved in <a href="06-monotonic-stack.html">06 · Monotonic Stack</a>: Store indices, answer = distance</td></tr>
         <tr><td>901</td><td><a href="06-monotonic-stack.html#p-901">Online Stock Span</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Stack</span></span></td><td>Solved in <a href="06-monotonic-stack.html">06 · Monotonic Stack</a>: Streaming "previous greater", store (price, span)</td></tr>
         <tr><td>402</td><td><a href="06-monotonic-stack.html#p-402">Remove K Digits</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Solved in <a href="06-monotonic-stack.html">06 · Monotonic Stack</a>: Greedy pop with a deletion budget</td></tr>
+        <tr><td>394</td><td><a href="#p-394">Decode String</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Push (string so far, repeat count) at <code>[</code>; pop and expand at <code>]</code></td></tr>
+        <tr><td>71</td><td><a href="#p-71">Simplify Path</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Split on '/'; push names, pop on '..', ignore '' and '.'</td></tr>
+        <tr><td>227</td><td><a href="#p-227">Basic Calculator II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Push signed terms; × and ÷ combine with the top of the stack immediately</td></tr>
+        <tr><td>362</td><td><a href="#p-362">Design Hit Counter</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Queue</span><span class="ds">Deque</span></span></td><td>Queue of timestamps; drop those older than 300 s before counting</td></tr>
+        <tr><td>622</td><td><a href="#p-622">Design Circular Queue</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Queue</span></span></td><td>Fixed array + head index + size; positions wrap with % k</td></tr>
+        <tr><td>636</td><td><a href="#p-636">Exclusive Time of Functions</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Call stack of function ids; charge elapsed time to the top whenever an event happens</td></tr>
+        <tr><td>641</td><td><a href="#p-641">Design Circular Deque</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></td><td>Ring buffer with a head index and size; the front moves backwards with (head − 1) % k</td></tr>
+        <tr><td>678</td><td><a href="#p-678">Valid Parenthesis String</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Track the range [lo, hi] of possible open counts; '*' widens it</td></tr>
+        <tr><td>735</td><td><a href="#p-735">Asteroid Collision</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Stack of survivors; a left-mover collides with right-movers on top until it dies or passes them</td></tr>
+        <tr><td>921</td><td><a href="#p-921">Minimum Add to Make Parentheses Valid</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Counter as a stack: unmatched ')' need an added '('; leftover '(' need ')'</td></tr>
+        <tr><td>1441</td><td><a href="#p-1441">Build an Array With Stack Operations</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>For each number up to target's last: Push; if it isn't wanted, Pop right away</td></tr>
+        <tr><td>224</td><td><a href="#p-224">Basic Calculator</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Running result and sign; '(' pushes (result, sign), ')' pops and combines</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
@@ -1014,6 +1181,10 @@ The total sum is 5 + -2 + -4 + 9 + 5 + 14 = 27.</span></div></div>
             else:
                 scores.append(int(op))               # a plain number, maybe negative
         return sum(scores)</code></pre>
+        <!-- trace:start 682 -->
+        <div class="trace-viz" id="trace-p682"></div>
+        <script type="application/json" id="trace-p682-data">{"src":["class Solution:","    def calPoints(self, operations: List[str]) -> int:","        scores = []","        for op in operations:","            if op == \"C\":","                scores.pop()                         # cancel the last score","            elif op == \"D\":","                scores.append(2 * scores[-1])        # double the last score","            elif op == \"+\":","                scores.append(scores[-1] + scores[-2])","            else:","                scores.append(int(op))               # a plain number, maybe negative","        return sum(scores)"],"notes":{"6":"cancel the last score","8":"double the last score","12":"a plain number, maybe negative"},"input":"ops = [\"1\",\"C\"]","output":"0","values":[{"~":"list","v":["1","C"]},{"~":"list","v":[]},"1",{"~":"list","v":[1]},"C",0],"steps":[[3,1,"calPoints",{"operations":0},null],[4,1,"calPoints",{"operations":0,"scores":1},null],[5,1,"calPoints",{"operations":0,"scores":1,"op":2},null],[7,1,"calPoints",{"operations":0,"scores":1,"op":2},null],[9,1,"calPoints",{"operations":0,"scores":1,"op":2},null],[12,1,"calPoints",{"operations":0,"scores":1,"op":2},null],[4,1,"calPoints",{"operations":0,"scores":3,"op":2},null],[5,1,"calPoints",{"operations":0,"scores":3,"op":4},null],[6,1,"calPoints",{"operations":0,"scores":3,"op":4},null],[4,1,"calPoints",{"operations":0,"scores":1,"op":4},null],[13,1,"calPoints",{"operations":0,"scores":1,"op":4},null],[13,1,"calPoints",{"operations":0,"scores":1,"op":4},null,5]],"truncated":false}</script>
+        <!-- trace:end 682 -->
         <!-- explain:start 682 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1047,6 +1218,872 @@ The total sum is 5 + -2 + -4 + 9 + 5 + 14 = 27.</span></div></div>
         <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
       </div>
     </details>
+
+
+
+
+    <!-- gen:start 394 -->
+    <details class="problem" id="p-394">
+      <summary><span class="tag medium">Medium</span> 394. Decode String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Decode a string encoded as <code>k[encoded_string]</code>, where the part inside the brackets is repeated <code>k</code> times. Brackets can be nested, e.g. <code>"3[a2[c]]"</code> → <code>"accaccacc"</code>.</p>
+        <!-- enrich-top:start 394 -->
+        <p class="links"><a href="https://leetcode.com/problems/decode-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "3[a]2[bc]"</code></div><div><strong>Output:</strong> <code class="ex">"aaabcbc"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "3[a2[c]]"</code></div><div><strong>Output:</strong> <code class="ex">"accaccacc"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 30</code> · <code>s</code> consists of lowercase English letters, digits, and square brackets <code>'[]'</code>. · <code>s</code> is guaranteed to be <strong>a valid</strong> input. · All the integers in <code>s</code> are in the range <code>[1, 300]</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>When you meet <code>]</code>, which <code>[</code> does it close, and which text was being built before that <code>[</code>?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Push the outer text and the repeat count when you see <code>[</code>; pop them when you see <code>]</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly finding the innermost <code>k[...]</code> with a search and replacing it rescans the string many times: <code>O(n²)</code> or worse. A stack processes each character once and expands each bracket exactly when it closes.</p>
+        <!-- enrich-top:end 394 -->
+        <p><strong>Spot it:</strong> Nested brackets where the <strong>innermost</strong> part must be finished first, then plugged into the level around it: last opened, first closed. That's a stack, just like matching parentheses, but each level also remembers its text and its repeat count.</p>
+        <p><strong>Why not another pattern?</strong> A single left-to-right pass with string concatenation can't handle nesting, because when an inner <code>]</code> closes you need the text that was being built <em>outside</em> it. Recursion works too (it uses the call stack); the explicit stack shows the same idea step by step.</p>
+        <p><strong>Key insight:</strong> Keep two things while scanning: <code>current</code> (the string being built at this nesting level) and <code>number</code> (a repeat count being read). On <code>[</code> push <code>(current, number)</code> and start a fresh level. On <code>]</code> pop <code>(previous, k)</code> and set <code>current = previous + current * k</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Scan characters. Digits build <code>number</code> (it can have several digits, e.g. <code>12[</code>).</li>
+          <li>On <code>[</code>: push <code>(current, number)</code>, then reset <code>current = ""</code> and <code>number = 0</code> for the inner level.</li>
+          <li>On <code>]</code>: pop <code>(previous, k)</code> and combine: <code>current = previous + current * k</code>.</li>
+          <li>Any other character is a letter: append it to <code>current</code>.</li>
+          <li>At the end, <code>current</code> is the decoded string.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def decodeString(self, s: str) -&gt; str:
+        stack = []      # (text before this bracket, how many times to repeat it)
+        current = ""    # text being built at the current nesting level
+        number = 0      # repeat count being read digit by digit
+        for ch in s:
+            if ch.isdigit():
+                number = number * 10 + int(ch)  # counts can have several digits
+            elif ch == "[":
+                stack.append((current, number))  # save the outer level
+                current = ""  # start a fresh inner level
+                number = 0
+            elif ch == "]":
+                previous, k = stack.pop()  # back to the outer level
+                current = previous + current * k  # plug in the repeated inner text
+            else:
+                current = current + ch  # a plain letter
+        return current</code></pre>
+        <!-- trace:start 394 -->
+        <div class="trace-viz" id="trace-p394"></div>
+        <script type="application/json" id="trace-p394-data">{"src":["class Solution:","    def decodeString(self, s: str) -> str:","        stack = []      # (text before this bracket, how many times to repeat it)","        current = \"\"    # text being built at the current nesting level","        number = 0      # repeat count being read digit by digit","        for ch in s:","            if ch.isdigit():","                number = number * 10 + int(ch)  # counts can have several digits","            elif ch == \"[\":","                stack.append((current, number))  # save the outer level","                current = \"\"  # start a fresh inner level","                number = 0","            elif ch == \"]\":","                previous, k = stack.pop()  # back to the outer level","                current = previous + current * k  # plug in the repeated inner text","            else:","                current = current + ch  # a plain letter","        return current"],"notes":{"3":"(text before this bracket, how many times to repeat it)","4":"text being built at the current nesting level","5":"repeat count being read digit by digit","8":"counts can have several digits","10":"save the outer level","11":"start a fresh inner level","14":"back to the outer level","15":"plug in the repeated inner text","17":"a plain letter"},"input":"s = \"3[a2[c]]\"","output":"\"accaccacc\"","values":["3[a2[c]]",{"~":"list","v":[]},"",0,"3",3,"[",{"~":"list","v":[{"~":"tuple","v":["",3]}]},"a","2",2,{"~":"list","v":[{"~":"tuple","v":["",3]},{"~":"tuple","v":["a",2]}]},"c","]","acc","accaccacc"],"steps":[[3,1,"decodeString",{"s":0},null],[4,1,"decodeString",{"s":0,"stack":1},null],[5,1,"decodeString",{"s":0,"stack":1,"current":2},null],[6,1,"decodeString",{"s":0,"stack":1,"current":2,"number":3},null],[7,1,"decodeString",{"s":0,"stack":1,"current":2,"number":3,"ch":4},null],[8,1,"decodeString",{"s":0,"stack":1,"current":2,"number":3,"ch":4},null],[6,1,"decodeString",{"s":0,"stack":1,"current":2,"number":5,"ch":4},null],[7,1,"decodeString",{"s":0,"stack":1,"current":2,"number":5,"ch":6},null],[9,1,"decodeString",{"s":0,"stack":1,"current":2,"number":5,"ch":6},null],[10,1,"decodeString",{"s":0,"stack":1,"current":2,"number":5,"ch":6},null],[11,1,"decodeString",{"s":0,"stack":7,"current":2,"number":5,"ch":6},null],[12,1,"decodeString",{"s":0,"stack":7,"current":2,"number":5,"ch":6},null],[6,1,"decodeString",{"s":0,"stack":7,"current":2,"number":3,"ch":6},null],[7,1,"decodeString",{"s":0,"stack":7,"current":2,"number":3,"ch":8},null],[9,1,"decodeString",{"s":0,"stack":7,"current":2,"number":3,"ch":8},null],[13,1,"decodeString",{"s":0,"stack":7,"current":2,"number":3,"ch":8},null],[17,1,"decodeString",{"s":0,"stack":7,"current":2,"number":3,"ch":8},null],[6,1,"decodeString",{"s":0,"stack":7,"current":8,"number":3,"ch":8},null],[7,1,"decodeString",{"s":0,"stack":7,"current":8,"number":3,"ch":9},null],[8,1,"decodeString",{"s":0,"stack":7,"current":8,"number":3,"ch":9},null],[6,1,"decodeString",{"s":0,"stack":7,"current":8,"number":10,"ch":9},null],[7,1,"decodeString",{"s":0,"stack":7,"current":8,"number":10,"ch":6},null],[9,1,"decodeString",{"s":0,"stack":7,"current":8,"number":10,"ch":6},null],[10,1,"decodeString",{"s":0,"stack":7,"current":8,"number":10,"ch":6},null],[11,1,"decodeString",{"s":0,"stack":11,"current":8,"number":10,"ch":6},null],[12,1,"decodeString",{"s":0,"stack":11,"current":2,"number":10,"ch":6},null],[6,1,"decodeString",{"s":0,"stack":11,"current":2,"number":3,"ch":6},null],[7,1,"decodeString",{"s":0,"stack":11,"current":2,"number":3,"ch":12},null],[9,1,"decodeString",{"s":0,"stack":11,"current":2,"number":3,"ch":12},null],[13,1,"decodeString",{"s":0,"stack":11,"current":2,"number":3,"ch":12},null],[17,1,"decodeString",{"s":0,"stack":11,"current":2,"number":3,"ch":12},null],[6,1,"decodeString",{"s":0,"stack":11,"current":12,"number":3,"ch":12},null],[7,1,"decodeString",{"s":0,"stack":11,"current":12,"number":3,"ch":13},null],[9,1,"decodeString",{"s":0,"stack":11,"current":12,"number":3,"ch":13},null],[13,1,"decodeString",{"s":0,"stack":11,"current":12,"number":3,"ch":13},null],[14,1,"decodeString",{"s":0,"stack":11,"current":12,"number":3,"ch":13},null],[15,1,"decodeString",{"s":0,"stack":7,"current":12,"number":3,"ch":13,"previous":8,"k":10},null],[6,1,"decodeString",{"s":0,"stack":7,"current":14,"number":3,"ch":13,"previous":8,"k":10},null],[7,1,"decodeString",{"s":0,"stack":7,"current":14,"number":3,"ch":13,"previous":8,"k":10},null],[9,1,"decodeString",{"s":0,"stack":7,"current":14,"number":3,"ch":13,"previous":8,"k":10},null],[13,1,"decodeString",{"s":0,"stack":7,"current":14,"number":3,"ch":13,"previous":8,"k":10},null],[14,1,"decodeString",{"s":0,"stack":7,"current":14,"number":3,"ch":13,"previous":8,"k":10},null],[15,1,"decodeString",{"s":0,"stack":1,"current":14,"number":3,"ch":13,"previous":2,"k":5},null],[6,1,"decodeString",{"s":0,"stack":1,"current":15,"number":3,"ch":13,"previous":2,"k":5},null],[18,1,"decodeString",{"s":0,"stack":1,"current":15,"number":3,"ch":13,"previous":2,"k":5},null],[18,1,"decodeString",{"s":0,"stack":1,"current":15,"number":3,"ch":13,"previous":2,"k":5},null,15]],"truncated":false}</script>
+        <!-- trace:end 394 -->
+        <!-- explain:start 394 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>stack</code>: each entry remembers the outer level's text and the count for the bracket we just entered.</li>
+          <li><code>number = number * 10 + int(ch)</code>: builds multi-digit counts like <code>12</code> from <code>'1'</code> then <code>'2'</code>.</li>
+          <li><code>[</code>: push <code>(current, number)</code>, then clear both. The inner level starts with empty text.</li>
+          <li><code>]</code>: <code>previous, k = stack.pop()</code> restores the outer text; <code>current * k</code> repeats the inner text <code>k</code> times; <code>previous + ...</code> attaches it.</li>
+          <li><code>else</code>: a letter is appended to the current level.</li>
+          <li><code>return current</code>: after the last character we are back at the outermost level.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 394 -->
+        <!-- enrich-edges:start 394 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Multi-digit counts, e.g. <code>"10[a]"</code>.</li>
+          <li>Letters after a bracket, e.g. <code>"2[abc]3[cd]ef"</code>.</li>
+          <li>Deep nesting, e.g. <code>"3[a2[c]]"</code> → <code>"accaccacc"</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 394 -->
+        <p><strong>Complexity:</strong> <code>O(output length)</code> time and space: each character of the result is created once per nesting level that repeats it.</p>
+      </div>
+    </details>
+    <!-- gen:end 394 -->
+
+    <!-- gen:start 71 -->
+    <details class="problem" id="p-71">
+      <summary><span class="tag medium">Medium</span> 71. Simplify Path <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Convert an absolute Unix path into its canonical form.</p>
+        <!-- enrich-top:start 71 -->
+        <p class="links"><a href="https://leetcode.com/problems/simplify-path/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">path = "/home/"</code></div><div><strong>Output:</strong> <code class="ex">"/home"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The trailing slash should be removed.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">path = "/home//foo/"</code></div><div><strong>Output:</strong> <code class="ex">"/home/foo"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Multiple consecutive slashes are replaced by a single one.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ path.length ≤ 3000</code> · <code>path</code> consists of English letters, digits, period <code>'.'</code>, slash <code>'/'</code> or <code>'_'</code>. · <code>path</code> is a valid absolute Unix path.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Split the path into parts.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Which parts add a directory, which remove one, which do nothing?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeated string replacement is fragile; a stack of parts is one clean pass.</p>
+        <!-- enrich-top:end 71 -->
+        <p><strong>Spot it:</strong> Directories nest: <code>..</code> undoes the most recent directory → a <strong>stack</strong> of path parts.</p>
+        <p><strong>Why not another pattern?</strong> String replacement tricks (<code>/./</code>, <code>/../</code>) get edge cases wrong (e.g. <code>...</code> is a valid name).</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Split by <code>/</code>.</li>
+          <li>Skip empty parts and <code>.</code>; <code>..</code> pops if possible; anything else is pushed.</li>
+          <li>Join as <code>/</code> + <code>/</code>.join(stack).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def simplifyPath(self, path: str) -&gt; str:
+        stack = []
+        for part in path.split("/"):
+            if part == "" or part == ".":
+                continue  # extra slashes or "current directory"
+            if part == "..":
+                if stack:
+                    stack.pop()  # go up one level
+            else:
+                stack.append(part)  # a directory name (even "...")
+        return "/" + "/".join(stack)</code></pre>
+        <!-- trace:start 71 -->
+        <div class="trace-viz" id="trace-p71"></div>
+        <script type="application/json" id="trace-p71-data">{"src":["class Solution:","    def simplifyPath(self, path: str) -> str:","        stack = []","        for part in path.split(\"/\"):","            if part == \"\" or part == \".\":","                continue  # extra slashes or \"current directory\"","            if part == \"..\":","                if stack:","                    stack.pop()  # go up one level","            else:","                stack.append(part)  # a directory name (even \"...\")","        return \"/\" + \"/\".join(stack)"],"notes":{"6":"extra slashes or \"current directory\"","9":"go up one level","11":"a directory name (even \"...\")"},"input":"path = \"/home/\"","output":"\"/home\"","values":["/home/",{"~":"list","v":[]},"","home",{"~":"list","v":["home"]},"/home"],"steps":[[3,1,"simplifyPath",{"path":0},null],[4,1,"simplifyPath",{"path":0,"stack":1},null],[5,1,"simplifyPath",{"path":0,"stack":1,"part":2},null],[6,1,"simplifyPath",{"path":0,"stack":1,"part":2},null],[4,1,"simplifyPath",{"path":0,"stack":1,"part":2},null],[5,1,"simplifyPath",{"path":0,"stack":1,"part":3},null],[7,1,"simplifyPath",{"path":0,"stack":1,"part":3},null],[11,1,"simplifyPath",{"path":0,"stack":1,"part":3},null],[4,1,"simplifyPath",{"path":0,"stack":4,"part":3},null],[5,1,"simplifyPath",{"path":0,"stack":4,"part":2},null],[6,1,"simplifyPath",{"path":0,"stack":4,"part":2},null],[4,1,"simplifyPath",{"path":0,"stack":4,"part":2},null],[12,1,"simplifyPath",{"path":0,"stack":4,"part":2},null],[12,1,"simplifyPath",{"path":0,"stack":4,"part":2},null,5]],"truncated":false}</script>
+        <!-- trace:end 71 -->
+        <!-- explain:start 71 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Multiple slashes produce empty parts, which are ignored.</li>
+          <li><code>..</code> at the root stays at the root.</li>
+          <li>Any other string, including <code>...</code>, is a name.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 71 -->
+        <!-- enrich-edges:start 71 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>/../</code> → <code>/</code>.</li>
+          <li>Trailing slash.</li>
+          <li>Names like <code>...</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 71 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 71 -->
+
+    <!-- gen:start 227 -->
+    <details class="problem" id="p-227">
+      <summary><span class="tag medium">Medium</span> 227. Basic Calculator II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Evaluate an expression with <code>+ − × /</code> (integer division truncating toward zero) and spaces.</p>
+        <!-- enrich-top:start 227 -->
+        <p class="links"><a href="https://leetcode.com/problems/basic-calculator-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "3+2*2"</code></div><div><strong>Output:</strong> <code class="ex">7</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " 3/2 "</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 3 * 10⁵</code> · <code>s</code> consists of integers and operators <code>('+', '-', '*', '/')</code> separated by some number of spaces. · <code>s</code> represents a valid expression. · All the integers in the expression are non-negative integers in the range <code>[0, 2³¹ - 1]</code>. · The answer is <strong>guaranteed</strong> to fit in a <strong>32-bit integer</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Multiplication and division happen before addition.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a stack of terms to add; × and ÷ change the last term.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Multiple passes (first × ÷, then + −) with list rewriting work but are clumsier; the stack is one pass.</p>
+        <!-- enrich-top:end 227 -->
+        <p><strong>Spot it:</strong> Precedence: <code>×</code>/<code>÷</code> must happen before <code>+</code>/<code>−</code>. Keep a <strong>stack of terms</strong>: <code>+</code>/<code>−</code> push a new term; <code>×</code>/<code>÷</code> modify the last term. The answer is the sum.</p>
+        <p><strong>Why not another pattern?</strong> Evaluating left to right ignores precedence.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Read numbers; when an operator (or the end) arrives, apply the previous operator to <code>num</code>.</li>
+          <li><code>+</code> push <code>num</code>, <code>−</code> push <code>−num</code>, <code>×</code> multiply top, <code>/</code> divide top (truncate).</li>
+          <li>Return <code>sum(stack)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def calculate(self, s: str) -&gt; int:
+        stack = []
+        num = 0
+        op = "+"  # operator before the current number
+        for i, ch in enumerate(s):
+            if ch.isdigit():
+                num = num * 10 + int(ch)
+            if (ch in "+-*/") or i == len(s) - 1:
+                if op == "+":
+                    stack.append(num)
+                elif op == "-":
+                    stack.append(-num)
+                elif op == "*":
+                    stack.append(stack.pop() * num)  # binds tighter: apply now
+                else:
+                    stack.append(int(stack.pop() / num))  # truncate toward zero
+                op = ch
+                num = 0
+        return sum(stack)</code></pre>
+        <!-- trace:start 227 -->
+        <div class="trace-viz" id="trace-p227"></div>
+        <script type="application/json" id="trace-p227-data">{"src":["class Solution:","    def calculate(self, s: str) -> int:","        stack = []","        num = 0","        op = \"+\"  # operator before the current number","        for i, ch in enumerate(s):","            if ch.isdigit():","                num = num * 10 + int(ch)","            if (ch in \"+-*/\") or i == len(s) - 1:","                if op == \"+\":","                    stack.append(num)","                elif op == \"-\":","                    stack.append(-num)","                elif op == \"*\":","                    stack.append(stack.pop() * num)  # binds tighter: apply now","                else:","                    stack.append(int(stack.pop() / num))  # truncate toward zero","                op = ch","                num = 0","        return sum(stack)"],"notes":{"5":"operator before the current number","15":"binds tighter: apply now","17":"truncate toward zero"},"input":"s = \" 3/2 \"","output":"1","values":[" 3/2 ",{"~":"list","v":[]},0,"+"," ",1,"3",3,2,"/",{"~":"list","v":[3]},"2",4,{"~":"list","v":[1]}],"steps":[[3,1,"calculate",{"s":0},null],[4,1,"calculate",{"s":0,"stack":1},null],[5,1,"calculate",{"s":0,"stack":1,"num":2},null],[6,1,"calculate",{"s":0,"stack":1,"num":2,"op":3},null],[7,1,"calculate",{"s":0,"stack":1,"num":2,"op":3,"i":2,"ch":4},null],[9,1,"calculate",{"s":0,"stack":1,"num":2,"op":3,"i":2,"ch":4},null],[6,1,"calculate",{"s":0,"stack":1,"num":2,"op":3,"i":2,"ch":4},null],[7,1,"calculate",{"s":0,"stack":1,"num":2,"op":3,"i":5,"ch":6},null],[8,1,"calculate",{"s":0,"stack":1,"num":2,"op":3,"i":5,"ch":6},null],[9,1,"calculate",{"s":0,"stack":1,"num":7,"op":3,"i":5,"ch":6},null],[6,1,"calculate",{"s":0,"stack":1,"num":7,"op":3,"i":5,"ch":6},null],[7,1,"calculate",{"s":0,"stack":1,"num":7,"op":3,"i":8,"ch":9},null],[9,1,"calculate",{"s":0,"stack":1,"num":7,"op":3,"i":8,"ch":9},null],[10,1,"calculate",{"s":0,"stack":1,"num":7,"op":3,"i":8,"ch":9},null],[11,1,"calculate",{"s":0,"stack":1,"num":7,"op":3,"i":8,"ch":9},null],[18,1,"calculate",{"s":0,"stack":10,"num":7,"op":3,"i":8,"ch":9},null],[19,1,"calculate",{"s":0,"stack":10,"num":7,"op":9,"i":8,"ch":9},null],[6,1,"calculate",{"s":0,"stack":10,"num":2,"op":9,"i":8,"ch":9},null],[7,1,"calculate",{"s":0,"stack":10,"num":2,"op":9,"i":7,"ch":11},null],[8,1,"calculate",{"s":0,"stack":10,"num":2,"op":9,"i":7,"ch":11},null],[9,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":7,"ch":11},null],[6,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":7,"ch":11},null],[7,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":12,"ch":4},null],[9,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":12,"ch":4},null],[10,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":12,"ch":4},null],[12,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":12,"ch":4},null],[14,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":12,"ch":4},null],[17,1,"calculate",{"s":0,"stack":10,"num":8,"op":9,"i":12,"ch":4},null],[18,1,"calculate",{"s":0,"stack":13,"num":8,"op":9,"i":12,"ch":4},null],[19,1,"calculate",{"s":0,"stack":13,"num":8,"op":4,"i":12,"ch":4},null],[6,1,"calculate",{"s":0,"stack":13,"num":2,"op":4,"i":12,"ch":4},null],[20,1,"calculate",{"s":0,"stack":13,"num":2,"op":4,"i":12,"ch":4},null],[20,1,"calculate",{"s":0,"stack":13,"num":2,"op":4,"i":12,"ch":4},null,5]],"truncated":false}</script>
+        <!-- trace:end 227 -->
+        <!-- explain:start 227 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The operator is applied when the <em>next</em> operator (or the end) is reached, once its right operand is complete.</li>
+          <li><code>int(a / b)</code> truncates toward zero, unlike <code>//</code> for negative numbers.</li>
+          <li>All remaining terms are added at the end.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 227 -->
+        <!-- enrich-edges:start 227 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Division of a negative term.</li>
+          <li>Spaces.</li>
+          <li>A single number.</li>
+        </ul>
+        <!-- enrich-edges:end 227 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 227 -->
+
+    <!-- gen:start 362 -->
+    <details class="problem" id="p-362">
+      <summary><span class="tag medium">Medium</span> 362. Design Hit Counter <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Queue</span><span class="ds">Deque</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Record hits at timestamps (non-decreasing) and return the number of hits in the past 300 seconds.</p>
+        <!-- enrich-top:start 362 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-hit-counter/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["HitCounter","hit","hit","hit","getHits","hit","getHits","getHits"]
+[[],[1],[2],[3],[4],[300],[300],[301]]</code></div><div><strong>Output:</strong> <code class="ex">[null,null,null,null,3,null,4,3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">At time 301 the hit at time 1 is more than 300 seconds old, so only 3 remain.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ timestamp ≤ 2 * 10⁹</code> · All the calls are made in chronological order (timestamp is monotonically increasing) · At most <code>300</code> calls will be made to <code>hit</code> and <code>getHits</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Timestamps come in order. Where are the expired hits?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a queue and drop from the front.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning every stored hit per query is linear; dropping expired hits from a queue is amortised constant. (Follow-up: two arrays of 300 buckets give <code>O(1)</code> memory per second.)</p>
+        <!-- enrich-top:end 362 -->
+        <p><strong>Spot it:</strong> Timestamps arrive in order, so old hits are always at the front: a <strong>queue</strong> (deque). Remove expired hits from the front, the rest is the answer. (Like a monotonic stack, the order of insertion does the work.)</p>
+        <p><strong>Why not another pattern?</strong> Storing all hits and scanning them per query is <code>O(total hits)</code> each time.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>hit(t)</code>: append <code>t</code>.</li>
+          <li><code>getHits(t)</code>: pop from the front while <code>front ≤ t − 300</code>; return the length.</li>
+        </ol>
+        <pre><code class="python">from collections import deque
+
+class HitCounter:
+    def __init__(self):
+        self.hits = deque()  # timestamps in arrival order
+
+    def hit(self, timestamp: int) -&gt; None:
+        self.hits.append(timestamp)
+
+    def getHits(self, timestamp: int) -&gt; int:
+        while self.hits and self.hits[0] &lt;= timestamp - 300:
+            self.hits.popleft()  # older than 5 minutes
+        return len(self.hits)</code></pre>
+        <!-- trace:start 362 -->
+        <div class="trace-viz" id="trace-p362"></div>
+        <script type="application/json" id="trace-p362-data">{"src":["from collections import deque","","class HitCounter:","    def __init__(self):","        self.hits = deque()  # timestamps in arrival order","","    def hit(self, timestamp: int) -> None:","        self.hits.append(timestamp)","","    def getHits(self, timestamp: int) -> int:","        while self.hits and self.hits[0] <= timestamp - 300:","            self.hits.popleft()  # older than 5 minutes","        return len(self.hits)"],"notes":{"5":"timestamps in arrival order","12":"older than 5 minutes"},"input":"[\"HitCounter\",\"hit\",\"hit\",\"hit\",\"getHits\",\"hit\",\"getHits\",\"getHits\"]\n[[],[1],[2],[3],[4],[300],[300],[301]]","output":"[null,null,null,null,3,null,4,3]","values":[null,1,2,3,4,300,301],"steps":[[5,1,"__init__",{},null],[5,1,"__init__",{},null,0],[8,1,"hit",{"timestamp":1},null],[8,1,"hit",{"timestamp":1},null,0],[8,1,"hit",{"timestamp":2},null],[8,1,"hit",{"timestamp":2},null,0],[8,1,"hit",{"timestamp":3},null],[8,1,"hit",{"timestamp":3},null,0],[11,1,"getHits",{"timestamp":4},null],[13,1,"getHits",{"timestamp":4},null],[13,1,"getHits",{"timestamp":4},null,3],[8,1,"hit",{"timestamp":5},null],[8,1,"hit",{"timestamp":5},null,0],[11,1,"getHits",{"timestamp":5},null],[13,1,"getHits",{"timestamp":5},null],[13,1,"getHits",{"timestamp":5},null,4],[11,1,"getHits",{"timestamp":6},null],[12,1,"getHits",{"timestamp":6},null],[11,1,"getHits",{"timestamp":6},null],[13,1,"getHits",{"timestamp":6},null],[13,1,"getHits",{"timestamp":6},null,3]],"truncated":false}</script>
+        <!-- trace:end 362 -->
+        <!-- explain:start 362 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Expired hits are at the front because timestamps never decrease.</li>
+          <li>Each hit is removed at most once, so the work is amortised <code>O(1)</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 362 -->
+        <!-- enrich-edges:start 362 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Many hits with the same timestamp.</li>
+          <li>A query exactly 300 s later (excluded).</li>
+          <li>No hits yet → 0.</li>
+        </ul>
+        <!-- enrich-edges:end 362 -->
+        <p><strong>Complexity:</strong> Amortised <code>O(1)</code> per call, <code>O(hits in window)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 362 -->
+
+    <!-- gen:start 622 -->
+    <details class="problem" id="p-622">
+      <summary><span class="tag medium">Medium</span> 622. Design Circular Queue <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Queue</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Implement a fixed-capacity FIFO ring buffer with enQueue, deQueue, Front, Rear, isEmpty, isFull.</p>
+        <!-- enrich-top:start 622 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-circular-queue/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["MyCircularQueue", "enQueue", "enQueue", "enQueue", "enQueue", "Rear", "isFull", "deQueue", "enQueue", "Rear"]
+[[3], [1], [2], [3], [4], [], [], [], [4], []]</code></div><div><strong>Output:</strong> <code class="ex">[null, true, true, true, false, 3, true, true, true, 4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">MyCircularQueue myCircularQueue = new MyCircularQueue(3);
+myCircularQueue.enQueue(1); // return True
+myCircularQueue.enQueue(2); // return True
+myCircularQueue.enQueue(3); // return True
+myCircularQueue.enQueue(4); // return False
+myCircularQueue.Rear(); // return 3
+myCircularQueue.isFull(); // return True
+myCircularQueue.deQueue(); // return True
+myCircularQueue.enQueue(4); // return True
+myCircularQueue.Rear(); // return 4</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ 1000</code> · <code>0 ≤ value ≤ 1000</code> · At most <code>3000</code> calls will be made to <code>enQueue</code>, <code>deQueue</code>, <code>Front</code>, <code>Rear</code>, <code>isEmpty</code>, and <code>isFull</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Use a fixed-size array and wrap indices with modulo.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Track the head and the number of elements.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A list with <code>pop(0)</code> shifts every element; the ring buffer never moves data.</p>
+        <!-- enrich-top:end 622 -->
+        <p><strong>Spot it:</strong> A ring buffer is an <strong>array</strong> where indices wrap around. Store the head index and the count; the tail is <code>(head + count − 1) % k</code>.</p>
+        <p><strong>Why not another pattern?</strong> A Python list with <code>pop(0)</code> is <code>O(n)</code> per dequeue and doesn't have a fixed capacity.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>enQueue</code>: if full, false; write at <code>(head + size) % k</code>, <code>size += 1</code>.</li>
+          <li><code>deQueue</code>: if empty, false; <code>head = (head + 1) % k</code>, <code>size −= 1</code>.</li>
+          <li><code>Front</code> = <code>data[head]</code>, <code>Rear</code> = <code>data[(head + size − 1) % k]</code>.</li>
+        </ol>
+        <pre><code class="python">class MyCircularQueue:
+    def __init__(self, k: int):
+        self.data = [0] * k
+        self.head = 0  # index of the front element
+        self.size = 0
+
+    def enQueue(self, value: int) -&gt; bool:
+        if self.size == len(self.data):
+            return False
+        self.data[(self.head + self.size) % len(self.data)] = value  # next free slot, wrapping
+        self.size += 1
+        return True
+
+    def deQueue(self) -&gt; bool:
+        if self.size == 0:
+            return False
+        self.head = (self.head + 1) % len(self.data)  # the front moves forward
+        self.size -= 1
+        return True
+
+    def Front(self) -&gt; int:
+        return self.data[self.head] if self.size else -1
+
+    def Rear(self) -&gt; int:
+        return self.data[(self.head + self.size - 1) % len(self.data)] if self.size else -1
+
+    def isEmpty(self) -&gt; bool:
+        return self.size == 0
+
+    def isFull(self) -&gt; bool:
+        return self.size == len(self.data)</code></pre>
+        <!-- trace:start 622 -->
+        <div class="trace-viz" id="trace-p622"></div>
+        <script type="application/json" id="trace-p622-data">{"src":["class MyCircularQueue:","    def __init__(self, k: int):","        self.data = [0] * k","        self.head = 0  # index of the front element","        self.size = 0","","    def enQueue(self, value: int) -> bool:","        if self.size == len(self.data):","            return False","        self.data[(self.head + self.size) % len(self.data)] = value  # next free slot, wrapping","        self.size += 1","        return True","","    def deQueue(self) -> bool:","        if self.size == 0:","            return False","        self.head = (self.head + 1) % len(self.data)  # the front moves forward","        self.size -= 1","        return True","","    def Front(self) -> int:","        return self.data[self.head] if self.size else -1","","    def Rear(self) -> int:","        return self.data[(self.head + self.size - 1) % len(self.data)] if self.size else -1","","    def isEmpty(self) -> bool:","        return self.size == 0","","    def isFull(self) -> bool:","        return self.size == len(self.data)"],"notes":{"4":"index of the front element","10":"next free slot, wrapping","17":"the front moves forward"},"input":"[\"MyCircularQueue\", \"enQueue\", \"enQueue\", \"enQueue\", \"enQueue\", \"Rear\", \"isFull\", \"deQueue\", \"enQueue\", \"Rear\"]\n[[3], [1], [2], [3], [4], [], [], [], [4], []]","output":"[null, true, true, true, false, 3, true, true, true, 4]","values":[3,null,1,true,2,4,false],"steps":[[3,1,"__init__",{"k":0},null],[4,1,"__init__",{"k":0},null],[5,1,"__init__",{"k":0},null],[5,1,"__init__",{"k":0},null,1],[8,1,"enQueue",{"value":2},null],[10,1,"enQueue",{"value":2},null],[11,1,"enQueue",{"value":2},null],[12,1,"enQueue",{"value":2},null],[12,1,"enQueue",{"value":2},null,3],[8,1,"enQueue",{"value":4},null],[10,1,"enQueue",{"value":4},null],[11,1,"enQueue",{"value":4},null],[12,1,"enQueue",{"value":4},null],[12,1,"enQueue",{"value":4},null,3],[8,1,"enQueue",{"value":0},null],[10,1,"enQueue",{"value":0},null],[11,1,"enQueue",{"value":0},null],[12,1,"enQueue",{"value":0},null],[12,1,"enQueue",{"value":0},null,3],[8,1,"enQueue",{"value":5},null],[9,1,"enQueue",{"value":5},null],[9,1,"enQueue",{"value":5},null,6],[25,1,"Rear",{},null],[25,1,"Rear",{},null,0],[31,1,"isFull",{},null],[31,1,"isFull",{},null,3],[15,1,"deQueue",{},null],[17,1,"deQueue",{},null],[18,1,"deQueue",{},null],[19,1,"deQueue",{},null],[19,1,"deQueue",{},null,3],[8,1,"enQueue",{"value":5},null],[10,1,"enQueue",{"value":5},null],[11,1,"enQueue",{"value":5},null],[12,1,"enQueue",{"value":5},null],[12,1,"enQueue",{"value":5},null,3],[25,1,"Rear",{},null],[25,1,"Rear",{},null,5]],"truncated":false}</script>
+        <!-- trace:end 622 -->
+        <!-- explain:start 622 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Keeping <code>size</code> avoids the classic full-vs-empty ambiguity of head/tail pointers.</li>
+          <li>All operations are <code>O(1)</code> index arithmetic.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 622 -->
+        <!-- enrich-edges:start 622 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Enqueue when full → false.</li>
+          <li>Dequeue when empty → false.</li>
+          <li>Wrap-around after many operations.</li>
+        </ul>
+        <!-- enrich-edges:end 622 -->
+        <p><strong>Complexity:</strong> <code>O(1)</code> per operation, <code>O(k)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 622 -->
+
+    <!-- gen:start 636 -->
+    <details class="problem" id="p-636">
+      <summary><span class="tag medium">Medium</span> 636. Exclusive Time of Functions <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Given start/end logs of a single-threaded program, return each function's exclusive running time.</p>
+        <!-- enrich-top:start 636 -->
+        <p class="links"><a href="https://leetcode.com/problems/exclusive-time-of-functions/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 2, logs = ["0:start:0","1:start:2","1:end:5","0:end:6"]</code></div><div><strong>Output:</strong> <code class="ex">[3,4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Function 0 starts at the beginning of time 0, then it executes 2 for units of time and reaches the end of time 1.
+Function 1 starts at the beginning of time 2, executes for 4 units of time, and ends at the end of time 5.
+Function 0 resumes execution at the beginning of time 6 and executes for 1 unit of time.
+So function 0 spends 2 + 1 = 3 units of total time executing, and function 1 spends 4 units of total time executing.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 1, logs = ["0:start:0","0:start:2","0:end:5","0:start:6","0:end:6","0:end:7"]</code></div><div><strong>Output:</strong> <code class="ex">[8]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Function 0 starts at the beginning of time 0, executes for 2 units of time, and recursively calls itself.
+Function 0 (recursive call) starts at the beginning of time 2 and executes for 4 units of time.
+Function 0 (initial call) resumes execution then immediately calls itself again.
+Function 0 (2nd recursive call) starts at the beginning of time 6 and executes for 1 unit of time.
+Function 0 (initial call) resumes execution at the beginning of time 7 and executes for 1 unit of time.
+So function 0 spends 2 + 4 + 1 + 1 = 8 units of total time executing.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 100</code> · <code>2 ≤ logs.length ≤ 500</code> · <code>0 ≤ function_id &lt; n</code> · <code>0 ≤ timestamp ≤ 10⁹</code> · No two start events will happen at the same timestamp. · No two end events will happen at the same timestamp. · Each function has an <code>"end"</code> log for each <code>"start"</code> log.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which function is running between two consecutive log entries?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a stack of active calls.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Computing each call's total duration and subtracting nested calls is more complicated; charging slices to the stack top is one pass.</p>
+        <!-- enrich-top:end 636 -->
+        <p><strong>Spot it:</strong> Function calls nest → a <strong>stack</strong> mirrors the call stack. Time between two events belongs to whichever function is on top.</p>
+        <p><strong>Why not another pattern?</strong> Subtracting children's durations from parents afterwards needs extra bookkeeping per call.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Keep <code>prev</code> = the time the current slice started.</li>
+          <li><code>start</code> at <code>t</code>: charge <code>t − prev</code> to the top (if any), push the id, <code>prev = t</code>.</li>
+          <li><code>end</code> at <code>t</code>: charge <code>t − prev + 1</code> to the top, pop, <code>prev = t + 1</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def exclusiveTime(self, n: int, logs: List[str]) -&gt; List[int]:
+        result = [0] * n
+        stack = []
+        prev = 0  # start of the current time slice
+        for log in logs:
+            fid, kind, t = log.split(":")
+            fid, t = int(fid), int(t)
+            if kind == "start":
+                if stack:
+                    result[stack[-1]] += t - prev  # the caller ran until now
+                stack.append(fid)
+                prev = t
+            else:
+                result[stack.pop()] += t - prev + 1  # end times are inclusive
+                prev = t + 1
+        return result</code></pre>
+        <!-- trace:start 636 -->
+        <div class="trace-viz" id="trace-p636"></div>
+        <script type="application/json" id="trace-p636-data">{"src":["class Solution:","    def exclusiveTime(self, n: int, logs: List[str]) -> List[int]:","        result = [0] * n","        stack = []","        prev = 0  # start of the current time slice","        for log in logs:","            fid, kind, t = log.split(\":\")","            fid, t = int(fid), int(t)","            if kind == \"start\":","                if stack:","                    result[stack[-1]] += t - prev  # the caller ran until now","                stack.append(fid)","                prev = t","            else:","                result[stack.pop()] += t - prev + 1  # end times are inclusive","                prev = t + 1","        return result"],"notes":{"5":"start of the current time slice","11":"the caller ran until now","15":"end times are inclusive"},"input":"n = 2, logs = [\"0:start:0\",\"1:start:2\",\"1:end:5\",\"0:end:6\"]","output":"[3,4]","values":[2,{"~":"list","v":["0:start:0","1:start:2","1:end:5","0:end:6"]},{"~":"list","v":[0,0]},{"~":"list","v":[]},0,"0:start:0","0","start",{"~":"list","v":[0]},"1:start:2","1","2",1,{"~":"list","v":[2,0]},{"~":"list","v":[0,1]},"1:end:5","end","5",5,{"~":"list","v":[2,4]},6,"0:end:6","6",{"~":"list","v":[3,4]},7],"steps":[[3,1,"exclusiveTime",{"n":0,"logs":1},null],[4,1,"exclusiveTime",{"n":0,"logs":1,"result":2},null],[5,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3},null],[6,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3,"prev":4},null],[7,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3,"prev":4,"log":5},null],[8,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3,"prev":4,"log":5,"fid":6,"kind":7,"t":6},null],[9,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3,"prev":4,"log":5,"fid":4,"kind":7,"t":4},null],[10,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3,"prev":4,"log":5,"fid":4,"kind":7,"t":4},null],[12,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":3,"prev":4,"log":5,"fid":4,"kind":7,"t":4},null],[13,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":5,"fid":4,"kind":7,"t":4},null],[6,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":5,"fid":4,"kind":7,"t":4},null],[7,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":9,"fid":4,"kind":7,"t":4},null],[8,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":9,"fid":10,"kind":7,"t":11},null],[9,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":9,"fid":12,"kind":7,"t":0},null],[10,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":9,"fid":12,"kind":7,"t":0},null],[11,1,"exclusiveTime",{"n":0,"logs":1,"result":2,"stack":8,"prev":4,"log":9,"fid":12,"kind":7,"t":0},null],[12,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":8,"prev":4,"log":9,"fid":12,"kind":7,"t":0},null],[13,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":14,"prev":4,"log":9,"fid":12,"kind":7,"t":0},null],[6,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":14,"prev":0,"log":9,"fid":12,"kind":7,"t":0},null],[7,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":14,"prev":0,"log":15,"fid":12,"kind":7,"t":0},null],[8,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":14,"prev":0,"log":15,"fid":10,"kind":16,"t":17},null],[9,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":14,"prev":0,"log":15,"fid":12,"kind":16,"t":18},null],[15,1,"exclusiveTime",{"n":0,"logs":1,"result":13,"stack":14,"prev":0,"log":15,"fid":12,"kind":16,"t":18},null],[16,1,"exclusiveTime",{"n":0,"logs":1,"result":19,"stack":8,"prev":0,"log":15,"fid":12,"kind":16,"t":18},null],[6,1,"exclusiveTime",{"n":0,"logs":1,"result":19,"stack":8,"prev":20,"log":15,"fid":12,"kind":16,"t":18},null],[7,1,"exclusiveTime",{"n":0,"logs":1,"result":19,"stack":8,"prev":20,"log":21,"fid":12,"kind":16,"t":18},null],[8,1,"exclusiveTime",{"n":0,"logs":1,"result":19,"stack":8,"prev":20,"log":21,"fid":6,"kind":16,"t":22},null],[9,1,"exclusiveTime",{"n":0,"logs":1,"result":19,"stack":8,"prev":20,"log":21,"fid":4,"kind":16,"t":20},null],[15,1,"exclusiveTime",{"n":0,"logs":1,"result":19,"stack":8,"prev":20,"log":21,"fid":4,"kind":16,"t":20},null],[16,1,"exclusiveTime",{"n":0,"logs":1,"result":23,"stack":3,"prev":20,"log":21,"fid":4,"kind":16,"t":20},null],[6,1,"exclusiveTime",{"n":0,"logs":1,"result":23,"stack":3,"prev":24,"log":21,"fid":4,"kind":16,"t":20},null],[17,1,"exclusiveTime",{"n":0,"logs":1,"result":23,"stack":3,"prev":24,"log":21,"fid":4,"kind":16,"t":20},null],[17,1,"exclusiveTime",{"n":0,"logs":1,"result":23,"stack":3,"prev":24,"log":21,"fid":4,"kind":16,"t":20},null,23]],"truncated":false}</script>
+        <!-- trace:end 636 -->
+        <!-- explain:start 636 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A <code>start</code> pauses the current top; an <code>end</code> finishes it.</li>
+          <li>End timestamps are inclusive (the function runs through the end of that unit), hence <code>+ 1</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 636 -->
+        <!-- enrich-edges:start 636 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Recursion (same id nested).</li>
+          <li>A function that starts and ends at the same time unit.</li>
+          <li>Single function.</li>
+        </ul>
+        <!-- enrich-edges:end 636 -->
+        <p><strong>Complexity:</strong> <code>O(len(logs))</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 636 -->
+
+    <!-- gen:start 641 -->
+    <details class="problem" id="p-641">
+      <summary><span class="tag medium">Medium</span> 641. Design Circular Deque <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Implement a fixed-capacity double-ended queue with inserts and deletes at both ends.</p>
+        <!-- enrich-top:start 641 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-circular-deque/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["MyCircularDeque", "insertLast", "insertLast", "insertFront", "insertFront", "getRear", "isFull", "deleteLast", "insertFront", "getFront"]
+[[3], [1], [2], [3], [4], [], [], [], [4], []]</code></div><div><strong>Output:</strong> <code class="ex">[null, true, true, true, false, 2, true, true, true, 4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">MyCircularDeque myCircularDeque = new MyCircularDeque(3);
+myCircularDeque.insertLast(1); // return True
+myCircularDeque.insertLast(2); // return True
+myCircularDeque.insertFront(3); // return True
+myCircularDeque.insertFront(4); // return False, the queue is full.
+myCircularDeque.getRear(); // return 2
+myCircularDeque.isFull(); // return True
+myCircularDeque.deleteLast(); // return True
+myCircularDeque.insertFront(4); // return True
+myCircularDeque.getFront(); // return 4</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ 1000</code> · <code>0 ≤ value ≤ 1000</code> · At most <code>2000</code> calls will be made to <code>insertFront</code>, <code>insertLast</code>, <code>deleteFront</code>, <code>deleteLast</code>, <code>getFront</code>, <code>getRear</code>, <code>isEmpty</code>, <code>isFull</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Start from the circular queue design.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>How does the head index move when inserting at the front?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> List-based front inserts are <code>O(n)</code>; the ring buffer is <code>O(1)</code>.</p>
+        <!-- enrich-top:end 641 -->
+        <p><strong>Spot it:</strong> Same <strong>ring buffer</strong> as the circular queue, but the front can also move backwards: <code>head = (head − 1) % k</code>.</p>
+        <p><strong>Why not another pattern?</strong> A list with <code>insert(0, x)</code> is <code>O(n)</code> per front insert.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>insertFront</code>: <code>head = (head − 1) % k</code>, write there.</li>
+          <li><code>insertLast</code>: write at <code>(head + size) % k</code>.</li>
+          <li><code>deleteFront</code>: <code>head += 1</code>; <code>deleteLast</code>: just <code>size −= 1</code>.</li>
+        </ol>
+        <pre><code class="python">class MyCircularDeque:
+    def __init__(self, k: int):
+        self.data = [0] * k
+        self.head = 0
+        self.size = 0
+
+    def insertFront(self, value: int) -&gt; bool:
+        if self.isFull():
+            return False
+        self.head = (self.head - 1) % len(self.data)  # step back, wrapping
+        self.data[self.head] = value
+        self.size += 1
+        return True
+
+    def insertLast(self, value: int) -&gt; bool:
+        if self.isFull():
+            return False
+        self.data[(self.head + self.size) % len(self.data)] = value
+        self.size += 1
+        return True
+
+    def deleteFront(self) -&gt; bool:
+        if self.isEmpty():
+            return False
+        self.head = (self.head + 1) % len(self.data)
+        self.size -= 1
+        return True
+
+    def deleteLast(self) -&gt; bool:
+        if self.isEmpty():
+            return False
+        self.size -= 1  # the last slot is simply forgotten
+        return True
+
+    def getFront(self) -&gt; int:
+        return -1 if self.isEmpty() else self.data[self.head]
+
+    def getRear(self) -&gt; int:
+        return -1 if self.isEmpty() else self.data[(self.head + self.size - 1) % len(self.data)]
+
+    def isEmpty(self) -&gt; bool:
+        return self.size == 0
+
+    def isFull(self) -&gt; bool:
+        return self.size == len(self.data)</code></pre>
+        <!-- trace:start 641 -->
+        <div class="trace-viz" id="trace-p641"></div>
+        <script type="application/json" id="trace-p641-data">{"src":["class MyCircularDeque:","    def __init__(self, k: int):","        self.data = [0] * k","        self.head = 0","        self.size = 0","","    def insertFront(self, value: int) -> bool:","        if self.isFull():","            return False","        self.head = (self.head - 1) % len(self.data)  # step back, wrapping","        self.data[self.head] = value","        self.size += 1","        return True","","    def insertLast(self, value: int) -> bool:","        if self.isFull():","            return False","        self.data[(self.head + self.size) % len(self.data)] = value","        self.size += 1","        return True","","    def deleteFront(self) -> bool:","        if self.isEmpty():","            return False","        self.head = (self.head + 1) % len(self.data)","        self.size -= 1","        return True","","    def deleteLast(self) -> bool:","        if self.isEmpty():","            return False","        self.size -= 1  # the last slot is simply forgotten","        return True","","    def getFront(self) -> int:","        return -1 if self.isEmpty() else self.data[self.head]","","    def getRear(self) -> int:","        return -1 if self.isEmpty() else self.data[(self.head + self.size - 1) % len(self.data)]","","    def isEmpty(self) -> bool:","        return self.size == 0","","    def isFull(self) -> bool:","        return self.size == len(self.data)"],"notes":{"10":"step back, wrapping","32":"the last slot is simply forgotten"},"input":"[\"MyCircularDeque\", \"insertLast\", \"insertLast\", \"insertFront\", \"insertFront\", \"getRear\", \"isFull\", \"deleteLast\", \"insertFront\", \"getFront\"]\n[[3], [1], [2], [3], [4], [], [], [], [4], []]","output":"[null, true, true, true, false, 2, true, true, true, 4]","values":[3,null,1,"insertLast(value=1) › isFull()",false,true,2,"insertLast(value=2) › isFull()","insertFront(value=3) › isFull()",4,"insertFront(value=4) › isFull()","getRear() › isEmpty()","deleteLast() › isEmpty()","getFront() › isEmpty()"],"steps":[[3,1,"__init__",{"k":0},null],[4,1,"__init__",{"k":0},null],[5,1,"__init__",{"k":0},null],[5,1,"__init__",{"k":0},null,1],[16,1,"insertLast",{"value":2},null],[45,2,"isFull",{},3],[45,2,"isFull",{},3,4],[18,1,"insertLast",{"value":2},null],[19,1,"insertLast",{"value":2},null],[20,1,"insertLast",{"value":2},null],[20,1,"insertLast",{"value":2},null,5],[16,1,"insertLast",{"value":6},null],[45,2,"isFull",{},7],[45,2,"isFull",{},7,4],[18,1,"insertLast",{"value":6},null],[19,1,"insertLast",{"value":6},null],[20,1,"insertLast",{"value":6},null],[20,1,"insertLast",{"value":6},null,5],[8,1,"insertFront",{"value":0},null],[45,2,"isFull",{},8],[45,2,"isFull",{},8,4],[10,1,"insertFront",{"value":0},null],[11,1,"insertFront",{"value":0},null],[12,1,"insertFront",{"value":0},null],[13,1,"insertFront",{"value":0},null],[13,1,"insertFront",{"value":0},null,5],[8,1,"insertFront",{"value":9},null],[45,2,"isFull",{},10],[45,2,"isFull",{},10,5],[9,1,"insertFront",{"value":9},null],[9,1,"insertFront",{"value":9},null,4],[39,1,"getRear",{},null],[42,2,"isEmpty",{},11],[42,2,"isEmpty",{},11,4],[39,1,"getRear",{},null,6],[45,1,"isFull",{},null],[45,1,"isFull",{},null,5],[30,1,"deleteLast",{},null],[42,2,"isEmpty",{},12],[42,2,"isEmpty",{},12,4],[32,1,"deleteLast",{},null],[33,1,"deleteLast",{},null],[33,1,"deleteLast",{},null,5],[8,1,"insertFront",{"value":9},null],[45,2,"isFull",{},10],[45,2,"isFull",{},10,4],[10,1,"insertFront",{"value":9},null],[11,1,"insertFront",{"value":9},null],[12,1,"insertFront",{"value":9},null],[13,1,"insertFront",{"value":9},null],[13,1,"insertFront",{"value":9},null,5],[36,1,"getFront",{},null],[42,2,"isEmpty",{},13],[42,2,"isEmpty",{},13,4],[36,1,"getFront",{},null,9]],"truncated":false}</script>
+        <!-- trace:end 641 -->
+        <!-- explain:start 641 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Python's <code>%</code> returns a non-negative result, so <code>(head − 1) % k</code> wraps correctly.</li>
+          <li>Removing from the back only shrinks the size.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 641 -->
+        <!-- enrich-edges:start 641 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Full / empty checks.</li>
+          <li>Wrap-around at index 0.</li>
+          <li>Capacity 1.</li>
+        </ul>
+        <!-- enrich-edges:end 641 -->
+        <p><strong>Complexity:</strong> <code>O(1)</code> per operation, <code>O(k)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 641 -->
+
+    <!-- gen:start 678 -->
+    <details class="problem" id="p-678">
+      <summary><span class="tag medium">Medium</span> 678. Valid Parenthesis String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>*</code> can be <code>(</code>, <code>)</code> or empty. Is the string a valid parenthesis string?</p>
+        <!-- enrich-top:start 678 -->
+        <p class="links"><a href="https://leetcode.com/problems/valid-parenthesis-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "()"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "(*)"</code></div><div><strong>Output:</strong> <code class="ex">true</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 100</code> · <code>s[i]</code> is <code>'('</code>, <code>')'</code> or <code>'*'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Instead of one balance, track the minimum and maximum possible balance.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>When is it impossible? When is it valid at the end?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all star replacements is <code>3^k</code>; the range is one pass. (Two stacks of indices also work in <code>O(n)</code>.)</p>
+        <!-- enrich-top:end 678 -->
+        <p><strong>Spot it:</strong> A plain <strong>stack/counter</strong> would check balance; with wildcards, keep the <strong>range</strong> of possible open counts: <code>lo</code> (treat stars as <code>)</code>) and <code>hi</code> (treat stars as <code>(</code>). It's valid if <code>hi</code> never drops below 0 and <code>lo</code> can reach 0 at the end.</p>
+        <p><strong>Why not another pattern?</strong> Trying three options for every star is <code>3^stars</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>(</code>: <code>lo += 1</code>, <code>hi += 1</code>. <code>)</code>: both <code>−1</code>. <code>*</code>: <code>lo −= 1</code>, <code>hi += 1</code>.</li>
+          <li>If <code>hi &lt; 0</code>, false. Clamp <code>lo</code> at 0.</li>
+          <li>Return <code>lo == 0</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def checkValidString(self, s: str) -&gt; bool:
+        lo = hi = 0  # range of possible numbers of unmatched "("
+        for ch in s:
+            if ch == "(":
+                lo += 1
+                hi += 1
+            elif ch == ")":
+                lo -= 1
+                hi -= 1
+            else:
+                lo -= 1  # star as ")"
+                hi += 1  # star as "("
+            if hi &lt; 0:
+                return False  # too many ")" even with every star as "("
+            lo = max(lo, 0)  # can't have negative open brackets
+        return lo == 0</code></pre>
+        <!-- trace:start 678 -->
+        <div class="trace-viz" id="trace-p678"></div>
+        <script type="application/json" id="trace-p678-data">{"src":["class Solution:","    def checkValidString(self, s: str) -> bool:","        lo = hi = 0  # range of possible numbers of unmatched \"(\"","        for ch in s:","            if ch == \"(\":","                lo += 1","                hi += 1","            elif ch == \")\":","                lo -= 1","                hi -= 1","            else:","                lo -= 1  # star as \")\"","                hi += 1  # star as \"(\"","            if hi < 0:","                return False  # too many \")\" even with every star as \"(\"","            lo = max(lo, 0)  # can't have negative open brackets","        return lo == 0"],"notes":{"3":"range of possible numbers of unmatched \"(\"","12":"star as \")\"","13":"star as \"(\"","15":"too many \")\" even with every star as \"(\"","16":"can't have negative open brackets"},"input":"s = \"(\"","output":"false","values":["(",0,1,false],"steps":[[3,1,"checkValidString",{"s":0},null],[4,1,"checkValidString",{"s":0,"lo":1,"hi":1},null],[5,1,"checkValidString",{"s":0,"lo":1,"hi":1,"ch":0},null],[6,1,"checkValidString",{"s":0,"lo":1,"hi":1,"ch":0},null],[7,1,"checkValidString",{"s":0,"lo":2,"hi":1,"ch":0},null],[14,1,"checkValidString",{"s":0,"lo":2,"hi":2,"ch":0},null],[16,1,"checkValidString",{"s":0,"lo":2,"hi":2,"ch":0},null],[4,1,"checkValidString",{"s":0,"lo":2,"hi":2,"ch":0},null],[17,1,"checkValidString",{"s":0,"lo":2,"hi":2,"ch":0},null],[17,1,"checkValidString",{"s":0,"lo":2,"hi":2,"ch":0},null,3]],"truncated":false}</script>
+        <!-- trace:end 678 -->
+        <!-- explain:start 678 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Every count between <code>lo</code> and <code>hi</code> is achievable by some choice of stars.</li>
+          <li>Clamping <code>lo</code> at 0 discards choices that would make the prefix invalid.</li>
+          <li>At the end, 0 open brackets must be achievable.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 678 -->
+        <!-- enrich-edges:start 678 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Only stars → true.</li>
+          <li><code>)(</code> with stars around.</li>
+          <li>Star before the <code>(</code> it should close (<code>*(</code> is false).</li>
+        </ul>
+        <!-- enrich-edges:end 678 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 678 -->
+
+    <!-- gen:start 735 -->
+    <details class="problem" id="p-735">
+      <summary><span class="tag medium">Medium</span> 735. Asteroid Collision <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Positive asteroids move right, negative move left; on collision the smaller explodes (equal: both). Return the survivors.</p>
+        <!-- enrich-top:start 735 -->
+        <p class="links"><a href="https://leetcode.com/problems/asteroid-collision/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">asteroids = [5,10,-5]</code></div><div><strong>Output:</strong> <code class="ex">[5,10]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 10 and -5 collide resulting in 10. The 5 and 10 never collide.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">asteroids = [8,-8]</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 8 and -8 collide exploding each other.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ asteroids.length ≤ 10⁴</code> · <code>-1000 ≤ asteroids[i] ≤ 1000</code> · <code>asteroids[i] != 0</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which asteroids can collide? Only a left-mover with right-movers before it.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use a stack of survivors.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Time-step simulation is slow; the stack resolves each collision once.</p>
+        <!-- enrich-top:end 735 -->
+        <p><strong>Spot it:</strong> Only a left-mover meeting earlier right-movers collides, and it meets the <strong>most recent</strong> first → a <strong>stack</strong>.</p>
+        <p><strong>Why not another pattern?</strong> Simulating step by step in time is <code>O(n²)</code> or worse.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>For each asteroid <code>a</code>: while <code>a &lt; 0</code> and the top is positive: compare sizes.</li>
+          <li>Top smaller → pop, continue; equal → pop, <code>a</code> dies; top bigger → <code>a</code> dies.</li>
+          <li>If <code>a</code> survives, push it.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def asteroidCollision(self, asteroids: List[int]) -&gt; List[int]:
+        stack = []
+        for a in asteroids:
+            alive = True
+            while alive and a &lt; 0 and stack and stack[-1] &gt; 0:  # a moving left meets one moving right
+                if stack[-1] &lt; -a:
+                    stack.pop()  # the right-mover explodes; keep going
+                    continue
+                if stack[-1] == -a:
+                    stack.pop()  # both explode
+                alive = False  # a explodes
+            if alive:
+                stack.append(a)
+        return stack</code></pre>
+        <!-- trace:start 735 -->
+        <div class="trace-viz" id="trace-p735"></div>
+        <script type="application/json" id="trace-p735-data">{"src":["class Solution:","    def asteroidCollision(self, asteroids: List[int]) -> List[int]:","        stack = []","        for a in asteroids:","            alive = True","            while alive and a < 0 and stack and stack[-1] > 0:  # a moving left meets one moving right","                if stack[-1] < -a:","                    stack.pop()  # the right-mover explodes; keep going","                    continue","                if stack[-1] == -a:","                    stack.pop()  # both explode","                alive = False  # a explodes","            if alive:","                stack.append(a)","        return stack"],"notes":{"6":"a moving left meets one moving right","8":"the right-mover explodes; keep going","11":"both explode","12":"a explodes"},"input":"asteroids = [8,-8]","output":"[]","values":[{"~":"list","v":[8,-8]},{"~":"list","v":[]},8,true,{"~":"list","v":[8]},-8,false],"steps":[[3,1,"asteroidCollision",{"asteroids":0},null],[4,1,"asteroidCollision",{"asteroids":0,"stack":1},null],[5,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":2},null],[6,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":2,"alive":3},null],[13,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":2,"alive":3},null],[14,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":2,"alive":3},null],[4,1,"asteroidCollision",{"asteroids":0,"stack":4,"a":2,"alive":3},null],[5,1,"asteroidCollision",{"asteroids":0,"stack":4,"a":5,"alive":3},null],[6,1,"asteroidCollision",{"asteroids":0,"stack":4,"a":5,"alive":3},null],[7,1,"asteroidCollision",{"asteroids":0,"stack":4,"a":5,"alive":3},null],[10,1,"asteroidCollision",{"asteroids":0,"stack":4,"a":5,"alive":3},null],[11,1,"asteroidCollision",{"asteroids":0,"stack":4,"a":5,"alive":3},null],[12,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":5,"alive":3},null],[6,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":5,"alive":6},null],[13,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":5,"alive":6},null],[4,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":5,"alive":6},null],[15,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":5,"alive":6},null],[15,1,"asteroidCollision",{"asteroids":0,"stack":1,"a":5,"alive":6},null,1]],"truncated":false}</script>
+        <!-- trace:end 735 -->
+        <!-- explain:start 735 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Right-movers and left-movers that are already past each other never collide.</li>
+          <li>A big left-mover may destroy several right-movers in a row.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 735 -->
+        <!-- enrich-edges:start 735 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Equal sizes (both explode).</li>
+          <li>All moving the same way.</li>
+          <li>Left-movers at the start (never collide).</li>
+        </ul>
+        <!-- enrich-edges:end 735 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (each asteroid pushed and popped at most once), <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 735 -->
+
+    <!-- gen:start 921 -->
+    <details class="problem" id="p-921">
+      <summary><span class="tag medium">Medium</span> 921. Minimum Add to Make Parentheses Valid <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the minimum number of parentheses to insert so the string becomes valid.</p>
+        <!-- enrich-top:start 921 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-add-to-make-parentheses-valid/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "())"</code></div><div><strong>Output:</strong> <code class="ex">1</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "((("</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 1000</code> · <code>s[i]</code> is either <code>'('</code> or <code>')'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Use a counter of open brackets.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>What do unmatched ')' and leftover '(' each require?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying insertions is exponential; a counter pass is linear.</p>
+        <!-- enrich-top:end 921 -->
+        <p><strong>Spot it:</strong> Matching brackets is a <strong>stack</strong>; since there's one bracket type, a counter of open brackets is enough.</p>
+        <p><strong>Why not another pattern?</strong> Trying insertions is exponential.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>open</code> = unmatched <code>(</code> so far; <code>adds</code> = inserted <code>(</code>.</li>
+          <li><code>(</code> → <code>open += 1</code>; <code>)</code> → close one if <code>open</code>, else <code>adds += 1</code>.</li>
+          <li>Return <code>adds + open</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def minAddToMakeValid(self, s: str) -&gt; int:
+        open_count = 0  # "(" waiting for a match
+        adds = 0  # "(" we must insert for stray ")"
+        for ch in s:
+            if ch == "(":
+                open_count += 1
+            elif open_count:
+                open_count -= 1  # matched
+            else:
+                adds += 1  # nothing to close: insert "(" before it
+        return adds + open_count  # leftover "(" each need a ")"</code></pre>
+        <!-- trace:start 921 -->
+        <div class="trace-viz" id="trace-p921"></div>
+        <script type="application/json" id="trace-p921-data">{"src":["class Solution:","    def minAddToMakeValid(self, s: str) -> int:","        open_count = 0  # \"(\" waiting for a match","        adds = 0  # \"(\" we must insert for stray \")\"","        for ch in s:","            if ch == \"(\":","                open_count += 1","            elif open_count:","                open_count -= 1  # matched","            else:","                adds += 1  # nothing to close: insert \"(\" before it","        return adds + open_count  # leftover \"(\" each need a \")\""],"notes":{"3":"\"(\" waiting for a match","4":"\"(\" we must insert for stray \")\"","9":"matched","11":"nothing to close: insert \"(\" before it","12":"leftover \"(\" each need a \")\""},"input":"s = \"(((\"","output":"3","values":["(((",0,"(",1,2,3],"steps":[[3,1,"minAddToMakeValid",{"s":0},null],[4,1,"minAddToMakeValid",{"s":0,"open_count":1},null],[5,1,"minAddToMakeValid",{"s":0,"open_count":1,"adds":1},null],[6,1,"minAddToMakeValid",{"s":0,"open_count":1,"adds":1,"ch":2},null],[7,1,"minAddToMakeValid",{"s":0,"open_count":1,"adds":1,"ch":2},null],[5,1,"minAddToMakeValid",{"s":0,"open_count":3,"adds":1,"ch":2},null],[6,1,"minAddToMakeValid",{"s":0,"open_count":3,"adds":1,"ch":2},null],[7,1,"minAddToMakeValid",{"s":0,"open_count":3,"adds":1,"ch":2},null],[5,1,"minAddToMakeValid",{"s":0,"open_count":4,"adds":1,"ch":2},null],[6,1,"minAddToMakeValid",{"s":0,"open_count":4,"adds":1,"ch":2},null],[7,1,"minAddToMakeValid",{"s":0,"open_count":4,"adds":1,"ch":2},null],[5,1,"minAddToMakeValid",{"s":0,"open_count":5,"adds":1,"ch":2},null],[12,1,"minAddToMakeValid",{"s":0,"open_count":5,"adds":1,"ch":2},null],[12,1,"minAddToMakeValid",{"s":0,"open_count":5,"adds":1,"ch":2},null,5]],"truncated":false}</script>
+        <!-- trace:end 921 -->
+        <!-- explain:start 921 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A <code>)</code> with nothing open needs an inserted <code>(</code>.</li>
+          <li>Unmatched <code>(</code> at the end each need a <code>)</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 921 -->
+        <!-- enrich-edges:start 921 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Empty string → 0.</li>
+          <li><code>)))</code> → 3.</li>
+          <li><code>()))((</code> → 4.</li>
+        </ul>
+        <!-- enrich-edges:end 921 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 921 -->
+
+    <!-- gen:start 1441 -->
+    <details class="problem" id="p-1441">
+      <summary><span class="tag medium">Medium</span> 1441. Build an Array With Stack Operations <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Read numbers 1, 2, … in order; using Push/Pop on a stack, make the stack equal <code>target</code>. Return the operations.</p>
+        <!-- enrich-top:start 1441 -->
+        <p class="links"><a href="https://leetcode.com/problems/build-an-array-with-stack-operations/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">target = [1,3], n = 3</code></div><div><strong>Output:</strong> <code class="ex">["Push","Push","Pop","Push"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Initially the stack s is empty. The last element is the top of the stack.
+Read 1 from the stream and push it to the stack. s = [1].
+Read 2 from the stream and push it to the stack. s = [1,2].
+Pop the integer on the top of the stack. s = [1].
+Read 3 from the stream and push it to the stack. s = [1,3].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">target = [1,2,3], n = 3</code></div><div><strong>Output:</strong> <code class="ex">["Push","Push","Push"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Initially the stack s is empty. The last element is the top of the stack.
+Read 1 from the stream and push it to the stack. s = [1].
+Read 2 from the stream and push it to the stack. s = [1,2].
+Read 3 from the stream and push it to the stack. s = [1,2,3].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ target.length ≤ 100</code> · <code>1 ≤ n ≤ 100</code> · <code>1 ≤ target[i] ≤ n</code> · <code>target</code> is strictly increasing.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You must read every number up to the last target value.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Push each; pop the ones not in target.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is already minimal; the only decision is when to stop.</p>
+        <!-- enrich-top:end 1441 -->
+        <p><strong>Spot it:</strong> <strong>Stack simulation</strong>: every number read is pushed; numbers not in <code>target</code> are popped immediately. Stop after the last target value.</p>
+        <p><strong>Why not another pattern?</strong> There's only one valid strategy; reading beyond <code>target[-1]</code> adds useless operations.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>want = set(target)</code>.</li>
+          <li>For <code>x</code> from 1 to <code>target[-1]</code>: <code>Push</code>; if <code>x</code> not wanted, <code>Pop</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def buildArray(self, target: List[int], n: int) -&gt; List[str]:
+        want = set(target)
+        ops = []
+        for x in range(1, target[-1] + 1):  # stop once the last target value is placed
+            ops.append("Push")
+            if x not in want:
+                ops.append("Pop")  # not part of target: remove it at once
+        return ops</code></pre>
+        <!-- trace:start 1441 -->
+        <div class="trace-viz" id="trace-p1441"></div>
+        <script type="application/json" id="trace-p1441-data">{"src":["class Solution:","    def buildArray(self, target: List[int], n: int) -> List[str]:","        want = set(target)","        ops = []","        for x in range(1, target[-1] + 1):  # stop once the last target value is placed","            ops.append(\"Push\")","            if x not in want:","                ops.append(\"Pop\")  # not part of target: remove it at once","        return ops"],"notes":{"5":"stop once the last target value is placed","8":"not part of target: remove it at once"},"input":"target = [1,2], n = 4","output":"[\"Push\",\"Push\"]","values":[{"~":"list","v":[1,2]},4,{"~":"set","v":[1,2]},{"~":"list","v":[]},1,{"~":"list","v":["Push"]},2,{"~":"list","v":["Push","Push"]}],"steps":[[3,1,"buildArray",{"target":0,"n":1},null],[4,1,"buildArray",{"target":0,"n":1,"want":2},null],[5,1,"buildArray",{"target":0,"n":1,"want":2,"ops":3},null],[6,1,"buildArray",{"target":0,"n":1,"want":2,"ops":3,"x":4},null],[7,1,"buildArray",{"target":0,"n":1,"want":2,"ops":5,"x":4},null],[5,1,"buildArray",{"target":0,"n":1,"want":2,"ops":5,"x":4},null],[6,1,"buildArray",{"target":0,"n":1,"want":2,"ops":5,"x":6},null],[7,1,"buildArray",{"target":0,"n":1,"want":2,"ops":7,"x":6},null],[5,1,"buildArray",{"target":0,"n":1,"want":2,"ops":7,"x":6},null],[9,1,"buildArray",{"target":0,"n":1,"want":2,"ops":7,"x":6},null],[9,1,"buildArray",{"target":0,"n":1,"want":2,"ops":7,"x":6},null,7]],"truncated":false}</script>
+        <!-- trace:end 1441 -->
+        <!-- explain:start 1441 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Numbers arrive in increasing order, and so does <code>target</code>, so wanted numbers are already in the right order.</li>
+          <li>Unwanted numbers are pushed and popped to skip them.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1441 -->
+        <!-- enrich-edges:start 1441 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Target is 1..k → only Push.</li>
+          <li>Gaps in target.</li>
+          <li><code>n</code> larger than the last target value (stop early).</li>
+        </ul>
+        <!-- enrich-edges:end 1441 -->
+        <p><strong>Complexity:</strong> <code>O(target[-1])</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1441 -->
+
+    <!-- gen:start 224 -->
+    <details class="problem" id="p-224">
+      <summary><span class="tag hard">Hard</span> 224. Basic Calculator <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Evaluate an expression with <code>+</code>, <code>−</code>, parentheses, spaces and unary minus (no <code>eval</code>).</p>
+        <!-- enrich-top:start 224 -->
+        <p class="links"><a href="https://leetcode.com/problems/basic-calculator/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "1 + 1"</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " 2-1 + 2 "</code></div><div><strong>Output:</strong> <code class="ex">3</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 3 * 10⁵</code> · <code>s</code> consists of digits, <code>'+'</code>, <code>'-'</code>, <code>'('</code>, <code>')'</code>, and <code>' '</code>. · <code>s</code> represents a valid expression. · <code>'+'</code> is <strong>not</strong> used as a unary operation (i.e., <code>"+1"</code> and <code>"+(2 + 3)"</code> is invalid). · <code>'-'</code> could be used as a unary operation (i.e., <code>"-1"</code> and <code>"-(2 + 3)"</code> is valid). · There will be no two consecutive operators in the input. · Every number and running calculation will fit in a signed 32-bit integer.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>With only + and −, what do you need to remember besides the running total?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>When you see '(', save the current total and sign; restore them at ')'.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Repeatedly evaluating the innermost brackets with string rewriting is <code>O(n²)</code>; the stack is one pass.</p>
+        <!-- enrich-top:end 224 -->
+        <p><strong>Spot it:</strong> Without <code>×</code>/<code>÷</code>, only signs matter. Keep a running <code>result</code> and the current <code>sign</code>. A parenthesis starts a fresh sub-result; save the outer state on a <strong>stack</strong> and combine when it closes.</p>
+        <p><strong>Why not another pattern?</strong> Converting to postfix (shunting-yard) works but is longer; recursion works but the stack makes the state explicit.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Digits build <code>num</code>.</li>
+          <li>On <code>+</code>/<code>−</code>: <code>result += sign · num</code>, reset <code>num</code>, set <code>sign</code>.</li>
+          <li>On <code>(</code>: push <code>result</code> and <code>sign</code>, reset both.</li>
+          <li>On <code>)</code>: finish the inner result, then <code>result = pushed_result + pushed_sign · result</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def calculate(self, s: str) -&gt; int:
+        stack = []
+        result = 0
+        num = 0
+        sign = 1
+        for ch in s:
+            if ch.isdigit():
+                num = num * 10 + int(ch)
+            elif ch in "+-":
+                result += sign * num  # finish the previous number
+                num = 0
+                sign = 1 if ch == "+" else -1
+            elif ch == "(":
+                stack.append(result)  # save the outer state
+                stack.append(sign)
+                result = 0
+                sign = 1
+            elif ch == ")":
+                result += sign * num
+                num = 0
+                outer_sign = stack.pop()
+                result = stack.pop() + outer_sign * result  # plug the bracket into the outer expression
+        return result + sign * num</code></pre>
+        <!-- trace:start 224 -->
+        <div class="trace-viz" id="trace-p224"></div>
+        <script type="application/json" id="trace-p224-data">{"src":["class Solution:","    def calculate(self, s: str) -> int:","        stack = []","        result = 0","        num = 0","        sign = 1","        for ch in s:","            if ch.isdigit():","                num = num * 10 + int(ch)","            elif ch in \"+-\":","                result += sign * num  # finish the previous number","                num = 0","                sign = 1 if ch == \"+\" else -1","            elif ch == \"(\":","                stack.append(result)  # save the outer state","                stack.append(sign)","                result = 0","                sign = 1","            elif ch == \")\":","                result += sign * num","                num = 0","                outer_sign = stack.pop()","                result = stack.pop() + outer_sign * result  # plug the bracket into the outer expression","        return result + sign * num"],"notes":{"11":"finish the previous number","15":"save the outer state","23":"plug the bracket into the outer expression"},"input":"s = \"1 + 1\"","output":"2","values":["1 + 1",{"~":"list","v":[]},0,1,"1"," ","+",2],"steps":[[3,1,"calculate",{"s":0},null],[4,1,"calculate",{"s":0,"stack":1},null],[5,1,"calculate",{"s":0,"stack":1,"result":2},null],[6,1,"calculate",{"s":0,"stack":1,"result":2,"num":2},null],[7,1,"calculate",{"s":0,"stack":1,"result":2,"num":2,"sign":3},null],[8,1,"calculate",{"s":0,"stack":1,"result":2,"num":2,"sign":3,"ch":4},null],[9,1,"calculate",{"s":0,"stack":1,"result":2,"num":2,"sign":3,"ch":4},null],[7,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":4},null],[8,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":5},null],[10,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":5},null],[14,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":5},null],[19,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":5},null],[7,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":5},null],[8,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":6},null],[10,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":6},null],[11,1,"calculate",{"s":0,"stack":1,"result":2,"num":3,"sign":3,"ch":6},null],[12,1,"calculate",{"s":0,"stack":1,"result":3,"num":3,"sign":3,"ch":6},null],[13,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":6},null],[7,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":6},null],[8,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":5},null],[10,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":5},null],[14,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":5},null],[19,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":5},null],[7,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":5},null],[8,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":4},null],[9,1,"calculate",{"s":0,"stack":1,"result":3,"num":2,"sign":3,"ch":4},null],[7,1,"calculate",{"s":0,"stack":1,"result":3,"num":3,"sign":3,"ch":4},null],[24,1,"calculate",{"s":0,"stack":1,"result":3,"num":3,"sign":3,"ch":4},null],[24,1,"calculate",{"s":0,"stack":1,"result":3,"num":3,"sign":3,"ch":4},null,7]],"truncated":false}</script>
+        <!-- trace:end 224 -->
+        <!-- explain:start 224 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A unary minus like <code>-(2+3)</code> just sets <code>sign = −1</code> before the bracket, which multiplies the whole bracket's value.</li>
+          <li>Each bracket level has its own running result; the stack remembers the levels outside it.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 224 -->
+        <!-- enrich-edges:start 224 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Unary minus before a bracket.</li>
+          <li>Nested brackets.</li>
+          <li>Spaces everywhere.</li>
+        </ul>
+        <!-- enrich-edges:end 224 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(depth)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 224 -->
 
     <nav class="pager">
       <a href="16-hash-map-set.html"><small>Previous pattern</small>← 16 · Hash Map &amp; Set</a>

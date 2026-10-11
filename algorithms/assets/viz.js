@@ -142,6 +142,7 @@
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -157,12 +158,13 @@
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -178,6 +180,33 @@
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -203,7 +232,100 @@
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -247,6 +369,6 @@
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 

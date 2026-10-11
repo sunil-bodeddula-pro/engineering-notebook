@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 04 of 21</div>
+    <div class="eyebrow">Pattern 04 of 24</div>
     <h1>Fast &amp; Slow Pointers</h1>
     <p class="lede">Send two runners down the same path, one twice as fast as the other. Where and whether they meet tells you about the shape of the path (its middle, whether it loops, and where the loop begins) using <code>O(1)</code> memory.</p>
 
@@ -713,7 +856,7 @@ def cycle_start(head):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-287" open>
-      <summary><span class="tag medium">Medium</span> 287. Find the Duplicate Number <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 287. Find the Duplicate Number <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums</code> has <code>n + 1</code> integers, each in <code>1..n</code>. Exactly one value repeats (possibly many times). Find it <em>without modifying</em> the array and with <code>O(1)</code> extra space.</p>
         <!-- enrich-top:start 287 -->
@@ -764,6 +907,10 @@ class Solution:
 
         # Two different indices point at the entrance, so it is the duplicate.
         return slow</code></pre>
+        <!-- trace:start 287 -->
+        <div class="trace-viz" id="trace-p287"></div>
+        <script type="application/json" id="trace-p287-data">{"src":["from typing import List","","class Solution:","    def findDuplicate(self, nums: List[int]) -> int:","        # Treat every index as a \"node\" and nums[index] as its \"next\" arrow.","        # Index 0 is the head (no value is 0, so nothing points back at it).","        # One hop from index 0 lands on nums[0]; both runners start there.","        slow = nums[0]","        fast = nums[0]","","        # Phase 1: slow hops once, fast hops twice, until they land together.","        while True:","            slow = nums[slow]          # slow: 1 hop","            fast = nums[fast]          # fast: first hop","            fast = nums[fast]          # fast: second hop (same as nums[nums[fast]])","            if slow == fast:","                break                  # they met somewhere inside the loop","","        # Phase 2: put slow back at the start, leave fast at the meeting point.","        slow = nums[0]","        # Both now hop ONE step at a time; they meet at the loop entrance.","        while slow != fast:","            slow = nums[slow]","            fast = nums[fast]","","        # Two different indices point at the entrance, so it is the duplicate.","        return slow"],"notes":{"8":"Treat every index as a \"node\" and nums[index] as its \"next\" arrow. Index 0 is the head (no value is 0, so nothing points back at it). One hop from index 0 lands on nums[0]; both runners start there.","12":"Phase 1: slow hops once, fast hops twice, until they land together.","13":"slow: 1 hop","14":"fast: first hop","15":"fast: second hop (same as nums[nums[fast]])","17":"they met somewhere inside the loop","20":"Phase 2: put slow back at the start, leave fast at the meeting point.","22":"Both now hop ONE step at a time; they meet at the loop entrance.","27":"Two different indices point at the entrance, so it is the duplicate."},"input":"nums = [3,3,3,3,3]","output":"3","values":[{"~":"list","v":[3,3,3,3,3]},3],"steps":[[8,1,"findDuplicate",{"nums":0},null],[9,1,"findDuplicate",{"nums":0,"slow":1},null],[12,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[13,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[14,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[15,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[16,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[17,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[20,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[22,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[27,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null],[27,1,"findDuplicate",{"nums":0,"slow":1,"fast":1},null,1]],"truncated":false}</script>
+        <!-- trace:end 287 -->
 <!-- explain-04:287 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -803,7 +950,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-142">
-      <summary><span class="tag medium">Medium</span> 142. Linked List Cycle II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 142. Linked List Cycle II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the node where the cycle begins, or <code>None</code> if the list has no cycle. Don't modify the list.</p>
         <!-- enrich-top:start 142 -->
@@ -849,6 +996,10 @@ class Solution:
 
         # fast reached the end of the list, so there is no cycle.
         return None</code></pre>
+        <!-- trace:start 142 -->
+        <div class="trace-viz" id="trace-p142"></div>
+        <script type="application/json" id="trace-p142-data">{"src":["class Solution:","    def detectCycle(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # Both runners start at the head of the list.","        slow = head","        fast = head","","        # Phase 1: slow moves 1 step, fast moves 2 steps, until they meet","        # or fast runs off the end of the list.","        while fast is not None and fast.next is not None:","            slow = slow.next","            fast = fast.next.next","            if slow is fast:","                # Same NODE: fast lapped slow, so the list has a cycle.","                # Phase 2: send slow back to the head, keep fast where they met.","                slow = head","                # Move both ONE step at a time; they meet at the entrance.","                while slow is not fast:","                    slow = slow.next","                    fast = fast.next","                return slow","","        # fast reached the end of the list, so there is no cycle.","        return None"],"notes":{"4":"Both runners start at the head of the list.","9":"Phase 1: slow moves 1 step, fast moves 2 steps, until they meet or fast runs off the end of the list.","15":"Same NODE: fast lapped slow, so the list has a cycle. Phase 2: send slow back to the head, keep fast where they met.","17":"Move both ONE step at a time; they meet at the entrance.","23":"fast reached the end of the list, so there is no cycle."},"input":"head = [1], pos = -1","output":"no cycle","values":[{"~":"ll","v":[1],"cycle":false},null],"steps":[[4,1,"detectCycle",{"head":0},null],[5,1,"detectCycle",{"head":0,"slow":0},null],[9,1,"detectCycle",{"head":0,"slow":0,"fast":0},null],[23,1,"detectCycle",{"head":0,"slow":0,"fast":0},null],[23,1,"detectCycle",{"head":0,"slow":0,"fast":0},null,1]],"truncated":false}</script>
+        <!-- trace:end 142 -->
 <!-- explain-04:142 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -889,7 +1040,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-143">
-      <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange <code>L0 → L1 → … → Ln</code> into <code>L0 → Ln → L1 → Ln−1 → …</code> in place.</p>
         <!-- enrich-top:start 143 -->
@@ -950,6 +1101,10 @@ class Solution:
             second.next = first_next              # second node points to the next first-half node
             first = first_next                    # step forward in the first half
             second = second_next                  # step forward in the second half</code></pre>
+        <!-- trace:start 143 -->
+        <div class="trace-viz" id="trace-p143"></div>
+        <script type="application/json" id="trace-p143-data">{"src":["class Solution:","    def reorderList(self, head: Optional[ListNode]) -> None:","        # A list with 0 or 1 nodes is already in the right order.","        if head is None or head.next is None:","            return","","        # Step 1: find the END of the first half.","        # Looking at fast.next and fast.next.next makes slow stop one node","        # earlier than usual: on the last node of the first half.","        slow = head","        fast = head","        while fast.next is not None and fast.next.next is not None:","            slow = slow.next","            fast = fast.next.next","","        # Step 2: cut the list after slow ...","        second_half = slow.next","        slow.next = None                          # the first half now ends at slow","        # ... and reverse the second half (pattern 05).","        previous_node = None","        current_node = second_half","        while current_node is not None:","            next_node = current_node.next         # remember the rest of the list","            current_node.next = previous_node     # flip this node's arrow backwards","            previous_node = current_node          # previous moves forward","            current_node = next_node              # current moves forward","        # previous_node is now the first node of the reversed second half.","","        # Step 3: weave: one node from the first half, then one from the second.","        first = head","        second = previous_node","        while second is not None:","            first_next = first.next               # save the rest of the first half","            second_next = second.next             # save the rest of the second half","            first.next = second                   # first node points to second node","            second.next = first_next              # second node points to the next first-half node","            first = first_next                    # step forward in the first half","            second = second_next                  # step forward in the second half"],"notes":{"4":"A list with 0 or 1 nodes is already in the right order.","10":"Step 1: find the END of the first half. Looking at fast.next and fast.next.next makes slow stop one node earlier than usual: on the last node of the first half.","17":"Step 2: cut the list after slow ...","18":"the first half now ends at slow","20":"... and reverse the second half (pattern 05).","23":"remember the rest of the list","24":"flip this node's arrow backwards","25":"previous moves forward","26":"current moves forward","30":"Step 3: weave: one node from the first half, then one from the second.","33":"save the rest of the first half","34":"save the rest of the second half","35":"first node points to second node","36":"second node points to the next first-half node","37":"step forward in the first half","38":"step forward in the second half"},"input":"head = [1,2,3,4]","output":"[1,4,2,3]","values":[{"~":"ll","v":[1,2,3,4],"cycle":false},{"~":"ll","v":[2,3,4],"cycle":false},{"~":"ll","v":[3,4],"cycle":false},{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[2],"cycle":false},null,{"~":"ll","v":[4],"cycle":false},{"~":"ll","v":[3],"cycle":false},{"~":"ll","v":[4,3],"cycle":false},{"~":"ll","v":[1,4,3],"cycle":false},{"~":"ll","v":[1,4,2],"cycle":false},{"~":"ll","v":[4,2],"cycle":false},{"~":"ll","v":[1,4,2,3],"cycle":false},{"~":"ll","v":[2,3],"cycle":false},{"~":"ll","v":[4,2,3],"cycle":false}],"steps":[[4,1,"reorderList",{"head":0},null],[10,1,"reorderList",{"head":0},null],[11,1,"reorderList",{"head":0,"slow":0},null],[12,1,"reorderList",{"head":0,"slow":0,"fast":0},null],[13,1,"reorderList",{"head":0,"slow":0,"fast":0},null],[14,1,"reorderList",{"head":0,"slow":1,"fast":0},null],[12,1,"reorderList",{"head":0,"slow":1,"fast":2},null],[17,1,"reorderList",{"head":0,"slow":1,"fast":2},null],[18,1,"reorderList",{"head":0,"slow":1,"fast":2,"second_half":2},null],[20,1,"reorderList",{"head":3,"slow":4,"fast":2,"second_half":2},null],[21,1,"reorderList",{"head":3,"slow":4,"fast":2,"second_half":2,"previous_node":5},null],[22,1,"reorderList",{"head":3,"slow":4,"fast":2,"second_half":2,"previous_node":5,"current_node":2},null],[23,1,"reorderList",{"head":3,"slow":4,"fast":2,"second_half":2,"previous_node":5,"current_node":2},null],[24,1,"reorderList",{"head":3,"slow":4,"fast":2,"second_half":2,"previous_node":5,"current_node":2,"next_node":6},null],[25,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":5,"current_node":7,"next_node":6},null],[26,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":7,"current_node":7,"next_node":6},null],[22,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":7,"current_node":6,"next_node":6},null],[23,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":7,"current_node":6,"next_node":6},null],[24,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":7,"current_node":6,"next_node":5},null],[25,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":7,"current_node":8,"next_node":5},null],[26,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":8,"next_node":5},null],[22,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5},null],[30,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5},null],[31,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5,"first":3},null],[32,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5,"first":3,"second":8},null],[33,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5,"first":3,"second":8},null],[34,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5,"first":3,"second":8,"first_next":4},null],[35,1,"reorderList",{"head":3,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5,"first":3,"second":8,"first_next":4,"second_next":7},null],[36,1,"reorderList",{"head":9,"slow":4,"fast":7,"second_half":7,"previous_node":8,"current_node":5,"next_node":5,"first":9,"second":8,"first_next":4,"second_next":7},null],[37,1,"reorderList",{"head":10,"slow":4,"fast":7,"second_half":7,"previous_node":11,"current_node":5,"next_node":5,"first":10,"second":11,"first_next":4,"second_next":7},null],[38,1,"reorderList",{"head":10,"slow":4,"fast":7,"second_half":7,"previous_node":11,"current_node":5,"next_node":5,"first":4,"second":11,"first_next":4,"second_next":7},null],[32,1,"reorderList",{"head":10,"slow":4,"fast":7,"second_half":7,"previous_node":11,"current_node":5,"next_node":5,"first":4,"second":7,"first_next":4,"second_next":7},null],[33,1,"reorderList",{"head":10,"slow":4,"fast":7,"second_half":7,"previous_node":11,"current_node":5,"next_node":5,"first":4,"second":7,"first_next":4,"second_next":7},null],[34,1,"reorderList",{"head":10,"slow":4,"fast":7,"second_half":7,"previous_node":11,"current_node":5,"next_node":5,"first":4,"second":7,"first_next":5,"second_next":7},null],[35,1,"reorderList",{"head":10,"slow":4,"fast":7,"second_half":7,"previous_node":11,"current_node":5,"next_node":5,"first":4,"second":7,"first_next":5,"second_next":5},null],[36,1,"reorderList",{"head":12,"slow":13,"fast":7,"second_half":7,"previous_node":14,"current_node":5,"next_node":5,"first":13,"second":7,"first_next":5,"second_next":5},null],[37,1,"reorderList",{"head":12,"slow":13,"fast":7,"second_half":7,"previous_node":14,"current_node":5,"next_node":5,"first":13,"second":7,"first_next":5,"second_next":5},null],[38,1,"reorderList",{"head":12,"slow":13,"fast":7,"second_half":7,"previous_node":14,"current_node":5,"next_node":5,"first":5,"second":7,"first_next":5,"second_next":5},null],[32,1,"reorderList",{"head":12,"slow":13,"fast":7,"second_half":7,"previous_node":14,"current_node":5,"next_node":5,"first":5,"second":5,"first_next":5,"second_next":5},null],[32,1,"reorderList",{"head":12,"slow":13,"fast":7,"second_half":7,"previous_node":14,"current_node":5,"next_node":5,"first":5,"second":5,"first_next":5,"second_next":5},null,5]],"truncated":false}</script>
+        <!-- trace:end 143 -->
 <!-- explain-04:143 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -991,7 +1146,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-457">
-      <summary><span class="tag medium">Medium</span> 457. Circular Array Loop <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 457. Circular Array Loop <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> From index <code>i</code> you jump <code>nums[i]</code> steps (wrapping around). Is there a cycle of length &gt; 1 where every jump goes the <em>same direction</em>?</p>
         <!-- enrich-top:start 457 -->
@@ -1074,6 +1229,10 @@ The only cycle is of size 1, so we return false.</span></div></div>
                 nums[index] = 0
                 index = following
         return False</code></pre>
+        <!-- trace:start 457 -->
+        <div class="trace-viz" id="trace-p457"></div>
+        <script type="application/json" id="trace-p457-data">{"src":["class Solution:","    def next_index(self, nums: List[int], index: int) -> int:","        # Jump nums[index] steps. \"% size\" wraps around the circle;","        # in Python the result of % is always between 0 and size - 1,","        # even when the jump is negative.","        size = len(nums)","        return (index + nums[index]) % size","","    def is_legal_step(self, nums: List[int], index: int, forward: bool) -> bool:","        # 1) 0 means \"already explored, leads nowhere\": not legal.","        if nums[index] == 0:","            return False","        # 2) It must move in the same direction as the run we started.","        moves_forward = nums[index] > 0","        if moves_forward != forward:","            return False","        # 3) Jumping back onto itself is a loop of length 1: not allowed.","        if self.next_index(nums, index) == index:","            return False","        return True","","    def circularArrayLoop(self, nums: List[int]) -> bool:","        size = len(nums)","        for start in range(size):","            # Skip positions an earlier run already proved useless.","            if nums[start] == 0:","                continue","            # Remember this run's direction (True = forward, False = backward).","            forward = nums[start] > 0","","            # Floyd: slow makes 1 jump per round, fast makes 2 jumps.","            slow = start","            fast = start","            while True:","                # fast may only jump if its current spot is legal ...","                if not self.is_legal_step(nums, fast, forward):","                    break","                fast_after_one_jump = self.next_index(nums, fast)","                # ... and the spot after its first jump is legal too.","                if not self.is_legal_step(nums, fast_after_one_jump, forward):","                    break","                slow = self.next_index(nums, slow)","                fast = self.next_index(nums, fast_after_one_jump)","                if slow == fast:","                    return True                   # met inside a valid loop","","            # No loop from this start. Zero out the same-direction path we walked","            # so that no later start walks it again (this keeps the total O(n)).","            index = start","            while nums[index] != 0:","                moves_forward = nums[index] > 0","                if moves_forward != forward:","                    break                         # the path turned around: stop","                following = self.next_index(nums, index)   # compute BEFORE zeroing","                nums[index] = 0","                index = following","        return False"],"notes":{"6":"Jump nums[index] steps. \"% size\" wraps around the circle; in Python the result of % is always between 0 and size - 1, even when the jump is negative.","11":"1) 0 means \"already explored, leads nowhere\": not legal.","14":"2) It must move in the same direction as the run we started.","18":"3) Jumping back onto itself is a loop of length 1: not allowed.","26":"Skip positions an earlier run already proved useless.","29":"Remember this run's direction (True = forward, False = backward).","32":"Floyd: slow makes 1 jump per round, fast makes 2 jumps.","36":"fast may only jump if its current spot is legal ...","40":"... and the spot after its first jump is legal too.","45":"met inside a valid loop","49":"No loop from this start. Zero out the same-direction path we walked so that no later start walks it again (this keeps the total O(n)).","53":"the path turned around: stop","54":"compute BEFORE zeroing"},"input":"nums = [2,-1,1,2,2]","output":"true","values":[{"~":"list","v":[2,-1,1,2,2]},5,0,true,"circularArrayLoop(nums=[5 items]) › is_legal_step(nums=[5 items], index=0)","circularArrayLoop(nums=[5 items]) › is_legal_step(nums=[5 items], index=0) › next_index(nums=[5 items], index=0)",2,"circularArrayLoop(nums=[5 items]) › next_index(nums=[5 items], index=0)","circularArrayLoop(nums=[5 items]) › is_legal_step(nums=[5 items], index=2)","circularArrayLoop(nums=[5 items]) › is_legal_step(nums=[5 items], index=2) › next_index(nums=[5 items], index=2)",3,"circularArrayLoop(nums=[5 items]) › next_index(nums=[5 items], index=2)","circularArrayLoop(nums=[5 items]) › is_legal_step(nums=[5 items], index=3)","circularArrayLoop(nums=[5 items]) › is_legal_step(nums=[5 items], index=3) › next_index(nums=[5 items], index=3)","circularArrayLoop(nums=[5 items]) › next_index(nums=[5 items], index=3)"],"steps":[[23,1,"circularArrayLoop",{"nums":0},null],[24,1,"circularArrayLoop",{"nums":0,"size":1},null],[26,1,"circularArrayLoop",{"nums":0,"size":1,"start":2},null],[29,1,"circularArrayLoop",{"nums":0,"size":1,"start":2},null],[32,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3},null],[33,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2},null],[34,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2},null],[36,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2},null],[11,2,"is_legal_step",{"nums":0,"index":2,"forward":3},4],[14,2,"is_legal_step",{"nums":0,"index":2,"forward":3},4],[15,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4],[18,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4],[6,3,"next_index",{"nums":0,"index":2},5],[7,3,"next_index",{"nums":0,"index":2,"size":1},5],[7,3,"next_index",{"nums":0,"index":2,"size":1},5,6],[20,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4],[20,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4,3],[38,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2},null],[6,2,"next_index",{"nums":0,"index":2},7],[7,2,"next_index",{"nums":0,"index":2,"size":1},7],[7,2,"next_index",{"nums":0,"index":2,"size":1},7,6],[40,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2,"fast_after_one_jump":6},null],[11,2,"is_legal_step",{"nums":0,"index":6,"forward":3},8],[14,2,"is_legal_step",{"nums":0,"index":6,"forward":3},8],[15,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8],[18,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8],[6,3,"next_index",{"nums":0,"index":6},9],[7,3,"next_index",{"nums":0,"index":6,"size":1},9],[7,3,"next_index",{"nums":0,"index":6,"size":1},9,10],[20,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8],[20,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8,3],[42,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2,"fast_after_one_jump":6},null],[6,2,"next_index",{"nums":0,"index":2},7],[7,2,"next_index",{"nums":0,"index":2,"size":1},7],[7,2,"next_index",{"nums":0,"index":2,"size":1},7,6],[43,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":2,"fast_after_one_jump":6},null],[6,2,"next_index",{"nums":0,"index":6},11],[7,2,"next_index",{"nums":0,"index":6,"size":1},11],[7,2,"next_index",{"nums":0,"index":6,"size":1},11,10],[44,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":10,"fast_after_one_jump":6},null],[34,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":10,"fast_after_one_jump":6},null],[36,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":10,"fast_after_one_jump":6},null],[11,2,"is_legal_step",{"nums":0,"index":10,"forward":3},12],[14,2,"is_legal_step",{"nums":0,"index":10,"forward":3},12],[15,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12],[18,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12],[6,3,"next_index",{"nums":0,"index":10},13],[7,3,"next_index",{"nums":0,"index":10,"size":1},13],[7,3,"next_index",{"nums":0,"index":10,"size":1},13,2],[20,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12],[20,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12,3],[38,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":10,"fast_after_one_jump":6},null],[6,2,"next_index",{"nums":0,"index":10},14],[7,2,"next_index",{"nums":0,"index":10,"size":1},14],[7,2,"next_index",{"nums":0,"index":10,"size":1},14,2],[40,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":10,"fast_after_one_jump":2},null],[11,2,"is_legal_step",{"nums":0,"index":2,"forward":3},4],[14,2,"is_legal_step",{"nums":0,"index":2,"forward":3},4],[15,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4],[18,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4],[6,3,"next_index",{"nums":0,"index":2},5],[7,3,"next_index",{"nums":0,"index":2,"size":1},5],[7,3,"next_index",{"nums":0,"index":2,"size":1},5,6],[20,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4],[20,2,"is_legal_step",{"nums":0,"index":2,"forward":3,"moves_forward":3},4,3],[42,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":6,"fast":10,"fast_after_one_jump":2},null],[6,2,"next_index",{"nums":0,"index":6},11],[7,2,"next_index",{"nums":0,"index":6,"size":1},11],[7,2,"next_index",{"nums":0,"index":6,"size":1},11,10],[43,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":10,"fast_after_one_jump":2},null],[6,2,"next_index",{"nums":0,"index":2},7],[7,2,"next_index",{"nums":0,"index":2,"size":1},7],[7,2,"next_index",{"nums":0,"index":2,"size":1},7,6],[44,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":6,"fast_after_one_jump":2},null],[34,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":6,"fast_after_one_jump":2},null],[36,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":6,"fast_after_one_jump":2},null],[11,2,"is_legal_step",{"nums":0,"index":6,"forward":3},8],[14,2,"is_legal_step",{"nums":0,"index":6,"forward":3},8],[15,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8],[18,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8],[6,3,"next_index",{"nums":0,"index":6},9],[7,3,"next_index",{"nums":0,"index":6,"size":1},9],[7,3,"next_index",{"nums":0,"index":6,"size":1},9,10],[20,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8],[20,2,"is_legal_step",{"nums":0,"index":6,"forward":3,"moves_forward":3},8,3],[38,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":6,"fast_after_one_jump":2},null],[6,2,"next_index",{"nums":0,"index":6},11],[7,2,"next_index",{"nums":0,"index":6,"size":1},11],[7,2,"next_index",{"nums":0,"index":6,"size":1},11,10],[40,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":6,"fast_after_one_jump":10},null],[11,2,"is_legal_step",{"nums":0,"index":10,"forward":3},12],[14,2,"is_legal_step",{"nums":0,"index":10,"forward":3},12],[15,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12],[18,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12],[6,3,"next_index",{"nums":0,"index":10},13],[7,3,"next_index",{"nums":0,"index":10,"size":1},13],[7,3,"next_index",{"nums":0,"index":10,"size":1},13,2],[20,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12],[20,2,"is_legal_step",{"nums":0,"index":10,"forward":3,"moves_forward":3},12,3],[42,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":10,"fast":6,"fast_after_one_jump":10},null],[6,2,"next_index",{"nums":0,"index":10},14],[7,2,"next_index",{"nums":0,"index":10,"size":1},14],[7,2,"next_index",{"nums":0,"index":10,"size":1},14,2],[43,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":6,"fast_after_one_jump":10},null],[6,2,"next_index",{"nums":0,"index":10},14],[7,2,"next_index",{"nums":0,"index":10,"size":1},14],[7,2,"next_index",{"nums":0,"index":10,"size":1},14,2],[44,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2,"fast_after_one_jump":10},null],[45,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2,"fast_after_one_jump":10},null],[45,1,"circularArrayLoop",{"nums":0,"size":1,"start":2,"forward":3,"slow":2,"fast":2,"fast_after_one_jump":10},null,3]],"truncated":false}</script>
+        <!-- trace:end 457 -->
 <!-- explain-04:457 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1111,7 +1270,7 @@ The only cycle is of size 1, so we return false.</span></div></div>
     </details>
 
     <details class="problem" id="p-141">
-      <summary><span class="tag easy">Easy</span> 141. Linked List Cycle <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 141. Linked List Cycle <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Does the linked list contain a cycle?</p>
         <!-- enrich-top:start 141 -->
@@ -1145,6 +1304,10 @@ The only cycle is of size 1, so we return false.</span></div></div>
             if slow is fast:
                 return True                       # same NODE: fast lapped slow
         return False                              # fast reached the end: no loop</code></pre>
+        <!-- trace:start 141 -->
+        <div class="trace-viz" id="trace-p141"></div>
+        <script type="application/json" id="trace-p141-data">{"src":["class Solution:","    def hasCycle(self, head: Optional[ListNode]) -> bool:","        # Both runners start at the head.","        slow = head","        fast = head","        # fast needs two valid nodes ahead of it to take its 2 steps.","        while fast is not None and fast.next is not None:","            slow = slow.next                      # 1 step","            fast = fast.next.next                 # 2 steps","            if slow is fast:","                return True                       # same NODE: fast lapped slow","        return False                              # fast reached the end: no loop"],"notes":{"4":"Both runners start at the head.","7":"fast needs two valid nodes ahead of it to take its 2 steps.","8":"1 step","9":"2 steps","11":"same NODE: fast lapped slow","12":"fast reached the end: no loop"},"input":"head = [1], pos = -1","output":"false","values":[{"~":"ll","v":[1],"cycle":false},false],"steps":[[4,1,"hasCycle",{"head":0},null],[5,1,"hasCycle",{"head":0,"slow":0},null],[7,1,"hasCycle",{"head":0,"slow":0,"fast":0},null],[12,1,"hasCycle",{"head":0,"slow":0,"fast":0},null],[12,1,"hasCycle",{"head":0,"slow":0,"fast":0},null,1]],"truncated":false}</script>
+        <!-- trace:end 141 -->
 <!-- explain-04:141 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1230,13 +1393,15 @@ The only cycle is of size 1, so we return false.</span></div></div>
         <tr><td>457</td><td><a href="#p-457">Circular Array Loop</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Direction rule + mark dead paths</td></tr>
         <tr><td>2130</td><td><a href="#p-2130">Maximum Twin Sum of a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Middle + reverse second half</td></tr>
         <tr><td>19</td><td><a href="#p-19">Remove Nth Node From End of List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Same speed, fixed gap: <code>fast</code> starts <code>n</code> nodes ahead</td></tr>
+        <tr><td>442</td><td><a href="#p-442">Find All Duplicates in an Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Index as a "seen" flag: flip the sign at index <code>|x| − 1</code></td></tr>
+        <tr><td>41</td><td><a href="#p-41">First Missing Positive</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Cyclic placement: put each value <code>v</code> at index <code>v − 1</code>, then find the first misfit</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-876">
-      <summary><span class="tag easy">Easy</span> 876. Middle of the Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 876. Middle of the Linked List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the middle node of a linked list (the second middle when the length is even).</p>
         <!-- enrich-top:start 876 -->
@@ -1269,6 +1434,10 @@ The only cycle is of size 1, so we return false.</span></div></div>
         # fast is at (or just past) the end, so slow is in the middle.
         # For an even length this is the SECOND of the two middle nodes.
         return slow</code></pre>
+        <!-- trace:start 876 -->
+        <div class="trace-viz" id="trace-p876"></div>
+        <script type="application/json" id="trace-p876-data">{"src":["class Solution:","    def middleNode(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # Both runners start at the head.","        slow = head","        fast = head","        # Keep going while fast can still take 2 steps.","        while fast is not None and fast.next is not None:","            slow = slow.next                      # 1 step","            fast = fast.next.next                 # 2 steps","        # fast is at (or just past) the end, so slow is in the middle.","        # For an even length this is the SECOND of the two middle nodes.","        return slow"],"notes":{"4":"Both runners start at the head.","7":"Keep going while fast can still take 2 steps.","8":"1 step","9":"2 steps","12":"fast is at (or just past) the end, so slow is in the middle. For an even length this is the SECOND of the two middle nodes."},"input":"head = [1,2,3,4,5]","output":"[3,4,5]","values":[{"~":"ll","v":[1,2,3,4,5],"cycle":false},{"~":"ll","v":[2,3,4,5],"cycle":false},{"~":"ll","v":[3,4,5],"cycle":false},{"~":"ll","v":[5],"cycle":false}],"steps":[[4,1,"middleNode",{"head":0},null],[5,1,"middleNode",{"head":0,"slow":0},null],[7,1,"middleNode",{"head":0,"slow":0,"fast":0},null],[8,1,"middleNode",{"head":0,"slow":0,"fast":0},null],[9,1,"middleNode",{"head":0,"slow":1,"fast":0},null],[7,1,"middleNode",{"head":0,"slow":1,"fast":2},null],[8,1,"middleNode",{"head":0,"slow":1,"fast":2},null],[9,1,"middleNode",{"head":0,"slow":2,"fast":2},null],[7,1,"middleNode",{"head":0,"slow":2,"fast":3},null],[12,1,"middleNode",{"head":0,"slow":2,"fast":3},null],[12,1,"middleNode",{"head":0,"slow":2,"fast":3},null,2]],"truncated":false}</script>
+        <!-- trace:end 876 -->
 <!-- explain-04:876 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1304,7 +1473,7 @@ The only cycle is of size 1, so we return false.</span></div></div>
     </details>
 
     <details class="problem" id="p-202">
-      <summary><span class="tag easy">Easy</span> 202. Happy Number <span class="ds-tags"><span class="ds">Math</span><span class="ds">Hash Set</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 202. Happy Number <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Math</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Keep replacing <code>n</code> with the sum of the squares of its digits. If you reach 1, <code>n</code> is happy; otherwise the numbers loop forever. Is <code>n</code> happy?</p>
         <!-- enrich-top:start 202 -->
@@ -1350,6 +1519,10 @@ The only cycle is of size 1, so we return false.</span></div></div>
             fast = self.sum_of_digit_squares(fast)    # fast: second step
         # Happy exactly when the chain reached 1.
         return fast == 1</code></pre>
+        <!-- trace:start 202 -->
+        <div class="trace-viz" id="trace-p202"></div>
+        <script type="application/json" id="trace-p202-data">{"src":["class Solution:","    def sum_of_digit_squares(self, number: int) -> int:","        # This is the implicit \"next pointer\": 19 -> 1*1 + 9*9 = 82.","        total = 0","        while number > 0:","            digit = number % 10                   # the last digit","            total = total + digit * digit         # add its square","            number = number // 10                 # chop the last digit off","        return total","","    def isHappy(self, n: int) -> bool:","        # slow starts at n; fast starts one step ahead so the loop can run.","        slow = n","        fast = self.sum_of_digit_squares(n)","        # Stop when fast reaches 1 (happy) or catches slow (stuck in a loop).","        while fast != 1 and slow != fast:","            slow = self.sum_of_digit_squares(slow)    # slow: 1 step","            fast = self.sum_of_digit_squares(fast)    # fast: first step","            fast = self.sum_of_digit_squares(fast)    # fast: second step","        # Happy exactly when the chain reached 1.","        return fast == 1"],"notes":{"4":"This is the implicit \"next pointer\": 19 -> 1*1 + 9*9 = 82.","6":"the last digit","7":"add its square","8":"chop the last digit off","13":"slow starts at n; fast starts one step ahead so the loop can run.","16":"Stop when fast reaches 1 (happy) or catches slow (stuck in a loop).","17":"slow: 1 step","18":"fast: first step","19":"fast: second step","21":"Happy exactly when the chain reached 1."},"input":"n = 19","output":"true","values":[19,"isHappy(n=19) › sum_of_digit_squares(number=19)",0,9,81,1,"isHappy(n=19) › sum_of_digit_squares(number=1)",82,"isHappy(n=19) › sum_of_digit_squares(number=0)","isHappy(n=19) › sum_of_digit_squares(number=82)",2,4,8,"isHappy(n=19) › sum_of_digit_squares(number=8)",68,"isHappy(n=19) › sum_of_digit_squares(number=68)",64,6,"isHappy(n=19) › sum_of_digit_squares(number=6)",100,"isHappy(n=19) › sum_of_digit_squares(number=100)",10,"isHappy(n=19) › sum_of_digit_squares(number=10)",true],"steps":[[13,1,"isHappy",{"n":0},null],[14,1,"isHappy",{"n":0,"slow":0},null],[4,2,"sum_of_digit_squares",{"number":0},1],[5,2,"sum_of_digit_squares",{"number":0,"total":2},1],[6,2,"sum_of_digit_squares",{"number":0,"total":2},1],[7,2,"sum_of_digit_squares",{"number":0,"total":2,"digit":3},1],[8,2,"sum_of_digit_squares",{"number":0,"total":4,"digit":3},1],[5,2,"sum_of_digit_squares",{"number":5,"total":4,"digit":3},6],[6,2,"sum_of_digit_squares",{"number":5,"total":4,"digit":3},6],[7,2,"sum_of_digit_squares",{"number":5,"total":4,"digit":5},6],[8,2,"sum_of_digit_squares",{"number":5,"total":7,"digit":5},6],[5,2,"sum_of_digit_squares",{"number":2,"total":7,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":7,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":7,"digit":5},8,7],[16,1,"isHappy",{"n":0,"slow":0,"fast":7},null],[17,1,"isHappy",{"n":0,"slow":0,"fast":7},null],[4,2,"sum_of_digit_squares",{"number":0},1],[5,2,"sum_of_digit_squares",{"number":0,"total":2},1],[6,2,"sum_of_digit_squares",{"number":0,"total":2},1],[7,2,"sum_of_digit_squares",{"number":0,"total":2,"digit":3},1],[8,2,"sum_of_digit_squares",{"number":0,"total":4,"digit":3},1],[5,2,"sum_of_digit_squares",{"number":5,"total":4,"digit":3},6],[6,2,"sum_of_digit_squares",{"number":5,"total":4,"digit":3},6],[7,2,"sum_of_digit_squares",{"number":5,"total":4,"digit":5},6],[8,2,"sum_of_digit_squares",{"number":5,"total":7,"digit":5},6],[5,2,"sum_of_digit_squares",{"number":2,"total":7,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":7,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":7,"digit":5},8,7],[18,1,"isHappy",{"n":0,"slow":7,"fast":7},null],[4,2,"sum_of_digit_squares",{"number":7},9],[5,2,"sum_of_digit_squares",{"number":7,"total":2},9],[6,2,"sum_of_digit_squares",{"number":7,"total":2},9],[7,2,"sum_of_digit_squares",{"number":7,"total":2,"digit":10},9],[8,2,"sum_of_digit_squares",{"number":7,"total":11,"digit":10},9],[5,2,"sum_of_digit_squares",{"number":12,"total":11,"digit":10},13],[6,2,"sum_of_digit_squares",{"number":12,"total":11,"digit":10},13],[7,2,"sum_of_digit_squares",{"number":12,"total":11,"digit":12},13],[8,2,"sum_of_digit_squares",{"number":12,"total":14,"digit":12},13],[5,2,"sum_of_digit_squares",{"number":2,"total":14,"digit":12},8],[9,2,"sum_of_digit_squares",{"number":2,"total":14,"digit":12},8],[9,2,"sum_of_digit_squares",{"number":2,"total":14,"digit":12},8,14],[19,1,"isHappy",{"n":0,"slow":7,"fast":14},null],[4,2,"sum_of_digit_squares",{"number":14},15],[5,2,"sum_of_digit_squares",{"number":14,"total":2},15],[6,2,"sum_of_digit_squares",{"number":14,"total":2},15],[7,2,"sum_of_digit_squares",{"number":14,"total":2,"digit":12},15],[8,2,"sum_of_digit_squares",{"number":14,"total":16,"digit":12},15],[5,2,"sum_of_digit_squares",{"number":17,"total":16,"digit":12},18],[6,2,"sum_of_digit_squares",{"number":17,"total":16,"digit":12},18],[7,2,"sum_of_digit_squares",{"number":17,"total":16,"digit":17},18],[8,2,"sum_of_digit_squares",{"number":17,"total":19,"digit":17},18],[5,2,"sum_of_digit_squares",{"number":2,"total":19,"digit":17},8],[9,2,"sum_of_digit_squares",{"number":2,"total":19,"digit":17},8],[9,2,"sum_of_digit_squares",{"number":2,"total":19,"digit":17},8,19],[16,1,"isHappy",{"n":0,"slow":7,"fast":19},null],[17,1,"isHappy",{"n":0,"slow":7,"fast":19},null],[4,2,"sum_of_digit_squares",{"number":7},9],[5,2,"sum_of_digit_squares",{"number":7,"total":2},9],[6,2,"sum_of_digit_squares",{"number":7,"total":2},9],[7,2,"sum_of_digit_squares",{"number":7,"total":2,"digit":10},9],[8,2,"sum_of_digit_squares",{"number":7,"total":11,"digit":10},9],[5,2,"sum_of_digit_squares",{"number":12,"total":11,"digit":10},13],[6,2,"sum_of_digit_squares",{"number":12,"total":11,"digit":10},13],[7,2,"sum_of_digit_squares",{"number":12,"total":11,"digit":12},13],[8,2,"sum_of_digit_squares",{"number":12,"total":14,"digit":12},13],[5,2,"sum_of_digit_squares",{"number":2,"total":14,"digit":12},8],[9,2,"sum_of_digit_squares",{"number":2,"total":14,"digit":12},8],[9,2,"sum_of_digit_squares",{"number":2,"total":14,"digit":12},8,14],[18,1,"isHappy",{"n":0,"slow":14,"fast":19},null],[4,2,"sum_of_digit_squares",{"number":19},20],[5,2,"sum_of_digit_squares",{"number":19,"total":2},20],[6,2,"sum_of_digit_squares",{"number":19,"total":2},20],[7,2,"sum_of_digit_squares",{"number":19,"total":2,"digit":2},20],[8,2,"sum_of_digit_squares",{"number":19,"total":2,"digit":2},20],[5,2,"sum_of_digit_squares",{"number":21,"total":2,"digit":2},22],[6,2,"sum_of_digit_squares",{"number":21,"total":2,"digit":2},22],[7,2,"sum_of_digit_squares",{"number":21,"total":2,"digit":2},22],[8,2,"sum_of_digit_squares",{"number":21,"total":2,"digit":2},22],[5,2,"sum_of_digit_squares",{"number":5,"total":2,"digit":2},6],[6,2,"sum_of_digit_squares",{"number":5,"total":2,"digit":2},6],[7,2,"sum_of_digit_squares",{"number":5,"total":2,"digit":5},6],[8,2,"sum_of_digit_squares",{"number":5,"total":5,"digit":5},6],[5,2,"sum_of_digit_squares",{"number":2,"total":5,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":5,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":5,"digit":5},8,5],[19,1,"isHappy",{"n":0,"slow":14,"fast":5},null],[4,2,"sum_of_digit_squares",{"number":5},6],[5,2,"sum_of_digit_squares",{"number":5,"total":2},6],[6,2,"sum_of_digit_squares",{"number":5,"total":2},6],[7,2,"sum_of_digit_squares",{"number":5,"total":2,"digit":5},6],[8,2,"sum_of_digit_squares",{"number":5,"total":5,"digit":5},6],[5,2,"sum_of_digit_squares",{"number":2,"total":5,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":5,"digit":5},8],[9,2,"sum_of_digit_squares",{"number":2,"total":5,"digit":5},8,5],[16,1,"isHappy",{"n":0,"slow":14,"fast":5},null],[21,1,"isHappy",{"n":0,"slow":14,"fast":5},null],[21,1,"isHappy",{"n":0,"slow":14,"fast":5},null,23]],"truncated":false}</script>
+        <!-- trace:end 202 -->
 <!-- explain-04:202 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1395,7 +1568,7 @@ The only cycle is of size 1, so we return false.</span></div></div>
     </details>
 
     <details class="problem" id="p-2095">
-      <summary><span class="tag medium">Medium</span> 2095. Delete the Middle Node of a Linked List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 2095. Delete the Middle Node of a Linked List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Delete the node at index <code>⌊n/2⌋</code> and return the head.</p>
         <!-- enrich-top:start 2095 -->
@@ -1436,6 +1609,10 @@ For n = 4, node 2 with value 3 is the middle node, which is marked in red.</span
         middle = slow.next
         slow.next = middle.next
         return head</code></pre>
+        <!-- trace:start 2095 -->
+        <div class="trace-viz" id="trace-p2095"></div>
+        <script type="application/json" id="trace-p2095-data">{"src":["class Solution:","    def deleteMiddle(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # A single node IS the middle; deleting it leaves an empty list.","        if head.next is None:","            return None","        # Give fast a head start of one round (2 nodes).","        # Then slow stops on the node just BEFORE the middle.","        slow = head","        fast = head.next.next","        while fast is not None and fast.next is not None:","            slow = slow.next","            fast = fast.next.next","        # Unlink the middle: slow now points past it.","        middle = slow.next","        slow.next = middle.next","        return head"],"notes":{"4":"A single node IS the middle; deleting it leaves an empty list.","8":"Give fast a head start of one round (2 nodes). Then slow stops on the node just BEFORE the middle.","14":"Unlink the middle: slow now points past it."},"input":"head = [2,1]","output":"[2]","values":[{"~":"ll","v":[2,1],"cycle":false},null,{"~":"ll","v":[1],"cycle":false},{"~":"ll","v":[2],"cycle":false}],"steps":[[4,1,"deleteMiddle",{"head":0},null],[8,1,"deleteMiddle",{"head":0},null],[9,1,"deleteMiddle",{"head":0,"slow":0},null],[10,1,"deleteMiddle",{"head":0,"slow":0,"fast":1},null],[14,1,"deleteMiddle",{"head":0,"slow":0,"fast":1},null],[15,1,"deleteMiddle",{"head":0,"slow":0,"fast":1,"middle":2},null],[16,1,"deleteMiddle",{"head":3,"slow":3,"fast":1,"middle":2},null],[16,1,"deleteMiddle",{"head":3,"slow":3,"fast":1,"middle":2},null,3]],"truncated":false}</script>
+        <!-- trace:end 2095 -->
 <!-- explain-04:2095 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1472,7 +1649,7 @@ For n = 4, node 2 with value 3 is the middle node, which is marked in red.</span
     </details>
 
     <details class="problem" id="p-234">
-      <summary><span class="tag easy">Easy</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 234. Palindrome Linked List (O(1) space) <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Do the list's values read the same forwards and backwards? Follow-up: use <code>O(1)</code> extra space.</p>
         <!-- enrich-top:start 234 -->
@@ -1522,6 +1699,10 @@ For n = 4, node 2 with value 3 is the middle node, which is marked in red.</span
             left = left.next
             right = right.next
         return True</code></pre>
+        <!-- trace:start 234 -->
+        <div class="trace-viz" id="trace-p234"></div>
+        <script type="application/json" id="trace-p234-data">{"src":["class Solution:","    def isPalindrome(self, head: Optional[ListNode]) -> bool:","        # Step 1: slow walks to the first node of the second half.","        slow = head","        fast = head","        while fast is not None and fast.next is not None:","            slow = slow.next","            fast = fast.next.next","","        # Step 2: reverse the list from slow to the end.","        previous_node = None","        current_node = slow","        while current_node is not None:","            next_node = current_node.next         # remember the rest","            current_node.next = previous_node     # flip the arrow","            previous_node = current_node          # move both forward","            current_node = next_node","        # previous_node is now the head of the reversed second half.","","        # Step 3: compare the first half with the reversed second half.","        left = head","        right = previous_node","        while right is not None:                  # the second half is never longer","            if left.val != right.val:","                return False                      # a mismatch: not a palindrome","            left = left.next","            right = right.next","        return True"],"notes":{"4":"Step 1: slow walks to the first node of the second half.","11":"Step 2: reverse the list from slow to the end.","14":"remember the rest","15":"flip the arrow","16":"move both forward","21":"Step 3: compare the first half with the reversed second half.","23":"the second half is never longer","25":"a mismatch: not a palindrome"},"input":"head = [1,2]","output":"false","values":[{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[2],"cycle":false},null,false],"steps":[[4,1,"isPalindrome",{"head":0},null],[5,1,"isPalindrome",{"head":0,"slow":0},null],[6,1,"isPalindrome",{"head":0,"slow":0,"fast":0},null],[7,1,"isPalindrome",{"head":0,"slow":0,"fast":0},null],[8,1,"isPalindrome",{"head":0,"slow":1,"fast":0},null],[6,1,"isPalindrome",{"head":0,"slow":1,"fast":2},null],[11,1,"isPalindrome",{"head":0,"slow":1,"fast":2},null],[12,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":2},null],[13,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1},null],[14,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1},null],[15,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1,"next_node":2},null],[16,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1,"next_node":2},null],[17,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":1,"next_node":2},null],[13,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2},null],[21,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2},null],[22,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"left":0},null],[23,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"left":0,"right":1},null],[24,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"left":0,"right":1},null],[25,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"left":0,"right":1},null],[25,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"left":0,"right":1},null,3]],"truncated":false}</script>
+        <!-- trace:end 234 -->
 <!-- explain-04:234 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1561,7 +1742,7 @@ For n = 4, node 2 with value 3 is the middle node, which is marked in red.</span
     </details>
 
     <details class="problem" id="p-148">
-      <summary><span class="tag medium">Medium</span> 148. Sort List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 148. Sort List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Sort a linked list in <code>O(n log n)</code> time.</p>
         <!-- enrich-top:start 148 -->
@@ -1625,6 +1806,10 @@ For n = 4, node 2 with value 3 is the middle node, which is marked in red.</span
         else:
             tail.next = right
         return dummy.next</code></pre>
+        <!-- trace:start 148 -->
+        <div class="trace-viz" id="trace-p148"></div>
+        <script type="application/json" id="trace-p148-data">{"src":["class Solution:","    def sortList(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # Base case: 0 or 1 node is already sorted.","        if head is None or head.next is None:","            return head","","        # Find the END of the first half. fast starts one node ahead,","        # which makes slow stop on the last node of the first half.","        slow = head","        fast = head.next","        while fast is not None and fast.next is not None:","            slow = slow.next","            fast = fast.next.next","","        # Cut the list into two halves.","        second_half = slow.next","        slow.next = None","","        # Sort each half (recursion), then merge the two sorted halves.","        sorted_first = self.sortList(head)","        sorted_second = self.sortList(second_half)","        return self.merge_two_sorted_lists(sorted_first, sorted_second)","","    def merge_two_sorted_lists(self, left: Optional[ListNode], right: Optional[ListNode]) -> Optional[ListNode]:","        # A dummy node in front means we never special-case the first node.","        dummy = ListNode()","        tail = dummy                              # tail = last node of the merged list","        while left is not None and right is not None:","            # Take the smaller front node and attach it after tail.","            if left.val <= right.val:","                tail.next = left","                left = left.next","            else:","                tail.next = right","                right = right.next","            tail = tail.next","        # One list ran out; attach whatever is left of the other one.","        if left is not None:","            tail.next = left","        else:","            tail.next = right","        return dummy.next"],"notes":{"4":"Base case: 0 or 1 node is already sorted.","9":"Find the END of the first half. fast starts one node ahead, which makes slow stop on the last node of the first half.","16":"Cut the list into two halves.","20":"Sort each half (recursion), then merge the two sorted halves.","26":"A dummy node in front means we never special-case the first node.","27":"tail = last node of the merged list","30":"Take the smaller front node and attach it after tail.","38":"One list ran out; attach whatever is left of the other one."},"input":"head = []","output":"[]","values":[null],"steps":[[4,1,"sortList",{"head":0},null],[5,1,"sortList",{"head":0},null],[5,1,"sortList",{"head":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 148 -->
 <!-- explain-04:148 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1725,6 +1910,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             left = left.next
             right = right.next
         return best_sum</code></pre>
+        <!-- trace:start 2130 -->
+        <div class="trace-viz" id="trace-p2130"></div>
+        <script type="application/json" id="trace-p2130-data">{"src":["class Solution:","    def pairSum(self, head: Optional[ListNode]) -> int:","        # Step 1: slow walks to the first node of the second half.","        slow = head","        fast = head","        while fast is not None and fast.next is not None:","            slow = slow.next","            fast = fast.next.next","","        # Step 2: reverse the second half.","        previous_node = None","        current_node = slow","        while current_node is not None:","            next_node = current_node.next         # remember the rest","            current_node.next = previous_node     # flip the arrow","            previous_node = current_node          # move both forward","            current_node = next_node","","        # Step 3: left walks forward from the head, right walks forward through","        # the reversed half, which means \"backwards\" through the original list.","        best_sum = 0","        left = head","        right = previous_node","        while right is not None:","            twin_sum = left.val + right.val","            if twin_sum > best_sum:","                best_sum = twin_sum               # a new best pair","            left = left.next","            right = right.next","        return best_sum"],"notes":{"4":"Step 1: slow walks to the first node of the second half.","11":"Step 2: reverse the second half.","14":"remember the rest","15":"flip the arrow","16":"move both forward","21":"Step 3: left walks forward from the head, right walks forward through the reversed half, which means \"backwards\" through the original list.","27":"a new best pair"},"input":"head = [1,100000]","output":"100001","values":[{"~":"ll","v":[1,100000],"cycle":false},{"~":"ll","v":[100000],"cycle":false},null,0,100001],"steps":[[4,1,"pairSum",{"head":0},null],[5,1,"pairSum",{"head":0,"slow":0},null],[6,1,"pairSum",{"head":0,"slow":0,"fast":0},null],[7,1,"pairSum",{"head":0,"slow":0,"fast":0},null],[8,1,"pairSum",{"head":0,"slow":1,"fast":0},null],[6,1,"pairSum",{"head":0,"slow":1,"fast":2},null],[11,1,"pairSum",{"head":0,"slow":1,"fast":2},null],[12,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":2},null],[13,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1},null],[14,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1},null],[15,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1,"next_node":2},null],[16,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":2,"current_node":1,"next_node":2},null],[17,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":1,"next_node":2},null],[13,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2},null],[21,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2},null],[22,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":3},null],[23,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":3,"left":0},null],[24,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":3,"left":0,"right":1},null],[25,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":3,"left":0,"right":1},null],[26,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":3,"left":0,"right":1,"twin_sum":4},null],[27,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":3,"left":0,"right":1,"twin_sum":4},null],[28,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":4,"left":0,"right":1,"twin_sum":4},null],[29,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":4,"left":1,"right":1,"twin_sum":4},null],[24,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":4,"left":1,"right":2,"twin_sum":4},null],[30,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":4,"left":1,"right":2,"twin_sum":4},null],[30,1,"pairSum",{"head":0,"slow":1,"fast":2,"previous_node":1,"current_node":2,"next_node":2,"best_sum":4,"left":1,"right":2,"twin_sum":4},null,4]],"truncated":false}</script>
+        <!-- trace:end 2130 -->
 <!-- explain-04:2130 -->
 <p><strong>What the code is doing, line by line:</strong></p>
 <ol>
@@ -1765,7 +1954,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-19">
-      <summary><span class="tag medium">Medium</span> 19. Remove Nth Node From End of List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 19. Remove Nth Node From End of List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Remove the <code>n</code>-th node from the <strong>end</strong> of the linked list and return its head, in one pass.</p>
         <!-- enrich-top:start 19 -->
@@ -1805,6 +1994,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
         # slow is right before the node to remove: skip over it
         slow.next = slow.next.next
         return dummy.next</code></pre>
+        <!-- trace:start 19 -->
+        <div class="trace-viz" id="trace-p19"></div>
+        <script type="application/json" id="trace-p19-data">{"src":["class Solution:","    def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:","        # a fake node before head, so removing the head needs no special case","        dummy = ListNode(0, head)","        fast = head","        # give fast a head start of n nodes","        for _ in range(n):","            fast = fast.next","        slow = dummy","        # move together; the gap between them stays n","        while fast is not None:","            fast = fast.next","            slow = slow.next","        # slow is right before the node to remove: skip over it","        slow.next = slow.next.next","        return dummy.next"],"notes":{"4":"a fake node before head, so removing the head needs no special case","7":"give fast a head start of n nodes","11":"move together; the gap between them stays n","15":"slow is right before the node to remove: skip over it"},"input":"head = [1], n = 1","output":"[]","values":[{"~":"ll","v":[1],"cycle":false},1,{"~":"ll","v":[0,1],"cycle":false},0,null,{"~":"ll","v":[0],"cycle":false}],"steps":[[4,1,"removeNthFromEnd",{"head":0,"n":1},null],[5,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2},null],[7,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2,"fast":0},null],[8,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2,"fast":0,"_":3},null],[7,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2,"fast":4,"_":3},null],[9,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2,"fast":4,"_":3},null],[11,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2,"fast":4,"_":3,"slow":2},null],[15,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":2,"fast":4,"_":3,"slow":2},null],[16,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":5,"fast":4,"_":3,"slow":5},null],[16,1,"removeNthFromEnd",{"head":0,"n":1,"dummy":5,"fast":4,"_":3,"slow":5},null,4]],"truncated":false}</script>
+        <!-- trace:end 19 -->
         <!-- explain:start 19 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1841,6 +2034,139 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
       </div>
     </details>
 
+
+
+
+
+
+
+    <!-- gen:start 442 -->
+    <details class="problem" id="p-442">
+      <summary><span class="tag medium">Medium</span> 442. Find All Duplicates in an Array <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Values are in <code>1..n</code> and each appears once or twice. Return all values that appear twice, in <code>O(n)</code> time and <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:start 442 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-all-duplicates-in-an-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [4,3,2,7,8,2,3,1]</code></div><div><strong>Output:</strong> <code class="ex">[2,3]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,1,2]</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>1 ≤ nums[i] ≤ n</code> · Each element in <code>nums</code> appears <strong>once</strong> or <strong>twice</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Values are between 1 and <code>n</code>. Could the array itself remember which values you have seen?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use the sign of <code>nums[x − 1]</code> as a "seen x" flag.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A hash set finds duplicates in <code>O(n)</code> but uses <code>O(n)</code> space; sorting changes the order and costs <code>O(n log n)</code>. Using the sign at each value's home index as a marker gives <code>O(n)</code> time with <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:end 442 -->
+        <p><strong>Spot it:</strong> Values are valid indices (<code>x → x − 1</code>), the same structure Fast &amp; Slow uses in Find the Duplicate Number. Here we use each value's home index as a <strong>marker</strong>: make it negative the first time; finding it already negative means a duplicate.</p>
+        <p><strong>Why not another pattern?</strong> A set or counter is <code>O(n)</code> extra space; sorting is <code>O(n log n)</code>. Floyd's cycle finding returns only one duplicate, not all of them.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>For each <code>x</code> in <code>nums</code>, look at <code>home = abs(x) − 1</code> (use <code>abs</code> because earlier steps may have negated <code>x</code>).</li>
+          <li>If <code>nums[home]</code> is already negative, <code>abs(x)</code> was seen before: record it.</li>
+          <li>Otherwise negate <code>nums[home]</code> to mark <code>abs(x)</code> as seen.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def findDuplicates(self, nums: List[int]) -&gt; List[int]:
+        duplicates = []
+        for i in range(len(nums)):
+            value = abs(nums[i])  # the sign may already be used as a marker
+            home = value - 1  # the index that represents this value
+            if nums[home] &lt; 0:
+                duplicates.append(value)  # its marker is set: seen before
+            else:
+                nums[home] = -nums[home]  # set the marker
+        return duplicates</code></pre>
+        <!-- trace:start 442 -->
+        <div class="trace-viz" id="trace-p442"></div>
+        <script type="application/json" id="trace-p442-data">{"src":["class Solution:","    def findDuplicates(self, nums: List[int]) -> List[int]:","        duplicates = []","        for i in range(len(nums)):","            value = abs(nums[i])  # the sign may already be used as a marker","            home = value - 1  # the index that represents this value","            if nums[home] < 0:","                duplicates.append(value)  # its marker is set: seen before","            else:","                nums[home] = -nums[home]  # set the marker","        return duplicates"],"notes":{"5":"the sign may already be used as a marker","6":"the index that represents this value","8":"its marker is set: seen before","10":"set the marker"},"input":"nums = [1]","output":"[]","values":[{"~":"list","v":[1]},{"~":"list","v":[]},0,1,{"~":"list","v":[-1]}],"steps":[[3,1,"findDuplicates",{"nums":0},null],[4,1,"findDuplicates",{"nums":0,"duplicates":1},null],[5,1,"findDuplicates",{"nums":0,"duplicates":1,"i":2},null],[6,1,"findDuplicates",{"nums":0,"duplicates":1,"i":2,"value":3},null],[7,1,"findDuplicates",{"nums":0,"duplicates":1,"i":2,"value":3,"home":2},null],[10,1,"findDuplicates",{"nums":0,"duplicates":1,"i":2,"value":3,"home":2},null],[4,1,"findDuplicates",{"nums":4,"duplicates":1,"i":2,"value":3,"home":2},null],[11,1,"findDuplicates",{"nums":4,"duplicates":1,"i":2,"value":3,"home":2},null],[11,1,"findDuplicates",{"nums":4,"duplicates":1,"i":2,"value":3,"home":2},null,1]],"truncated":false}</script>
+        <!-- trace:end 442 -->
+        <!-- explain:start 442 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>abs(nums[i])</code>: the stored number may have been negated as a marker, but its magnitude is the real value.</li>
+          <li><code>home = value - 1</code>: values <code>1..n</code> map onto indices <code>0..n−1</code>.</li>
+          <li>A negative number at <code>home</code> means <code>value</code> was already marked once.</li>
+          <li>Negating the number at <code>home</code> uses the sign bit as a free boolean, so no extra memory is needed.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 442 -->
+        <!-- enrich-edges:start 442 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No duplicates → <code>[]</code>.</li>
+          <li>Every value appears twice.</li>
+          <li><code>[1, 1]</code> → <code>[1]</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 442 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space (besides the output).</p>
+      </div>
+    </details>
+    <!-- gen:end 442 -->
+
+    <!-- gen:start 41 -->
+    <details class="problem" id="p-41">
+      <summary><span class="tag hard">Hard</span> 41. First Missing Positive <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the smallest positive integer that is <strong>not</strong> in <code>nums</code>, in <code>O(n)</code> time and <code>O(1)</code> extra space.</p>
+        <!-- enrich-top:start 41 -->
+        <p class="links"><a href="https://leetcode.com/problems/first-missing-positive/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,0]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The numbers in the range [1,2] are all in the array.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,4,-1,1]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">1 is in the array but 2 is missing.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>-2³¹ ≤ nums[i] ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The answer is between 1 and <code>n + 1</code>. Can the array's own indices act as a "seen" table?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Try to put value <code>v</code> at index <code>v − 1</code> by swapping; afterwards, scan for the first index that doesn't hold <code>i + 1</code>.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking <code>1, 2, 3, …</code> with a linear search each time is <code>O(n²)</code>; a set is <code>O(n)</code> time but <code>O(n)</code> space; sorting is <code>O(n log n)</code>. Because the answer lies in <code>1..n + 1</code>, each value can be swapped into its own index, and one more scan finds the gap: <code>O(n)</code> time, <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 41 -->
+        <p><strong>Spot it:</strong> The answer is always in <code>1..n + 1</code> (n numbers can cover at most <code>1..n</code>). So the array itself can be used as the "seen" table: index <code>v − 1</code> is the home of value <code>v</code>. Following <code>i → nums[i] − 1</code> and swapping values home is the cyclic-indices trick, a cousin of fast &amp; slow on <code>i → nums[i]</code> (Find the Duplicate Number).</p>
+        <p><strong>Why not another pattern?</strong> A hash set gives <code>O(n)</code> time but <code>O(n)</code> space, and sorting is <code>O(n log n)</code>; both break the constraints. Binary search doesn't apply because the input isn't sorted.</p>
+        <p><strong>Key insight:</strong> Swap each value <code>v</code> in <code>1..n</code> into position <code>v − 1</code> until every position holds its own value or a value that has no home (≤ 0, &gt; n, or a duplicate). Then the first index <code>i</code> with <code>nums[i] != i + 1</code> gives the answer <code>i + 1</code>. Each swap puts one value home for good, so there are at most <code>n</code> swaps in total.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>For each index <code>i</code>: while <code>nums[i]</code> is in <code>1..n</code> and its home <code>nums[i] − 1</code> doesn't already hold the same value, swap it home.</li>
+          <li>Values outside <code>1..n</code>, and duplicates, are left where they are.</li>
+          <li>Scan again: the first index <code>i</code> with <code>nums[i] != i + 1</code> means <code>i + 1</code> is missing.</li>
+          <li>If every position is correct, the answer is <code>n + 1</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def firstMissingPositive(self, nums: List[int]) -&gt; int:
+        n = len(nums)
+        for i in range(n):
+            # keep sending nums[i] to its home (index value - 1) while that's possible
+            while 1 &lt;= nums[i] &lt;= n and nums[nums[i] - 1] != nums[i]:
+                home = nums[i] - 1  # where this value belongs
+                nums[i], nums[home] = nums[home], nums[i]  # move it home
+        for i in range(n):
+            if nums[i] != i + 1:
+                return i + 1  # the first position without its own value
+        return n + 1  # 1..n are all present</code></pre>
+        <!-- trace:start 41 -->
+        <div class="trace-viz" id="trace-p41"></div>
+        <script type="application/json" id="trace-p41-data">{"src":["class Solution:","    def firstMissingPositive(self, nums: List[int]) -> int:","        n = len(nums)","        for i in range(n):","            # keep sending nums[i] to its home (index value - 1) while that's possible","            while 1 <= nums[i] <= n and nums[nums[i] - 1] != nums[i]:","                home = nums[i] - 1  # where this value belongs","                nums[i], nums[home] = nums[home], nums[i]  # move it home","        for i in range(n):","            if nums[i] != i + 1:","                return i + 1  # the first position without its own value","        return n + 1  # 1..n are all present"],"notes":{"6":"keep sending nums[i] to its home (index value - 1) while that's possible","7":"where this value belongs","8":"move it home","11":"the first position without its own value","12":"1..n are all present"},"input":"nums = [1,2,0]","output":"3","values":[{"~":"list","v":[1,2,0]},3,0,1,2],"steps":[[3,1,"firstMissingPositive",{"nums":0},null],[4,1,"firstMissingPositive",{"nums":0,"n":1},null],[6,1,"firstMissingPositive",{"nums":0,"n":1,"i":2},null],[4,1,"firstMissingPositive",{"nums":0,"n":1,"i":2},null],[6,1,"firstMissingPositive",{"nums":0,"n":1,"i":3},null],[4,1,"firstMissingPositive",{"nums":0,"n":1,"i":3},null],[6,1,"firstMissingPositive",{"nums":0,"n":1,"i":4},null],[4,1,"firstMissingPositive",{"nums":0,"n":1,"i":4},null],[9,1,"firstMissingPositive",{"nums":0,"n":1,"i":4},null],[10,1,"firstMissingPositive",{"nums":0,"n":1,"i":2},null],[9,1,"firstMissingPositive",{"nums":0,"n":1,"i":2},null],[10,1,"firstMissingPositive",{"nums":0,"n":1,"i":3},null],[9,1,"firstMissingPositive",{"nums":0,"n":1,"i":3},null],[10,1,"firstMissingPositive",{"nums":0,"n":1,"i":4},null],[11,1,"firstMissingPositive",{"nums":0,"n":1,"i":4},null],[11,1,"firstMissingPositive",{"nums":0,"n":1,"i":4},null,1]],"truncated":false}</script>
+        <!-- trace:end 41 -->
+        <!-- explain:start 41 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>for i in range(n)</code>: visit each position once.</li>
+          <li><code>while 1 &lt;= nums[i] &lt;= n and nums[nums[i] - 1] != nums[i]</code>: the value has a home inside the array, and that home doesn't already contain it (this also stops duplicates from swapping forever).</li>
+          <li><code>home = nums[i] - 1</code> then the swap: the value goes home, and whatever was there comes to <code>i</code> to be checked next round.</li>
+          <li>Second loop: the first index whose value isn't <code>i + 1</code> reveals the smallest missing positive.</li>
+          <li><code>return n + 1</code>: every number <code>1..n</code> was present.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 41 -->
+        <!-- enrich-edges:start 41 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All non-positive, e.g. <code>[-1, -2]</code> → 1.</li>
+          <li>Already <code>1..n</code>, e.g. <code>[1, 2, 3]</code> → 4.</li>
+          <li>Duplicates, e.g. <code>[1, 1]</code> → 2 (the <code>!=</code> check prevents an endless swap).</li>
+        </ul>
+        <!-- enrich-edges:end 41 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (each swap fixes one value permanently, so at most <code>n</code> swaps in total), <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 41 -->
 
     <nav class="pager">
       <a href="03-sliding-window.html"><small>Previous pattern</small>← 03 · Sliding Window</a>

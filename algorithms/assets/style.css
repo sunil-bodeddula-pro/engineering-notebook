@@ -136,6 +136,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -186,6 +187,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -193,7 +214,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }

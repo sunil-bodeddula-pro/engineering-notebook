@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 19 of 21</div>
+    <div class="eyebrow">Pattern 19 of 24</div>
     <h1>Trie &amp; Design</h1>
     <p class="lede">Some problems don't ask for an answer; they ask you to <em>build a structure</em> that answers many queries fast. The trick is almost always to combine two simple structures so each covers the other's weakness.</p>
 
@@ -689,7 +832,7 @@ def append_before(tail, node):              # tail is a dummy end node
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-208" open>
-      <summary><span class="tag medium">Medium</span> 208. Implement Trie (Prefix Tree) <span class="ds-tags"><span class="ds">Trie</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 208. Implement Trie (Prefix Tree) <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Trie</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Implement a trie with <code>insert(word)</code>, <code>search(word)</code> (is this exact word stored?) and <code>startsWith(prefix)</code> (does any stored word start with it?).</p>
         <!-- enrich-top:start 208 -->
@@ -750,6 +893,10 @@ class Trie:
 
     def startsWith(self, prefix: str) -&gt; bool:
         return self._walk(prefix) is not None</code></pre>
+        <!-- trace:start 208 -->
+        <div class="trace-viz" id="trace-p208"></div>
+        <script type="application/json" id="trace-p208-data">{"src":["class TrieNode:","    def __init__(self):","        self.children = {}     # next character -> TrieNode","        self.is_end = False    # does a stored word end exactly here?","","","class Trie:","    def __init__(self):","        self.root = TrieNode()","","    def insert(self, word: str) -> None:","        node = self.root","        for ch in word:","            if ch not in node.children:","                node.children[ch] = TrieNode()","            node = node.children[ch]","        node.is_end = True","","    def _walk(self, text):","        # follow text's characters; None if the path breaks off","        node = self.root","        for ch in text:","            if ch not in node.children:","                return None","            node = node.children[ch]","        return node","","    def search(self, word: str) -> bool:","        node = self._walk(word)","        return node is not None and node.is_end","","    def startsWith(self, prefix: str) -> bool:","        return self._walk(prefix) is not None"],"notes":{"3":"next character -> TrieNode","4":"does a stored word end exactly here?","21":"follow text's characters; None if the path breaks off"},"input":"[\"Trie\", \"insert\", \"search\", \"search\", \"startsWith\", \"insert\", \"search\"]\n[[], [\"apple\"], [\"apple\"], [\"app\"], [\"app\"], [\"app\"], [\"app\"]]","output":"[null, null, true, false, true, null, true]","values":["__init__() › __init__()",null,"apple",{"~":"obj","v":"TrieNode"},"a","insert(word='apple') › __init__()","p","l","e","search(word='apple') › _walk(text='apple')",true,"app","search(word='app') › _walk(text='app')",false,"startsWith(prefix='app') › _walk(text='app')"],"steps":[[9,1,"__init__",{},null],[3,2,"__init__",{},0],[4,2,"__init__",{},0],[4,2,"__init__",{},0,1],[9,1,"__init__",{},null,1],[12,1,"insert",{"word":2},null],[13,1,"insert",{"word":2,"node":3},null],[14,1,"insert",{"word":2,"node":3,"ch":4},null],[15,1,"insert",{"word":2,"node":3,"ch":4},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"insert",{"word":2,"node":3,"ch":4},null],[13,1,"insert",{"word":2,"node":3,"ch":4},null],[14,1,"insert",{"word":2,"node":3,"ch":6},null],[15,1,"insert",{"word":2,"node":3,"ch":6},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"insert",{"word":2,"node":3,"ch":6},null],[13,1,"insert",{"word":2,"node":3,"ch":6},null],[14,1,"insert",{"word":2,"node":3,"ch":6},null],[15,1,"insert",{"word":2,"node":3,"ch":6},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"insert",{"word":2,"node":3,"ch":6},null],[13,1,"insert",{"word":2,"node":3,"ch":6},null],[14,1,"insert",{"word":2,"node":3,"ch":7},null],[15,1,"insert",{"word":2,"node":3,"ch":7},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"insert",{"word":2,"node":3,"ch":7},null],[13,1,"insert",{"word":2,"node":3,"ch":7},null],[14,1,"insert",{"word":2,"node":3,"ch":8},null],[15,1,"insert",{"word":2,"node":3,"ch":8},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"insert",{"word":2,"node":3,"ch":8},null],[13,1,"insert",{"word":2,"node":3,"ch":8},null],[17,1,"insert",{"word":2,"node":3,"ch":8},null],[17,1,"insert",{"word":2,"node":3,"ch":8},null,1],[29,1,"search",{"word":2},null],[21,2,"_walk",{"text":2},9],[22,2,"_walk",{"text":2,"node":3},9],[23,2,"_walk",{"text":2,"node":3,"ch":4},9],[25,2,"_walk",{"text":2,"node":3,"ch":4},9],[22,2,"_walk",{"text":2,"node":3,"ch":4},9],[23,2,"_walk",{"text":2,"node":3,"ch":6},9],[25,2,"_walk",{"text":2,"node":3,"ch":6},9],[22,2,"_walk",{"text":2,"node":3,"ch":6},9],[23,2,"_walk",{"text":2,"node":3,"ch":6},9],[25,2,"_walk",{"text":2,"node":3,"ch":6},9],[22,2,"_walk",{"text":2,"node":3,"ch":6},9],[23,2,"_walk",{"text":2,"node":3,"ch":7},9],[25,2,"_walk",{"text":2,"node":3,"ch":7},9],[22,2,"_walk",{"text":2,"node":3,"ch":7},9],[23,2,"_walk",{"text":2,"node":3,"ch":8},9],[25,2,"_walk",{"text":2,"node":3,"ch":8},9],[22,2,"_walk",{"text":2,"node":3,"ch":8},9],[26,2,"_walk",{"text":2,"node":3,"ch":8},9],[26,2,"_walk",{"text":2,"node":3,"ch":8},9,3],[30,1,"search",{"word":2,"node":3},null],[30,1,"search",{"word":2,"node":3},null,10],[29,1,"search",{"word":11},null],[21,2,"_walk",{"text":11},12],[22,2,"_walk",{"text":11,"node":3},12],[23,2,"_walk",{"text":11,"node":3,"ch":4},12],[25,2,"_walk",{"text":11,"node":3,"ch":4},12],[22,2,"_walk",{"text":11,"node":3,"ch":4},12],[23,2,"_walk",{"text":11,"node":3,"ch":6},12],[25,2,"_walk",{"text":11,"node":3,"ch":6},12],[22,2,"_walk",{"text":11,"node":3,"ch":6},12],[23,2,"_walk",{"text":11,"node":3,"ch":6},12],[25,2,"_walk",{"text":11,"node":3,"ch":6},12],[22,2,"_walk",{"text":11,"node":3,"ch":6},12],[26,2,"_walk",{"text":11,"node":3,"ch":6},12],[26,2,"_walk",{"text":11,"node":3,"ch":6},12,3],[30,1,"search",{"word":11,"node":3},null],[30,1,"search",{"word":11,"node":3},null,13],[33,1,"startsWith",{"prefix":11},null],[21,2,"_walk",{"text":11},14],[22,2,"_walk",{"text":11,"node":3},14],[23,2,"_walk",{"text":11,"node":3,"ch":4},14],[25,2,"_walk",{"text":11,"node":3,"ch":4},14],[22,2,"_walk",{"text":11,"node":3,"ch":4},14],[23,2,"_walk",{"text":11,"node":3,"ch":6},14],[25,2,"_walk",{"text":11,"node":3,"ch":6},14],[22,2,"_walk",{"text":11,"node":3,"ch":6},14],[23,2,"_walk",{"text":11,"node":3,"ch":6},14],[25,2,"_walk",{"text":11,"node":3,"ch":6},14],[22,2,"_walk",{"text":11,"node":3,"ch":6},14],[26,2,"_walk",{"text":11,"node":3,"ch":6},14],[26,2,"_walk",{"text":11,"node":3,"ch":6},14,3],[33,1,"startsWith",{"prefix":11},null,10],[12,1,"insert",{"word":11},null],[13,1,"insert",{"word":11,"node":3},null],[14,1,"insert",{"word":11,"node":3,"ch":4},null],[16,1,"insert",{"word":11,"node":3,"ch":4},null],[13,1,"insert",{"word":11,"node":3,"ch":4},null],[14,1,"insert",{"word":11,"node":3,"ch":6},null],[16,1,"insert",{"word":11,"node":3,"ch":6},null],[13,1,"insert",{"word":11,"node":3,"ch":6},null],[14,1,"insert",{"word":11,"node":3,"ch":6},null],[16,1,"insert",{"word":11,"node":3,"ch":6},null],[13,1,"insert",{"word":11,"node":3,"ch":6},null],[17,1,"insert",{"word":11,"node":3,"ch":6},null],[17,1,"insert",{"word":11,"node":3,"ch":6},null,1],[29,1,"search",{"word":11},null],[21,2,"_walk",{"text":11},12],[22,2,"_walk",{"text":11,"node":3},12],[23,2,"_walk",{"text":11,"node":3,"ch":4},12],[25,2,"_walk",{"text":11,"node":3,"ch":4},12],[22,2,"_walk",{"text":11,"node":3,"ch":4},12],[23,2,"_walk",{"text":11,"node":3,"ch":6},12],[25,2,"_walk",{"text":11,"node":3,"ch":6},12],[22,2,"_walk",{"text":11,"node":3,"ch":6},12],[23,2,"_walk",{"text":11,"node":3,"ch":6},12],[25,2,"_walk",{"text":11,"node":3,"ch":6},12],[22,2,"_walk",{"text":11,"node":3,"ch":6},12],[26,2,"_walk",{"text":11,"node":3,"ch":6},12],[26,2,"_walk",{"text":11,"node":3,"ch":6},12,3],[30,1,"search",{"word":11,"node":3},null],[30,1,"search",{"word":11,"node":3},null,10]],"truncated":false}</script>
+        <!-- trace:end 208 -->
         <!-- explain:start 208 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -786,7 +933,7 @@ class Trie:
     </details>
 
     <details class="problem" id="p-146">
-      <summary><span class="tag medium">Medium</span> 146. LRU Cache <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 146. LRU Cache <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a cache with a fixed <code>capacity</code>. <code>get(key)</code> returns the value or <code>-1</code>; <code>put(key, value)</code> inserts or updates, and when the cache is over capacity it evicts the <strong>least recently used</strong> key. Both must be <code>O(1)</code>.</p>
         <!-- enrich-top:start 146 -->
@@ -867,6 +1014,10 @@ class LRUCache:
             oldest = self.head.next
             self._remove(oldest)
             del self.nodes[oldest.key]      # the node remembers its key for this</code></pre>
+        <!-- trace:start 146 -->
+        <div class="trace-viz" id="trace-p146"></div>
+        <script type="application/json" id="trace-p146-data">{"src":["class Node:","    def __init__(self, key=0, val=0):","        self.key = key","        self.val = val","        self.prev = None","        self.next = None","","","class LRUCache:","    def __init__(self, capacity: int):","        self.capacity = capacity","        self.nodes = {}                     # key -> Node in the list","        # dummies: head.next is the LEAST recent, tail.prev the MOST recent","        self.head = Node()","        self.tail = Node()","        self.head.next = self.tail","        self.tail.prev = self.head","","    def _remove(self, node):","        node.prev.next = node.next","        node.next.prev = node.prev","","    def _add_to_end(self, node):","        last = self.tail.prev","        last.next = node","        node.prev = last","        node.next = self.tail","        self.tail.prev = node","","    def get(self, key: int) -> int:","        if key not in self.nodes:","            return -1","        node = self.nodes[key]","        # touched: move it to the most-recent end","        self._remove(node)","        self._add_to_end(node)","        return node.val","","    def put(self, key: int, value: int) -> None:","        if key in self.nodes:","            self._remove(self.nodes[key])","        node = Node(key, value)","        self._add_to_end(node)","        self.nodes[key] = node","        if len(self.nodes) > self.capacity:","            oldest = self.head.next","            self._remove(oldest)","            del self.nodes[oldest.key]      # the node remembers its key for this"],"notes":{"12":"key -> Node in the list","14":"dummies: head.next is the LEAST recent, tail.prev the MOST recent","35":"touched: move it to the most-recent end","48":"the node remembers its key for this"},"input":"[\"LRUCache\", \"put\", \"put\", \"get\", \"put\", \"get\", \"put\", \"get\", \"get\", \"get\"]\n[[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]","output":"[null, null, null, 1, null, -1, null, -1, 3, 4]","values":[2,0,"__init__(capacity=2) › __init__(key=0, val=0)",null,1,"put(key=1, value=1) › __init__(key=1, val=1)",{"~":"ll","v":[1],"cycle":false},"put(key=1, value=1) › _add_to_end(node=1)",{"~":"ll","v":[0,0],"cycle":false},{"~":"ll","v":[0,1],"cycle":false},{"~":"ll","v":[1,0],"cycle":false},{"~":"ll","v":[0,1,0],"cycle":false},"put(key=2, value=2) › __init__(key=2, val=2)",{"~":"ll","v":[2],"cycle":false},"put(key=2, value=2) › _add_to_end(node=2)",{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[2,0],"cycle":false},{"~":"ll","v":[1,2,0],"cycle":false},"get(key=1) › _remove(node=1)","get(key=1) › _add_to_end(node=1)",{"~":"ll","v":[1,2],"cycle":true},{"~":"ll","v":[2,1],"cycle":true},{"~":"ll","v":[2,1,0],"cycle":false},3,"put(key=3, value=3) › __init__(key=3, val=3)",{"~":"ll","v":[3],"cycle":false},"put(key=3, value=3) › _add_to_end(node=3)",{"~":"ll","v":[1,3],"cycle":false},{"~":"ll","v":[3,0],"cycle":false},{"~":"ll","v":[1,3,0],"cycle":false},{"~":"ll","v":[2,1,3,0],"cycle":false},"put(key=3, value=3) › _remove(node=2)",-1,4,"put(key=4, value=4) › __init__(key=4, val=4)",{"~":"ll","v":[4],"cycle":false},"put(key=4, value=4) › _add_to_end(node=4)",{"~":"ll","v":[3,4],"cycle":false},{"~":"ll","v":[4,0],"cycle":false},{"~":"ll","v":[3,4,0],"cycle":false},{"~":"ll","v":[1,3,4,0],"cycle":false},"put(key=4, value=4) › _remove(node=1)","get(key=3) › _remove(node=3)","get(key=3) › _add_to_end(node=3)",{"~":"ll","v":[3,4],"cycle":true},{"~":"ll","v":[4,3],"cycle":true},{"~":"ll","v":[4,3,0],"cycle":false},"get(key=4) › _remove(node=4)","get(key=4) › _add_to_end(node=4)"],"steps":[[11,1,"__init__",{"capacity":0},null],[12,1,"__init__",{"capacity":0},null],[14,1,"__init__",{"capacity":0},null],[3,2,"__init__",{"key":1,"val":1},2],[4,2,"__init__",{"key":1,"val":1},2],[5,2,"__init__",{"key":1,"val":1},2],[6,2,"__init__",{"key":1,"val":1},2],[6,2,"__init__",{"key":1,"val":1},2,3],[15,1,"__init__",{"capacity":0},null],[3,2,"__init__",{"key":1,"val":1},2],[4,2,"__init__",{"key":1,"val":1},2],[5,2,"__init__",{"key":1,"val":1},2],[6,2,"__init__",{"key":1,"val":1},2],[6,2,"__init__",{"key":1,"val":1},2,3],[16,1,"__init__",{"capacity":0},null],[17,1,"__init__",{"capacity":0},null],[17,1,"__init__",{"capacity":0},null,3],[40,1,"put",{"key":4,"value":4},null],[42,1,"put",{"key":4,"value":4},null],[3,2,"__init__",{"key":4,"val":4},5],[4,2,"__init__",{"key":4,"val":4},5],[5,2,"__init__",{"key":4,"val":4},5],[6,2,"__init__",{"key":4,"val":4},5],[6,2,"__init__",{"key":4,"val":4},5,3],[43,1,"put",{"key":4,"value":4,"node":6},null],[24,2,"_add_to_end",{"node":6},7],[25,2,"_add_to_end",{"node":6,"last":8},7],[26,2,"_add_to_end",{"node":6,"last":9},7],[27,2,"_add_to_end",{"node":6,"last":9},7],[28,2,"_add_to_end",{"node":10,"last":11},7],[28,2,"_add_to_end",{"node":10,"last":11},7,3],[44,1,"put",{"key":4,"value":4,"node":10},null],[45,1,"put",{"key":4,"value":4,"node":10},null],[45,1,"put",{"key":4,"value":4,"node":10},null,3],[40,1,"put",{"key":0,"value":0},null],[42,1,"put",{"key":0,"value":0},null],[3,2,"__init__",{"key":0,"val":0},12],[4,2,"__init__",{"key":0,"val":0},12],[5,2,"__init__",{"key":0,"val":0},12],[6,2,"__init__",{"key":0,"val":0},12],[6,2,"__init__",{"key":0,"val":0},12,3],[43,1,"put",{"key":0,"value":0,"node":13},null],[24,2,"_add_to_end",{"node":13},14],[25,2,"_add_to_end",{"node":13,"last":10},14],[26,2,"_add_to_end",{"node":13,"last":15},14],[27,2,"_add_to_end",{"node":13,"last":15},14],[28,2,"_add_to_end",{"node":16,"last":17},14],[28,2,"_add_to_end",{"node":16,"last":17},14,3],[44,1,"put",{"key":0,"value":0,"node":16},null],[45,1,"put",{"key":0,"value":0,"node":16},null],[45,1,"put",{"key":0,"value":0,"node":16},null,3],[31,1,"get",{"key":4},null],[33,1,"get",{"key":4},null],[35,1,"get",{"key":4,"node":17},null],[20,2,"_remove",{"node":17},18],[21,2,"_remove",{"node":17},18],[21,2,"_remove",{"node":17},18,3],[36,1,"get",{"key":4,"node":17},null],[24,2,"_add_to_end",{"node":17},19],[25,2,"_add_to_end",{"node":17,"last":16},19],[26,2,"_add_to_end",{"node":20,"last":21},19],[27,2,"_add_to_end",{"node":20,"last":21},19],[28,2,"_add_to_end",{"node":10,"last":22},19],[28,2,"_add_to_end",{"node":10,"last":22},19,3],[37,1,"get",{"key":4,"node":10},null],[37,1,"get",{"key":4,"node":10},null,4],[40,1,"put",{"key":23,"value":23},null],[42,1,"put",{"key":23,"value":23},null],[3,2,"__init__",{"key":23,"val":23},24],[4,2,"__init__",{"key":23,"val":23},24],[5,2,"__init__",{"key":23,"val":23},24],[6,2,"__init__",{"key":23,"val":23},24],[6,2,"__init__",{"key":23,"val":23},24,3],[43,1,"put",{"key":23,"value":23,"node":25},null],[24,2,"_add_to_end",{"node":25},26],[25,2,"_add_to_end",{"node":25,"last":10},26],[26,2,"_add_to_end",{"node":25,"last":27},26],[27,2,"_add_to_end",{"node":25,"last":27},26],[28,2,"_add_to_end",{"node":28,"last":29},26],[28,2,"_add_to_end",{"node":28,"last":29},26,3],[44,1,"put",{"key":23,"value":23,"node":28},null],[45,1,"put",{"key":23,"value":23,"node":28},null],[46,1,"put",{"key":23,"value":23,"node":28},null],[47,1,"put",{"key":23,"value":23,"node":28,"oldest":30},null],[20,2,"_remove",{"node":30},31],[21,2,"_remove",{"node":30},31],[21,2,"_remove",{"node":30},31,3],[48,1,"put",{"key":23,"value":23,"node":28,"oldest":30},null],[48,1,"put",{"key":23,"value":23,"node":28,"oldest":30},null,3],[31,1,"get",{"key":0},null],[32,1,"get",{"key":0},null],[32,1,"get",{"key":0},null,32],[40,1,"put",{"key":33,"value":33},null],[42,1,"put",{"key":33,"value":33},null],[3,2,"__init__",{"key":33,"val":33},34],[4,2,"__init__",{"key":33,"val":33},34],[5,2,"__init__",{"key":33,"val":33},34],[6,2,"__init__",{"key":33,"val":33},34],[6,2,"__init__",{"key":33,"val":33},34,3],[43,1,"put",{"key":33,"value":33,"node":35},null],[24,2,"_add_to_end",{"node":35},36],[25,2,"_add_to_end",{"node":35,"last":28},36],[26,2,"_add_to_end",{"node":35,"last":37},36],[27,2,"_add_to_end",{"node":35,"last":37},36],[28,2,"_add_to_end",{"node":38,"last":39},36],[28,2,"_add_to_end",{"node":38,"last":39},36,3],[44,1,"put",{"key":33,"value":33,"node":38},null],[45,1,"put",{"key":33,"value":33,"node":38},null],[46,1,"put",{"key":33,"value":33,"node":38},null],[47,1,"put",{"key":33,"value":33,"node":38,"oldest":40},null],[20,2,"_remove",{"node":40},41],[21,2,"_remove",{"node":40},41],[21,2,"_remove",{"node":40},41,3],[48,1,"put",{"key":33,"value":33,"node":38,"oldest":40},null],[48,1,"put",{"key":33,"value":33,"node":38,"oldest":40},null,3],[31,1,"get",{"key":4},null],[32,1,"get",{"key":4},null],[32,1,"get",{"key":4},null,32],[31,1,"get",{"key":23},null],[33,1,"get",{"key":23},null],[35,1,"get",{"key":23,"node":39},null],[20,2,"_remove",{"node":39},42],[21,2,"_remove",{"node":39},42],[21,2,"_remove",{"node":39},42,3],[36,1,"get",{"key":23,"node":39},null],[24,2,"_add_to_end",{"node":39},43],[25,2,"_add_to_end",{"node":39,"last":38},43],[26,2,"_add_to_end",{"node":44,"last":45},43],[27,2,"_add_to_end",{"node":44,"last":45},43],[28,2,"_add_to_end",{"node":28,"last":46},43],[28,2,"_add_to_end",{"node":28,"last":46},43,3],[37,1,"get",{"key":23,"node":28},null],[37,1,"get",{"key":23,"node":28},null,23],[31,1,"get",{"key":33},null],[33,1,"get",{"key":33},null],[35,1,"get",{"key":33,"node":46},null],[20,2,"_remove",{"node":46},47],[21,2,"_remove",{"node":46},47],[21,2,"_remove",{"node":46},47,3],[36,1,"get",{"key":33,"node":46},null],[24,2,"_add_to_end",{"node":46},48],[25,2,"_add_to_end",{"node":46,"last":28},48],[26,2,"_add_to_end",{"node":45,"last":44},48],[27,2,"_add_to_end",{"node":45,"last":44},48],[28,2,"_add_to_end",{"node":38,"last":39},48],[28,2,"_add_to_end",{"node":38,"last":39},48,3],[37,1,"get",{"key":33,"node":38},null],[37,1,"get",{"key":33,"node":38},null,33]],"truncated":false}</script>
+        <!-- trace:end 146 -->
         <!-- explain:start 146 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -951,8 +1102,14 @@ class LRUCache:
         <tr><td>155</td><td><a href="17-stack.html#p-155">Min Stack</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Stack</span></span></td><td>Solved in <a href="17-stack.html">17 · Stack</a>: Store the running minimum next to every value</td></tr>
         <tr><td>173</td><td><a href="10-binary-tree-traversal.html#p-173">Binary Search Tree Iterator</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">BST</span><span class="ds">Stack</span></span></td><td>Solved in <a href="10-binary-tree-traversal.html">10 · Binary Tree Traversal</a>: Iterative inorder, paused between calls</td></tr>
         <tr><td>981</td><td><a href="09-modified-binary-search.html#p-981">Time Based Key-Value Store</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></td><td>Solved in <a href="09-modified-binary-search.html">09 · Modified Binary Search</a>: bisect_right on timestamps</td></tr>
+        <tr><td>421</td><td><a href="#p-421">Maximum XOR of Two Numbers in an Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Trie</span></span></td><td>Binary trie of the numbers' bits; for each number walk the opposite bit whenever possible</td></tr>
+        <tr><td>2452</td><td><a href="#p-2452">Words Within Two Edits of Dictionary</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Array</span></span></td><td>All words have the same length: count mismatched positions against each dictionary word</td></tr>
+        <tr><td>3043</td><td><a href="#p-3043">Find the Length of the Longest Common Prefix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span><span class="ds">Trie</span></span></td><td>Store every decimal prefix of arr1 (a trie of digits, or a set); check arr2's prefixes longest first</td></tr>
         <tr><td>295</td><td><a href="07-top-k-elements.html#p-295">Find Median from Data Stream</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Heap</span></span></td><td>Solved in <a href="07-top-k-elements.html">07 · Top 'K' Elements</a>: Two balanced heaps</td></tr>
         <tr><td>212</td><td><a href="14-backtracking.html#p-212">Word Search II</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Trie</span></span></td><td>Solved in <a href="14-backtracking.html">14 · Backtracking</a>: Backtracking + Trie pruning</td></tr>
+        <tr><td>460</td><td><a href="#p-460">LFU Cache</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Linked List</span></span></td><td>key → (value, freq); freq → ordered dict of keys (LRU order); track the minimum frequency</td></tr>
+        <tr><td>588</td><td><a href="#p-588">Design In-Memory File System</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Trie</span><span class="ds">Hash Map</span></span></td><td>A trie of path components; files are nodes with content</td></tr>
+        <tr><td>642</td><td><a href="#p-642">Design Search Autocomplete System</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Trie</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></td><td>Trie of sentences; follow the typed prefix and rank the sentences below by (−count, sentence)</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
@@ -1022,6 +1179,10 @@ class WordDictionary:
             return dfs(node.children[ch], i + 1)
 
         return dfs(self.root, 0)</code></pre>
+        <!-- trace:start 211 -->
+        <div class="trace-viz" id="trace-p211"></div>
+        <script type="application/json" id="trace-p211-data">{"src":["class TrieNode:","    def __init__(self):","        self.children = {}","        self.is_end = False","","","class WordDictionary:","    def __init__(self):","        self.root = TrieNode()","","    def addWord(self, word: str) -> None:","        node = self.root","        for ch in word:","            if ch not in node.children:","                node.children[ch] = TrieNode()","            node = node.children[ch]","        node.is_end = True","","    def search(self, word: str) -> bool:","        def dfs(node, i):","            if i == len(word):","                return node.is_end","            ch = word[i]","            if ch == \".\":","                # a wildcard: any child may continue the match","                for child in node.children.values():","                    if dfs(child, i + 1):","                        return True","                return False","            if ch not in node.children:","                return False","            return dfs(node.children[ch], i + 1)","","        return dfs(self.root, 0)"],"notes":{"26":"a wildcard: any child may continue the match"},"input":"[\"WordDictionary\",\"addWord\",\"addWord\",\"addWord\",\"search\",\"search\",\"search\",\"search\"]\n[[],[\"bad\"],[\"dad\"],[\"mad\"],[\"pad\"],[\"bad\"],[\".ad\"],[\"b..\"]]","output":"[null,null,null,null,false,true,true,true]","values":["__init__() › __init__()",null,"bad",{"~":"obj","v":"TrieNode"},"b","addWord(word='bad') › __init__()","a","d","dad","addWord(word='dad') › __init__()","mad","m","addWord(word='mad') › __init__()","pad",0,"search(word='pad') › dfs(node=TrieNode, i=0)","p",false,"search(word='bad') › dfs(node=TrieNode, i=0)",1,"search(word='bad') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1)",2,"search(word='bad') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1) › dfs(node=TrieNode, i=2)",3,"search(word='bad') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1) › dfs(node=TrieNode, i=2) › dfs(node=TrieNode, i=3)",true,".ad","search(word='.ad') › dfs(node=TrieNode, i=0)",".","search(word='.ad') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1)","search(word='.ad') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1) › dfs(node=TrieNode, i=2)","search(word='.ad') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1) › dfs(node=TrieNode, i=2) › dfs(node=TrieNode, i=3)","b..","search(word='b..') › dfs(node=TrieNode, i=0)","search(word='b..') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1)","search(word='b..') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1) › dfs(node=TrieNode, i=2)","search(word='b..') › dfs(node=TrieNode, i=0) › dfs(node=TrieNode, i=1) › dfs(node=TrieNode, i=2) › dfs(node=TrieNode, i=3)"],"steps":[[9,1,"__init__",{},null],[3,2,"__init__",{},0],[4,2,"__init__",{},0],[4,2,"__init__",{},0,1],[9,1,"__init__",{},null,1],[12,1,"addWord",{"word":2},null],[13,1,"addWord",{"word":2,"node":3},null],[14,1,"addWord",{"word":2,"node":3,"ch":4},null],[15,1,"addWord",{"word":2,"node":3,"ch":4},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"addWord",{"word":2,"node":3,"ch":4},null],[13,1,"addWord",{"word":2,"node":3,"ch":4},null],[14,1,"addWord",{"word":2,"node":3,"ch":6},null],[15,1,"addWord",{"word":2,"node":3,"ch":6},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"addWord",{"word":2,"node":3,"ch":6},null],[13,1,"addWord",{"word":2,"node":3,"ch":6},null],[14,1,"addWord",{"word":2,"node":3,"ch":7},null],[15,1,"addWord",{"word":2,"node":3,"ch":7},null],[3,2,"__init__",{},5],[4,2,"__init__",{},5],[4,2,"__init__",{},5,1],[16,1,"addWord",{"word":2,"node":3,"ch":7},null],[13,1,"addWord",{"word":2,"node":3,"ch":7},null],[17,1,"addWord",{"word":2,"node":3,"ch":7},null],[17,1,"addWord",{"word":2,"node":3,"ch":7},null,1],[12,1,"addWord",{"word":8},null],[13,1,"addWord",{"word":8,"node":3},null],[14,1,"addWord",{"word":8,"node":3,"ch":7},null],[15,1,"addWord",{"word":8,"node":3,"ch":7},null],[3,2,"__init__",{},9],[4,2,"__init__",{},9],[4,2,"__init__",{},9,1],[16,1,"addWord",{"word":8,"node":3,"ch":7},null],[13,1,"addWord",{"word":8,"node":3,"ch":7},null],[14,1,"addWord",{"word":8,"node":3,"ch":6},null],[15,1,"addWord",{"word":8,"node":3,"ch":6},null],[3,2,"__init__",{},9],[4,2,"__init__",{},9],[4,2,"__init__",{},9,1],[16,1,"addWord",{"word":8,"node":3,"ch":6},null],[13,1,"addWord",{"word":8,"node":3,"ch":6},null],[14,1,"addWord",{"word":8,"node":3,"ch":7},null],[15,1,"addWord",{"word":8,"node":3,"ch":7},null],[3,2,"__init__",{},9],[4,2,"__init__",{},9],[4,2,"__init__",{},9,1],[16,1,"addWord",{"word":8,"node":3,"ch":7},null],[13,1,"addWord",{"word":8,"node":3,"ch":7},null],[17,1,"addWord",{"word":8,"node":3,"ch":7},null],[17,1,"addWord",{"word":8,"node":3,"ch":7},null,1],[12,1,"addWord",{"word":10},null],[13,1,"addWord",{"word":10,"node":3},null],[14,1,"addWord",{"word":10,"node":3,"ch":11},null],[15,1,"addWord",{"word":10,"node":3,"ch":11},null],[3,2,"__init__",{},12],[4,2,"__init__",{},12],[4,2,"__init__",{},12,1],[16,1,"addWord",{"word":10,"node":3,"ch":11},null],[13,1,"addWord",{"word":10,"node":3,"ch":11},null],[14,1,"addWord",{"word":10,"node":3,"ch":6},null],[15,1,"addWord",{"word":10,"node":3,"ch":6},null],[3,2,"__init__",{},12],[4,2,"__init__",{},12],[4,2,"__init__",{},12,1],[16,1,"addWord",{"word":10,"node":3,"ch":6},null],[13,1,"addWord",{"word":10,"node":3,"ch":6},null],[14,1,"addWord",{"word":10,"node":3,"ch":7},null],[15,1,"addWord",{"word":10,"node":3,"ch":7},null],[3,2,"__init__",{},12],[4,2,"__init__",{},12],[4,2,"__init__",{},12,1],[16,1,"addWord",{"word":10,"node":3,"ch":7},null],[13,1,"addWord",{"word":10,"node":3,"ch":7},null],[17,1,"addWord",{"word":10,"node":3,"ch":7},null],[17,1,"addWord",{"word":10,"node":3,"ch":7},null,1],[20,1,"search",{"word":13},null],[34,1,"search",{"word":13},null],[21,2,"dfs",{"node":3,"i":14,"word":13},15],[23,2,"dfs",{"node":3,"i":14,"word":13},15],[24,2,"dfs",{"node":3,"i":14,"word":13,"ch":16},15],[30,2,"dfs",{"node":3,"i":14,"word":13,"ch":16},15],[31,2,"dfs",{"node":3,"i":14,"word":13,"ch":16},15],[31,2,"dfs",{"node":3,"i":14,"word":13,"ch":16},15,17],[34,1,"search",{"word":13},null,17],[20,1,"search",{"word":2},null],[34,1,"search",{"word":2},null],[21,2,"dfs",{"node":3,"i":14,"word":2},18],[23,2,"dfs",{"node":3,"i":14,"word":2},18],[24,2,"dfs",{"node":3,"i":14,"word":2,"ch":4},18],[30,2,"dfs",{"node":3,"i":14,"word":2,"ch":4},18],[32,2,"dfs",{"node":3,"i":14,"word":2,"ch":4},18],[21,3,"dfs",{"node":3,"i":19,"word":2},20],[23,3,"dfs",{"node":3,"i":19,"word":2},20],[24,3,"dfs",{"node":3,"i":19,"word":2,"ch":6},20],[30,3,"dfs",{"node":3,"i":19,"word":2,"ch":6},20],[32,3,"dfs",{"node":3,"i":19,"word":2,"ch":6},20],[21,4,"dfs",{"node":3,"i":21,"word":2},22],[23,4,"dfs",{"node":3,"i":21,"word":2},22],[24,4,"dfs",{"node":3,"i":21,"word":2,"ch":7},22],[30,4,"dfs",{"node":3,"i":21,"word":2,"ch":7},22],[32,4,"dfs",{"node":3,"i":21,"word":2,"ch":7},22],[21,5,"dfs",{"node":3,"i":23,"word":2},24],[22,5,"dfs",{"node":3,"i":23,"word":2},24],[22,5,"dfs",{"node":3,"i":23,"word":2},24,25],[32,4,"dfs",{"node":3,"i":21,"word":2,"ch":7},22,25],[32,3,"dfs",{"node":3,"i":19,"word":2,"ch":6},20,25],[32,2,"dfs",{"node":3,"i":14,"word":2,"ch":4},18,25],[34,1,"search",{"word":2},null,25],[20,1,"search",{"word":26},null],[34,1,"search",{"word":26},null],[21,2,"dfs",{"node":3,"i":14,"word":26},27],[23,2,"dfs",{"node":3,"i":14,"word":26},27],[24,2,"dfs",{"node":3,"i":14,"word":26,"ch":28},27],[26,2,"dfs",{"node":3,"i":14,"word":26,"ch":28},27],[27,2,"dfs",{"node":3,"i":14,"word":26,"ch":28,"child":3},27],[21,3,"dfs",{"node":3,"i":19,"word":26},29],[23,3,"dfs",{"node":3,"i":19,"word":26},29],[24,3,"dfs",{"node":3,"i":19,"word":26,"ch":6},29],[30,3,"dfs",{"node":3,"i":19,"word":26,"ch":6},29],[32,3,"dfs",{"node":3,"i":19,"word":26,"ch":6},29],[21,4,"dfs",{"node":3,"i":21,"word":26},30],[23,4,"dfs",{"node":3,"i":21,"word":26},30],[24,4,"dfs",{"node":3,"i":21,"word":26,"ch":7},30],[30,4,"dfs",{"node":3,"i":21,"word":26,"ch":7},30],[32,4,"dfs",{"node":3,"i":21,"word":26,"ch":7},30],[21,5,"dfs",{"node":3,"i":23,"word":26},31],[22,5,"dfs",{"node":3,"i":23,"word":26},31],[22,5,"dfs",{"node":3,"i":23,"word":26},31,25],[32,4,"dfs",{"node":3,"i":21,"word":26,"ch":7},30,25],[32,3,"dfs",{"node":3,"i":19,"word":26,"ch":6},29,25],[28,2,"dfs",{"node":3,"i":14,"word":26,"ch":28,"child":3},27],[28,2,"dfs",{"node":3,"i":14,"word":26,"ch":28,"child":3},27,25],[34,1,"search",{"word":26},null,25],[20,1,"search",{"word":32},null],[34,1,"search",{"word":32},null],[21,2,"dfs",{"node":3,"i":14,"word":32},33],[23,2,"dfs",{"node":3,"i":14,"word":32},33],[24,2,"dfs",{"node":3,"i":14,"word":32,"ch":4},33],[30,2,"dfs",{"node":3,"i":14,"word":32,"ch":4},33],[32,2,"dfs",{"node":3,"i":14,"word":32,"ch":4},33],[21,3,"dfs",{"node":3,"i":19,"word":32},34],[23,3,"dfs",{"node":3,"i":19,"word":32},34],[24,3,"dfs",{"node":3,"i":19,"word":32,"ch":28},34],[26,3,"dfs",{"node":3,"i":19,"word":32,"ch":28},34],[27,3,"dfs",{"node":3,"i":19,"word":32,"ch":28,"child":3},34],[21,4,"dfs",{"node":3,"i":21,"word":32},35],[23,4,"dfs",{"node":3,"i":21,"word":32},35],[24,4,"dfs",{"node":3,"i":21,"word":32,"ch":28},35],[26,4,"dfs",{"node":3,"i":21,"word":32,"ch":28},35],[27,4,"dfs",{"node":3,"i":21,"word":32,"ch":28,"child":3},35],[21,5,"dfs",{"node":3,"i":23,"word":32},36],[22,5,"dfs",{"node":3,"i":23,"word":32},36],[22,5,"dfs",{"node":3,"i":23,"word":32},36,25],[28,4,"dfs",{"node":3,"i":21,"word":32,"ch":28,"child":3},35],[28,4,"dfs",{"node":3,"i":21,"word":32,"ch":28,"child":3},35,25],[28,3,"dfs",{"node":3,"i":19,"word":32,"ch":28,"child":3},34],[28,3,"dfs",{"node":3,"i":19,"word":32,"ch":28,"child":3},34,25],[32,2,"dfs",{"node":3,"i":14,"word":32,"ch":4},33,25],[34,1,"search",{"word":32},null,25]],"truncated":false}</script>
+        <!-- trace:end 211 -->
         <!-- explain:start 211 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1056,7 +1217,7 @@ class WordDictionary:
     </details>
 
     <details class="problem" id="p-380">
-      <summary><span class="tag medium">Medium</span> 380. Insert Delete GetRandom O(1) <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 380. Insert Delete GetRandom O(1) <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Design a set with <code>insert(val)</code>, <code>remove(val)</code> (each returns whether it changed the set) and <code>getRandom()</code> (each element equally likely), all in average <code>O(1)</code> time.</p>
         <!-- enrich-top:start 380 -->
@@ -1113,6 +1274,10 @@ class RandomizedSet:
 
     def getRandom(self) -&gt; int:
         return random.choice(self.values)</code></pre>
+        <!-- trace:start 380 -->
+        <div class="trace-viz" id="trace-p380"></div>
+        <script type="application/json" id="trace-p380-data">{"src":["import random","","class RandomizedSet:","    def __init__(self):","        self.values = []          # the elements, for O(1) random picks","        self.index_of = {}        # value -> its position in self.values","","    def insert(self, val: int) -> bool:","        if val in self.index_of:","            return False","        self.index_of[val] = len(self.values)","        self.values.append(val)","        return True","","    def remove(self, val: int) -> bool:","        if val not in self.index_of:","            return False","        hole = self.index_of[val]","        last = self.values[-1]","        # move the last value into the hole, then drop the end","        self.values[hole] = last","        self.index_of[last] = hole","        self.values.pop()","        del self.index_of[val]","        return True","","    def getRandom(self) -> int:","        return random.choice(self.values)"],"notes":{"5":"the elements, for O(1) random picks","6":"value -> its position in self.values","21":"move the last value into the hole, then drop the end"},"input":"[\"RandomizedSet\", \"insert\", \"remove\", \"insert\", \"getRandom\", \"remove\", \"insert\", \"getRandom\"]\n[[], [1], [2], [2], [], [1], [2], []]","output":"[null, true, false, true, 2, true, false, 2]","values":[null,1,true,2,false,0],"steps":[[5,1,"__init__",{},null],[6,1,"__init__",{},null],[6,1,"__init__",{},null,0],[9,1,"insert",{"val":1},null],[11,1,"insert",{"val":1},null],[12,1,"insert",{"val":1},null],[13,1,"insert",{"val":1},null],[13,1,"insert",{"val":1},null,2],[16,1,"remove",{"val":3},null],[17,1,"remove",{"val":3},null],[17,1,"remove",{"val":3},null,4],[9,1,"insert",{"val":3},null],[11,1,"insert",{"val":3},null],[12,1,"insert",{"val":3},null],[13,1,"insert",{"val":3},null],[13,1,"insert",{"val":3},null,2],[28,1,"getRandom",{},null],[28,1,"getRandom",{},null,3],[16,1,"remove",{"val":1},null],[18,1,"remove",{"val":1},null],[19,1,"remove",{"val":1,"hole":5},null],[21,1,"remove",{"val":1,"hole":5,"last":3},null],[22,1,"remove",{"val":1,"hole":5,"last":3},null],[23,1,"remove",{"val":1,"hole":5,"last":3},null],[24,1,"remove",{"val":1,"hole":5,"last":3},null],[25,1,"remove",{"val":1,"hole":5,"last":3},null],[25,1,"remove",{"val":1,"hole":5,"last":3},null,2],[9,1,"insert",{"val":3},null],[10,1,"insert",{"val":3},null],[10,1,"insert",{"val":3},null,4],[28,1,"getRandom",{},null],[28,1,"getRandom",{},null,3]],"truncated":false}</script>
+        <!-- trace:end 380 -->
         <!-- explain:start 380 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1147,6 +1312,466 @@ class RandomizedSet:
         <p><strong>Complexity:</strong> Average <code>O(1)</code> time for every operation, <code>O(n)</code> space.</p>
       </div>
     </details>
+
+    <!-- gen:start 421 -->
+    <details class="problem" id="p-421">
+      <summary><span class="tag medium">Medium</span> 421. Maximum XOR of Two Numbers in an Array <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Trie</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the maximum <code>nums[i] XOR nums[j]</code>.</p>
+        <!-- enrich-top:start 421 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-xor-of-two-numbers-in-an-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,10,5,25,2,8]</code></div><div><strong>Output:</strong> <code class="ex">28</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The maximum result is 5 XOR 25 = 28.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [14,70,53,83,49,91,36,80,92,51,66,70]</code></div><div><strong>Output:</strong> <code class="ex">127</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 2 * 10⁵</code> · <code>0 ≤ nums[i] ≤ 2³¹ - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which bit of the XOR matters most?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store numbers bit by bit in a trie, then search for the most different partner.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> All pairs: <code>O(n²)</code>. Bit trie: <code>O(31n)</code>.</p>
+        <!-- enrich-top:end 421 -->
+        <p><strong>Spot it:</strong> XOR is maximised by making the <strong>highest bits differ</strong>. Store every number's bits (high to low) in a <strong>binary trie</strong>; for each number, greedily walk to the child with the opposite bit at each level.</p>
+        <p><strong>Why not another pattern?</strong> Trying all pairs is <code>O(n²)</code> with <code>n = 2·10⁵</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Insert each number's 31 bits from the top into a trie of dicts.</li>
+          <li>For each number, walk the trie preferring the opposite bit; each successful choice sets that bit of the XOR.</li>
+          <li>Track the maximum.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def findMaximumXOR(self, nums: List[int]) -&gt; int:
+        root = {}
+        for x in nums:
+            node = root
+            for b in range(30, -1, -1):
+                bit = x &gt;&gt; b &amp; 1
+                node = node.setdefault(bit, {})  # path of bits, highest first
+        best = 0
+        for x in nums:
+            node = root
+            xor = 0
+            for b in range(30, -1, -1):
+                bit = x &gt;&gt; b &amp; 1
+                if 1 - bit in node:
+                    xor |= 1 &lt;&lt; b  # a number with the opposite bit exists: this bit of the XOR is 1
+                    node = node[1 - bit]
+                else:
+                    node = node[bit]
+            best = max(best, xor)
+        return best</code></pre>
+        <!-- trace:start 421 -->
+        <div class="trace-viz" id="trace-p421"></div>
+        <script type="application/json" id="trace-p421-data">{"src":["class Solution:","    def findMaximumXOR(self, nums: List[int]) -> int:","        root = {}","        for x in nums:","            node = root","            for b in range(30, -1, -1):","                bit = x >> b & 1","                node = node.setdefault(bit, {})  # path of bits, highest first","        best = 0","        for x in nums:","            node = root","            xor = 0","            for b in range(30, -1, -1):","                bit = x >> b & 1","                if 1 - bit in node:","                    xor |= 1 << b  # a number with the opposite bit exists: this bit of the XOR is 1","                    node = node[1 - bit]","                else:","                    node = node[bit]","            best = max(best, xor)","        return best"],"notes":{"8":"path of bits, highest first","16":"a number with the opposite bit exists: this bit of the XOR is 1"},"input":"nums = [3,10,5,25,2,8]","output":"28","values":[{"~":"list","v":[3,10,5,25,2,8]},{"~":"dict","v":[]},3,30,0,{"~":"dict","v":[[0,{"~":"dict","v":[]}]]},29,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[]}]]}]]},28,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[]}]]}]]}]]},27,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"obj","v":"…"}]]}]]}]]}]]},26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,2,1,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[[1,{"~":"obj","v":"…"}]]}]]}]]}]]},{"~":"dict","v":[[0,{"~":"dict","v":[[0,{"~":"dict","v":[[1,{"~":"dict","v":[[1,{"~":"obj","v":"…"}]]}]]}]]}]]}],"steps":[[3,1,"findMaximumXOR",{"nums":0},null],[4,1,"findMaximumXOR",{"nums":0,"root":1},null],[5,1,"findMaximumXOR",{"nums":0,"root":1,"x":2},null],[6,1,"findMaximumXOR",{"nums":0,"root":1,"x":2,"node":1},null],[7,1,"findMaximumXOR",{"nums":0,"root":1,"x":2,"node":1,"b":3},null],[8,1,"findMaximumXOR",{"nums":0,"root":1,"x":2,"node":1,"b":3,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":5,"x":2,"node":1,"b":3,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":5,"x":2,"node":1,"b":6,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":5,"x":2,"node":1,"b":6,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":7,"x":2,"node":1,"b":6,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":7,"x":2,"node":1,"b":8,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":7,"x":2,"node":1,"b":8,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":9,"x":2,"node":1,"b":8,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":9,"x":2,"node":1,"b":10,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":9,"x":2,"node":1,"b":10,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":10,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":12,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":12,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":12,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":13,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":13,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":13,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":14,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":14,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":14,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":15,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":15,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":15,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":16,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":16,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":16,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":17,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":17,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":17,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":18,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":18,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":18,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":19,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":19,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":19,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":20,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":20,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":20,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":21,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":21,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":21,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":22,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":22,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":22,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":23,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":23,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":23,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":24,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":24,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":24,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":25,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":25,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":25,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":26,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":26,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":26,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":27,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":27,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":27,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":28,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":28,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":28,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":29,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":29,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":29,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":30,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":30,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":30,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":31,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":31,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":31,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":32,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":32,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":32,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":33,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":33,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":33,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":34,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":34,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":34,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":2,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":2,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":2,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":35,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":35,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":35,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":36,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":36,"bit":36},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":36,"bit":36},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":4,"bit":36},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":4,"bit":36},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":4,"bit":36},null],[4,1,"findMaximumXOR",{"nums":0,"root":11,"x":2,"node":1,"b":4,"bit":36},null],[5,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":4,"bit":36},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":4,"bit":36},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":3,"bit":36},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":3,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":3,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":6,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":6,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":6,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":8,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":8,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":8,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":10,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":10,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":10,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":12,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":12,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":12,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":13,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":13,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":13,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":14,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":14,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":14,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":15,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":15,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":15,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":16,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":16,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":16,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":17,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":17,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":17,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":18,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":18,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":18,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":19,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":19,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":19,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":20,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":20,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":20,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":21,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":21,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":21,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":22,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":22,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":22,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":23,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":23,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":23,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":24,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":24,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":24,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":25,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":25,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":25,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":26,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":26,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":26,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":27,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":27,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":27,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":28,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":28,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":28,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":29,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":29,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":29,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":30,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":30,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":30,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":31,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":31,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":31,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":32,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":32,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":32,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":33,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":11,"b":33,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":37,"b":33,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":37,"b":34,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":37,"b":34,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":38,"b":34,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":38,"b":2,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":38,"b":2,"bit":36},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":2,"bit":36},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":35,"bit":36},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":35,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":35,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":36,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":36,"bit":36},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":36,"bit":36},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":4,"bit":36},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":4,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":4,"bit":4},null],[4,1,"findMaximumXOR",{"nums":0,"root":11,"x":28,"node":1,"b":4,"bit":4},null],[5,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":1,"b":4,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":4,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":3,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":3,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":3,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":6,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":6,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":6,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":8,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":8,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":8,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":10,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":10,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":10,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":12,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":12,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":12,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":13,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":13,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":13,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":14,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":14,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":14,"bit":4},null],[7,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":15,"bit":4},null],[8,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":15,"bit":4},null],[6,1,"findMaximumXOR",{"nums":0,"root":11,"x":33,"node":11,"b":15,"bit":4},null]],"truncated":true}</script>
+        <!-- trace:end 421 -->
+        <!-- explain:start 421 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A 1 in a higher bit beats any combination of lower bits, so the greedy choice per level is optimal.</li>
+          <li>Every number is in the trie, so a path always exists.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 421 -->
+        <!-- enrich-edges:start 421 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One number → 0.</li>
+          <li>All equal → 0.</li>
+          <li>Zero in the array.</li>
+        </ul>
+        <!-- enrich-edges:end 421 -->
+        <p><strong>Complexity:</strong> <code>O(31 · n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 421 -->
+
+    <!-- gen:start 2452 -->
+    <details class="problem" id="p-2452">
+      <summary><span class="tag medium">Medium</span> 2452. Words Within Two Edits of Dictionary <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the queries that can be turned into some dictionary word by changing at most two letters (all words have equal length).</p>
+        <!-- enrich-top:start 2452 -->
+        <p class="links"><a href="https://leetcode.com/problems/words-within-two-edits-of-dictionary/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">queries = ["word","note","ants","wood"], dictionary = ["wood","joke","moat"]</code></div><div><strong>Output:</strong> <code class="ex">["word","note","wood"]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">- Changing the 'r' in "word" to 'o' allows it to equal the dictionary word "wood".
+- Changing the 'n' to 'j' and the 't' to 'k' in "note" changes it to "joke".
+- It would take more than 2 edits for "ants" to equal a dictionary word.
+- "wood" can remain unchanged (0 edits) and match the corresponding dictionary word.
+Thus, we return ["word","note","wood"].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">queries = ["yes"], dictionary = ["not"]</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Applying any two edits to "yes" cannot make it equal to "not". Thus, we return an empty array.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ queries.length, dictionary.length ≤ 100</code> · <code>n == queries[i].length == dictionary[j].length</code> · <code>1 ≤ n ≤ 100</code> · All <code>queries[i]</code> and <code>dictionary[j]</code> are composed of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>All words have the same length. What does an edit mean then?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Count differing positions, with early exit.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is the direct approach and it's fast enough for the limits; a trie with a 2-mismatch budget scales further.</p>
+        <!-- enrich-top:end 2452 -->
+        <p><strong>Spot it:</strong> Equal lengths make an "edit" a letter substitution, so it's a <strong>Hamming distance</strong> check. With ≤ 100 words each, comparing every query with every dictionary word (stopping early) is fast. (A trie with a mismatch budget is the scalable variant.)</p>
+        <p><strong>Why not another pattern?</strong> Generating all words within two substitutions (<code>C(n,2) · 26²</code>) is far bigger than the dictionary.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>For each query, for each dictionary word: count mismatches, stopping after 3.</li>
+          <li>Keep the query if some word has ≤ 2 mismatches.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def twoEditWords(self, queries: List[str], dictionary: List[str]) -&gt; List[str]:
+        def close(a, b):
+            diff = 0
+            for x, y in zip(a, b):
+                if x != y:
+                    diff += 1
+                    if diff &gt; 2:
+                        return False  # already too different
+            return True
+
+        return [q for q in queries if any(close(q, w) for w in dictionary)]  # keeps the original order</code></pre>
+        <!-- trace:start 2452 -->
+        <div class="trace-viz" id="trace-p2452"></div>
+        <script type="application/json" id="trace-p2452-data">{"src":["class Solution:","    def twoEditWords(self, queries: List[str], dictionary: List[str]) -> List[str]:","        def close(a, b):","            diff = 0","            for x, y in zip(a, b):","                if x != y:","                    diff += 1","                    if diff > 2:","                        return False  # already too different","            return True","","        return [q for q in queries if any(close(q, w) for w in dictionary)]  # keeps the original order"],"notes":{"9":"already too different","12":"keeps the original order"},"input":"queries = [\"yes\"], dictionary = [\"not\"]","output":"[]","values":[{"~":"list","v":["yes"]},{"~":"list","v":["not"]},{"~":"obj","v":"list_iterator"},"yes","twoEditWords(queries=[1 items], dictionary=[1 items]) › <genexpr>(.0=list_iterator)","not","twoEditWords(queries=[1 items], dictionary=[1 items]) › <genexpr>(.0=list_iterator) › close(a='yes', b='not')",0,"y","n",1,"e","o",2,"s","t",3,false,null,{"~":"list","v":[]}],"steps":[[3,1,"twoEditWords",{"queries":0,"dictionary":1},null],[12,1,"twoEditWords",{"queries":0,"dictionary":1},null],[12,2,"<genexpr>",{".0":2,"q":3},4],[4,3,"close",{"a":3,"b":5},6],[5,3,"close",{"a":3,"b":5,"diff":7},6],[6,3,"close",{"a":3,"b":5,"diff":7,"x":8,"y":9},6],[7,3,"close",{"a":3,"b":5,"diff":7,"x":8,"y":9},6],[8,3,"close",{"a":3,"b":5,"diff":10,"x":8,"y":9},6],[5,3,"close",{"a":3,"b":5,"diff":10,"x":8,"y":9},6],[6,3,"close",{"a":3,"b":5,"diff":10,"x":11,"y":12},6],[7,3,"close",{"a":3,"b":5,"diff":10,"x":11,"y":12},6],[8,3,"close",{"a":3,"b":5,"diff":13,"x":11,"y":12},6],[5,3,"close",{"a":3,"b":5,"diff":13,"x":11,"y":12},6],[6,3,"close",{"a":3,"b":5,"diff":13,"x":14,"y":15},6],[7,3,"close",{"a":3,"b":5,"diff":13,"x":14,"y":15},6],[8,3,"close",{"a":3,"b":5,"diff":16,"x":14,"y":15},6],[9,3,"close",{"a":3,"b":5,"diff":16,"x":14,"y":15},6],[9,3,"close",{"a":3,"b":5,"diff":16,"x":14,"y":15},6,17],[12,2,"<genexpr>",{".0":2,"q":3,"w":5},4,17],[12,2,"<genexpr>",{".0":2,"q":3,"w":5},4],[12,2,"<genexpr>",{".0":2,"q":3,"w":5},4,18],[12,1,"twoEditWords",{"queries":0,"dictionary":1,"q":3},null],[12,1,"twoEditWords",{"queries":0,"dictionary":1},null,19]],"truncated":false}</script>
+        <!-- trace:end 2452 -->
+        <!-- explain:start 2452 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Same-length words differ only by substitutions, so count mismatched positions.</li>
+          <li>Stopping at 3 mismatches keeps each comparison short.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 2452 -->
+        <!-- enrich-edges:start 2452 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A query equal to a dictionary word.</li>
+          <li>Exactly two mismatches.</li>
+          <li>No matches → [].</li>
+        </ul>
+        <!-- enrich-edges:end 2452 -->
+        <p><strong>Complexity:</strong> <code>O(q · d · n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 2452 -->
+
+    <!-- gen:start 3043 -->
+    <details class="problem" id="p-3043">
+      <summary><span class="tag medium">Medium</span> 3043. Find the Length of the Longest Common Prefix <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Set</span><span class="ds">Trie</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the longest common prefix length (in digits) between any <code>x</code> in <code>arr1</code> and any <code>y</code> in <code>arr2</code>.</p>
+        <!-- enrich-top:start 3043 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-the-length-of-the-longest-common-prefix/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">arr1 = [1,10,100], arr2 = [1000]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are 3 pairs (arr1[i], arr2[j]):
+- The longest common prefix of (1, 1000) is 1.
+- The longest common prefix of (10, 1000) is 10.
+- The longest common prefix of (100, 1000) is 100.
+The longest common prefix is 100 with a length of 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">arr1 = [1,2,3], arr2 = [4,4,4]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There exists no common prefix for any pair (arr1[i], arr2[j]), hence we return 0.
+Note that common prefixes between elements of the same array do not count.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ arr1.length, arr2.length ≤ 5 * 10⁴</code> · <code>1 ≤ arr1[i], arr2[i] ≤ 10⁸</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>List the prefixes of a number using integer division by 10.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store all prefixes of arr1; for each number of arr2, find its longest stored prefix.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> All pairs: <code>O(nm · d)</code>. Prefix set: <code>O((n + m) · d)</code>.</p>
+        <!-- enrich-top:end 3043 -->
+        <p><strong>Spot it:</strong> Prefixes of numbers are <code>x, x // 10, x // 100, …</code> — a path in a <strong>digit trie</strong>. A <strong>hash set</strong> of all prefixes of <code>arr1</code> works the same way: for each <code>y</code>, strip digits until a prefix is found.</p>
+        <p><strong>Why not another pattern?</strong> Comparing all pairs is <code>O(n · m · digits)</code> with <code>n, m = 5·10⁴</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Add every prefix of every <code>x</code> to a set.</li>
+          <li>For each <code>y</code>, while <code>y &gt; 0</code> and <code>y</code> not in the set: <code>y //= 10</code>.</li>
+          <li>The answer is the longest found prefix's digit count.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def longestCommonPrefix(self, arr1: List[int], arr2: List[int]) -&gt; int:
+        prefixes = set()
+        for x in arr1:
+            while x:
+                prefixes.add(x)  # x, x // 10, x // 100, ...
+                x //= 10
+        best = 0
+        for y in arr2:
+            while y and y not in prefixes:
+                y //= 10  # drop the last digit
+            if y:
+                best = max(best, len(str(y)))
+        return best</code></pre>
+        <!-- trace:start 3043 -->
+        <div class="trace-viz" id="trace-p3043"></div>
+        <script type="application/json" id="trace-p3043-data">{"src":["class Solution:","    def longestCommonPrefix(self, arr1: List[int], arr2: List[int]) -> int:","        prefixes = set()","        for x in arr1:","            while x:","                prefixes.add(x)  # x, x // 10, x // 100, ...","                x //= 10","        best = 0","        for y in arr2:","            while y and y not in prefixes:","                y //= 10  # drop the last digit","            if y:","                best = max(best, len(str(y)))","        return best"],"notes":{"6":"x, x // 10, x // 100, ...","11":"drop the last digit"},"input":"arr1 = [1,10,100], arr2 = [1000]","output":"3","values":[{"~":"list","v":[1,10,100]},{"~":"list","v":[1000]},{"~":"set","v":[]},1,{"~":"set","v":[1]},0,10,{"~":"set","v":[1,10]},100,{"~":"set","v":[1,10,100]},1000,3],"steps":[[3,1,"longestCommonPrefix",{"arr1":0,"arr2":1},null],[4,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":2},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":2,"x":3},null],[6,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":2,"x":3},null],[7,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":4,"x":3},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":4,"x":5},null],[4,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":4,"x":5},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":4,"x":6},null],[6,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":4,"x":6},null],[7,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":6},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":3},null],[6,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":3},null],[7,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":3},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":5},null],[4,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":5},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":8},null],[6,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":7,"x":8},null],[7,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":8},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":6},null],[6,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":6},null],[7,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":6},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":3},null],[6,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":3},null],[7,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":3},null],[5,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5},null],[4,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5},null],[8,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5},null],[9,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":5},null],[10,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":5,"y":10},null],[11,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":5,"y":10},null],[10,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":5,"y":8},null],[12,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":5,"y":8},null],[13,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":5,"y":8},null],[9,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":11,"y":8},null],[14,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":11,"y":8},null],[14,1,"longestCommonPrefix",{"arr1":0,"arr2":1,"prefixes":9,"x":5,"best":11,"y":8},null,11]],"truncated":false}</script>
+        <!-- trace:end 3043 -->
+        <!-- explain:start 3043 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Dropping the last digit (<code>// 10</code>) is moving up one level in the digit trie.</li>
+          <li>The first prefix of <code>y</code> found in the set is its longest common prefix with any <code>x</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3043 -->
+        <!-- enrich-edges:start 3043 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No common first digit → 0.</li>
+          <li>Equal numbers.</li>
+          <li>Different lengths (e.g. 1 and 100).</li>
+        </ul>
+        <!-- enrich-edges:end 3043 -->
+        <p><strong>Complexity:</strong> <code>O((n + m) · digits)</code> time, <code>O(n · digits)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3043 -->
+
+    <!-- gen:start 460 -->
+    <details class="problem" id="p-460">
+      <summary><span class="tag hard">Hard</span> 460. LFU Cache <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Hash Map</span><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Design a cache with capacity that evicts the least frequently used key (ties: least recently used). <code>get</code> and <code>put</code> in O(1).</p>
+        <!-- enrich-top:start 460 -->
+        <p class="links"><a href="https://leetcode.com/problems/lfu-cache/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["LFUCache", "put", "put", "get", "put", "get", "get", "put", "get", "get", "get"]
+[[2], [1, 1], [2, 2], [1], [3, 3], [2], [3], [4, 4], [1], [3], [4]]</code></div><div><strong>Output:</strong> <code class="ex">[null, null, null, 1, null, -1, 3, null, -1, 3, 4]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">// cnt(x) = the use counter for key x
+// cache=[] will show the last used order for tiebreakers (leftmost element is most recent)
+LFUCache lfu = new LFUCache(2);
+lfu.put(1, 1); // cache=[1,_], cnt(1)=1
+lfu.put(2, 2); // cache=[2,1], cnt(2)=1, cnt(1)=1
+lfu.get(1); // return 1
+ // cache=[1,2], cnt(2)=1, cnt(1)=2
+lfu.put(3, 3); // 2 is the LFU key because cnt(2)=1 is the smallest, invalidate 2.
+ // cache=[3,1], cnt(3)=1, cnt(1)=2
+lfu.get(2); // return -1 (not found)
+lfu.get(3); // return 3
+ // cache=[3,1], cnt(3)=2, cnt(1)=2
+lfu.put(4, 4); // Both 1 and 3 have the same cnt, but 1 is LRU, invalidate 1.
+ // cache=[4,3], cnt(4)=1, cnt(3)=2
+lfu.get(1); // return -1 (not found)
+lfu.get(3); // return 3
+ // cache=[3,4], cnt(4)=1, cnt(3)=3
+lfu.get(4); // return 4
+ // cache=[4,3], cnt(4)=2, cnt(3)=3</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ capacity ≤ 10⁴</code> · <code>0 ≤ key ≤ 10⁵</code> · <code>0 ≤ value ≤ 10⁹</code> · At most <code>2 * 10⁵</code> calls will be made to <code>get</code> and <code>put</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need LRU order within each frequency.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a map from frequency to an ordered set of keys, plus the minimum frequency.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning for the least frequent key is <code>O(n)</code> per eviction; frequency buckets make it <code>O(1)</code>.</p>
+        <!-- enrich-top:end 460 -->
+        <p><strong>Spot it:</strong> Two levels of <strong>hash maps</strong>: each frequency has its own LRU list (an <code>OrderedDict</code> is a hash map + linked list). Using a key moves it from list <code>f</code> to list <code>f + 1</code>. Eviction pops the oldest key from the list of <code>min_freq</code>.</p>
+        <p><strong>Why not another pattern?</strong> A heap keyed by (freq, time) gives <code>O(log n)</code>, not <code>O(1)</code>; scanning for the LFU key is <code>O(n)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>touch(key)</code>: remove from <code>buckets[freq]</code>; if that was <code>min_freq</code> and it's now empty, <code>min_freq += 1</code>; add to <code>buckets[freq + 1]</code>.</li>
+          <li><code>get</code>: missing → −1; else touch and return.</li>
+          <li><code>put</code>: existing → update value and touch. New: if full, evict the first key of <code>buckets[min_freq]</code>; insert with freq 1, <code>min_freq = 1</code>.</li>
+        </ol>
+        <pre><code class="python">from collections import OrderedDict, defaultdict
+
+class LFUCache:
+    def __init__(self, capacity: int):
+        self.capacity = capacity
+        self.entry = {}  # key -&gt; [value, freq]
+        self.buckets = defaultdict(OrderedDict)  # freq -&gt; keys, least recent first
+        self.min_freq = 0
+
+    def _touch(self, key):
+        value, freq = self.entry[key]
+        del self.buckets[freq][key]
+        if not self.buckets[freq] and freq == self.min_freq:
+            self.min_freq += 1  # that frequency level is now empty
+        self.buckets[freq + 1][key] = None  # most recent in the next level
+        self.entry[key][1] = freq + 1
+
+    def get(self, key: int) -&gt; int:
+        if key not in self.entry:
+            return -1
+        self._touch(key)
+        return self.entry[key][0]
+
+    def put(self, key: int, value: int) -&gt; None:
+        if self.capacity == 0:
+            return
+        if key in self.entry:
+            self.entry[key][0] = value
+            self._touch(key)
+            return
+        if len(self.entry) == self.capacity:
+            old, _ = self.buckets[self.min_freq].popitem(last=False)  # least frequent, then least recent
+            del self.entry[old]
+        self.entry[key] = [value, 1]
+        self.buckets[1][key] = None
+        self.min_freq = 1  # a brand-new key has the lowest frequency</code></pre>
+        <!-- trace:start 460 -->
+        <div class="trace-viz" id="trace-p460"></div>
+        <script type="application/json" id="trace-p460-data">{"src":["from collections import OrderedDict, defaultdict","","class LFUCache:","    def __init__(self, capacity: int):","        self.capacity = capacity","        self.entry = {}  # key -> [value, freq]","        self.buckets = defaultdict(OrderedDict)  # freq -> keys, least recent first","        self.min_freq = 0","","    def _touch(self, key):","        value, freq = self.entry[key]","        del self.buckets[freq][key]","        if not self.buckets[freq] and freq == self.min_freq:","            self.min_freq += 1  # that frequency level is now empty","        self.buckets[freq + 1][key] = None  # most recent in the next level","        self.entry[key][1] = freq + 1","","    def get(self, key: int) -> int:","        if key not in self.entry:","            return -1","        self._touch(key)","        return self.entry[key][0]","","    def put(self, key: int, value: int) -> None:","        if self.capacity == 0:","            return","        if key in self.entry:","            self.entry[key][0] = value","            self._touch(key)","            return","        if len(self.entry) == self.capacity:","            old, _ = self.buckets[self.min_freq].popitem(last=False)  # least frequent, then least recent","            del self.entry[old]","        self.entry[key] = [value, 1]","        self.buckets[1][key] = None","        self.min_freq = 1  # a brand-new key has the lowest frequency"],"notes":{"6":"key -> [value, freq]","7":"freq -> keys, least recent first","14":"that frequency level is now empty","15":"most recent in the next level","32":"least frequent, then least recent","36":"a brand-new key has the lowest frequency"},"input":"[\"LFUCache\", \"put\", \"put\", \"get\", \"put\", \"get\", \"get\", \"put\", \"get\", \"get\", \"get\"]\n[[2], [1, 1], [2, 2], [1], [3, 3], [2], [3], [4, 4], [1], [3], [4]]","output":"[null, null, null, 1, null, -1, 3, null, -1, 3, 4]","values":[2,null,1,"get(key=1) › _touch(key=1)",3,-1,"get(key=3) › _touch(key=3)",4,"get(key=4) › _touch(key=4)"],"steps":[[5,1,"__init__",{"capacity":0},null],[6,1,"__init__",{"capacity":0},null],[7,1,"__init__",{"capacity":0},null],[8,1,"__init__",{"capacity":0},null],[8,1,"__init__",{"capacity":0},null,1],[25,1,"put",{"key":2,"value":2},null],[27,1,"put",{"key":2,"value":2},null],[31,1,"put",{"key":2,"value":2},null],[34,1,"put",{"key":2,"value":2},null],[35,1,"put",{"key":2,"value":2},null],[36,1,"put",{"key":2,"value":2},null],[36,1,"put",{"key":2,"value":2},null,1],[25,1,"put",{"key":0,"value":0},null],[27,1,"put",{"key":0,"value":0},null],[31,1,"put",{"key":0,"value":0},null],[34,1,"put",{"key":0,"value":0},null],[35,1,"put",{"key":0,"value":0},null],[36,1,"put",{"key":0,"value":0},null],[36,1,"put",{"key":0,"value":0},null,1],[19,1,"get",{"key":2},null],[21,1,"get",{"key":2},null],[11,2,"_touch",{"key":2},3],[12,2,"_touch",{"key":2,"value":2,"freq":2},3],[13,2,"_touch",{"key":2,"value":2,"freq":2},3],[15,2,"_touch",{"key":2,"value":2,"freq":2},3],[16,2,"_touch",{"key":2,"value":2,"freq":2},3],[16,2,"_touch",{"key":2,"value":2,"freq":2},3,1],[22,1,"get",{"key":2},null],[22,1,"get",{"key":2},null,2],[25,1,"put",{"key":4,"value":4},null],[27,1,"put",{"key":4,"value":4},null],[31,1,"put",{"key":4,"value":4},null],[32,1,"put",{"key":4,"value":4},null],[33,1,"put",{"key":4,"value":4,"old":0,"_":1},null],[34,1,"put",{"key":4,"value":4,"old":0,"_":1},null],[35,1,"put",{"key":4,"value":4,"old":0,"_":1},null],[36,1,"put",{"key":4,"value":4,"old":0,"_":1},null],[36,1,"put",{"key":4,"value":4,"old":0,"_":1},null,1],[19,1,"get",{"key":0},null],[20,1,"get",{"key":0},null],[20,1,"get",{"key":0},null,5],[19,1,"get",{"key":4},null],[21,1,"get",{"key":4},null],[11,2,"_touch",{"key":4},6],[12,2,"_touch",{"key":4,"value":4,"freq":2},6],[13,2,"_touch",{"key":4,"value":4,"freq":2},6],[14,2,"_touch",{"key":4,"value":4,"freq":2},6],[15,2,"_touch",{"key":4,"value":4,"freq":2},6],[16,2,"_touch",{"key":4,"value":4,"freq":2},6],[16,2,"_touch",{"key":4,"value":4,"freq":2},6,1],[22,1,"get",{"key":4},null],[22,1,"get",{"key":4},null,4],[25,1,"put",{"key":7,"value":7},null],[27,1,"put",{"key":7,"value":7},null],[31,1,"put",{"key":7,"value":7},null],[32,1,"put",{"key":7,"value":7},null],[33,1,"put",{"key":7,"value":7,"old":2,"_":1},null],[34,1,"put",{"key":7,"value":7,"old":2,"_":1},null],[35,1,"put",{"key":7,"value":7,"old":2,"_":1},null],[36,1,"put",{"key":7,"value":7,"old":2,"_":1},null],[36,1,"put",{"key":7,"value":7,"old":2,"_":1},null,1],[19,1,"get",{"key":2},null],[20,1,"get",{"key":2},null],[20,1,"get",{"key":2},null,5],[19,1,"get",{"key":4},null],[21,1,"get",{"key":4},null],[11,2,"_touch",{"key":4},6],[12,2,"_touch",{"key":4,"value":4,"freq":0},6],[13,2,"_touch",{"key":4,"value":4,"freq":0},6],[15,2,"_touch",{"key":4,"value":4,"freq":0},6],[16,2,"_touch",{"key":4,"value":4,"freq":0},6],[16,2,"_touch",{"key":4,"value":4,"freq":0},6,1],[22,1,"get",{"key":4},null],[22,1,"get",{"key":4},null,4],[19,1,"get",{"key":7},null],[21,1,"get",{"key":7},null],[11,2,"_touch",{"key":7},8],[12,2,"_touch",{"key":7,"value":7,"freq":2},8],[13,2,"_touch",{"key":7,"value":7,"freq":2},8],[14,2,"_touch",{"key":7,"value":7,"freq":2},8],[15,2,"_touch",{"key":7,"value":7,"freq":2},8],[16,2,"_touch",{"key":7,"value":7,"freq":2},8],[16,2,"_touch",{"key":7,"value":7,"freq":2},8,1],[22,1,"get",{"key":7},null],[22,1,"get",{"key":7},null,7]],"truncated":false}</script>
+        <!-- trace:end 460 -->
+        <!-- explain:start 460 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each frequency bucket keeps insertion order, so its first key is the least recently used at that frequency.</li>
+          <li><code>min_freq</code> only grows by one when its bucket empties during a touch, and resets to 1 on every insert.</li>
+          <li>All operations are dictionary operations: <code>O(1)</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 460 -->
+        <!-- enrich-edges:start 460 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Capacity 0.</li>
+          <li>Updating an existing key also counts as a use.</li>
+          <li>Ties in frequency (evict the least recent).</li>
+        </ul>
+        <!-- enrich-edges:end 460 -->
+        <p><strong>Complexity:</strong> <code>O(1)</code> per operation, <code>O(capacity)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 460 -->
+
+    <!-- gen:start 588 -->
+    <details class="problem" id="p-588">
+      <summary><span class="tag hard">Hard</span> 588. Design In-Memory File System <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Trie</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Implement <code>ls</code>, <code>mkdir</code>, <code>addContentToFile</code> and <code>readContentFromFile</code> for an in-memory file system.</p>
+        <!-- enrich-top:start 588 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-in-memory-file-system/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["FileSystem","ls","mkdir","addContentToFile","ls","readContentFromFile"]
+[[],["/"],["/a/b/c"],["/a/b/c/d","hello"],["/"],["/a/b/c/d"]]</code></div><div><strong>Output:</strong> <code class="ex">[null,[],null,null,["a"],"hello"]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ path.length, filePath.length ≤ 100</code> · <code>path</code> and <code>filePath</code> are absolute paths which begin with <code>'/'</code> and do not end with <code>'/'</code> except that the path is just <code>"/"</code> · You can assume that all directory names and file names only contain lowercase letters, and the same names will not exist in the same directory · You can assume that all operations will be passed valid parameters, and users will not attempt to retrieve file content or list a directory or file that does not exist · <code>1 ≤ content.length ≤ 50</code> · At most <code>300</code> calls will be made to <code>ls</code>, <code>mkdir</code>, <code>addContentToFile</code>, and <code>readContentFromFile</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Paths share prefixes, like words in a trie.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store children by name; mark files with their content.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> A flat map of full paths needs a scan for <code>ls</code>; the trie lists children directly.</p>
+        <!-- enrich-top:end 588 -->
+        <p><strong>Spot it:</strong> Paths are sequences of names sharing prefixes → a <strong>trie</strong> whose children are a <strong>hash map</strong> by name. A node with content is a file.</p>
+        <p><strong>Why not another pattern?</strong> Storing full path strings in one dict makes <code>ls</code> a scan over every path.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>walk(path)</code>: split by <code>/</code>, follow (creating) children.</li>
+          <li><code>ls</code>: a file lists its own name; a directory lists its children sorted.</li>
+          <li><code>mkdir</code>: walk with creation. <code>addContentToFile</code>: walk and append. <code>readContentFromFile</code>: walk and return.</li>
+        </ol>
+        <pre><code class="python">class FileSystem:
+    def __init__(self):
+        self.root = {"children": {}, "content": None}  # content is None for directories
+
+    def _walk(self, path):
+        node = self.root
+        for name in path.split("/"):
+            if name:
+                node = node["children"].setdefault(name, {"children": {}, "content": None})  # create on the way
+        return node
+
+    def ls(self, path: str) -&gt; List[str]:
+        node = self._walk(path)
+        if node["content"] is not None:
+            return [path.split("/")[-1]]  # a file lists itself
+        return sorted(node["children"])
+
+    def mkdir(self, path: str) -&gt; None:
+        self._walk(path)
+
+    def addContentToFile(self, filePath: str, content: str) -&gt; None:
+        node = self._walk(filePath)
+        node["content"] = (node["content"] or "") + content  # create or append
+
+    def readContentFromFile(self, filePath: str) -&gt; str:
+        return self._walk(filePath)["content"]</code></pre>
+        <!-- trace:start 588 -->
+        <div class="trace-viz" id="trace-p588"></div>
+        <script type="application/json" id="trace-p588-data">{"src":["class FileSystem:","    def __init__(self):","        self.root = {\"children\": {}, \"content\": None}  # content is None for directories","","    def _walk(self, path):","        node = self.root","        for name in path.split(\"/\"):","            if name:","                node = node[\"children\"].setdefault(name, {\"children\": {}, \"content\": None})  # create on the way","        return node","","    def ls(self, path: str) -> List[str]:","        node = self._walk(path)","        if node[\"content\"] is not None:","            return [path.split(\"/\")[-1]]  # a file lists itself","        return sorted(node[\"children\"])","","    def mkdir(self, path: str) -> None:","        self._walk(path)","","    def addContentToFile(self, filePath: str, content: str) -> None:","        node = self._walk(filePath)","        node[\"content\"] = (node[\"content\"] or \"\") + content  # create or append","","    def readContentFromFile(self, filePath: str) -> str:","        return self._walk(filePath)[\"content\"]"],"notes":{"3":"content is None for directories","9":"create on the way","15":"a file lists itself","23":"create or append"},"input":"[\"FileSystem\",\"ls\",\"mkdir\",\"addContentToFile\",\"ls\",\"readContentFromFile\"]\n[[],[\"/\"],[\"/a/b/c\"],[\"/a/b/c/d\",\"hello\"],[\"/\"],[\"/a/b/c/d\"]]","output":"[null,[],null,null,[\"a\"],\"hello\"]","values":[null,"/","ls(path='/') › _walk(path='/')",{"~":"dict","v":[["children",{"~":"dict","v":[]}],["content",null]]},"",{"~":"list","v":[]},"/a/b/c","mkdir(path='/a/b/c') › _walk(path='/a/b/c')","a","b","c","/a/b/c/d","hello","addContentToFile(filePath='/a/b/c/d', content='hello') › _walk(path='/a/b/c/d')",{"~":"dict","v":[["children",{"~":"dict","v":[["a",{"~":"dict","v":[["children",{"~":"dict","v":[["b",{"~":"obj","v":"…"}]]}],["content",null]]}]]}],["content",null]]},{"~":"dict","v":[["children",{"~":"dict","v":[["b",{"~":"dict","v":[["children",{"~":"dict","v":[["c",{"~":"obj","v":"…"}]]}],["content",null]]}]]}],["content",null]]},{"~":"dict","v":[["children",{"~":"dict","v":[["c",{"~":"dict","v":[["children",{"~":"dict","v":[]}],["content",null]]}]]}],["content",null]]},"d",{"~":"dict","v":[["children",{"~":"dict","v":[]}],["content","hello"]]},{"~":"list","v":["a"]},"readContentFromFile(filePath='/a/b/c/d') › _walk(path='/a/b/c/d')",{"~":"dict","v":[["children",{"~":"dict","v":[["c",{"~":"dict","v":[["children",{"~":"dict","v":[["d",{"~":"obj","v":"…"}]]}],["content",null]]}]]}],["content",null]]},{"~":"dict","v":[["children",{"~":"dict","v":[["d",{"~":"dict","v":[["children",{"~":"dict","v":[]}],["content","hello"]]}]]}],["content",null]]}],"steps":[[3,1,"__init__",{},null],[3,1,"__init__",{},null,0],[13,1,"ls",{"path":1},null],[6,2,"_walk",{"path":1},2],[7,2,"_walk",{"path":1,"node":3},2],[8,2,"_walk",{"path":1,"node":3,"name":4},2],[7,2,"_walk",{"path":1,"node":3,"name":4},2],[8,2,"_walk",{"path":1,"node":3,"name":4},2],[7,2,"_walk",{"path":1,"node":3,"name":4},2],[10,2,"_walk",{"path":1,"node":3,"name":4},2],[10,2,"_walk",{"path":1,"node":3,"name":4},2,3],[14,1,"ls",{"path":1,"node":3},null],[16,1,"ls",{"path":1,"node":3},null],[16,1,"ls",{"path":1,"node":3},null,5],[19,1,"mkdir",{"path":6},null],[6,2,"_walk",{"path":6},7],[7,2,"_walk",{"path":6,"node":3},7],[8,2,"_walk",{"path":6,"node":3,"name":4},7],[7,2,"_walk",{"path":6,"node":3,"name":4},7],[8,2,"_walk",{"path":6,"node":3,"name":8},7],[9,2,"_walk",{"path":6,"node":3,"name":8},7],[7,2,"_walk",{"path":6,"node":3,"name":8},7],[8,2,"_walk",{"path":6,"node":3,"name":9},7],[9,2,"_walk",{"path":6,"node":3,"name":9},7],[7,2,"_walk",{"path":6,"node":3,"name":9},7],[8,2,"_walk",{"path":6,"node":3,"name":10},7],[9,2,"_walk",{"path":6,"node":3,"name":10},7],[7,2,"_walk",{"path":6,"node":3,"name":10},7],[10,2,"_walk",{"path":6,"node":3,"name":10},7],[10,2,"_walk",{"path":6,"node":3,"name":10},7,3],[19,1,"mkdir",{"path":6},null,0],[22,1,"addContentToFile",{"filePath":11,"content":12},null],[6,2,"_walk",{"path":11},13],[7,2,"_walk",{"path":11,"node":14},13],[8,2,"_walk",{"path":11,"node":14,"name":4},13],[7,2,"_walk",{"path":11,"node":14,"name":4},13],[8,2,"_walk",{"path":11,"node":14,"name":8},13],[9,2,"_walk",{"path":11,"node":14,"name":8},13],[7,2,"_walk",{"path":11,"node":15,"name":8},13],[8,2,"_walk",{"path":11,"node":15,"name":9},13],[9,2,"_walk",{"path":11,"node":15,"name":9},13],[7,2,"_walk",{"path":11,"node":16,"name":9},13],[8,2,"_walk",{"path":11,"node":16,"name":10},13],[9,2,"_walk",{"path":11,"node":16,"name":10},13],[7,2,"_walk",{"path":11,"node":3,"name":10},13],[8,2,"_walk",{"path":11,"node":3,"name":17},13],[9,2,"_walk",{"path":11,"node":3,"name":17},13],[7,2,"_walk",{"path":11,"node":3,"name":17},13],[10,2,"_walk",{"path":11,"node":3,"name":17},13],[10,2,"_walk",{"path":11,"node":3,"name":17},13,3],[23,1,"addContentToFile",{"filePath":11,"content":12,"node":3},null],[23,1,"addContentToFile",{"filePath":11,"content":12,"node":18},null,0],[13,1,"ls",{"path":1},null],[6,2,"_walk",{"path":1},2],[7,2,"_walk",{"path":1,"node":14},2],[8,2,"_walk",{"path":1,"node":14,"name":4},2],[7,2,"_walk",{"path":1,"node":14,"name":4},2],[8,2,"_walk",{"path":1,"node":14,"name":4},2],[7,2,"_walk",{"path":1,"node":14,"name":4},2],[10,2,"_walk",{"path":1,"node":14,"name":4},2],[10,2,"_walk",{"path":1,"node":14,"name":4},2,14],[14,1,"ls",{"path":1,"node":14},null],[16,1,"ls",{"path":1,"node":14},null],[16,1,"ls",{"path":1,"node":14},null,19],[26,1,"readContentFromFile",{"filePath":11},null],[6,2,"_walk",{"path":11},20],[7,2,"_walk",{"path":11,"node":14},20],[8,2,"_walk",{"path":11,"node":14,"name":4},20],[7,2,"_walk",{"path":11,"node":14,"name":4},20],[8,2,"_walk",{"path":11,"node":14,"name":8},20],[9,2,"_walk",{"path":11,"node":14,"name":8},20],[7,2,"_walk",{"path":11,"node":15,"name":8},20],[8,2,"_walk",{"path":11,"node":15,"name":9},20],[9,2,"_walk",{"path":11,"node":15,"name":9},20],[7,2,"_walk",{"path":11,"node":21,"name":9},20],[8,2,"_walk",{"path":11,"node":21,"name":10},20],[9,2,"_walk",{"path":11,"node":21,"name":10},20],[7,2,"_walk",{"path":11,"node":22,"name":10},20],[8,2,"_walk",{"path":11,"node":22,"name":17},20],[9,2,"_walk",{"path":11,"node":22,"name":17},20],[7,2,"_walk",{"path":11,"node":18,"name":17},20],[10,2,"_walk",{"path":11,"node":18,"name":17},20],[10,2,"_walk",{"path":11,"node":18,"name":17},20,18],[26,1,"readContentFromFile",{"filePath":11},null,12]],"truncated":false}</script>
+        <!-- trace:end 588 -->
+        <!-- explain:start 588 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each <code>/</code>-separated name is one trie level.</li>
+          <li>Directories and files share the node shape; <code>content</code> tells them apart.</li>
+          <li><code>ls</code> sorts names lexicographically as required.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 588 -->
+        <!-- enrich-edges:start 588 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>ls</code> on a file.</li>
+          <li><code>ls("/")</code> on an empty system.</li>
+          <li>Appending to an existing file.</li>
+        </ul>
+        <!-- enrich-edges:end 588 -->
+        <p><strong>Complexity:</strong> <code>O(path length)</code> per operation, plus <code>O(k log k)</code> for sorting <code>k</code> names in <code>ls</code>.</p>
+      </div>
+    </details>
+    <!-- gen:end 588 -->
+
+    <!-- gen:start 642 -->
+    <details class="problem" id="p-642">
+      <summary><span class="tag hard">Hard</span> 642. Design Search Autocomplete System <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Trie</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Typing characters one at a time, return the top 3 historical sentences with the typed prefix (by count, then ASCII). <code>#</code> ends the sentence, records it, and returns <code>[]</code>.</p>
+        <!-- enrich-top:start 642 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-search-autocomplete-system/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> <span class="idx">(Premium)</span></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["AutocompleteSystem","input","input","input","input"]
+[[["i love you","island","iroman","i love leetcode"],[5,3,2,2]],["i"],[" "],["a"],["#"]]</code></div><div><strong>Output:</strong> <code class="ex">[null,["i love you","island","i love leetcode"],["i love you","i love leetcode"],[],[]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"i love leetcode" and "iroman" both have count 2; the space sorts before 'r'. After `#`, "i a" is recorded with count 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == sentences.length</code> · <code>n == times.length</code> · <code>1 ≤ n ≤ 100</code> · <code>1 ≤ sentences[i].length ≤ 100</code> · <code>1 ≤ times[i] ≤ 50</code> · <code>c</code> is a lowercase English letter, a hash <code>'#'</code>, or space <code>' '</code> · Each tested sentence will be a sequence of characters <code>c</code> that end with the character <code>'#'</code> · Each tested sentence will have a length in the range <code>[1, 200]</code> · At most <code>5000</code> calls will be made to <code>input</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Prefix searches suggest a trie.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Store, at each node, the sentences under it with their counts so ranking is quick.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Filtering all sentences by prefix on each keystroke is slow; the trie jumps straight to the candidates.</p>
+        <!-- enrich-top:end 642 -->
+        <p><strong>Spot it:</strong> Prefix lookups → a <strong>trie</strong>. Each node stores the sentences passing through it with their counts (a <strong>hash map</strong>); the top 3 come from a small sort or heap.</p>
+        <p><strong>Why not another pattern?</strong> Scanning every sentence on each keystroke is <code>O(total sentences · length)</code> per call.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Insert each sentence: every node on its path records <code>counts[sentence]</code>.</li>
+          <li><code>input(c)</code>: on <code>#</code>, add the typed sentence with +1 and reset. Otherwise extend the prefix and move down the trie (or fall off).</li>
+          <li>Return the 3 smallest by <code>(−count, sentence)</code> among the node's sentences.</li>
+        </ol>
+        <pre><code class="python">import heapq
+
+class AutocompleteSystem:
+    def __init__(self, sentences: List[str], times: List[int]):
+        self.root = {"next": {}, "hot": {}}  # hot: sentence -&gt; count, for sentences under this node
+        for s, t in zip(sentences, times):
+            self._add(s, t)
+        self.typed = ""
+        self.node = self.root
+
+    def _add(self, sentence, count):
+        node = self.root
+        for ch in sentence:
+            node = node["next"].setdefault(ch, {"next": {}, "hot": {}})
+            node["hot"][sentence] = node["hot"].get(sentence, 0) + count  # every prefix node knows it
+
+    def input(self, c: str) -&gt; List[str]:
+        if c == "#":
+            self._add(self.typed, 1)  # record the finished sentence
+            self.typed = ""
+            self.node = self.root
+            return []
+        self.typed += c
+        if self.node is not None:
+            self.node = self.node["next"].get(c)  # None once no sentence has this prefix
+        if self.node is None:
+            return []
+        return heapq.nsmallest(3, self.node["hot"], key=lambda s: (-self.node["hot"][s], s))  # hottest, then ASCII</code></pre>
+        <!-- trace:start 642 -->
+        <div class="trace-viz" id="trace-p642"></div>
+        <script type="application/json" id="trace-p642-data">{"src":["import heapq","","class AutocompleteSystem:","    def __init__(self, sentences: List[str], times: List[int]):","        self.root = {\"next\": {}, \"hot\": {}}  # hot: sentence -> count, for sentences under this node","        for s, t in zip(sentences, times):","            self._add(s, t)","        self.typed = \"\"","        self.node = self.root","","    def _add(self, sentence, count):","        node = self.root","        for ch in sentence:","            node = node[\"next\"].setdefault(ch, {\"next\": {}, \"hot\": {}})","            node[\"hot\"][sentence] = node[\"hot\"].get(sentence, 0) + count  # every prefix node knows it","","    def input(self, c: str) -> List[str]:","        if c == \"#\":","            self._add(self.typed, 1)  # record the finished sentence","            self.typed = \"\"","            self.node = self.root","            return []","        self.typed += c","        if self.node is not None:","            self.node = self.node[\"next\"].get(c)  # None once no sentence has this prefix","        if self.node is None:","            return []","        return heapq.nsmallest(3, self.node[\"hot\"], key=lambda s: (-self.node[\"hot\"][s], s))  # hottest, then ASCII"],"notes":{"5":"hot: sentence -> count, for sentences under this node","15":"every prefix node knows it","18":"\":","19":"record the finished sentence","25":"None once no sentence has this prefix","28":"hottest, then ASCII"},"input":"[\"AutocompleteSystem\",\"input\",\"input\",\"input\",\"input\"]\n[[[\"i love you\",\"island\",\"iroman\",\"i love leetcode\"],[5,3,2,2]],[\"i\"],[\" \"],[\"a\"],[\"#\"]]","output":"[null,[\"i love you\",\"island\",\"i love leetcode\"],[\"i love you\",\"i love leetcode\"],[],[]]","values":[{"~":"list","v":["i love you","island","iroman","i love leetcode"]},{"~":"list","v":[5,3,2,2]},"i love you",5,"__init__(sentences=[4 items], times=[4 items]) › _add(sentence='i love you', count=5)",{"~":"dict","v":[["next",{"~":"dict","v":[]}],["hot",{"~":"dict","v":[]}]]},"i",{"~":"dict","v":[["next",{"~":"dict","v":[]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}," ","l","o","v","e","y","u",null,"island",3,"__init__(sentences=[4 items], times=[4 items]) › _add(sentence='island', count=3)",{"~":"dict","v":[["next",{"~":"dict","v":[["i",{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3]]}]]},"s",{"~":"dict","v":[["next",{"~":"dict","v":[]}],["hot",{"~":"dict","v":[["island",3]]}]]},"a","n","d","iroman",2,"__init__(sentences=[4 items], times=[4 items]) › _add(sentence='iroman', count=2)",{"~":"dict","v":[["next",{"~":"dict","v":[["i",{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"obj","v":"…"}],["s",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3]]}]]}]]}],["hot",{"~":"dict","v":[]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}],["s",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["island",3]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}],["s",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["island",3]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2]]}]]},"r",{"~":"dict","v":[["next",{"~":"dict","v":[]}],["hot",{"~":"dict","v":[["iroman",2]]}]]},"m","i love leetcode","__init__(sentences=[4 items], times=[4 items]) › _add(sentence='i love lee…', count=2)",{"~":"dict","v":[["next",{"~":"dict","v":[["i",{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"obj","v":"…"}],["s",{"~":"obj","v":"…"}],["r",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2]]}]]}]]}],["hot",{"~":"dict","v":[]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}],["s",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["island",3]]}]]}],["r",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["iroman",2]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}],["s",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["island",3]]}]]}],["r",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["iroman",2]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"dict","v":[["next",{"~":"dict","v":[["v",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"dict","v":[["next",{"~":"dict","v":[["v",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["v",{"~":"dict","v":[["next",{"~":"dict","v":[["e",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["v",{"~":"dict","v":[["next",{"~":"dict","v":[["e",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["e",{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["e",{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["y",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["y",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["y",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["y",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[]}],["hot",{"~":"dict","v":[["i love leetcode",2]]}]]},"t","c","input(c='i') › <lambda>(s='i love you')",{"~":"tuple","v":[-5,"i love you"]},"input(c='i') › <lambda>(s='island')",{"~":"tuple","v":[-3,"island"]},"input(c='i') › <lambda>(s='iroman')",{"~":"tuple","v":[-2,"iroman"]},"input(c='i') › <lambda>(s='i love lee…')",{"~":"tuple","v":[-2,"i love leetcode"]},{"~":"list","v":["i love you","island","i love leetcode"]},"input(c=' ') › <lambda>(s='i love you')","input(c=' ') › <lambda>(s='i love lee…')",{"~":"list","v":["i love you","i love leetcode"]},{"~":"list","v":[]},"#","i a",1,"input(c='#') › _add(sentence='i a', count=1)",{"~":"dict","v":[["next",{"~":"dict","v":[["i",{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"obj","v":"…"}],["s",{"~":"obj","v":"…"}],["r",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2],["i love leetcode",2]]}]]}]]}],["hot",{"~":"dict","v":[]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]}],["s",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["island",3]]}]]}],["r",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["iroman",2]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[[" ",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]}],["s",{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["island",3]]}]]}],["r",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["iroman",2]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["island",3],["iroman",2],["i love leetcode",2],["i a",1]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[["l",{"~":"dict","v":[["next",{"~":"dict","v":[["o",{"~":"obj","v":"…"}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2]]}]]}]]}],["hot",{"~":"dict","v":[["i love you",5],["i love leetcode",2],["i a",1]]}]]},{"~":"dict","v":[["next",{"~":"dict","v":[]}],["hot",{"~":"dict","v":[["i a",1]]}]]},"input(c='i') › <lambda>(s='i a')",{"~":"tuple","v":[-1,"i a"]}],"steps":[[5,1,"__init__",{"sentences":0,"times":1},null],[6,1,"__init__",{"sentences":0,"times":1},null],[7,1,"__init__",{"sentences":0,"times":1,"s":2,"t":3},null],[12,2,"_add",{"sentence":2,"count":3},4],[13,2,"_add",{"sentence":2,"count":3,"node":5},4],[14,2,"_add",{"sentence":2,"count":3,"node":5,"ch":6},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":6},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":6},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":8},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":8},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":8},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":9},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":9},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":9},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":10},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":10},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":10},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":11},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":11},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":11},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":12},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":12},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":12},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":8},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":8},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":8},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":13},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":13},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":13},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":10},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":10},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":10},4],[14,2,"_add",{"sentence":2,"count":3,"node":7,"ch":14},4],[15,2,"_add",{"sentence":2,"count":3,"node":5,"ch":14},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":14},4],[13,2,"_add",{"sentence":2,"count":3,"node":7,"ch":14},4,15],[6,1,"__init__",{"sentences":0,"times":1,"s":2,"t":3},null],[7,1,"__init__",{"sentences":0,"times":1,"s":16,"t":17},null],[12,2,"_add",{"sentence":16,"count":17},18],[13,2,"_add",{"sentence":16,"count":17,"node":19},18],[14,2,"_add",{"sentence":16,"count":17,"node":19,"ch":6},18],[15,2,"_add",{"sentence":16,"count":17,"node":20,"ch":6},18],[13,2,"_add",{"sentence":16,"count":17,"node":21,"ch":6},18],[14,2,"_add",{"sentence":16,"count":17,"node":21,"ch":22},18],[15,2,"_add",{"sentence":16,"count":17,"node":5,"ch":22},18],[13,2,"_add",{"sentence":16,"count":17,"node":23,"ch":22},18],[14,2,"_add",{"sentence":16,"count":17,"node":23,"ch":9},18],[15,2,"_add",{"sentence":16,"count":17,"node":5,"ch":9},18],[13,2,"_add",{"sentence":16,"count":17,"node":23,"ch":9},18],[14,2,"_add",{"sentence":16,"count":17,"node":23,"ch":24},18],[15,2,"_add",{"sentence":16,"count":17,"node":5,"ch":24},18],[13,2,"_add",{"sentence":16,"count":17,"node":23,"ch":24},18],[14,2,"_add",{"sentence":16,"count":17,"node":23,"ch":25},18],[15,2,"_add",{"sentence":16,"count":17,"node":5,"ch":25},18],[13,2,"_add",{"sentence":16,"count":17,"node":23,"ch":25},18],[14,2,"_add",{"sentence":16,"count":17,"node":23,"ch":26},18],[15,2,"_add",{"sentence":16,"count":17,"node":5,"ch":26},18],[13,2,"_add",{"sentence":16,"count":17,"node":23,"ch":26},18],[13,2,"_add",{"sentence":16,"count":17,"node":23,"ch":26},18,15],[6,1,"__init__",{"sentences":0,"times":1,"s":16,"t":17},null],[7,1,"__init__",{"sentences":0,"times":1,"s":27,"t":28},null],[12,2,"_add",{"sentence":27,"count":28},29],[13,2,"_add",{"sentence":27,"count":28,"node":30},29],[14,2,"_add",{"sentence":27,"count":28,"node":30,"ch":6},29],[15,2,"_add",{"sentence":27,"count":28,"node":31,"ch":6},29],[13,2,"_add",{"sentence":27,"count":28,"node":32,"ch":6},29],[14,2,"_add",{"sentence":27,"count":28,"node":32,"ch":33},29],[15,2,"_add",{"sentence":27,"count":28,"node":5,"ch":33},29],[13,2,"_add",{"sentence":27,"count":28,"node":34,"ch":33},29],[14,2,"_add",{"sentence":27,"count":28,"node":34,"ch":10},29],[15,2,"_add",{"sentence":27,"count":28,"node":5,"ch":10},29],[13,2,"_add",{"sentence":27,"count":28,"node":34,"ch":10},29],[14,2,"_add",{"sentence":27,"count":28,"node":34,"ch":35},29],[15,2,"_add",{"sentence":27,"count":28,"node":5,"ch":35},29],[13,2,"_add",{"sentence":27,"count":28,"node":34,"ch":35},29],[14,2,"_add",{"sentence":27,"count":28,"node":34,"ch":24},29],[15,2,"_add",{"sentence":27,"count":28,"node":5,"ch":24},29],[13,2,"_add",{"sentence":27,"count":28,"node":34,"ch":24},29],[14,2,"_add",{"sentence":27,"count":28,"node":34,"ch":25},29],[15,2,"_add",{"sentence":27,"count":28,"node":5,"ch":25},29],[13,2,"_add",{"sentence":27,"count":28,"node":34,"ch":25},29],[13,2,"_add",{"sentence":27,"count":28,"node":34,"ch":25},29,15],[6,1,"__init__",{"sentences":0,"times":1,"s":27,"t":28},null],[7,1,"__init__",{"sentences":0,"times":1,"s":36,"t":28},null],[12,2,"_add",{"sentence":36,"count":28},37],[13,2,"_add",{"sentence":36,"count":28,"node":38},37],[14,2,"_add",{"sentence":36,"count":28,"node":38,"ch":6},37],[15,2,"_add",{"sentence":36,"count":28,"node":39,"ch":6},37],[13,2,"_add",{"sentence":36,"count":28,"node":40,"ch":6},37],[14,2,"_add",{"sentence":36,"count":28,"node":40,"ch":8},37],[15,2,"_add",{"sentence":36,"count":28,"node":41,"ch":8},37],[13,2,"_add",{"sentence":36,"count":28,"node":42,"ch":8},37],[14,2,"_add",{"sentence":36,"count":28,"node":42,"ch":9},37],[15,2,"_add",{"sentence":36,"count":28,"node":43,"ch":9},37],[13,2,"_add",{"sentence":36,"count":28,"node":44,"ch":9},37],[14,2,"_add",{"sentence":36,"count":28,"node":44,"ch":10},37],[15,2,"_add",{"sentence":36,"count":28,"node":45,"ch":10},37],[13,2,"_add",{"sentence":36,"count":28,"node":46,"ch":10},37],[14,2,"_add",{"sentence":36,"count":28,"node":46,"ch":11},37],[15,2,"_add",{"sentence":36,"count":28,"node":47,"ch":11},37],[13,2,"_add",{"sentence":36,"count":28,"node":48,"ch":11},37],[14,2,"_add",{"sentence":36,"count":28,"node":48,"ch":12},37],[15,2,"_add",{"sentence":36,"count":28,"node":49,"ch":12},37],[13,2,"_add",{"sentence":36,"count":28,"node":50,"ch":12},37],[14,2,"_add",{"sentence":36,"count":28,"node":50,"ch":8},37],[15,2,"_add",{"sentence":36,"count":28,"node":51,"ch":8},37],[13,2,"_add",{"sentence":36,"count":28,"node":52,"ch":8},37],[14,2,"_add",{"sentence":36,"count":28,"node":52,"ch":9},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":9},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":9},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":12},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":12},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":54},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":54},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":54},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":55},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":55},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":55},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":10},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":10},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":10},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":26},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":26},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":26},37],[14,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37],[15,2,"_add",{"sentence":36,"count":28,"node":5,"ch":12},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37],[13,2,"_add",{"sentence":36,"count":28,"node":53,"ch":12},37,15],[6,1,"__init__",{"sentences":0,"times":1,"s":36,"t":28},null],[8,1,"__init__",{"sentences":0,"times":1,"s":36,"t":28},null],[9,1,"__init__",{"sentences":0,"times":1,"s":36,"t":28},null],[9,1,"__init__",{"sentences":0,"times":1,"s":36,"t":28},null,15],[18,1,"input",{"c":6},null],[23,1,"input",{"c":6},null],[24,1,"input",{"c":6},null],[25,1,"input",{"c":6},null],[26,1,"input",{"c":6},null],[28,1,"input",{"c":6},null],[28,2,"<lambda>",{"s":2},56],[28,2,"<lambda>",{"s":2},56,57],[28,2,"<lambda>",{"s":16},58],[28,2,"<lambda>",{"s":16},58,59],[28,2,"<lambda>",{"s":27},60],[28,2,"<lambda>",{"s":27},60,61],[28,2,"<lambda>",{"s":36},62],[28,2,"<lambda>",{"s":36},62,63],[28,1,"input",{"c":6},null,64],[18,1,"input",{"c":8},null],[23,1,"input",{"c":8},null],[24,1,"input",{"c":8},null],[25,1,"input",{"c":8},null],[26,1,"input",{"c":8},null],[28,1,"input",{"c":8},null],[28,2,"<lambda>",{"s":2},65],[28,2,"<lambda>",{"s":2},65,57],[28,2,"<lambda>",{"s":36},66],[28,2,"<lambda>",{"s":36},66,63],[28,1,"input",{"c":8},null,67],[18,1,"input",{"c":24},null],[23,1,"input",{"c":24},null],[24,1,"input",{"c":24},null],[25,1,"input",{"c":24},null],[26,1,"input",{"c":24},null],[27,1,"input",{"c":24},null],[27,1,"input",{"c":24},null,68],[18,1,"input",{"c":69},null],[19,1,"input",{"c":69},null],[12,2,"_add",{"sentence":70,"count":71},72],[13,2,"_add",{"sentence":70,"count":71,"node":73},72],[14,2,"_add",{"sentence":70,"count":71,"node":73,"ch":6},72],[15,2,"_add",{"sentence":70,"count":71,"node":74,"ch":6},72],[13,2,"_add",{"sentence":70,"count":71,"node":75,"ch":6},72],[14,2,"_add",{"sentence":70,"count":71,"node":75,"ch":8},72],[15,2,"_add",{"sentence":70,"count":71,"node":76,"ch":8},72],[13,2,"_add",{"sentence":70,"count":71,"node":77,"ch":8},72],[14,2,"_add",{"sentence":70,"count":71,"node":77,"ch":24},72],[15,2,"_add",{"sentence":70,"count":71,"node":5,"ch":24},72],[13,2,"_add",{"sentence":70,"count":71,"node":78,"ch":24},72],[13,2,"_add",{"sentence":70,"count":71,"node":78,"ch":24},72,15],[20,1,"input",{"c":69},null],[21,1,"input",{"c":69},null],[22,1,"input",{"c":69},null],[22,1,"input",{"c":69},null,68],[18,1,"input",{"c":6},null],[23,1,"input",{"c":6},null],[24,1,"input",{"c":6},null],[25,1,"input",{"c":6},null],[26,1,"input",{"c":6},null],[28,1,"input",{"c":6},null],[28,2,"<lambda>",{"s":2},56],[28,2,"<lambda>",{"s":2},56,57],[28,2,"<lambda>",{"s":16},58],[28,2,"<lambda>",{"s":16},58,59],[28,2,"<lambda>",{"s":27},60],[28,2,"<lambda>",{"s":27},60,61],[28,2,"<lambda>",{"s":36},62],[28,2,"<lambda>",{"s":36},62,63],[28,2,"<lambda>",{"s":70},79],[28,2,"<lambda>",{"s":70},79,80],[28,1,"input",{"c":6},null,64]],"truncated":false}</script>
+        <!-- trace:end 642 -->
+        <!-- explain:start 642 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each trie node keeps the counts of all sentences with that prefix, so a lookup needs no subtree walk.</li>
+          <li>Once the prefix leaves the trie, <code>node</code> stays <code>None</code> until <code>#</code>.</li>
+          <li><code>nsmallest</code> with key <code>(−count, sentence)</code> ranks by count descending, then lexicographically.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 642 -->
+        <!-- enrich-edges:start 642 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A prefix nobody has typed.</li>
+          <li>Ties in count (ASCII order, space before letters).</li>
+          <li>A new sentence becoming hot after <code>#</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 642 -->
+        <p><strong>Complexity:</strong> <code>input</code>: <code>O(k log 3)</code> for <code>k</code> sentences under the node; inserting a sentence is <code>O(length)</code>.</p>
+      </div>
+    </details>
+    <!-- gen:end 642 -->
 
     <nav class="pager">
       <a href="18-greedy.html"><small>Previous pattern</small>← 18 · Greedy</a>

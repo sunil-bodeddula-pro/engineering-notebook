@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 05 of 21</div>
+    <div class="eyebrow">Pattern 05 of 24</div>
     <h1>LinkedList In-place Reversal</h1>
     <p class="lede">Reverse a linked list (or just a piece of it) by flipping each arrow to point backwards, one node at a time, using three pointers and no extra memory.</p>
 
@@ -714,7 +857,7 @@ def reverse_between(head, left, right):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-25" open>
-      <summary><span class="tag hard">Hard</span> 25. Reverse Nodes in k-Group <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 25. Reverse Nodes in k-Group <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the nodes of the list <code>k</code> at a time. If the last group has fewer than <code>k</code> nodes, leave it as it is. Only change links, not values.</p>
         <!-- enrich-top:start 25 -->
@@ -776,6 +919,10 @@ def reverse_between(head, left, right):
             # The old first node is now the group's tail, so it is
             # the node BEFORE the next group.
             group_prev = group_first</code></pre>
+        <!-- trace:start 25 -->
+        <div class="trace-viz" id="trace-p25"></div>
+        <script type="application/json" id="trace-p25-data">{"src":["class Solution:","    def reverseKGroup(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:","        # The head changes after the first group, so put a dummy in front.","        dummy = ListNode(0, head)","        # group_prev = the node just BEFORE the group we are working on.","        group_prev = dummy","        while True:","            # --- 1) Is there a full group of k nodes? ---","            # Walk k steps from group_prev. We land on the k-th node of the group.","            kth = group_prev","            for step in range(k):","                kth = kth.next","                if kth is None:","                    # Fewer than k nodes are left: leave them as they are.","                    return dummy.next","            # The first node AFTER this group (it may be None).","            group_next = kth.next","            # The group's first node. After reversing, it will be the group's LAST node.","            group_first = group_prev.next","","            # --- 2) Reverse the k nodes of this group (save, flip, step, step). ---","            # Trick: prev_node starts at group_next instead of None, so the old","            # first node automatically ends up pointing at the rest of the list.","            prev_node = group_next","            current = group_first","            while current is not group_next:","                next_node = current.next      # save the rest","                current.next = prev_node      # flip the arrow","                prev_node = current           # step prev_node","                current = next_node           # step current","","            # --- 3) Stitch the front of the group back in. ---","            # kth was the group's last node; now it is the group's first node.","            group_prev.next = kth","            # The old first node is now the group's tail, so it is","            # the node BEFORE the next group.","            group_prev = group_first"],"notes":{"4":"The head changes after the first group, so put a dummy in front.","6":"group_prev = the node just BEFORE the group we are working on.","10":"--- 1) Is there a full group of k nodes? --- Walk k steps from group_prev. We land on the k-th node of the group.","15":"Fewer than k nodes are left: leave them as they are.","17":"The first node AFTER this group (it may be None).","19":"The group's first node. After reversing, it will be the group's LAST node.","24":"--- 2) Reverse the k nodes of this group (save, flip, step, step). --- Trick: prev_node starts at group_next instead of None, so the old first node automatically ends up pointing at the rest of the list.","27":"save the rest","28":"flip the arrow","29":"step prev_node","30":"step current","34":"--- 3) Stitch the front of the group back in. --- kth was the group's last node; now it is the group's first node.","37":"The old first node is now the group's tail, so it is the node BEFORE the next group."},"input":"head = [1,2,3,4,5], k = 3","output":"[3,2,1,4,5]","values":[{"~":"ll","v":[1,2,3,4,5],"cycle":false},3,{"~":"ll","v":[0,1,2,3,4,5],"cycle":false},0,1,{"~":"ll","v":[2,3,4,5],"cycle":false},2,{"~":"ll","v":[3,4,5],"cycle":false},{"~":"ll","v":[4,5],"cycle":false},{"~":"ll","v":[1,4,5],"cycle":false},{"~":"ll","v":[0,1,4,5],"cycle":false},{"~":"ll","v":[2,1,4,5],"cycle":false},{"~":"ll","v":[3,2,1,4,5],"cycle":false},{"~":"ll","v":[0,3,2,1,4,5],"cycle":false},{"~":"ll","v":[5],"cycle":false},null],"steps":[[4,1,"reverseKGroup",{"head":0,"k":1},null],[6,1,"reverseKGroup",{"head":0,"k":1,"dummy":2},null],[7,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2},null],[10,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2},null],[11,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":2},null],[12,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":2,"step":3},null],[13,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":0,"step":3},null],[11,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":0,"step":3},null],[12,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":0,"step":4},null],[13,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":5,"step":4},null],[11,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":5,"step":4},null],[12,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":5,"step":6},null],[13,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6},null],[11,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6},null],[17,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6},null],[19,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6,"group_next":8},null],[24,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6,"group_next":8,"group_first":0},null],[25,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6,"group_next":8,"group_first":0,"prev_node":8},null],[26,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6,"group_next":8,"group_first":0,"prev_node":8,"current":0},null],[27,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6,"group_next":8,"group_first":0,"prev_node":8,"current":0},null],[28,1,"reverseKGroup",{"head":0,"k":1,"dummy":2,"group_prev":2,"kth":7,"step":6,"group_next":8,"group_first":0,"prev_node":8,"current":0,"next_node":5},null],[29,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":8,"current":9,"next_node":5},null],[30,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":9,"current":9,"next_node":5},null],[26,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":9,"current":5,"next_node":5},null],[27,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":9,"current":5,"next_node":5},null],[28,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":9,"current":5,"next_node":7},null],[29,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":9,"current":11,"next_node":7},null],[30,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":11,"current":11,"next_node":7},null],[26,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":11,"current":7,"next_node":7},null],[27,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":11,"current":7,"next_node":7},null],[28,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":7,"step":6,"group_next":8,"group_first":9,"prev_node":11,"current":7,"next_node":8},null],[29,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":11,"current":12,"next_node":8},null],[30,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":12,"next_node":8},null],[26,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[34,1,"reverseKGroup",{"head":9,"k":1,"dummy":10,"group_prev":10,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[37,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":13,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[7,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[10,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":12,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[11,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":9,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[12,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":9,"step":3,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[13,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":8,"step":3,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[11,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":8,"step":3,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[12,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":8,"step":4,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[13,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":14,"step":4,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[11,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":14,"step":4,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[12,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":14,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[13,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":15,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[15,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":15,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null],[15,1,"reverseKGroup",{"head":9,"k":1,"dummy":13,"group_prev":9,"kth":15,"step":6,"group_next":8,"group_first":9,"prev_node":12,"current":8,"next_node":8},null,12]],"truncated":false}</script>
+        <!-- trace:end 25 -->
         <!-- explain:25 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -810,7 +957,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-92">
-      <summary><span class="tag medium">Medium</span> 92. Reverse Linked List II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 92. Reverse Linked List II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse only positions <code>left..right</code> (1-indexed) of the list, in one pass.</p>
         <!-- enrich-top:start 92 -->
@@ -856,6 +1003,10 @@ def reverse_between(head, left, right):
             before.next = moved
         # dummy.next is the real head (it changed if left was 1).
         return dummy.next</code></pre>
+        <!-- trace:start 92 -->
+        <div class="trace-viz" id="trace-p92"></div>
+        <script type="application/json" id="trace-p92-data">{"src":["class Solution:","    def reverseBetween(self, head: Optional[ListNode], left: int, right: int) -> Optional[ListNode]:","        # A dummy node in front of head: a node before the part always exists,","        # even when left == 1.","        dummy = ListNode(0, head)","        # Walk left - 1 steps so that 'before' stops just before position left.","        before = dummy","        for step in range(left - 1):","            before = before.next","        # tail = first node of the part. It stays where it is while the other","        # nodes are moved in front of it, so it ends up last.","        tail = before.next","        # Do right - left moves.","        for move in range(right - left):","            # The node right after tail is the one we move.","            moved = tail.next","            # Unhook it: tail skips over it.","            tail.next = moved.next","            # Insert it at the front of the part (right after 'before').","            moved.next = before.next","            before.next = moved","        # dummy.next is the real head (it changed if left was 1).","        return dummy.next"],"notes":{"5":"A dummy node in front of head: a node before the part always exists, even when left == 1.","7":"Walk left - 1 steps so that 'before' stops just before position left.","12":"tail = first node of the part. It stays where it is while the other nodes are moved in front of it, so it ends up last.","14":"Do right - left moves.","16":"The node right after tail is the one we move.","18":"Unhook it: tail skips over it.","20":"Insert it at the front of the part (right after 'before').","23":"dummy.next is the real head (it changed if left was 1)."},"input":"head = [5], left = 1, right = 1","output":"[5]","values":[{"~":"ll","v":[5],"cycle":false},1,{"~":"ll","v":[0,5],"cycle":false}],"steps":[[5,1,"reverseBetween",{"head":0,"left":1,"right":1},null],[7,1,"reverseBetween",{"head":0,"left":1,"right":1,"dummy":2},null],[8,1,"reverseBetween",{"head":0,"left":1,"right":1,"dummy":2,"before":2},null],[12,1,"reverseBetween",{"head":0,"left":1,"right":1,"dummy":2,"before":2},null],[14,1,"reverseBetween",{"head":0,"left":1,"right":1,"dummy":2,"before":2,"tail":0},null],[23,1,"reverseBetween",{"head":0,"left":1,"right":1,"dummy":2,"before":2,"tail":0},null],[23,1,"reverseBetween",{"head":0,"left":1,"right":1,"dummy":2,"before":2,"tail":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 92 -->
         <!-- explain:92 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -891,7 +1042,7 @@ def reverse_between(head, left, right):
     </details>
 
     <details class="problem" id="p-24">
-      <summary><span class="tag medium">Medium</span> 24. Swap Nodes in Pairs <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 24. Swap Nodes in Pairs <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Swap every two adjacent nodes (1→2→3→4 becomes 2→1→4→3) without changing values.</p>
         <!-- enrich-top:start 24 -->
@@ -935,6 +1086,10 @@ def reverse_between(head, left, right):
             # before the next pair.
             prev_node = first
         return dummy.next</code></pre>
+        <!-- trace:start 24 -->
+        <div class="trace-viz" id="trace-p24"></div>
+        <script type="application/json" id="trace-p24-data">{"src":["class Solution:","    def swapPairs(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # The head changes (the 2nd node becomes the 1st), so use a dummy.","        dummy = ListNode(0, head)","        # prev_node = the node just BEFORE the pair we are about to swap.","        prev_node = dummy","        # A pair needs two nodes after prev_node.","        while prev_node.next is not None and prev_node.next.next is not None:","            # Name the two nodes of the pair.","            first = prev_node.next","            second = prev_node.next.next","            # first skips ahead to whatever comes after the pair.","            first.next = second.next","            # second points back to first.","            second.next = first","            # The node before the pair now points to second (the new front).","            prev_node.next = second","            # first is now the back of the pair, so it is the node","            # before the next pair.","            prev_node = first","        return dummy.next"],"notes":{"4":"The head changes (the 2nd node becomes the 1st), so use a dummy.","6":"prev_node = the node just BEFORE the pair we are about to swap.","8":"A pair needs two nodes after prev_node.","10":"Name the two nodes of the pair.","13":"first skips ahead to whatever comes after the pair.","15":"second points back to first.","17":"The node before the pair now points to second (the new front).","20":"first is now the back of the pair, so it is the node before the next pair."},"input":"head = []","output":"[]","values":[null,{"~":"ll","v":[0],"cycle":false}],"steps":[[4,1,"swapPairs",{"head":0},null],[6,1,"swapPairs",{"head":0,"dummy":1},null],[8,1,"swapPairs",{"head":0,"dummy":1,"prev_node":1},null],[21,1,"swapPairs",{"head":0,"dummy":1,"prev_node":1},null],[21,1,"swapPairs",{"head":0,"dummy":1,"prev_node":1},null,0]],"truncated":false}</script>
+        <!-- trace:end 24 -->
         <!-- explain:24 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1031,6 +1186,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             front = front.next
             back = back.next
         return best</code></pre>
+        <!-- trace:start 2130 -->
+        <div class="trace-viz" id="trace-p2130"></div>
+        <script type="application/json" id="trace-p2130-data">{"src":["class Solution:","    def pairSum(self, head: Optional[ListNode]) -> int:","        # --- 1) Find the first node of the second half (fast & slow). ---","        slow = head","        fast = head","        while fast is not None and fast.next is not None:","            slow = slow.next          # slow moves 1 step","            fast = fast.next.next     # fast moves 2 steps","        # slow is now the first node of the second half.","","        # --- 2) Reverse the second half, starting at slow. ---","        prev_node = None","        current = slow","        while current is not None:","            next_node = current.next      # save","            current.next = prev_node      # flip","            prev_node = current           # step","            current = next_node           # step","        # prev_node is the head of the reversed second half (the old last node).","","        # --- 3) Walk both halves together and add the twins. ---","        best = 0","        front = head          # walks the first half forwards","        back = prev_node      # walks the second half \"backwards\"","        while back is not None:","            twin_sum = front.val + back.val","            # Keep the biggest sum seen so far.","            if twin_sum > best:","                best = twin_sum","            front = front.next","            back = back.next","        return best"],"notes":{"4":"--- 1) Find the first node of the second half (fast & slow). ---","7":"slow moves 1 step","8":"fast moves 2 steps","12":"--- 2) Reverse the second half, starting at slow. ---","15":"save","16":"flip","17":"step","18":"step","22":"--- 3) Walk both halves together and add the twins. ---","23":"walks the first half forwards","24":"walks the second half \"backwards\"","28":"Keep the biggest sum seen so far."},"input":"head = [1,100000]","output":"100001","values":[{"~":"ll","v":[1,100000],"cycle":false},{"~":"ll","v":[100000],"cycle":false},null,0,100001],"steps":[[4,1,"pairSum",{"head":0},null],[5,1,"pairSum",{"head":0,"slow":0},null],[6,1,"pairSum",{"head":0,"slow":0,"fast":0},null],[7,1,"pairSum",{"head":0,"slow":0,"fast":0},null],[8,1,"pairSum",{"head":0,"slow":1,"fast":0},null],[6,1,"pairSum",{"head":0,"slow":1,"fast":2},null],[12,1,"pairSum",{"head":0,"slow":1,"fast":2},null],[13,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":2},null],[14,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1},null],[15,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1},null],[16,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1,"next_node":2},null],[17,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1,"next_node":2},null],[18,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":1,"next_node":2},null],[14,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2},null],[22,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2},null],[23,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":3},null],[24,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":3,"front":0},null],[25,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":3,"front":0,"back":1},null],[26,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":3,"front":0,"back":1},null],[28,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":3,"front":0,"back":1,"twin_sum":4},null],[29,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":3,"front":0,"back":1,"twin_sum":4},null],[30,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":4,"front":0,"back":1,"twin_sum":4},null],[31,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":4,"front":1,"back":1,"twin_sum":4},null],[25,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":4,"front":1,"back":2,"twin_sum":4},null],[32,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":4,"front":1,"back":2,"twin_sum":4},null],[32,1,"pairSum",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"best":4,"front":1,"back":2,"twin_sum":4},null,4]],"truncated":false}</script>
+        <!-- trace:end 2130 -->
         <!-- explain:2130 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1069,7 +1228,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-206">
-      <summary><span class="tag easy">Easy</span> 206. Reverse Linked List (iterative + recursive) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 206. Reverse Linked List (iterative + recursive) <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the entire list and return the new head.</p>
         <!-- enrich-top:start 206 -->
@@ -1119,6 +1278,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
         # head is the new tail (for now), so it must point at nothing.
         head.next = None
         return new_head</code></pre>
+        <!-- trace:start 206 -->
+        <div class="trace-viz" id="trace-p206"></div>
+        <script type="application/json" id="trace-p206-data">{"src":["class Solution:","    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # Iterative version: template A.","        prev_node = None          # nothing reversed yet","        current = head            # start flipping at the head","        while current is not None:","            next_node = current.next      # 1. save the rest of the list","            current.next = prev_node      # 2. flip the arrow backwards","            prev_node = current           # 3. step prev_node forward","            current = next_node           # 4. step current forward","        # The old tail is the new head.","        return prev_node","","    def reverseListRecursive(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # Base case: an empty list or a single node is already reversed.","        if head is None or head.next is None:","            return head","        # Reverse everything AFTER head. new_head is the old last node.","        new_head = self.reverseListRecursive(head.next)","        # head.next still points to the node that came right after head.","        # That node is now the TAIL of the reversed rest.","        second = head.next","        # Hang head after it: the node after me now points back to me.","        second.next = head","        # head is the new tail (for now), so it must point at nothing.","        head.next = None","        return new_head"],"notes":{"4":"nothing reversed yet","5":"start flipping at the head","7":"1. save the rest of the list","8":"2. flip the arrow backwards","9":"3. step prev_node forward","10":"4. step current forward","12":"The old tail is the new head.","16":"Base case: an empty list or a single node is already reversed.","19":"Reverse everything AFTER head. new_head is the old last node.","22":"head.next still points to the node that came right after head. That node is now the TAIL of the reversed rest.","24":"Hang head after it: the node after me now points back to me.","26":"head is the new tail (for now), so it must point at nothing."},"input":"head = []","output":"[]","values":[null],"steps":[[4,1,"reverseList",{"head":0},null],[5,1,"reverseList",{"head":0,"prev_node":0},null],[6,1,"reverseList",{"head":0,"prev_node":0,"current":0},null],[12,1,"reverseList",{"head":0,"prev_node":0,"current":0},null],[12,1,"reverseList",{"head":0,"prev_node":0,"current":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 206 -->
         <!-- explain:206 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1219,6 +1382,13 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
         <tr><td>82</td><td><a href="#p-82">Remove Duplicates from Sorted List II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Delete the <em>whole</em> run of a repeated value; <code>prev</code> stays before it</td></tr>
         <tr><td>138</td><td><a href="#p-138">Copy List with Random Pointer</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Hash Map</span></span></td><td>Map every old node to its copy, then wire <code>next</code> and <code>random</code></td></tr>
         <tr><td>2807</td><td><a href="#p-2807">Insert Greatest Common Divisors in Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Splice a new node between every adjacent pair</td></tr>
+        <tr><td>86</td><td><a href="#p-86">Partition List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Two dummy-headed lists (smaller / rest), then link them</td></tr>
+        <tr><td>109</td><td><a href="#p-109">Convert Sorted List to Binary Search Tree</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span><span class="ds">BST</span></span></td><td>In-order simulation: build left subtree, consume the list node, build right subtree</td></tr>
+        <tr><td>147</td><td><a href="#p-147">Insertion Sort List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Splice each node into a growing sorted list behind a dummy</td></tr>
+        <tr><td>237</td><td><a href="#p-237">Delete Node in a Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>You can't reach the previous node, so become the next node and delete it instead</td></tr>
+        <tr><td>328</td><td><a href="#p-328">Odd Even Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Weave two chains (odd positions, even positions), then attach evens after odds</td></tr>
+        <tr><td>707</td><td><a href="#p-707">Design Linked List</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>A sentinel head plus a size counter keeps every operation simple</td></tr>
+        <tr><td>2058</td><td><a href="#p-2058">Find the Minimum and Maximum Number of Nodes Between Critical Points</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Walk with prev/cur/next; track the first, the previous and the latest critical index</td></tr>
         <tr><td>25</td><td><a href="#p-25">Reverse Nodes in k-Group</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Linked List</span></span></td><td>Check k nodes, reverse with prev_node = group_next, stitch</td></tr>
       </tbody>
     </table>
@@ -1226,7 +1396,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     <p>Problems already solved in section 7 link back up there. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-234">
-      <summary><span class="tag easy">Easy</span> 234. Palindrome Linked List (O(1) space) <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 234. Palindrome Linked List (O(1) space) <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Do the list's values read the same forwards and backwards, using only <code>O(1)</code> extra space?</p>
         <!-- enrich-top:start 234 -->
@@ -1277,6 +1447,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             back = back.next
         # Every pair matched.
         return True</code></pre>
+        <!-- trace:start 234 -->
+        <div class="trace-viz" id="trace-p234"></div>
+        <script type="application/json" id="trace-p234-data">{"src":["class Solution:","    def isPalindrome(self, head: Optional[ListNode]) -> bool:","        # --- 1) Move slow to the start of the second half (fast & slow). ---","        slow = head","        fast = head","        while fast is not None and fast.next is not None:","            slow = slow.next          # 1 step","            fast = fast.next.next     # 2 steps","","        # --- 2) Reverse the second half in place. ---","        prev_node = None","        current = slow","        while current is not None:","            next_node = current.next      # save","            current.next = prev_node      # flip","            prev_node = current           # step","            current = next_node           # step","","        # --- 3) Walk both halves together and compare values. ---","        front = head          # start of the first half","        back = prev_node      # start of the reversed second half","        while back is not None:","            if front.val != back.val:","                # One mismatch is enough: not a palindrome.","                return False","            front = front.next","            back = back.next","        # Every pair matched.","        return True"],"notes":{"4":"--- 1) Move slow to the start of the second half (fast & slow). ---","7":"1 step","8":"2 steps","11":"--- 2) Reverse the second half in place. ---","14":"save","15":"flip","16":"step","17":"step","20":"start of the first half","21":"start of the reversed second half","25":"One mismatch is enough: not a palindrome.","29":"Every pair matched."},"input":"head = [1,2]","output":"false","values":[{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[2],"cycle":false},null,false],"steps":[[4,1,"isPalindrome",{"head":0},null],[5,1,"isPalindrome",{"head":0,"slow":0},null],[6,1,"isPalindrome",{"head":0,"slow":0,"fast":0},null],[7,1,"isPalindrome",{"head":0,"slow":0,"fast":0},null],[8,1,"isPalindrome",{"head":0,"slow":1,"fast":0},null],[6,1,"isPalindrome",{"head":0,"slow":1,"fast":2},null],[11,1,"isPalindrome",{"head":0,"slow":1,"fast":2},null],[12,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":2},null],[13,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1},null],[14,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1},null],[15,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1,"next_node":2},null],[16,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":2,"current":1,"next_node":2},null],[17,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":1,"next_node":2},null],[13,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2},null],[20,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2},null],[21,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"front":0},null],[22,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"front":0,"back":1},null],[23,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"front":0,"back":1},null],[25,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"front":0,"back":1},null],[25,1,"isPalindrome",{"head":0,"slow":1,"fast":2,"prev_node":1,"current":2,"next_node":2,"front":0,"back":1},null,3]],"truncated":false}</script>
+        <!-- trace:end 234 -->
         <!-- explain:234 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1316,7 +1490,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-143">
-      <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 143. Reorder List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rearrange <code>L0 → L1 → … → Ln</code> into <code>L0 → Ln → L1 → Ln−1 → …</code> by changing links only.</p>
         <!-- enrich-top:start 143 -->
@@ -1374,6 +1548,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             # Move both pointers to their saved next nodes.
             front = front_next
             back = back_next</code></pre>
+        <!-- trace:start 143 -->
+        <div class="trace-viz" id="trace-p143"></div>
+        <script type="application/json" id="trace-p143-data">{"src":["class Solution:","    def reorderList(self, head: Optional[ListNode]) -> None:","        # 0 or 1 node: nothing to reorder.","        if head is None or head.next is None:","            return","","        # --- 1) Move slow to the END of the first half. ---","        slow = head","        fast = head","        while fast.next is not None and fast.next.next is not None:","            slow = slow.next","            fast = fast.next.next","","        # --- 2) Cut the list in two and reverse the second half. ---","        prev_node = None","        current = slow.next       # the second half starts after slow","        slow.next = None          # cut: the first half now ends at slow","        while current is not None:","            next_node = current.next      # save","            current.next = prev_node      # flip","            prev_node = current           # step","            current = next_node           # step","","        # --- 3) Weave the halves: front1, back1, front2, back2, ... ---","        front = head","        back = prev_node","        while back is not None:","            # Remember where each half continues before we change links.","            front_next = front.next","            back_next = back.next","            # front -> back -> (old front.next)","            front.next = back","            back.next = front_next","            # Move both pointers to their saved next nodes.","            front = front_next","            back = back_next"],"notes":{"4":"0 or 1 node: nothing to reorder.","8":"--- 1) Move slow to the END of the first half. ---","15":"--- 2) Cut the list in two and reverse the second half. ---","16":"the second half starts after slow","17":"cut: the first half now ends at slow","19":"save","20":"flip","21":"step","22":"step","25":"--- 3) Weave the halves: front1, back1, front2, back2, ... ---","29":"Remember where each half continues before we change links.","32":"front -> back -> (old front.next)","35":"Move both pointers to their saved next nodes."},"input":"head = [1,2,3,4]","output":"[1,4,2,3]","values":[{"~":"ll","v":[1,2,3,4],"cycle":false},{"~":"ll","v":[2,3,4],"cycle":false},{"~":"ll","v":[3,4],"cycle":false},null,{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[2],"cycle":false},{"~":"ll","v":[4],"cycle":false},{"~":"ll","v":[3],"cycle":false},{"~":"ll","v":[4,3],"cycle":false},{"~":"ll","v":[1,4,3],"cycle":false},{"~":"ll","v":[1,4,2],"cycle":false},{"~":"ll","v":[4,2],"cycle":false},{"~":"ll","v":[1,4,2,3],"cycle":false},{"~":"ll","v":[2,3],"cycle":false},{"~":"ll","v":[4,2,3],"cycle":false}],"steps":[[4,1,"reorderList",{"head":0},null],[8,1,"reorderList",{"head":0},null],[9,1,"reorderList",{"head":0,"slow":0},null],[10,1,"reorderList",{"head":0,"slow":0,"fast":0},null],[11,1,"reorderList",{"head":0,"slow":0,"fast":0},null],[12,1,"reorderList",{"head":0,"slow":1,"fast":0},null],[10,1,"reorderList",{"head":0,"slow":1,"fast":2},null],[15,1,"reorderList",{"head":0,"slow":1,"fast":2},null],[16,1,"reorderList",{"head":0,"slow":1,"fast":2,"prev_node":3},null],[17,1,"reorderList",{"head":0,"slow":1,"fast":2,"prev_node":3,"current":2},null],[18,1,"reorderList",{"head":4,"slow":5,"fast":2,"prev_node":3,"current":2},null],[19,1,"reorderList",{"head":4,"slow":5,"fast":2,"prev_node":3,"current":2},null],[20,1,"reorderList",{"head":4,"slow":5,"fast":2,"prev_node":3,"current":2,"next_node":6},null],[21,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":3,"current":7,"next_node":6},null],[22,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":7,"current":7,"next_node":6},null],[18,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":7,"current":6,"next_node":6},null],[19,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":7,"current":6,"next_node":6},null],[20,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":7,"current":6,"next_node":3},null],[21,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":7,"current":8,"next_node":3},null],[22,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":8,"next_node":3},null],[18,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3},null],[25,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3},null],[26,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3,"front":4},null],[27,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3,"front":4,"back":8},null],[29,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3,"front":4,"back":8},null],[30,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3,"front":4,"back":8,"front_next":5},null],[32,1,"reorderList",{"head":4,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3,"front":4,"back":8,"front_next":5,"back_next":7},null],[33,1,"reorderList",{"head":9,"slow":5,"fast":7,"prev_node":8,"current":3,"next_node":3,"front":9,"back":8,"front_next":5,"back_next":7},null],[35,1,"reorderList",{"head":10,"slow":5,"fast":7,"prev_node":11,"current":3,"next_node":3,"front":10,"back":11,"front_next":5,"back_next":7},null],[36,1,"reorderList",{"head":10,"slow":5,"fast":7,"prev_node":11,"current":3,"next_node":3,"front":5,"back":11,"front_next":5,"back_next":7},null],[27,1,"reorderList",{"head":10,"slow":5,"fast":7,"prev_node":11,"current":3,"next_node":3,"front":5,"back":7,"front_next":5,"back_next":7},null],[29,1,"reorderList",{"head":10,"slow":5,"fast":7,"prev_node":11,"current":3,"next_node":3,"front":5,"back":7,"front_next":5,"back_next":7},null],[30,1,"reorderList",{"head":10,"slow":5,"fast":7,"prev_node":11,"current":3,"next_node":3,"front":5,"back":7,"front_next":3,"back_next":7},null],[32,1,"reorderList",{"head":10,"slow":5,"fast":7,"prev_node":11,"current":3,"next_node":3,"front":5,"back":7,"front_next":3,"back_next":3},null],[33,1,"reorderList",{"head":12,"slow":13,"fast":7,"prev_node":14,"current":3,"next_node":3,"front":13,"back":7,"front_next":3,"back_next":3},null],[35,1,"reorderList",{"head":12,"slow":13,"fast":7,"prev_node":14,"current":3,"next_node":3,"front":13,"back":7,"front_next":3,"back_next":3},null],[36,1,"reorderList",{"head":12,"slow":13,"fast":7,"prev_node":14,"current":3,"next_node":3,"front":3,"back":7,"front_next":3,"back_next":3},null],[27,1,"reorderList",{"head":12,"slow":13,"fast":7,"prev_node":14,"current":3,"next_node":3,"front":3,"back":3,"front_next":3,"back_next":3},null],[27,1,"reorderList",{"head":12,"slow":13,"fast":7,"prev_node":14,"current":3,"next_node":3,"front":3,"back":3,"front_next":3,"back_next":3},null,3]],"truncated":false}</script>
+        <!-- trace:end 143 -->
         <!-- explain:143 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1412,7 +1590,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-61">
-      <summary><span class="tag medium">Medium</span> 61. Rotate List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 61. Rotate List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Rotate the list to the right by <code>k</code> places: the last <code>k</code> nodes move to the front.</p>
         <!-- enrich-top:start 61 -->
@@ -1465,6 +1643,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
         # Cut the ring open.
         new_tail.next = None
         return new_head</code></pre>
+        <!-- trace:start 61 -->
+        <div class="trace-viz" id="trace-p61"></div>
+        <script type="application/json" id="trace-p61-data">{"src":["class Solution:","    def rotateRight(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:","        # 0 or 1 node: rotating changes nothing.","        if head is None or head.next is None:","            return head","","        # --- 1) Measure the length and find the tail. ---","        length = 1","        tail = head","        while tail.next is not None:","            tail = tail.next","            length = length + 1","","        # --- 2) Rotating by 'length' places changes nothing, so drop full turns. ---","        # shift = how many places we really need to rotate.","        shift = k % length","        if shift == 0:","            return head","","        # --- 3) Close the list into a ring. ---","        tail.next = head","","        # --- 4) The new tail is length - shift - 1 steps from the head. ---","        new_tail = head","        for step in range(length - shift - 1):","            new_tail = new_tail.next","        # The node after the new tail is the new head.","        new_head = new_tail.next","        # Cut the ring open.","        new_tail.next = None","        return new_head"],"notes":{"4":"0 or 1 node: rotating changes nothing.","8":"--- 1) Measure the length and find the tail. ---","16":"--- 2) Rotating by 'length' places changes nothing, so drop full turns. --- shift = how many places we really need to rotate.","21":"--- 3) Close the list into a ring. ---","24":"--- 4) The new tail is length - shift - 1 steps from the head. ---","28":"The node after the new tail is the new head.","30":"Cut the ring open."},"input":"head = [0,1,2], k = 4","output":"[2,0,1]","values":[{"~":"ll","v":[0,1,2],"cycle":false},4,1,{"~":"ll","v":[1,2],"cycle":false},2,{"~":"ll","v":[2],"cycle":false},3,{"~":"ll","v":[0,1,2],"cycle":true},{"~":"ll","v":[2,0,1],"cycle":true},0,{"~":"ll","v":[1,2,0],"cycle":true},{"~":"ll","v":[0,1],"cycle":false},{"~":"ll","v":[2,0,1],"cycle":false},{"~":"ll","v":[1],"cycle":false}],"steps":[[4,1,"rotateRight",{"head":0,"k":1},null],[8,1,"rotateRight",{"head":0,"k":1},null],[9,1,"rotateRight",{"head":0,"k":1,"length":2},null],[10,1,"rotateRight",{"head":0,"k":1,"length":2,"tail":0},null],[11,1,"rotateRight",{"head":0,"k":1,"length":2,"tail":0},null],[12,1,"rotateRight",{"head":0,"k":1,"length":2,"tail":3},null],[10,1,"rotateRight",{"head":0,"k":1,"length":4,"tail":3},null],[11,1,"rotateRight",{"head":0,"k":1,"length":4,"tail":3},null],[12,1,"rotateRight",{"head":0,"k":1,"length":4,"tail":5},null],[10,1,"rotateRight",{"head":0,"k":1,"length":6,"tail":5},null],[16,1,"rotateRight",{"head":0,"k":1,"length":6,"tail":5},null],[17,1,"rotateRight",{"head":0,"k":1,"length":6,"tail":5,"shift":2},null],[21,1,"rotateRight",{"head":0,"k":1,"length":6,"tail":5,"shift":2},null],[24,1,"rotateRight",{"head":7,"k":1,"length":6,"tail":8,"shift":2},null],[25,1,"rotateRight",{"head":7,"k":1,"length":6,"tail":8,"shift":2,"new_tail":7},null],[26,1,"rotateRight",{"head":7,"k":1,"length":6,"tail":8,"shift":2,"new_tail":7,"step":9},null],[25,1,"rotateRight",{"head":7,"k":1,"length":6,"tail":8,"shift":2,"new_tail":10,"step":9},null],[28,1,"rotateRight",{"head":7,"k":1,"length":6,"tail":8,"shift":2,"new_tail":10,"step":9},null],[30,1,"rotateRight",{"head":7,"k":1,"length":6,"tail":8,"shift":2,"new_tail":10,"step":9,"new_head":8},null],[31,1,"rotateRight",{"head":11,"k":1,"length":6,"tail":12,"shift":2,"new_tail":13,"step":9,"new_head":12},null],[31,1,"rotateRight",{"head":11,"k":1,"length":6,"tail":12,"shift":2,"new_tail":13,"step":9,"new_head":12},null,12]],"truncated":false}</script>
+        <!-- trace:end 61 -->
         <!-- explain:61 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1506,7 +1688,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-445">
-      <summary><span class="tag medium">Medium</span> 445. Add Two Numbers II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 445. Add Two Numbers II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two non-negative numbers are stored as lists with the most-significant digit first. Return their sum as a list in the same order.</p>
         <!-- enrich-top:start 445 -->
@@ -1567,6 +1749,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             prev_node = current
             current = next_node
         return prev_node</code></pre>
+        <!-- trace:start 445 -->
+        <div class="trace-viz" id="trace-p445"></div>
+        <script type="application/json" id="trace-p445-data">{"src":["class Solution:","    def addTwoNumbers(self, l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:","        # --- 1) Reverse both lists so the ones digit comes first. ---","        first = self.reverse_list(l1)","        second = self.reverse_list(l2)","","        # --- 2) Add digit by digit, like on paper, keeping a carry. ---","        carry = 0","        result = None             # the answer list, built from the back","        while first is not None or second is not None or carry != 0:","            total = carry","            # Add the digit from the first number, if it still has digits.","            if first is not None:","                total = total + first.val","                first = first.next","            # Add the digit from the second number, if it still has digits.","            if second is not None:","                total = total + second.val","                second = second.next","            digit = total % 10        # the digit we write down","            carry = total // 10       # the 1 we carry to the next column","            # PREPEND the new digit: put it in front of the answer so far.","            # The answer then comes out most-significant digit first.","            new_node = ListNode(digit)","            new_node.next = result","            result = new_node","        return result","","    def reverse_list(self, head):","        # Template A: save, flip, step, step.","        prev_node = None","        current = head","        while current is not None:","            next_node = current.next","            current.next = prev_node","            prev_node = current","            current = next_node","        return prev_node"],"notes":{"4":"--- 1) Reverse both lists so the ones digit comes first. ---","8":"--- 2) Add digit by digit, like on paper, keeping a carry. ---","9":"the answer list, built from the back","13":"Add the digit from the first number, if it still has digits.","17":"Add the digit from the second number, if it still has digits.","20":"the digit we write down","21":"the 1 we carry to the next column","24":"PREPEND the new digit: put it in front of the answer so far. The answer then comes out most-significant digit first.","31":"Template A: save, flip, step, step."},"input":"l1 = [0], l2 = [0]","output":"[0]","values":[{"~":"ll","v":[0],"cycle":false},"addTwoNumbers(l1=0, l2=0) › reverse_list(head=0)",null,0],"steps":[[4,1,"addTwoNumbers",{"l1":0,"l2":0},null],[31,2,"reverse_list",{"head":0},1],[32,2,"reverse_list",{"head":0,"prev_node":2},1],[33,2,"reverse_list",{"head":0,"prev_node":2,"current":0},1],[34,2,"reverse_list",{"head":0,"prev_node":2,"current":0},1],[35,2,"reverse_list",{"head":0,"prev_node":2,"current":0,"next_node":2},1],[36,2,"reverse_list",{"head":0,"prev_node":2,"current":0,"next_node":2},1],[37,2,"reverse_list",{"head":0,"prev_node":0,"current":0,"next_node":2},1],[33,2,"reverse_list",{"head":0,"prev_node":0,"current":2,"next_node":2},1],[38,2,"reverse_list",{"head":0,"prev_node":0,"current":2,"next_node":2},1],[38,2,"reverse_list",{"head":0,"prev_node":0,"current":2,"next_node":2},1,0],[5,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0},null],[31,2,"reverse_list",{"head":0},1],[32,2,"reverse_list",{"head":0,"prev_node":2},1],[33,2,"reverse_list",{"head":0,"prev_node":2,"current":0},1],[34,2,"reverse_list",{"head":0,"prev_node":2,"current":0},1],[35,2,"reverse_list",{"head":0,"prev_node":2,"current":0,"next_node":2},1],[36,2,"reverse_list",{"head":0,"prev_node":2,"current":0,"next_node":2},1],[37,2,"reverse_list",{"head":0,"prev_node":0,"current":0,"next_node":2},1],[33,2,"reverse_list",{"head":0,"prev_node":0,"current":2,"next_node":2},1],[38,2,"reverse_list",{"head":0,"prev_node":0,"current":2,"next_node":2},1],[38,2,"reverse_list",{"head":0,"prev_node":0,"current":2,"next_node":2},1,0],[8,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0},null],[9,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0,"carry":3},null],[10,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0,"carry":3,"result":2},null],[11,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0,"carry":3,"result":2},null],[13,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0,"carry":3,"result":2,"total":3},null],[14,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0,"carry":3,"result":2,"total":3},null],[15,1,"addTwoNumbers",{"l1":0,"l2":0,"first":0,"second":0,"carry":3,"result":2,"total":3},null],[17,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":0,"carry":3,"result":2,"total":3},null],[18,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":0,"carry":3,"result":2,"total":3},null],[19,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":0,"carry":3,"result":2,"total":3},null],[20,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":2,"total":3},null],[21,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":2,"total":3,"digit":3},null],[24,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":2,"total":3,"digit":3},null],[25,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":2,"total":3,"digit":3,"new_node":0},null],[26,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":2,"total":3,"digit":3,"new_node":0},null],[10,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":0,"total":3,"digit":3,"new_node":0},null],[27,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":0,"total":3,"digit":3,"new_node":0},null],[27,1,"addTwoNumbers",{"l1":0,"l2":0,"first":2,"second":2,"carry":3,"result":0,"total":3,"digit":3,"new_node":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 445 -->
         <!-- explain:445 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1603,7 +1789,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-2074">
-      <summary><span class="tag medium">Medium</span> 2074. Reverse Nodes in Even Length Groups <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 2074. Reverse Nodes in Even Length Groups <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Split the list into consecutive groups of sizes 1, 2, 3, … (the last group may be shorter). Reverse every group whose <em>actual</em> length is even.</p>
         <!-- enrich-top:start 2074 -->
@@ -1669,6 +1855,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             # The next group should be one node longer.
             group_size = group_size + 1
         return head</code></pre>
+        <!-- trace:start 2074 -->
+        <div class="trace-viz" id="trace-p2074"></div>
+        <script type="application/json" id="trace-p2074-data">{"src":["class Solution:","    def reverseEvenLengthGroups(self, head: Optional[ListNode]) -> Optional[ListNode]:","        # Group 1 is just the head (size 1, odd), so it is never reversed.","        # group_prev = the node just BEFORE the current group.","        group_prev = head","        group_size = 2            # the size the next group SHOULD have","        while group_prev.next is not None:","            # --- 1) Count the real length of this group (the last may be shorter). ---","            group_last = group_prev","            count = 0","            while count < group_size and group_last.next is not None:","                group_last = group_last.next","                count = count + 1","","            if count % 2 == 0:","                # --- 2a) Even length: reverse the group (like k-group). ---","                group_first = group_prev.next","                group_next = group_last.next","                # Start prev_node at group_next so the old first node","                # ends up pointing at the rest of the list.","                prev_node = group_next","                current = group_first","                while current is not group_next:","                    next_node = current.next      # save","                    current.next = prev_node      # flip","                    prev_node = current           # step","                    current = next_node           # step","                # Stitch the front: prev_node is the old last node = new first node.","                group_prev.next = prev_node","                # The old first node is now the group's tail.","                group_prev = group_first","            else:","                # --- 2b) Odd length: leave it alone, just jump over it. ---","                group_prev = group_last","","            # The next group should be one node longer.","            group_size = group_size + 1","        return head"],"notes":{"5":"Group 1 is just the head (size 1, odd), so it is never reversed. group_prev = the node just BEFORE the current group.","6":"the size the next group SHOULD have","9":"--- 1) Count the real length of this group (the last may be shorter). ---","17":"--- 2a) Even length: reverse the group (like k-group). ---","21":"Start prev_node at group_next so the old first node ends up pointing at the rest of the list.","24":"save","25":"flip","26":"step","27":"step","29":"Stitch the front: prev_node is the old last node = new first node.","31":"The old first node is now the group's tail.","34":"--- 2b) Odd length: leave it alone, just jump over it. ---","37":"The next group should be one node longer."},"input":"head = [1,1,0,6]","output":"[1,0,1,6]","values":[{"~":"ll","v":[1,1,0,6],"cycle":false},2,0,{"~":"ll","v":[1,0,6],"cycle":false},1,{"~":"ll","v":[0,6],"cycle":false},{"~":"ll","v":[6],"cycle":false},{"~":"ll","v":[1,1,6],"cycle":false},{"~":"ll","v":[1,6],"cycle":false},{"~":"ll","v":[0,1,6],"cycle":false},{"~":"ll","v":[1,0,1,6],"cycle":false},3,4],"steps":[[5,1,"reverseEvenLengthGroups",{"head":0},null],[6,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0},null],[7,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1},null],[9,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1},null],[10,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":0},null],[11,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":0,"count":2},null],[12,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":0,"count":2},null],[13,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":3,"count":2},null],[11,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":3,"count":4},null],[12,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":3,"count":4},null],[13,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":4},null],[11,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1},null],[15,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1},null],[17,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1},null],[18,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1,"group_first":3},null],[21,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1,"group_first":3,"group_next":6},null],[22,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1,"group_first":3,"group_next":6,"prev_node":6},null],[23,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1,"group_first":3,"group_next":6,"prev_node":6,"current":3},null],[24,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1,"group_first":3,"group_next":6,"prev_node":6,"current":3},null],[25,1,"reverseEvenLengthGroups",{"head":0,"group_prev":0,"group_size":1,"group_last":5,"count":1,"group_first":3,"group_next":6,"prev_node":6,"current":3,"next_node":5},null],[26,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":5,"count":1,"group_first":8,"group_next":6,"prev_node":6,"current":8,"next_node":5},null],[27,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":5,"count":1,"group_first":8,"group_next":6,"prev_node":8,"current":8,"next_node":5},null],[23,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":5,"count":1,"group_first":8,"group_next":6,"prev_node":8,"current":5,"next_node":5},null],[24,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":5,"count":1,"group_first":8,"group_next":6,"prev_node":8,"current":5,"next_node":5},null],[25,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":5,"count":1,"group_first":8,"group_next":6,"prev_node":8,"current":5,"next_node":6},null],[26,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":8,"current":9,"next_node":6},null],[27,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":9,"next_node":6},null],[23,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[29,1,"reverseEvenLengthGroups",{"head":7,"group_prev":7,"group_size":1,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[31,1,"reverseEvenLengthGroups",{"head":10,"group_prev":10,"group_size":1,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[37,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":1,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[7,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[9,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":9,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[10,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":8,"count":1,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[11,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":8,"count":2,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[12,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":8,"count":2,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[13,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":6,"count":2,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[11,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[15,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[34,1,"reverseEvenLengthGroups",{"head":10,"group_prev":8,"group_size":11,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[37,1,"reverseEvenLengthGroups",{"head":10,"group_prev":6,"group_size":11,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[7,1,"reverseEvenLengthGroups",{"head":10,"group_prev":6,"group_size":12,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[38,1,"reverseEvenLengthGroups",{"head":10,"group_prev":6,"group_size":12,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null],[38,1,"reverseEvenLengthGroups",{"head":10,"group_prev":6,"group_size":12,"group_last":6,"count":4,"group_first":8,"group_next":6,"prev_node":9,"current":6,"next_node":6},null,10]],"truncated":false}</script>
+        <!-- trace:end 2074 -->
         <!-- explain:2074 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1705,7 +1895,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-21">
-      <summary><span class="tag easy">Easy</span> 21. Merge Two Sorted Lists <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 21. Merge Two Sorted Lists <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Merge two sorted linked lists into one sorted list by splicing their nodes together. Return the new head.</p>
         <!-- enrich-top:start 21 -->
@@ -1745,6 +1935,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
         else:
             tail.next = list2
         return dummy.next</code></pre>
+        <!-- trace:start 21 -->
+        <div class="trace-viz" id="trace-p21"></div>
+        <script type="application/json" id="trace-p21-data">{"src":["class Solution:","    def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:","        dummy = ListNode()   # placeholder in front of the merged list","        tail = dummy","        while list1 is not None and list2 is not None:","            if list1.val <= list2.val:","                tail.next = list1      # reuse list1's node","                list1 = list1.next","            else:","                tail.next = list2","                list2 = list2.next","            tail = tail.next","        # at most one list still has nodes, and they are already sorted","        if list1 is not None:","            tail.next = list1","        else:","            tail.next = list2","        return dummy.next"],"notes":{"3":"placeholder in front of the merged list","7":"reuse list1's node","14":"at most one list still has nodes, and they are already sorted"},"input":"list1 = [], list2 = []","output":"[]","values":[null,{"~":"ll","v":[0],"cycle":false}],"steps":[[3,1,"mergeTwoLists",{"list1":0,"list2":0},null],[4,1,"mergeTwoLists",{"list1":0,"list2":0,"dummy":1},null],[5,1,"mergeTwoLists",{"list1":0,"list2":0,"dummy":1,"tail":1},null],[14,1,"mergeTwoLists",{"list1":0,"list2":0,"dummy":1,"tail":1},null],[17,1,"mergeTwoLists",{"list1":0,"list2":0,"dummy":1,"tail":1},null],[18,1,"mergeTwoLists",{"list1":0,"list2":0,"dummy":1,"tail":1},null],[18,1,"mergeTwoLists",{"list1":0,"list2":0,"dummy":1,"tail":1},null,0]],"truncated":false}</script>
+        <!-- trace:end 21 -->
         <!-- explain:start 21 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1781,7 +1975,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-83">
-      <summary><span class="tag easy">Easy</span> 83. Remove Duplicates from Sorted List <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 83. Remove Duplicates from Sorted List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The linked list is sorted. Delete duplicates so each value appears only once, and return the head.</p>
         <!-- enrich-top:start 83 -->
@@ -1815,6 +2009,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
                 # a new value: move on to it
                 cur = cur.next
         return head</code></pre>
+        <!-- trace:start 83 -->
+        <div class="trace-viz" id="trace-p83"></div>
+        <script type="application/json" id="trace-p83-data">{"src":["class Solution:","    def deleteDuplicates(self, head: Optional[ListNode]) -> Optional[ListNode]:","        cur = head","        while cur is not None and cur.next is not None:","            if cur.next.val == cur.val:","                # same value again: unlink the next node, but stay here","                # (the new next might be another copy)","                cur.next = cur.next.next","            else:","                # a new value: move on to it","                cur = cur.next","        return head"],"notes":{"8":"same value again: unlink the next node, but stay here (the new next might be another copy)","11":"a new value: move on to it"},"input":"head = [1,1,2]","output":"[1,2]","values":[{"~":"ll","v":[1,1,2],"cycle":false},{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[2],"cycle":false}],"steps":[[3,1,"deleteDuplicates",{"head":0},null],[4,1,"deleteDuplicates",{"head":0,"cur":0},null],[5,1,"deleteDuplicates",{"head":0,"cur":0},null],[8,1,"deleteDuplicates",{"head":0,"cur":0},null],[4,1,"deleteDuplicates",{"head":1,"cur":1},null],[5,1,"deleteDuplicates",{"head":1,"cur":1},null],[11,1,"deleteDuplicates",{"head":1,"cur":1},null],[4,1,"deleteDuplicates",{"head":1,"cur":2},null],[12,1,"deleteDuplicates",{"head":1,"cur":2},null],[12,1,"deleteDuplicates",{"head":1,"cur":2},null,1]],"truncated":false}</script>
+        <!-- trace:end 83 -->
         <!-- explain:start 83 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1850,7 +2048,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-2">
-      <summary><span class="tag medium">Medium</span> 2. Add Two Numbers <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 2. Add Two Numbers <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Two non-empty linked lists store non-negative integers with their digits in <strong>reverse</strong> order (<code>2 → 4 → 3</code> is 342). Return their sum as a linked list in the same reverse format.</p>
         <!-- enrich-top:start 2 -->
@@ -1892,6 +2090,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             tail = tail.next
             carry = total // 10
         return dummy.next</code></pre>
+        <!-- trace:start 2 -->
+        <div class="trace-viz" id="trace-p2"></div>
+        <script type="application/json" id="trace-p2-data">{"src":["class Solution:","    def addTwoNumbers(self, l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:","        dummy = ListNode()   # the answer is built after this placeholder","        tail = dummy","        carry = 0","        # a final carry (e.g. 5 + 5 = 10) still needs its own node","        while l1 is not None or l2 is not None or carry != 0:","            total = carry","            if l1 is not None:","                total = total + l1.val","                l1 = l1.next","            if l2 is not None:","                total = total + l2.val","                l2 = l2.next","            # write the ones digit, carry the tens digit to the next column","            tail.next = ListNode(total % 10)","            tail = tail.next","            carry = total // 10","        return dummy.next"],"notes":{"3":"the answer is built after this placeholder","7":"a final carry (e.g. 5 + 5 = 10) still needs its own node","16":"write the ones digit, carry the tens digit to the next column"},"input":"l1 = [0], l2 = [0]","output":"[0]","values":[{"~":"ll","v":[0],"cycle":false},0,null,{"~":"ll","v":[0,0],"cycle":false}],"steps":[[3,1,"addTwoNumbers",{"l1":0,"l2":0},null],[4,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0},null],[5,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0,"tail":0},null],[7,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0,"tail":0,"carry":1},null],[8,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0,"tail":0,"carry":1},null],[9,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0,"tail":0,"carry":1,"total":1},null],[10,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0,"tail":0,"carry":1,"total":1},null],[11,1,"addTwoNumbers",{"l1":0,"l2":0,"dummy":0,"tail":0,"carry":1,"total":1},null],[12,1,"addTwoNumbers",{"l1":2,"l2":0,"dummy":0,"tail":0,"carry":1,"total":1},null],[13,1,"addTwoNumbers",{"l1":2,"l2":0,"dummy":0,"tail":0,"carry":1,"total":1},null],[14,1,"addTwoNumbers",{"l1":2,"l2":0,"dummy":0,"tail":0,"carry":1,"total":1},null],[16,1,"addTwoNumbers",{"l1":2,"l2":2,"dummy":0,"tail":0,"carry":1,"total":1},null],[17,1,"addTwoNumbers",{"l1":2,"l2":2,"dummy":3,"tail":3,"carry":1,"total":1},null],[18,1,"addTwoNumbers",{"l1":2,"l2":2,"dummy":3,"tail":0,"carry":1,"total":1},null],[7,1,"addTwoNumbers",{"l1":2,"l2":2,"dummy":3,"tail":0,"carry":1,"total":1},null],[19,1,"addTwoNumbers",{"l1":2,"l2":2,"dummy":3,"tail":0,"carry":1,"total":1},null],[19,1,"addTwoNumbers",{"l1":2,"l2":2,"dummy":3,"tail":0,"carry":1,"total":1},null,0]],"truncated":false}</script>
+        <!-- trace:end 2 -->
         <!-- explain:start 2 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1925,7 +2127,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-82">
-      <summary><span class="tag medium">Medium</span> 82. Remove Duplicates from Sorted List II <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 82. Remove Duplicates from Sorted List II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The linked list is sorted. Delete <strong>every</strong> node whose value appears more than once, leaving only values that were distinct. Return the head.</p>
         <!-- enrich-top:start 82 -->
@@ -1964,6 +2166,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
                 prev = cur
             cur = cur.next
         return dummy.next</code></pre>
+        <!-- trace:start 82 -->
+        <div class="trace-viz" id="trace-p82"></div>
+        <script type="application/json" id="trace-p82-data">{"src":["class Solution:","    def deleteDuplicates(self, head: Optional[ListNode]) -> Optional[ListNode]:","        dummy = ListNode(0, head)   # the head itself may be deleted","        prev = dummy                # last node we are sure to keep","        cur = head","        while cur is not None:","            if cur.next is not None and cur.next.val == cur.val:","                # cur starts a run of duplicates: walk to the run's last node","                while cur.next is not None and cur.next.val == cur.val:","                    cur = cur.next","                # cut the whole run out; prev stays where it is","                prev.next = cur.next","            else:","                # cur is unique: it stays, so prev moves onto it","                prev = cur","            cur = cur.next","        return dummy.next"],"notes":{"3":"the head itself may be deleted","4":"last node we are sure to keep","9":"cur starts a run of duplicates: walk to the run's last node","12":"cut the whole run out; prev stays where it is","15":"cur is unique: it stays, so prev moves onto it"},"input":"head = [1,1,1,2,3]","output":"[2,3]","values":[{"~":"ll","v":[1,1,1,2,3],"cycle":false},{"~":"ll","v":[0,1,1,1,2,3],"cycle":false},{"~":"ll","v":[1,1,2,3],"cycle":false},{"~":"ll","v":[1,2,3],"cycle":false},{"~":"ll","v":[0,2,3],"cycle":false},{"~":"ll","v":[2,3],"cycle":false},{"~":"ll","v":[3],"cycle":false},null],"steps":[[3,1,"deleteDuplicates",{"head":0},null],[4,1,"deleteDuplicates",{"head":0,"dummy":1},null],[5,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1},null],[6,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":0},null],[7,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":0},null],[9,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":0},null],[10,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":0},null],[9,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":2},null],[10,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":2},null],[9,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":3},null],[12,1,"deleteDuplicates",{"head":0,"dummy":1,"prev":1,"cur":3},null],[16,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":4,"cur":3},null],[6,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":4,"cur":5},null],[7,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":4,"cur":5},null],[15,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":4,"cur":5},null],[16,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":5,"cur":5},null],[6,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":5,"cur":6},null],[7,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":5,"cur":6},null],[15,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":5,"cur":6},null],[16,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":6,"cur":6},null],[6,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":6,"cur":7},null],[17,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":6,"cur":7},null],[17,1,"deleteDuplicates",{"head":0,"dummy":4,"prev":6,"cur":7},null,5]],"truncated":false}</script>
+        <!-- trace:end 82 -->
         <!-- explain:start 82 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -2001,7 +2207,7 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
     </details>
 
     <details class="problem" id="p-138">
-      <summary><span class="tag medium">Medium</span> 138. Copy List with Random Pointer <span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Hash Map</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 138. Copy List with Random Pointer <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Each node has a <code>next</code> pointer and a <code>random</code> pointer that may point to any node or <code>None</code>. Return a <strong>deep copy</strong>: brand-new nodes whose pointers mirror the original structure.</p>
         <!-- enrich-top:start 138 -->
@@ -2041,6 +2247,10 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
             copy.random = old_to_new[cur.random]
             cur = cur.next
         return old_to_new[head]</code></pre>
+        <!-- trace:start 138 -->
+        <div class="trace-viz" id="trace-p138"></div>
+        <script type="application/json" id="trace-p138-data">{"src":["class Solution:","    def copyRandomList(self, head: \"Optional[Node]\") -> \"Optional[Node]\":","        # old node -> its copy; None maps to None so empty pointers copy for free","        old_to_new = {None: None}","        # pass 1: make a copy of every node (pointers not set yet)","        cur = head","        while cur is not None:","            old_to_new[cur] = Node(cur.val)","            cur = cur.next","        # pass 2: wire up next and random using the copies","        cur = head","        while cur is not None:","            copy = old_to_new[cur]","            copy.next = old_to_new[cur.next]","            copy.random = old_to_new[cur.random]","            cur = cur.next","        return old_to_new[head]"],"notes":{"4":"old node -> its copy; None maps to None so empty pointers copy for free","6":"pass 1: make a copy of every node (pointers not set yet)","11":"pass 2: wire up next and random using the copies"},"input":"head = [[1,1],[2,1]]","output":"[[1,1],[2,1]]","values":[{"~":"ll","v":[1,2],"cycle":false},{"~":"dict","v":[[null,null]]},{"~":"dict","v":[[null,null],[{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[1],"cycle":false}]]},{"~":"ll","v":[2],"cycle":false},{"~":"dict","v":[[null,null],[{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[1],"cycle":false}],[{"~":"ll","v":[2],"cycle":false},{"~":"ll","v":[2],"cycle":false}]]},null,{"~":"ll","v":[1],"cycle":false},{"~":"dict","v":[[null,null],[{"~":"ll","v":[1,2],"cycle":false},{"~":"ll","v":[1,2],"cycle":false}],[{"~":"ll","v":[2],"cycle":false},{"~":"ll","v":[2],"cycle":false}]]}],"steps":[[4,1,"copyRandomList",{"head":0},null],[6,1,"copyRandomList",{"head":0,"old_to_new":1},null],[7,1,"copyRandomList",{"head":0,"old_to_new":1,"cur":0},null],[8,1,"copyRandomList",{"head":0,"old_to_new":1,"cur":0},null],[9,1,"copyRandomList",{"head":0,"old_to_new":2,"cur":0},null],[7,1,"copyRandomList",{"head":0,"old_to_new":2,"cur":3},null],[8,1,"copyRandomList",{"head":0,"old_to_new":2,"cur":3},null],[9,1,"copyRandomList",{"head":0,"old_to_new":4,"cur":3},null],[7,1,"copyRandomList",{"head":0,"old_to_new":4,"cur":5},null],[11,1,"copyRandomList",{"head":0,"old_to_new":4,"cur":5},null],[12,1,"copyRandomList",{"head":0,"old_to_new":4,"cur":0},null],[13,1,"copyRandomList",{"head":0,"old_to_new":4,"cur":0},null],[14,1,"copyRandomList",{"head":0,"old_to_new":4,"cur":0,"copy":6},null],[15,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":0,"copy":0},null],[16,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":0,"copy":0},null],[12,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":3,"copy":0},null],[13,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":3,"copy":0},null],[14,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":3,"copy":3},null],[15,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":3,"copy":3},null],[16,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":3,"copy":3},null],[12,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":5,"copy":3},null],[17,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":5,"copy":3},null],[17,1,"copyRandomList",{"head":0,"old_to_new":7,"cur":5,"copy":3},null,0]],"truncated":false}</script>
+        <!-- trace:end 138 -->
         <!-- explain:start 138 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -2122,6 +2332,10 @@ There are no pairs of adjacent nodes, so we return the initial linked list.</spa
             # skip over the node we just added
             cur = after
         return head</code></pre>
+        <!-- trace:start 2807 -->
+        <div class="trace-viz" id="trace-p2807"></div>
+        <script type="application/json" id="trace-p2807-data">{"src":["class Solution:","    def insertGreatestCommonDivisors(self, head: Optional[ListNode]) -> Optional[ListNode]:","        def gcd(a, b):","            # Euclid: gcd(a, b) = gcd(b, a % b), and gcd(a, 0) = a","            while b != 0:","                a, b = b, a % b","            return a","","        cur = head","        while cur is not None and cur.next is not None:","            after = cur.next","            # the new node points at the old next node ...","            middle = ListNode(gcd(cur.val, after.val), after)","            # ... and cur points at the new node","            cur.next = middle","            # skip over the node we just added","            cur = after","        return head"],"notes":{"5":"Euclid: gcd(a, b) = gcd(b, a % b), and gcd(a, 0) = a","13":"the new node points at the old next node ...","15":"... and cur points at the new node","17":"skip over the node we just added"},"input":"head = [7]","output":"[7]","values":[{"~":"ll","v":[7],"cycle":false}],"steps":[[3,1,"insertGreatestCommonDivisors",{"head":0},null],[9,1,"insertGreatestCommonDivisors",{"head":0},null],[10,1,"insertGreatestCommonDivisors",{"head":0,"cur":0},null],[18,1,"insertGreatestCommonDivisors",{"head":0,"cur":0},null],[18,1,"insertGreatestCommonDivisors",{"head":0,"cur":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 2807 -->
         <!-- explain:start 2807 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -2156,6 +2370,519 @@ There are no pairs of adjacent nodes, so we return the initial linked list.</spa
       </div>
     </details>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- gen:start 86 -->
+    <details class="problem" id="p-86">
+      <summary><span class="tag medium">Medium</span> 86. Partition List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Rearrange the list so all nodes with values less than <code>x</code> come before nodes ≥ <code>x</code>, preserving the original order within each group.</p>
+        <!-- enrich-top:start 86 -->
+        <p class="links"><a href="https://leetcode.com/problems/partition-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,4,3,2,5,2], x = 3</code></div><div><strong>Output:</strong> <code class="ex">[1,2,2,4,3,5]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [2,1], x = 2</code></div><div><strong>Output:</strong> <code class="ex">[1,2]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[0, 200]</code>. · <code>-100 ≤ Node.val ≤ 100</code> · <code>-200 ≤ x ≤ 200</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Think of building two separate lists while walking the original once.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use two dummy heads, then connect the end of the first list to the start of the second.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting values into two arrays and rebuilding new nodes is <code>O(n)</code> time but <code>O(n)</code> extra space. Re-linking the existing nodes into two chains needs <code>O(1)</code> space.</p>
+        <!-- enrich-top:end 86 -->
+        <p><strong>Spot it:</strong> Splitting one list into two order-preserving groups is in-place pointer surgery: walk once and append each node to the tail of one of two dummy-headed lists, then join them.</p>
+        <p><strong>Why not another pattern?</strong> Copying values into arrays and rebuilding works but allocates new nodes. Swapping values in place would break the relative order.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Create two dummy heads: <code>small</code> and <code>big</code>, with tails.</li>
+          <li>Walk the list; append each node to the <code>small</code> tail if <code>val &lt; x</code>, else to the <code>big</code> tail.</li>
+          <li>End the <code>big</code> list with <code>None</code> (its last node may still point somewhere), then link <code>small_tail.next = big_head.next</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def partition(self, head: Optional[ListNode], x: int) -&gt; Optional[ListNode]:
+        small = ListNode()  # dummy head for values &lt; x
+        big = ListNode()  # dummy head for values &gt;= x
+        small_tail = small
+        big_tail = big
+        cur = head
+        while cur is not None:
+            if cur.val &lt; x:
+                small_tail.next = cur  # append to the "small" list
+                small_tail = cur
+            else:
+                big_tail.next = cur  # append to the "big" list
+                big_tail = cur
+            cur = cur.next
+        big_tail.next = None  # cut off the old link to avoid a cycle
+        small_tail.next = big.next  # small list, then big list
+        return small.next</code></pre>
+        <!-- trace:start 86 -->
+        <div class="trace-viz" id="trace-p86"></div>
+        <script type="application/json" id="trace-p86-data">{"src":["class Solution:","    def partition(self, head: Optional[ListNode], x: int) -> Optional[ListNode]:","        small = ListNode()  # dummy head for values < x","        big = ListNode()  # dummy head for values >= x","        small_tail = small","        big_tail = big","        cur = head","        while cur is not None:","            if cur.val < x:","                small_tail.next = cur  # append to the \"small\" list","                small_tail = cur","            else:","                big_tail.next = cur  # append to the \"big\" list","                big_tail = cur","            cur = cur.next","        big_tail.next = None  # cut off the old link to avoid a cycle","        small_tail.next = big.next  # small list, then big list","        return small.next"],"notes":{"3":"dummy head for values < x","4":"dummy head for values >= x","10":"append to the \"small\" list","13":"append to the \"big\" list","16":"cut off the old link to avoid a cycle","17":"small list, then big list"},"input":"head = [2,1], x = 2","output":"[1,2]","values":[{"~":"ll","v":[2,1],"cycle":false},2,{"~":"ll","v":[0],"cycle":false},{"~":"ll","v":[0,2,1],"cycle":false},{"~":"ll","v":[1],"cycle":false},{"~":"ll","v":[0,1],"cycle":false},null,{"~":"ll","v":[2],"cycle":false},{"~":"ll","v":[0,2],"cycle":false},{"~":"ll","v":[0,1,2],"cycle":false},{"~":"ll","v":[1,2],"cycle":false}],"steps":[[3,1,"partition",{"head":0,"x":1},null],[4,1,"partition",{"head":0,"x":1,"small":2},null],[5,1,"partition",{"head":0,"x":1,"small":2,"big":2},null],[6,1,"partition",{"head":0,"x":1,"small":2,"big":2,"small_tail":2},null],[7,1,"partition",{"head":0,"x":1,"small":2,"big":2,"small_tail":2,"big_tail":2},null],[8,1,"partition",{"head":0,"x":1,"small":2,"big":2,"small_tail":2,"big_tail":2,"cur":0},null],[9,1,"partition",{"head":0,"x":1,"small":2,"big":2,"small_tail":2,"big_tail":2,"cur":0},null],[13,1,"partition",{"head":0,"x":1,"small":2,"big":2,"small_tail":2,"big_tail":2,"cur":0},null],[14,1,"partition",{"head":0,"x":1,"small":2,"big":3,"small_tail":2,"big_tail":3,"cur":0},null],[15,1,"partition",{"head":0,"x":1,"small":2,"big":3,"small_tail":2,"big_tail":0,"cur":0},null],[8,1,"partition",{"head":0,"x":1,"small":2,"big":3,"small_tail":2,"big_tail":0,"cur":4},null],[9,1,"partition",{"head":0,"x":1,"small":2,"big":3,"small_tail":2,"big_tail":0,"cur":4},null],[10,1,"partition",{"head":0,"x":1,"small":2,"big":3,"small_tail":2,"big_tail":0,"cur":4},null],[11,1,"partition",{"head":0,"x":1,"small":5,"big":3,"small_tail":5,"big_tail":0,"cur":4},null],[15,1,"partition",{"head":0,"x":1,"small":5,"big":3,"small_tail":4,"big_tail":0,"cur":4},null],[8,1,"partition",{"head":0,"x":1,"small":5,"big":3,"small_tail":4,"big_tail":0,"cur":6},null],[16,1,"partition",{"head":0,"x":1,"small":5,"big":3,"small_tail":4,"big_tail":0,"cur":6},null],[17,1,"partition",{"head":7,"x":1,"small":5,"big":8,"small_tail":4,"big_tail":7,"cur":6},null],[18,1,"partition",{"head":7,"x":1,"small":9,"big":8,"small_tail":10,"big_tail":7,"cur":6},null],[18,1,"partition",{"head":7,"x":1,"small":9,"big":8,"small_tail":10,"big_tail":7,"cur":6},null,10]],"truncated":false}</script>
+        <!-- trace:end 86 -->
+        <!-- explain:start 86 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Two dummy heads mean the first node of either group needs no special case.</li>
+          <li>Each node is re-linked onto one of the two tails in the order it's visited, which preserves relative order.</li>
+          <li><code>big_tail.next = None</code>: the last big node might still point to a small node from the original list.</li>
+          <li><code>small_tail.next = big.next</code> joins the groups; <code>small.next</code> is the new head.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 86 -->
+        <!-- enrich-edges:start 86 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All values less than <code>x</code> (or all ≥ <code>x</code>).</li>
+          <li>An empty list.</li>
+          <li>Forgetting <code>big_tail.next = None</code> creates a cycle.</li>
+        </ul>
+        <!-- enrich-edges:end 86 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 86 -->
+
+    <!-- gen:start 109 -->
+    <details class="problem" id="p-109">
+      <summary><span class="tag medium">Medium</span> 109. Convert Sorted List to Binary Search Tree <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span><span class="ds">BST</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Convert a sorted singly linked list into a height-balanced binary search tree.</p>
+        <!-- enrich-top:start 109 -->
+        <p class="links"><a href="https://leetcode.com/problems/convert-sorted-list-to-binary-search-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [-10,-3,0,5,9]</code></div><div><strong>Output:</strong> <code class="ex">[0,-3,9,-10,null,5]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One possible answer is [0,-3,9,-10,null,5], which represents the shown height balanced BST.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = []</code></div><div><strong>Output:</strong> <code class="ex">[]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in <code>head</code> is in the range <code>[0, 2 * 10⁴]</code>. · <code>-10⁵ ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A BST's in-order traversal is sorted, just like the list.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Build the tree in in-order, consuming one list node each time you create a root.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Finding the middle node at every level with fast/slow pointers costs <code>O(n)</code> per level: <code>O(n log n)</code>. Building in in-order uses each list node exactly once at the moment it's needed: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 109 -->
+        <p><strong>Spot it:</strong> The list is the BST's in-order sequence. Build the tree in <strong>in-order</strong>: recursively build the left half, take the current list node as the root, then build the right half, advancing one pointer through the list as you go.</p>
+        <p><strong>Why not another pattern?</strong> Copying the list into an array and taking middles (LeetCode 108) is <code>O(n)</code> time but <code>O(n)</code> extra space. Finding the middle with fast/slow at every level is <code>O(n log n)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Count the nodes <code>n</code>.</li>
+          <li><code>build(lo, hi)</code> builds the tree for list positions <code>lo..hi</code>. If <code>lo &gt; hi</code>, return <code>None</code>.</li>
+          <li><code>mid = (lo + hi) // 2</code>; build the left subtree for <code>lo..mid − 1</code> first; this consumes exactly the nodes before <code>mid</code>.</li>
+          <li>The current list node is now position <code>mid</code>: make it the root, advance the list pointer, then build the right subtree <code>mid + 1..hi</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def sortedListToBST(self, head: Optional[ListNode]) -&gt; Optional[TreeNode]:
+        n = 0
+        cur = head
+        while cur is not None:
+            n = n + 1  # count the nodes
+            cur = cur.next
+        self.cur = head  # the next list node to place (in-order)
+
+        def build(lo, hi):
+            if lo &gt; hi:
+                return None
+            mid = (lo + hi) // 2
+            left = build(lo, mid - 1)  # all nodes before mid are consumed here
+            root = TreeNode(self.cur.val)  # the current list node is position mid
+            self.cur = self.cur.next
+            root.left = left
+            root.right = build(mid + 1, hi)
+            return root
+
+        return build(0, n - 1)</code></pre>
+        <!-- trace:start 109 -->
+        <div class="trace-viz" id="trace-p109"></div>
+        <script type="application/json" id="trace-p109-data">{"src":["class Solution:","    def sortedListToBST(self, head: Optional[ListNode]) -> Optional[TreeNode]:","        n = 0","        cur = head","        while cur is not None:","            n = n + 1  # count the nodes","            cur = cur.next","        self.cur = head  # the next list node to place (in-order)","","        def build(lo, hi):","            if lo > hi:","                return None","            mid = (lo + hi) // 2","            left = build(lo, mid - 1)  # all nodes before mid are consumed here","            root = TreeNode(self.cur.val)  # the current list node is position mid","            self.cur = self.cur.next","            root.left = left","            root.right = build(mid + 1, hi)","            return root","","        return build(0, n - 1)"],"notes":{"6":"count the nodes","8":"the next list node to place (in-order)","14":"all nodes before mid are consumed here","15":"the current list node is position mid"},"input":"head = []","output":"[]","values":[null,0,-1,"sortedListToBST(head=None) › build(lo=0, hi=-1)"],"steps":[[3,1,"sortedListToBST",{"head":0},null],[4,1,"sortedListToBST",{"head":0,"n":1},null],[5,1,"sortedListToBST",{"head":0,"n":1,"cur":0},null],[8,1,"sortedListToBST",{"head":0,"n":1,"cur":0},null],[10,1,"sortedListToBST",{"head":0,"n":1,"cur":0},null],[21,1,"sortedListToBST",{"head":0,"n":1,"cur":0},null],[11,2,"build",{"lo":1,"hi":2},3],[12,2,"build",{"lo":1,"hi":2},3],[12,2,"build",{"lo":1,"hi":2},3,0],[21,1,"sortedListToBST",{"head":0,"n":1,"cur":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 109 -->
+        <!-- explain:start 109 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Counting first lets <code>build</code> split ranges by index, exactly like the array version.</li>
+          <li><code>self.cur</code> walks the list in order; an in-order construction visits positions in increasing order too, so they stay in sync.</li>
+          <li>The left subtree is built <strong>before</strong> the root is created, so by then <code>self.cur</code> points at position <code>mid</code>.</li>
+          <li>Picking the middle of each range keeps the tree balanced.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 109 -->
+        <!-- enrich-edges:start 109 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty list → <code>None</code>.</li>
+          <li>One or two nodes.</li>
+          <li>Negative values.</li>
+        </ul>
+        <!-- enrich-edges:end 109 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(log n)</code> recursion depth.</p>
+      </div>
+    </details>
+    <!-- gen:end 109 -->
+
+    <!-- gen:start 147 -->
+    <details class="problem" id="p-147">
+      <summary><span class="tag medium">Medium</span> 147. Insertion Sort List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Sort a singly linked list using insertion sort and return its head.</p>
+        <!-- enrich-top:start 147 -->
+        <p class="links"><a href="https://leetcode.com/problems/insertion-sort-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [4,2,1,3]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [-1,5,3,4,0]</code></div><div><strong>Output:</strong> <code class="ex">[-1,0,3,4,5]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[1, 5000]</code>. · <code>-5000 ≤ Node.val ≤ 5000</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Keep a separate sorted list and insert nodes into it one by one.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A dummy head makes inserting at the front the same as anywhere else.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Copying values into an array, sorting and rebuilding uses <code>O(n)</code> space. Splicing nodes keeps it in place.</p>
+        <!-- enrich-top:end 147 -->
+        <p><strong>Spot it:</strong> Insertion sort on a linked list is pure pointer surgery: detach each node and splice it into its place in a growing sorted list behind a dummy head (no shifting of elements needed).</p>
+        <p><strong>Why not another pattern?</strong> Merge sort (LeetCode 148) is <code>O(n log n)</code> and faster; this problem asks specifically for insertion sort (<code>O(n²)</code> worst case).</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>dummy</code> starts an empty sorted list.</li>
+          <li>Take nodes from the input one at a time (remember <code>next</code> before re-linking).</li>
+          <li>Walk <code>prev</code> from <code>dummy</code> until <code>prev.next</code> is <code>None</code> or larger than the node; splice the node after <code>prev</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def insertionSortList(self, head: Optional[ListNode]) -&gt; Optional[ListNode]:
+        dummy = ListNode()  # head of the sorted part
+        cur = head
+        while cur is not None:
+            nxt = cur.next  # remember the rest of the unsorted list
+            prev = dummy
+            while prev.next is not None and prev.next.val &lt; cur.val:
+                prev = prev.next  # find where cur belongs
+            cur.next = prev.next  # splice cur in after prev
+            prev.next = cur
+            cur = nxt
+        return dummy.next</code></pre>
+        <!-- trace:start 147 -->
+        <div class="trace-viz" id="trace-p147"></div>
+        <script type="application/json" id="trace-p147-data">{"src":["class Solution:","    def insertionSortList(self, head: Optional[ListNode]) -> Optional[ListNode]:","        dummy = ListNode()  # head of the sorted part","        cur = head","        while cur is not None:","            nxt = cur.next  # remember the rest of the unsorted list","            prev = dummy","            while prev.next is not None and prev.next.val < cur.val:","                prev = prev.next  # find where cur belongs","            cur.next = prev.next  # splice cur in after prev","            prev.next = cur","            cur = nxt","        return dummy.next"],"notes":{"3":"head of the sorted part","6":"remember the rest of the unsorted list","9":"find where cur belongs","10":"splice cur in after prev"},"input":"head = [4,2,1,3]","output":"[1,2,3,4]","values":[{"~":"ll","v":[4,2,1,3],"cycle":false},{"~":"ll","v":[0],"cycle":false},{"~":"ll","v":[2,1,3],"cycle":false},{"~":"ll","v":[4],"cycle":false},{"~":"ll","v":[0,4],"cycle":false},{"~":"ll","v":[1,3],"cycle":false},{"~":"ll","v":[2,4],"cycle":false},{"~":"ll","v":[0,2,4],"cycle":false},{"~":"ll","v":[3],"cycle":false},{"~":"ll","v":[1,2,4],"cycle":false},{"~":"ll","v":[0,1,2,4],"cycle":false},null,{"~":"ll","v":[3,4],"cycle":false},{"~":"ll","v":[0,1,2,3,4],"cycle":false},{"~":"ll","v":[2,3,4],"cycle":false},{"~":"ll","v":[1,2,3,4],"cycle":false}],"steps":[[3,1,"insertionSortList",{"head":0},null],[4,1,"insertionSortList",{"head":0,"dummy":1},null],[5,1,"insertionSortList",{"head":0,"dummy":1,"cur":0},null],[6,1,"insertionSortList",{"head":0,"dummy":1,"cur":0},null],[7,1,"insertionSortList",{"head":0,"dummy":1,"cur":0,"nxt":2},null],[8,1,"insertionSortList",{"head":0,"dummy":1,"cur":0,"nxt":2,"prev":1},null],[10,1,"insertionSortList",{"head":0,"dummy":1,"cur":0,"nxt":2,"prev":1},null],[11,1,"insertionSortList",{"head":3,"dummy":1,"cur":3,"nxt":2,"prev":1},null],[12,1,"insertionSortList",{"head":3,"dummy":4,"cur":3,"nxt":2,"prev":4},null],[5,1,"insertionSortList",{"head":3,"dummy":4,"cur":2,"nxt":2,"prev":4},null],[6,1,"insertionSortList",{"head":3,"dummy":4,"cur":2,"nxt":2,"prev":4},null],[7,1,"insertionSortList",{"head":3,"dummy":4,"cur":2,"nxt":5,"prev":4},null],[8,1,"insertionSortList",{"head":3,"dummy":4,"cur":2,"nxt":5,"prev":4},null],[10,1,"insertionSortList",{"head":3,"dummy":4,"cur":2,"nxt":5,"prev":4},null],[11,1,"insertionSortList",{"head":3,"dummy":4,"cur":6,"nxt":5,"prev":4},null],[12,1,"insertionSortList",{"head":3,"dummy":7,"cur":6,"nxt":5,"prev":7},null],[5,1,"insertionSortList",{"head":3,"dummy":7,"cur":5,"nxt":5,"prev":7},null],[6,1,"insertionSortList",{"head":3,"dummy":7,"cur":5,"nxt":5,"prev":7},null],[7,1,"insertionSortList",{"head":3,"dummy":7,"cur":5,"nxt":8,"prev":7},null],[8,1,"insertionSortList",{"head":3,"dummy":7,"cur":5,"nxt":8,"prev":7},null],[10,1,"insertionSortList",{"head":3,"dummy":7,"cur":5,"nxt":8,"prev":7},null],[11,1,"insertionSortList",{"head":3,"dummy":7,"cur":9,"nxt":8,"prev":7},null],[12,1,"insertionSortList",{"head":3,"dummy":10,"cur":9,"nxt":8,"prev":10},null],[5,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":8,"prev":10},null],[6,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":8,"prev":10},null],[7,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":10},null],[8,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":10},null],[9,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":10},null],[8,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":9},null],[9,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":9},null],[8,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":6},null],[10,1,"insertionSortList",{"head":3,"dummy":10,"cur":8,"nxt":11,"prev":6},null],[11,1,"insertionSortList",{"head":3,"dummy":10,"cur":12,"nxt":11,"prev":6},null],[12,1,"insertionSortList",{"head":3,"dummy":13,"cur":12,"nxt":11,"prev":14},null],[5,1,"insertionSortList",{"head":3,"dummy":13,"cur":11,"nxt":11,"prev":14},null],[13,1,"insertionSortList",{"head":3,"dummy":13,"cur":11,"nxt":11,"prev":14},null],[13,1,"insertionSortList",{"head":3,"dummy":13,"cur":11,"nxt":11,"prev":14},null,15]],"truncated":false}</script>
+        <!-- trace:end 147 -->
+        <!-- explain:start 147 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>dummy.next</code> is the sorted list built so far (initially empty).</li>
+          <li><code>nxt = cur.next</code>: save it before <code>cur</code> is re-linked into the sorted list.</li>
+          <li>The inner loop stops at the last node smaller than <code>cur</code>.</li>
+          <li>Two pointer assignments insert <code>cur</code> there.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 147 -->
+        <!-- enrich-edges:start 147 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Already sorted (each insertion walks to the end; you can optimise by starting from the last inserted node).</li>
+          <li>Reverse sorted.</li>
+          <li>Duplicates.</li>
+        </ul>
+        <!-- enrich-edges:end 147 -->
+        <p><strong>Complexity:</strong> <code>O(n²)</code> time in the worst case, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 147 -->
+
+    <!-- gen:start 237 -->
+    <details class="problem" id="p-237">
+      <summary><span class="tag medium">Medium</span> 237. Delete Node in a Linked List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> You're given only the node to delete (not the head). It's not the last node. Delete it so the list's values no longer contain it.</p>
+        <!-- enrich-top:start 237 -->
+        <p class="links"><a href="https://leetcode.com/problems/delete-node-in-a-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [4,5,1,9], node = 5</code></div><div><strong>Output:</strong> <code class="ex">[4,1,9]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You are given the second node with value 5, the linked list should become 4 -&gt; 1 -&gt; 9 after calling your function.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [4,5,1,9], node = 1</code></div><div><strong>Output:</strong> <code class="ex">[4,5,9]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You are given the third node with value 1, the linked list should become 4 -&gt; 5 -&gt; 9 after calling your function.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of the nodes in the given list is in the range <code>[2, 1000]</code>. · <code>-1000 ≤ Node.val ≤ 1000</code> · The value of each node in the list is <strong>unique</strong>. · The <code>node</code> to be deleted is <strong>in the list</strong> and is <strong>not a tail</strong> node.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You can't reach the node before <code>node</code>. Which node <em>can</em> you remove easily?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Copy the next node's value into <code>node</code>, then delete the next node.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Normally you'd find the previous node from the head (<code>O(n)</code>), but there's no head. The copy-and-skip trick is <code>O(1)</code>.</p>
+        <!-- enrich-top:end 237 -->
+        <p><strong>Spot it:</strong> A linked-list rewiring puzzle: without the previous node you can't unlink <code>node</code> itself, but you can copy the next node's value into it and unlink the <strong>next</strong> node.</p>
+        <p><strong>Why not another pattern?</strong> Walking from the head to find the previous node is impossible here: you aren't given the head.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Copy <code>node.next.val</code> into <code>node.val</code>.</li>
+          <li>Skip over the next node: <code>node.next = node.next.next</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def deleteNode(self, node):
+        node.val = node.next.val  # take over the next node's value
+        node.next = node.next.next  # and remove the next node</code></pre>
+        <!-- trace:start 237 -->
+        <div class="trace-viz" id="trace-p237"></div>
+        <script type="application/json" id="trace-p237-data">{"src":["class Solution:","    def deleteNode(self, node):","        node.val = node.next.val  # take over the next node's value","        node.next = node.next.next  # and remove the next node"],"notes":{"3":"take over the next node's value","4":"and remove the next node"},"input":"head = [4,5,1,9], node = 5","output":"[4,1,9]","values":[{"~":"ll","v":[5,1,9],"cycle":false},{"~":"ll","v":[1,1,9],"cycle":false},{"~":"ll","v":[1,9],"cycle":false},null],"steps":[[3,1,"deleteNode",{"node":0},null],[4,1,"deleteNode",{"node":1},null],[4,1,"deleteNode",{"node":2},null,3]],"truncated":false}</script>
+        <!-- trace:end 237 -->
+        <!-- explain:start 237 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>We can't change the previous node's pointer, so we make <code>node</code> look like its successor.</li>
+          <li>Then the successor (now a duplicate) is unlinked.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 237 -->
+        <!-- enrich-edges:start 237 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Deleting the second-to-last node.</li>
+          <li>Equal values in the list.</li>
+          <li>The problem guarantees <code>node</code> isn't the tail.</li>
+        </ul>
+        <!-- enrich-edges:end 237 -->
+        <p><strong>Complexity:</strong> <code>O(1)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 237 -->
+
+    <!-- gen:start 328 -->
+    <details class="problem" id="p-328">
+      <summary><span class="tag medium">Medium</span> 328. Odd Even Linked List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Group all nodes at odd positions first, then those at even positions (1-indexed), keeping the order inside each group, in <code>O(1)</code> space.</p>
+        <!-- enrich-top:start 328 -->
+        <p class="links"><a href="https://leetcode.com/problems/odd-even-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [1,2,3,4,5]</code></div><div><strong>Output:</strong> <code class="ex">[1,3,5,2,4]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [2,1,3,5,6,4,7]</code></div><div><strong>Output:</strong> <code class="ex">[2,3,6,7,1,5,4]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the linked list is in the range <code>[0, 10⁴]</code>. · <code>-10⁶ ≤ Node.val ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Build two chains at the same time: positions 1, 3, 5, … and 2, 4, 6, …</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>At the end, connect the last odd node to the first even node.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting nodes into two arrays and re-linking uses <code>O(n)</code> space; weaving the chains in place uses <code>O(1)</code>.</p>
+        <!-- enrich-top:end 328 -->
+        <p><strong>Spot it:</strong> Splitting a list into two interleaved chains and re-joining them is in-place pointer surgery with two moving pointers.</p>
+        <p><strong>Why not another pattern?</strong> Copying values into arrays and rebuilding uses <code>O(n)</code> extra space, which the problem forbids.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>odd = head</code>, <code>even = head.next</code>, remember <code>even_head</code>.</li>
+          <li>While <code>even</code> and <code>even.next</code> exist: <code>odd.next = even.next</code>, advance <code>odd</code>; <code>even.next = odd.next</code>, advance <code>even</code>.</li>
+          <li>Attach the even chain: <code>odd.next = even_head</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def oddEvenList(self, head: Optional[ListNode]) -&gt; Optional[ListNode]:
+        if head is None:
+            return None
+        odd = head
+        even = head.next
+        even_head = even  # remember where the even chain starts
+        while even is not None and even.next is not None:
+            odd.next = even.next  # next odd node
+            odd = odd.next
+            even.next = odd.next  # next even node
+            even = even.next
+        odd.next = even_head  # odds first, then evens
+        return head</code></pre>
+        <!-- trace:start 328 -->
+        <div class="trace-viz" id="trace-p328"></div>
+        <script type="application/json" id="trace-p328-data">{"src":["class Solution:","    def oddEvenList(self, head: Optional[ListNode]) -> Optional[ListNode]:","        if head is None:","            return None","        odd = head","        even = head.next","        even_head = even  # remember where the even chain starts","        while even is not None and even.next is not None:","            odd.next = even.next  # next odd node","            odd = odd.next","            even.next = odd.next  # next even node","            even = even.next","        odd.next = even_head  # odds first, then evens","        return head"],"notes":{"7":"remember where the even chain starts","9":"next odd node","11":"next even node","13":"odds first, then evens"},"input":"head = [1,2,3,4,5]","output":"[1,3,5,2,4]","values":[{"~":"ll","v":[1,2,3,4,5],"cycle":false},{"~":"ll","v":[2,3,4,5],"cycle":false},{"~":"ll","v":[1,3,4,5],"cycle":false},{"~":"ll","v":[3,4,5],"cycle":false},{"~":"ll","v":[2,4,5],"cycle":false},{"~":"ll","v":[4,5],"cycle":false},{"~":"ll","v":[1,3,5],"cycle":false},{"~":"ll","v":[3,5],"cycle":false},{"~":"ll","v":[5],"cycle":false},{"~":"ll","v":[4],"cycle":false},{"~":"ll","v":[2,4],"cycle":false},null,{"~":"ll","v":[1,3,5,2,4],"cycle":false},{"~":"ll","v":[5,2,4],"cycle":false}],"steps":[[3,1,"oddEvenList",{"head":0},null],[5,1,"oddEvenList",{"head":0},null],[6,1,"oddEvenList",{"head":0,"odd":0},null],[7,1,"oddEvenList",{"head":0,"odd":0,"even":1},null],[8,1,"oddEvenList",{"head":0,"odd":0,"even":1,"even_head":1},null],[9,1,"oddEvenList",{"head":0,"odd":0,"even":1,"even_head":1},null],[10,1,"oddEvenList",{"head":2,"odd":2,"even":1,"even_head":1},null],[11,1,"oddEvenList",{"head":2,"odd":3,"even":1,"even_head":1},null],[12,1,"oddEvenList",{"head":2,"odd":3,"even":4,"even_head":4},null],[8,1,"oddEvenList",{"head":2,"odd":3,"even":5,"even_head":4},null],[9,1,"oddEvenList",{"head":2,"odd":3,"even":5,"even_head":4},null],[10,1,"oddEvenList",{"head":6,"odd":7,"even":5,"even_head":4},null],[11,1,"oddEvenList",{"head":6,"odd":8,"even":5,"even_head":4},null],[12,1,"oddEvenList",{"head":6,"odd":8,"even":9,"even_head":10},null],[8,1,"oddEvenList",{"head":6,"odd":8,"even":11,"even_head":10},null],[13,1,"oddEvenList",{"head":6,"odd":8,"even":11,"even_head":10},null],[14,1,"oddEvenList",{"head":12,"odd":13,"even":11,"even_head":10},null],[14,1,"oddEvenList",{"head":12,"odd":13,"even":11,"even_head":10},null,12]],"truncated":false}</script>
+        <!-- trace:end 328 -->
+        <!-- explain:start 328 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>odd</code> and <code>even</code> are the tails of the two chains being built.</li>
+          <li>Each round links one odd node and one even node, skipping over the other chain's node.</li>
+          <li>The loop condition guarantees <code>even.next</code> (the next odd node) exists.</li>
+          <li>Finally the odd chain's tail points to the first even node.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 328 -->
+        <!-- enrich-edges:start 328 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>An empty list or a single node.</li>
+          <li>Two nodes → unchanged.</li>
+          <li>Odd and even lengths.</li>
+        </ul>
+        <!-- enrich-edges:end 328 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 328 -->
+
+    <!-- gen:start 707 -->
+    <details class="problem" id="p-707">
+      <summary><span class="tag medium">Medium</span> 707. Design Linked List <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Implement a singly linked list with <code>get(index)</code>, <code>addAtHead</code>, <code>addAtTail</code>, <code>addAtIndex(index, val)</code> and <code>deleteAtIndex(index)</code>.</p>
+        <!-- enrich-top:start 707 -->
+        <p class="links"><a href="https://leetcode.com/problems/design-linked-list/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">["MyLinkedList", "addAtHead", "addAtTail", "addAtIndex", "get", "deleteAtIndex", "get"]
+[[], [1], [3], [1, 2], [1], [1], [1]]</code></div><div><strong>Output:</strong> <code class="ex">[null, null, null, null, 2, null, 3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">MyLinkedList myLinkedList = new MyLinkedList();
+myLinkedList.addAtHead(1);
+myLinkedList.addAtTail(3);
+myLinkedList.addAtIndex(1, 2); // linked list becomes 1-&gt;2-&gt;3
+myLinkedList.get(1); // return 2
+myLinkedList.deleteAtIndex(1); // now the linked list is 1-&gt;3
+myLinkedList.get(1); // return 3</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ index, val ≤ 1000</code> · Please do not use the built-in LinkedList library. · At most <code>2000</code> calls will be made to <code>get</code>, <code>addAtHead</code>, <code>addAtTail</code>, <code>addAtIndex</code> and <code>deleteAtIndex</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Most operations need the node <em>before</em> the target position.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>A dummy head and a size counter remove almost all special cases.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Without a sentinel, inserting or deleting at index 0 needs separate code paths; the dummy node makes every position uniform.</p>
+        <!-- enrich-top:end 707 -->
+        <p><strong>Spot it:</strong> Every operation is "walk to the node before position <code>index</code>, then re-link". A dummy (sentinel) head makes index 0 behave like any other position, and a size counter answers bounds checks in <code>O(1)</code>.</p>
+        <p><strong>Why not another pattern?</strong> A Python list would make this trivial, but the exercise is about the pointer operations themselves.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Keep <code>self.dummy</code> (sentinel before the real head) and <code>self.size</code>.</li>
+          <li>A helper <code>_before(index)</code> walks <code>index</code> steps from the dummy: it returns the node just before position <code>index</code>.</li>
+          <li><code>addAtIndex</code>: reject <code>index &gt; size</code>; splice a new node after <code>_before(index)</code>. Head and tail additions are <code>addAtIndex(0, …)</code> and <code>addAtIndex(size, …)</code>.</li>
+          <li><code>get</code> and <code>deleteAtIndex</code>: reject <code>index ≥ size</code>; use <code>_before(index)</code> to read or unlink.</li>
+        </ol>
+        <pre><code class="python">class MyLinkedList:
+    class Node:
+        def __init__(self, val, nxt=None):
+            self.val = val
+            self.next = nxt
+
+    def __init__(self):
+        self.dummy = self.Node(0)  # sentinel in front of the real head
+        self.size = 0
+
+    def _before(self, index):
+        node = self.dummy
+        for _ in range(index):
+            node = node.next  # walk to the node just before position index
+        return node
+
+    def get(self, index: int) -&gt; int:
+        if index &lt; 0 or index &gt;= self.size:
+            return -1
+        return self._before(index).next.val
+
+    def addAtHead(self, val: int) -&gt; None:
+        self.addAtIndex(0, val)
+
+    def addAtTail(self, val: int) -&gt; None:
+        self.addAtIndex(self.size, val)
+
+    def addAtIndex(self, index: int, val: int) -&gt; None:
+        if index &lt; 0 or index &gt; self.size:
+            return  # invalid position: do nothing
+        prev = self._before(index)
+        prev.next = self.Node(val, prev.next)  # splice the new node in
+        self.size = self.size + 1
+
+    def deleteAtIndex(self, index: int) -&gt; None:
+        if index &lt; 0 or index &gt;= self.size:
+            return
+        prev = self._before(index)
+        prev.next = prev.next.next  # unlink the node at index
+        self.size = self.size - 1</code></pre>
+        <!-- trace:start 707 -->
+        <div class="trace-viz" id="trace-p707"></div>
+        <script type="application/json" id="trace-p707-data">{"src":["class MyLinkedList:","    class Node:","        def __init__(self, val, nxt=None):","            self.val = val","            self.next = nxt","","    def __init__(self):","        self.dummy = self.Node(0)  # sentinel in front of the real head","        self.size = 0","","    def _before(self, index):","        node = self.dummy","        for _ in range(index):","            node = node.next  # walk to the node just before position index","        return node","","    def get(self, index: int) -> int:","        if index < 0 or index >= self.size:","            return -1","        return self._before(index).next.val","","    def addAtHead(self, val: int) -> None:","        self.addAtIndex(0, val)","","    def addAtTail(self, val: int) -> None:","        self.addAtIndex(self.size, val)","","    def addAtIndex(self, index: int, val: int) -> None:","        if index < 0 or index > self.size:","            return  # invalid position: do nothing","        prev = self._before(index)","        prev.next = self.Node(val, prev.next)  # splice the new node in","        self.size = self.size + 1","","    def deleteAtIndex(self, index: int) -> None:","        if index < 0 or index >= self.size:","            return","        prev = self._before(index)","        prev.next = prev.next.next  # unlink the node at index","        self.size = self.size - 1"],"notes":{"8":"sentinel in front of the real head","14":"walk to the node just before position index","30":"invalid position: do nothing","32":"splice the new node in","39":"unlink the node at index"},"input":"[\"MyLinkedList\", \"addAtHead\", \"addAtTail\", \"addAtIndex\", \"get\", \"deleteAtIndex\", \"get\"]\n[[], [1], [3], [1, 2], [1], [1], [1]]","output":"[null, null, null, null, 2, null, 3]","values":[0,null,"__init__() › __init__(val=0, nxt=None)",1,"addAtHead(val=1) › addAtIndex(index=0, val=1)","addAtHead(val=1) › addAtIndex(index=0, val=1) › _before(index=0)",{"~":"ll","v":[0],"cycle":false},"addAtHead(val=1) › addAtIndex(index=0, val=1) › __init__(val=1, nxt=None)",{"~":"ll","v":[0,1],"cycle":false},3,"addAtTail(val=3) › addAtIndex(index=1, val=3)","addAtTail(val=3) › addAtIndex(index=1, val=3) › _before(index=1)",{"~":"ll","v":[1],"cycle":false},"addAtTail(val=3) › addAtIndex(index=1, val=3) › __init__(val=3, nxt=None)",{"~":"ll","v":[1,3],"cycle":false},2,"addAtIndex(index=1, val=2) › _before(index=1)",{"~":"ll","v":[0,1,3],"cycle":false},{"~":"ll","v":[3],"cycle":false},"addAtIndex(index=1, val=2) › __init__(val=2, nxt=3)",{"~":"ll","v":[1,2,3],"cycle":false},"get(index=1) › _before(index=1)",{"~":"ll","v":[0,1,2,3],"cycle":false},"deleteAtIndex(index=1) › _before(index=1)"],"steps":[[8,1,"__init__",{},null],[4,2,"__init__",{"val":0,"nxt":1},2],[5,2,"__init__",{"val":0,"nxt":1},2],[5,2,"__init__",{"val":0,"nxt":1},2,1],[9,1,"__init__",{},null],[9,1,"__init__",{},null,1],[23,1,"addAtHead",{"val":3},null],[29,2,"addAtIndex",{"index":0,"val":3},4],[31,2,"addAtIndex",{"index":0,"val":3},4],[12,3,"_before",{"index":0},5],[13,3,"_before",{"index":0,"node":6},5],[15,3,"_before",{"index":0,"node":6},5],[15,3,"_before",{"index":0,"node":6},5,6],[32,2,"addAtIndex",{"index":0,"val":3,"prev":6},4],[4,3,"__init__",{"val":3,"nxt":1},7],[5,3,"__init__",{"val":3,"nxt":1},7],[5,3,"__init__",{"val":3,"nxt":1},7,1],[33,2,"addAtIndex",{"index":0,"val":3,"prev":8},4],[33,2,"addAtIndex",{"index":0,"val":3,"prev":8},4,1],[23,1,"addAtHead",{"val":3},null,1],[26,1,"addAtTail",{"val":9},null],[29,2,"addAtIndex",{"index":3,"val":9},10],[31,2,"addAtIndex",{"index":3,"val":9},10],[12,3,"_before",{"index":3},11],[13,3,"_before",{"index":3,"node":8},11],[14,3,"_before",{"index":3,"node":8,"_":0},11],[13,3,"_before",{"index":3,"node":12,"_":0},11],[15,3,"_before",{"index":3,"node":12,"_":0},11],[15,3,"_before",{"index":3,"node":12,"_":0},11,12],[32,2,"addAtIndex",{"index":3,"val":9,"prev":12},10],[4,3,"__init__",{"val":9,"nxt":1},13],[5,3,"__init__",{"val":9,"nxt":1},13],[5,3,"__init__",{"val":9,"nxt":1},13,1],[33,2,"addAtIndex",{"index":3,"val":9,"prev":14},10],[33,2,"addAtIndex",{"index":3,"val":9,"prev":14},10,1],[26,1,"addAtTail",{"val":9},null,1],[29,1,"addAtIndex",{"index":3,"val":15},null],[31,1,"addAtIndex",{"index":3,"val":15},null],[12,2,"_before",{"index":3},16],[13,2,"_before",{"index":3,"node":17},16],[14,2,"_before",{"index":3,"node":17,"_":0},16],[13,2,"_before",{"index":3,"node":14,"_":0},16],[15,2,"_before",{"index":3,"node":14,"_":0},16],[15,2,"_before",{"index":3,"node":14,"_":0},16,14],[32,1,"addAtIndex",{"index":3,"val":15,"prev":14},null],[4,2,"__init__",{"val":15,"nxt":18},19],[5,2,"__init__",{"val":15,"nxt":18},19],[5,2,"__init__",{"val":15,"nxt":18},19,1],[33,1,"addAtIndex",{"index":3,"val":15,"prev":20},null],[33,1,"addAtIndex",{"index":3,"val":15,"prev":20},null,1],[18,1,"get",{"index":3},null],[20,1,"get",{"index":3},null],[12,2,"_before",{"index":3},21],[13,2,"_before",{"index":3,"node":22},21],[14,2,"_before",{"index":3,"node":22,"_":0},21],[13,2,"_before",{"index":3,"node":20,"_":0},21],[15,2,"_before",{"index":3,"node":20,"_":0},21],[15,2,"_before",{"index":3,"node":20,"_":0},21,20],[20,1,"get",{"index":3},null,15],[36,1,"deleteAtIndex",{"index":3},null],[38,1,"deleteAtIndex",{"index":3},null],[12,2,"_before",{"index":3},23],[13,2,"_before",{"index":3,"node":22},23],[14,2,"_before",{"index":3,"node":22,"_":0},23],[13,2,"_before",{"index":3,"node":20,"_":0},23],[15,2,"_before",{"index":3,"node":20,"_":0},23],[15,2,"_before",{"index":3,"node":20,"_":0},23,20],[39,1,"deleteAtIndex",{"index":3,"prev":20},null],[40,1,"deleteAtIndex",{"index":3,"prev":14},null],[40,1,"deleteAtIndex",{"index":3,"prev":14},null,1],[18,1,"get",{"index":3},null],[20,1,"get",{"index":3},null],[12,2,"_before",{"index":3},21],[13,2,"_before",{"index":3,"node":17},21],[14,2,"_before",{"index":3,"node":17,"_":0},21],[13,2,"_before",{"index":3,"node":14,"_":0},21],[15,2,"_before",{"index":3,"node":14,"_":0},21],[15,2,"_before",{"index":3,"node":14,"_":0},21,14],[20,1,"get",{"index":3},null,9]],"truncated":false}</script>
+        <!-- trace:end 707 -->
+        <!-- explain:start 707 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>self.dummy</code> sits before position 0, so inserting at the head is the same code as inserting anywhere.</li>
+          <li><code>_before(index)</code> takes <code>index</code> steps from the dummy, landing on the predecessor of position <code>index</code>.</li>
+          <li><code>addAtIndex</code> allows <code>index == size</code> (append) but not beyond it.</li>
+          <li><code>get</code> and <code>deleteAtIndex</code> require an existing position: <code>index &lt; size</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 707 -->
+        <!-- enrich-edges:start 707 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>addAtIndex(size, val)</code> appends.</li>
+          <li><code>addAtIndex(size + 1, val)</code> does nothing.</li>
+          <li>Deleting the only node.</li>
+        </ul>
+        <!-- enrich-edges:end 707 -->
+        <p><strong>Complexity:</strong> <code>O(index)</code> per operation (<code>O(n)</code> worst case), <code>O(1)</code> for <code>addAtHead</code>; <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 707 -->
+
+    <!-- gen:start 2058 -->
+    <details class="problem" id="p-2058">
+      <summary><span class="tag medium">Medium</span> 2058. Find the Minimum and Maximum Number of Nodes Between Critical Points <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Linked List</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A critical point is a local maximum or minimum (strictly greater or smaller than both neighbours). Return <code>[min distance, max distance]</code> between any two critical points, or <code>[-1, -1]</code> if there are fewer than two.</p>
+        <!-- enrich-top:start 2058 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-the-minimum-and-maximum-number-of-nodes-between-critical-points/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">head = [3,1]</code></div><div><strong>Output:</strong> <code class="ex">[-1,-1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are no critical points in [3,1].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">head = [5,3,1,2,5,1,2]</code></div><div><strong>Output:</strong> <code class="ex">[1,3]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There are three critical points:
+- [5,3,1,2,5,1,2]: The third node is a local minima because 1 is less than 3 and 2.
+- [5,3,1,2,5,1,2]: The fifth node is a local maxima because 5 is greater than 2 and 1.
+- [5,3,1,2,5,1,2]: The sixth node is a local minima because 1 is less than 5 and 2.
+The minimum distance is between the fifth and the sixth node. minDistance = 6 - 5 = 1.
+The maximum distance is between the third and the sixth node. maxDistance = 6 - 3 = 3.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> The number of nodes in the list is in the range <code>[2, 10⁵]</code>. · <code>1 ≤ Node.val ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>You need each node together with its two neighbours.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>The smallest gap is between consecutive critical points; the largest is between the first and the last.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Collecting every critical index and comparing all pairs is <code>O(k²)</code>. Only consecutive gaps and the first/last pair matter, so one pass suffices.</p>
+        <!-- enrich-top:end 2058 -->
+        <p><strong>Spot it:</strong> A single walk looking at each node with its neighbours (<code>prev</code>, <code>cur</code>, <code>cur.next</code>): linked-list traversal with a few remembered indices.</p>
+        <p><strong>Why not another pattern?</strong> Collecting all critical indices in a list first works too (<code>O(k)</code> extra space); you only need the first, previous and latest ones.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Walk with <code>prev</code> and <code>cur</code>, keeping the position <code>i</code> of <code>cur</code>.</li>
+          <li>If <code>cur</code> is a local max or min, it's critical: compare with the previous critical index for the minimum gap, remember the first one for the maximum.</li>
+          <li>At the end, the maximum distance is <code>last − first</code>; return <code>[-1, -1]</code> if fewer than two critical points.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def nodesBetweenCriticalPoints(self, head: Optional[ListNode]) -&gt; List[int]:
+        first = -1  # index of the first critical point
+        last = -1  # index of the latest critical point
+        min_gap = float("inf")
+        prev = head
+        cur = head.next
+        i = 1
+        while cur is not None and cur.next is not None:
+            nxt = cur.next
+            if (cur.val &gt; prev.val and cur.val &gt; nxt.val) or (cur.val &lt; prev.val and cur.val &lt; nxt.val):
+                if first == -1:
+                    first = i  # the first critical point
+                else:
+                    min_gap = min(min_gap, i - last)  # distance to the previous critical point
+                last = i
+            prev = cur
+            cur = nxt
+            i = i + 1
+        if min_gap == float("inf"):
+            return [-1, -1]  # fewer than two critical points
+        return [min_gap, last - first]</code></pre>
+        <!-- trace:start 2058 -->
+        <div class="trace-viz" id="trace-p2058"></div>
+        <script type="application/json" id="trace-p2058-data">{"src":["class Solution:","    def nodesBetweenCriticalPoints(self, head: Optional[ListNode]) -> List[int]:","        first = -1  # index of the first critical point","        last = -1  # index of the latest critical point","        min_gap = float(\"inf\")","        prev = head","        cur = head.next","        i = 1","        while cur is not None and cur.next is not None:","            nxt = cur.next","            if (cur.val > prev.val and cur.val > nxt.val) or (cur.val < prev.val and cur.val < nxt.val):","                if first == -1:","                    first = i  # the first critical point","                else:","                    min_gap = min(min_gap, i - last)  # distance to the previous critical point","                last = i","            prev = cur","            cur = nxt","            i = i + 1","        if min_gap == float(\"inf\"):","            return [-1, -1]  # fewer than two critical points","        return [min_gap, last - first]"],"notes":{"3":"index of the first critical point","4":"index of the latest critical point","13":"the first critical point","15":"distance to the previous critical point","21":"fewer than two critical points"},"input":"head = [3,1]","output":"[-1,-1]","values":[{"~":"ll","v":[3,1],"cycle":false},-1,{"~":"num","v":"∞"},{"~":"ll","v":[1],"cycle":false},1,{"~":"list","v":[-1,-1]}],"steps":[[3,1,"nodesBetweenCriticalPoints",{"head":0},null],[4,1,"nodesBetweenCriticalPoints",{"head":0,"first":1},null],[5,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1},null],[6,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2},null],[7,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2,"prev":0},null],[8,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2,"prev":0,"cur":3},null],[9,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2,"prev":0,"cur":3,"i":4},null],[20,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2,"prev":0,"cur":3,"i":4},null],[21,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2,"prev":0,"cur":3,"i":4},null],[21,1,"nodesBetweenCriticalPoints",{"head":0,"first":1,"last":1,"min_gap":2,"prev":0,"cur":3,"i":4},null,5]],"truncated":false}</script>
+        <!-- trace:end 2058 -->
+        <!-- explain:start 2058 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The first and last nodes can't be critical (they lack a neighbour), so the walk starts at index 1 and stops before the tail.</li>
+          <li>A node is critical when it's strictly above both neighbours or strictly below both.</li>
+          <li>The minimum distance is always between two <strong>consecutive</strong> critical points, so comparing with <code>last</code> is enough.</li>
+          <li>The maximum distance is between the first and the last critical point.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 2058 -->
+        <!-- enrich-edges:start 2058 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than three nodes → <code>[-1, -1]</code>.</li>
+          <li>Exactly one critical point → <code>[-1, -1]</code>.</li>
+          <li>Equal neighbours are not critical (strictly greater/smaller is required).</li>
+        </ul>
+        <!-- enrich-edges:end 2058 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 2058 -->
 
     <nav class="pager">
       <a href="04-fast-slow-pointers.html"><small>Previous pattern</small>← 04 · Fast &amp; Slow Pointers</a>

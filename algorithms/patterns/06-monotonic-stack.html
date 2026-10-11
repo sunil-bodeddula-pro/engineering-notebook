@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 06 of 21</div>
+    <div class="eyebrow">Pattern 06 of 24</div>
     <h1>Monotonic Stack</h1>
     <p class="lede">Keep a stack that is always sorted. The moment a new element breaks the order, everyone it "beats" gets popped, and each popped element learns its answer right then.</p>
 
@@ -692,7 +835,7 @@ def previous_smaller(nums):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" open id="p-739">
-      <summary><span class="tag medium">Medium</span> 739. Daily Temperatures <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 739. Daily Temperatures <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given daily temperatures, for each day return how many days you must wait until a warmer day. If there's none, put 0.</p>
         <!-- enrich-top:start 739 -->
@@ -736,6 +879,10 @@ class Solution:
             stack.append(i)
         # Days left on the stack never got warmer, so they keep 0
         return answer</code></pre>
+        <!-- trace:start 739 -->
+        <div class="trace-viz" id="trace-p739"></div>
+        <script type="application/json" id="trace-p739-data">{"src":["from typing import List","","class Solution:","    def dailyTemperatures(self, temperatures: List[int]) -> List[int]:","        n = len(temperatures)","        # answer[day] = how many days until a warmer day (0 = never gets warmer)","        answer = [0] * n","        # stack holds indices of days still waiting for a warmer day","        stack = []","        for i in range(n):","            today = temperatures[i]","            # Today is warmer than the day on top? Then that day's wait is over.","            while len(stack) > 0 and temperatures[stack[-1]] < today:","                waiting_day = stack.pop()             # day that just found a warmer day","                answer[waiting_day] = i - waiting_day # distance in days","            # Today starts waiting for its own warmer day","            stack.append(i)","        # Days left on the stack never got warmer, so they keep 0","        return answer"],"notes":{"7":"answer[day] = how many days until a warmer day (0 = never gets warmer)","9":"stack holds indices of days still waiting for a warmer day","13":"Today is warmer than the day on top? Then that day's wait is over.","14":"day that just found a warmer day","15":"distance in days","17":"Today starts waiting for its own warmer day","19":"Days left on the stack never got warmer, so they keep 0"},"input":"temperatures = [30,60,90]","output":"[1,1,0]","values":[{"~":"list","v":[30,60,90]},3,{"~":"list","v":[0,0,0]},{"~":"list","v":[]},0,30,{"~":"list","v":[0]},1,60,{"~":"list","v":[1,0,0]},{"~":"list","v":[1]},2,90,{"~":"list","v":[1,1,0]},{"~":"list","v":[2]}],"steps":[[5,1,"dailyTemperatures",{"temperatures":0},null],[7,1,"dailyTemperatures",{"temperatures":0,"n":1},null],[9,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2},null],[10,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":3},null],[11,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":3,"i":4},null],[13,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":3,"i":4,"today":5},null],[17,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":3,"i":4,"today":5},null],[10,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":6,"i":4,"today":5},null],[11,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":6,"i":7,"today":5},null],[13,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":6,"i":7,"today":8},null],[14,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":6,"i":7,"today":8},null],[15,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":2,"stack":3,"i":7,"today":8,"waiting_day":4},null],[13,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":3,"i":7,"today":8,"waiting_day":4},null],[17,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":3,"i":7,"today":8,"waiting_day":4},null],[10,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":10,"i":7,"today":8,"waiting_day":4},null],[11,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":10,"i":11,"today":8,"waiting_day":4},null],[13,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":10,"i":11,"today":12,"waiting_day":4},null],[14,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":10,"i":11,"today":12,"waiting_day":4},null],[15,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":9,"stack":3,"i":11,"today":12,"waiting_day":7},null],[13,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":13,"stack":3,"i":11,"today":12,"waiting_day":7},null],[17,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":13,"stack":3,"i":11,"today":12,"waiting_day":7},null],[10,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":13,"stack":14,"i":11,"today":12,"waiting_day":7},null],[19,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":13,"stack":14,"i":11,"today":12,"waiting_day":7},null],[19,1,"dailyTemperatures",{"temperatures":0,"n":1,"answer":13,"stack":14,"i":11,"today":12,"waiting_day":7},null,13]],"truncated":false}</script>
+        <!-- trace:end 739 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>answer = [0] * n</code> makes a list of <code>n</code> zeros. 0 is the right answer for any day that never sees a warmer day, so we only overwrite days that do.</li>
@@ -773,7 +920,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-503">
-      <summary><span class="tag medium">Medium</span> 503. Next Greater Element II <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 503. Next Greater Element II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> The array is <em>circular</em>: after the last element comes the first. For each element, return the next greater value when walking forward (wrapping around), or -1.</p>
         <!-- enrich-top:start 503 -->
@@ -820,6 +967,10 @@ class Solution:
             if step &lt; n:
                 stack.append(index)
         return answer</code></pre>
+        <!-- trace:start 503 -->
+        <div class="trace-viz" id="trace-p503"></div>
+        <script type="application/json" id="trace-p503-data">{"src":["from typing import List","","class Solution:","    def nextGreaterElements(self, nums: List[int]) -> List[int]:","        n = len(nums)","        # -1 means \"no greater value anywhere around the circle\"","        answer = [-1] * n","        # decreasing stack of indices still waiting for an answer","        stack = []","        # Walk the array twice (2 * n steps) to simulate wrapping around","        for step in range(2 * n):","            index = step % n            # % n turns step n, n+1, ... back into 0, 1, ...","            current = nums[index]","            # current answers every smaller value waiting on the stack","            while len(stack) > 0 and nums[stack[-1]] < current:","                top_index = stack.pop()","                answer[top_index] = current","            # Only push during the first lap so each index waits at most once","            if step < n:","                stack.append(index)","        return answer"],"notes":{"7":"-1 means \"no greater value anywhere around the circle\"","9":"decreasing stack of indices still waiting for an answer","11":"Walk the array twice (2 * n steps) to simulate wrapping around","12":"% n turns step n, n+1, ... back into 0, 1, ...","15":"current answers every smaller value waiting on the stack","19":"Only push during the first lap so each index waits at most once"},"input":"nums = [1,2,1]","output":"[2,-1,2]","values":[{"~":"list","v":[1,2,1]},3,{"~":"list","v":[-1,-1,-1]},{"~":"list","v":[]},0,1,{"~":"list","v":[0]},2,{"~":"list","v":[2,-1,-1]},{"~":"list","v":[1]},{"~":"list","v":[1,2]},4,{"~":"list","v":[2,-1,2]},5],"steps":[[5,1,"nextGreaterElements",{"nums":0},null],[7,1,"nextGreaterElements",{"nums":0,"n":1},null],[9,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3},null],[12,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3,"step":4},null],[13,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3,"step":4,"index":4},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3,"step":4,"index":4,"current":5},null],[19,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3,"step":4,"index":4,"current":5},null],[20,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3,"step":4,"index":4,"current":5},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":6,"step":4,"index":4,"current":5},null],[12,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":6,"step":5,"index":4,"current":5},null],[13,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":6,"step":5,"index":5,"current":5},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":6,"step":5,"index":5,"current":7},null],[16,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":6,"step":5,"index":5,"current":7},null],[17,1,"nextGreaterElements",{"nums":0,"n":1,"answer":2,"stack":3,"step":5,"index":5,"current":7,"top_index":4},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":3,"step":5,"index":5,"current":7,"top_index":4},null],[19,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":3,"step":5,"index":5,"current":7,"top_index":4},null],[20,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":3,"step":5,"index":5,"current":7,"top_index":4},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":5,"index":5,"current":7,"top_index":4},null],[12,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":7,"index":5,"current":7,"top_index":4},null],[13,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":7,"index":7,"current":7,"top_index":4},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":7,"index":7,"current":5,"top_index":4},null],[19,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":7,"index":7,"current":5,"top_index":4},null],[20,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":7,"index":7,"current":5,"top_index":4},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":7,"index":7,"current":5,"top_index":4},null],[12,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":1,"index":7,"current":5,"top_index":4},null],[13,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":1,"index":4,"current":5,"top_index":4},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":1,"index":4,"current":5,"top_index":4},null],[19,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":1,"index":4,"current":5,"top_index":4},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":1,"index":4,"current":5,"top_index":4},null],[12,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":11,"index":4,"current":5,"top_index":4},null],[13,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":11,"index":5,"current":5,"top_index":4},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":11,"index":5,"current":7,"top_index":4},null],[16,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":10,"step":11,"index":5,"current":7,"top_index":4},null],[17,1,"nextGreaterElements",{"nums":0,"n":1,"answer":8,"stack":9,"step":11,"index":5,"current":7,"top_index":7},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":11,"index":5,"current":7,"top_index":7},null],[19,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":11,"index":5,"current":7,"top_index":7},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":11,"index":5,"current":7,"top_index":7},null],[12,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":5,"current":7,"top_index":7},null],[13,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":7,"current":7,"top_index":7},null],[15,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":7,"current":5,"top_index":7},null],[19,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":7,"current":5,"top_index":7},null],[11,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":7,"current":5,"top_index":7},null],[21,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":7,"current":5,"top_index":7},null],[21,1,"nextGreaterElements",{"nums":0,"n":1,"answer":12,"stack":9,"step":13,"index":7,"current":5,"top_index":7},null,12]],"truncated":false}</script>
+        <!-- trace:end 503 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>answer</code> starts as all -1 (the answer for anything that never finds a bigger value). <code>stack</code> holds indices waiting for their answer; their values decrease from bottom to top.</li>
@@ -854,7 +1005,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-402">
-      <summary><span class="tag medium">Medium</span> 402. Remove K Digits <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 402. Remove K Digits <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Given a number as a string and an integer <code>k</code>, delete exactly <code>k</code> digits so the remaining number is as small as possible. Return it without leading zeros ("0" if empty).</p>
         <!-- enrich-top:start 402 -->
@@ -909,6 +1060,10 @@ class Solution:
         if result == "":
             return "0"
         return result</code></pre>
+        <!-- trace:start 402 -->
+        <div class="trace-viz" id="trace-p402"></div>
+        <script type="application/json" id="trace-p402-data">{"src":["class Solution:","    def removeKdigits(self, num: str, k: int) -> str:","        # how many digits we are still allowed to delete","        deletions_left = k","        # digits we keep, in non-decreasing order bottom -> top","        stack = []","        for i in range(len(num)):","            digit = num[i]","            # A bigger digit sitting right before a smaller one makes the number","            # bigger, so delete it (as long as we still have deletions left).","            while deletions_left > 0 and len(stack) > 0 and stack[-1] > digit:","                stack.pop()","                deletions_left = deletions_left - 1","            stack.append(digit)","        # Deletions left over: the stack is non-decreasing, so the biggest","        # digits are at the end. Remove them one at a time from the end.","        while deletions_left > 0:","            stack.pop()","            deletions_left = deletions_left - 1","        # Skip leading zeros: move 'start' past every \"0\" at the front","        start = 0","        while start < len(stack) and stack[start] == \"0\":","            start = start + 1","        # Build the answer string one character at a time","        result = \"\"","        for i in range(start, len(stack)):","            result = result + stack[i]","        # Nothing left means the number is zero","        if result == \"\":","            return \"0\"","        return result"],"notes":{"4":"how many digits we are still allowed to delete","6":"digits we keep, in non-decreasing order bottom -> top","11":"A bigger digit sitting right before a smaller one makes the number bigger, so delete it (as long as we still have deletions left).","17":"Deletions left over: the stack is non-decreasing, so the biggest digits are at the end. Remove them one at a time from the end.","21":"Skip leading zeros: move 'start' past every \"0\" at the front","25":"Build the answer string one character at a time","29":"Nothing left means the number is zero"},"input":"num = \"10\", k = 2","output":"\"0\"","values":["10",2,{"~":"list","v":[]},0,"1",{"~":"list","v":["1"]},1,"0",{"~":"list","v":["0"]},""],"steps":[[4,1,"removeKdigits",{"num":0,"k":1},null],[6,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1},null],[7,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":2},null],[8,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":2,"i":3},null],[11,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":2,"i":3,"digit":4},null],[14,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":2,"i":3,"digit":4},null],[7,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":5,"i":3,"digit":4},null],[8,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":5,"i":6,"digit":4},null],[11,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":5,"i":6,"digit":7},null],[12,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":5,"i":6,"digit":7},null],[13,1,"removeKdigits",{"num":0,"k":1,"deletions_left":1,"stack":2,"i":6,"digit":7},null],[11,1,"removeKdigits",{"num":0,"k":1,"deletions_left":6,"stack":2,"i":6,"digit":7},null],[14,1,"removeKdigits",{"num":0,"k":1,"deletions_left":6,"stack":2,"i":6,"digit":7},null],[7,1,"removeKdigits",{"num":0,"k":1,"deletions_left":6,"stack":8,"i":6,"digit":7},null],[17,1,"removeKdigits",{"num":0,"k":1,"deletions_left":6,"stack":8,"i":6,"digit":7},null],[18,1,"removeKdigits",{"num":0,"k":1,"deletions_left":6,"stack":8,"i":6,"digit":7},null],[19,1,"removeKdigits",{"num":0,"k":1,"deletions_left":6,"stack":2,"i":6,"digit":7},null],[17,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7},null],[21,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7},null],[22,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7,"start":3},null],[25,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7,"start":3},null],[26,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7,"start":3,"result":9},null],[29,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7,"start":3,"result":9},null],[30,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7,"start":3,"result":9},null],[30,1,"removeKdigits",{"num":0,"k":1,"deletions_left":3,"stack":2,"i":6,"digit":7,"start":3,"result":9},null,7]],"truncated":false}</script>
+        <!-- trace:end 402 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>deletions_left</code> is a copy of <code>k</code> that we count down. <code>stack</code> holds the digits (as characters) we have decided to keep.</li>
@@ -946,7 +1101,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-907">
-      <summary><span class="tag medium">Medium</span> 907. Sum of Subarray Minimums <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 907. Sum of Subarray Minimums <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Add up <code>min(sub)</code> over <em>every</em> contiguous subarray of <code>arr</code>. Return the sum modulo 10⁹+7.</p>
         <!-- enrich-top:start 907 -->
@@ -1016,6 +1171,10 @@ class Solution:
             contribution = arr[i] * left_count[i] * right_count[i]
             total = total + contribution
         return total % MOD</code></pre>
+        <!-- trace:start 907 -->
+        <div class="trace-viz" id="trace-p907"></div>
+        <script type="application/json" id="trace-p907-data">{"src":["from typing import List","","class Solution:","    def sumSubarrayMins(self, arr: List[int]) -> int:","        MOD = 10**9 + 7","        n = len(arr)","        # left_count[i]  = how many choices for the LEFT end where arr[i] is the minimum","        # right_count[i] = how many choices for the RIGHT end where arr[i] is the minimum","        left_count = [0] * n","        right_count = [0] * n","","        # Pass 1, left to right: previous STRICTLY smaller element","        stack = []","        for i in range(n):","            # Pop everything >= arr[i]; they are not \"strictly smaller\"","            while len(stack) > 0 and arr[stack[-1]] >= arr[i]:","                stack.pop()","            if len(stack) > 0:","                previous_smaller = stack[-1]","            else:","                previous_smaller = -1           # nothing smaller on the left","            left_count[i] = i - previous_smaller","            stack.append(i)","","        # Pass 2, right to left: next smaller-OR-EQUAL element (tie-break)","        stack = []","        i = n - 1","        while i >= 0:","            # Pop everything > arr[i]; equal values stay and act as a wall","            while len(stack) > 0 and arr[stack[-1]] > arr[i]:","                stack.pop()","            if len(stack) > 0:","                next_smaller_or_equal = stack[-1]","            else:","                next_smaller_or_equal = n       # nothing smaller on the right","            right_count[i] = next_smaller_or_equal - i","            stack.append(i)","            i = i - 1                           # move one step to the left","","        # Add up each element's contribution: value * (#left ends) * (#right ends)","        total = 0","        for i in range(n):","            contribution = arr[i] * left_count[i] * right_count[i]","            total = total + contribution","        return total % MOD"],"notes":{"9":"left_count[i]  = how many choices for the LEFT end where arr[i] is the minimum right_count[i] = how many choices for the RIGHT end where arr[i] is the minimum","13":"Pass 1, left to right: previous STRICTLY smaller element","16":"Pop everything >= arr[i]; they are not \"strictly smaller\"","21":"nothing smaller on the left","26":"Pass 2, right to left: next smaller-OR-EQUAL element (tie-break)","30":"Pop everything > arr[i]; equal values stay and act as a wall","35":"nothing smaller on the right","38":"move one step to the left","41":"Add up each element's contribution: value * (#left ends) * (#right ends)"},"input":"arr = [3,1,2,4]","output":"17","values":[{"~":"list","v":[3,1,2,4]},1000000007,4,{"~":"list","v":[0,0,0,0]},{"~":"list","v":[]},0,-1,{"~":"list","v":[1,0,0,0]},{"~":"list","v":[0]},1,{"~":"list","v":[1,2,0,0]},{"~":"list","v":[1]},2,{"~":"list","v":[1,2,1,0]},{"~":"list","v":[1,2]},3,{"~":"list","v":[1,2,1,1]},{"~":"list","v":[1,2,3]},{"~":"list","v":[0,0,0,1]},{"~":"list","v":[3]},{"~":"list","v":[0,0,2,1]},{"~":"list","v":[2]},{"~":"list","v":[0,3,2,1]},{"~":"list","v":[1,3,2,1]},{"~":"list","v":[1,0]},6,9,13,17],"steps":[[5,1,"sumSubarrayMins",{"arr":0},null],[6,1,"sumSubarrayMins",{"arr":0,"MOD":1},null],[9,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2},null],[10,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3},null],[13,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3,"right_count":3},null],[14,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3,"right_count":3,"stack":4},null],[16,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3,"right_count":3,"stack":4,"i":5},null],[18,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3,"right_count":3,"stack":4,"i":5},null],[21,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3,"right_count":3,"stack":4,"i":5},null],[22,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":3,"right_count":3,"stack":4,"i":5,"previous_smaller":6},null],[23,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":4,"i":5,"previous_smaller":6},null],[14,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":8,"i":5,"previous_smaller":6},null],[16,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":8,"i":9,"previous_smaller":6},null],[17,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":8,"i":9,"previous_smaller":6},null],[16,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":4,"i":9,"previous_smaller":6},null],[18,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":4,"i":9,"previous_smaller":6},null],[21,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":4,"i":9,"previous_smaller":6},null],[22,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":7,"right_count":3,"stack":4,"i":9,"previous_smaller":6},null],[23,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":10,"right_count":3,"stack":4,"i":9,"previous_smaller":6},null],[14,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":10,"right_count":3,"stack":11,"i":9,"previous_smaller":6},null],[16,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":10,"right_count":3,"stack":11,"i":12,"previous_smaller":6},null],[18,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":10,"right_count":3,"stack":11,"i":12,"previous_smaller":6},null],[19,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":10,"right_count":3,"stack":11,"i":12,"previous_smaller":6},null],[22,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":10,"right_count":3,"stack":11,"i":12,"previous_smaller":9},null],[23,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":13,"right_count":3,"stack":11,"i":12,"previous_smaller":9},null],[14,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":13,"right_count":3,"stack":14,"i":12,"previous_smaller":9},null],[16,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":13,"right_count":3,"stack":14,"i":15,"previous_smaller":9},null],[18,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":13,"right_count":3,"stack":14,"i":15,"previous_smaller":9},null],[19,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":13,"right_count":3,"stack":14,"i":15,"previous_smaller":9},null],[22,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":13,"right_count":3,"stack":14,"i":15,"previous_smaller":12},null],[23,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":14,"i":15,"previous_smaller":12},null],[14,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":17,"i":15,"previous_smaller":12},null],[26,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":17,"i":15,"previous_smaller":12},null],[27,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":4,"i":15,"previous_smaller":12},null],[28,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":4,"i":15,"previous_smaller":12},null],[30,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":4,"i":15,"previous_smaller":12},null],[32,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":4,"i":15,"previous_smaller":12},null],[35,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":4,"i":15,"previous_smaller":12},null],[36,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":3,"stack":4,"i":15,"previous_smaller":12,"next_smaller_or_equal":2},null],[37,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":4,"i":15,"previous_smaller":12,"next_smaller_or_equal":2},null],[38,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":19,"i":15,"previous_smaller":12,"next_smaller_or_equal":2},null],[28,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":19,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[30,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":19,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[31,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":19,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[30,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":4,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[32,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":4,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[35,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":4,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[36,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":18,"stack":4,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[37,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":4,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[38,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":21,"i":12,"previous_smaller":12,"next_smaller_or_equal":2},null],[28,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":21,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[30,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":21,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[31,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":21,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[30,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":4,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[32,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":4,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[35,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":4,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[36,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":20,"stack":4,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[37,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":4,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[38,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":11,"i":9,"previous_smaller":12,"next_smaller_or_equal":2},null],[28,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":11,"i":5,"previous_smaller":12,"next_smaller_or_equal":2},null],[30,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":11,"i":5,"previous_smaller":12,"next_smaller_or_equal":2},null],[32,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":11,"i":5,"previous_smaller":12,"next_smaller_or_equal":2},null],[33,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":11,"i":5,"previous_smaller":12,"next_smaller_or_equal":2},null],[36,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":22,"stack":11,"i":5,"previous_smaller":12,"next_smaller_or_equal":9},null],[37,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":11,"i":5,"previous_smaller":12,"next_smaller_or_equal":9},null],[38,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":5,"previous_smaller":12,"next_smaller_or_equal":9},null],[28,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":6,"previous_smaller":12,"next_smaller_or_equal":9},null],[41,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":6,"previous_smaller":12,"next_smaller_or_equal":9},null],[42,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":6,"previous_smaller":12,"next_smaller_or_equal":9,"total":5},null],[43,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":5,"previous_smaller":12,"next_smaller_or_equal":9,"total":5},null],[44,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":5,"previous_smaller":12,"next_smaller_or_equal":9,"total":5,"contribution":15},null],[42,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":5,"previous_smaller":12,"next_smaller_or_equal":9,"total":15,"contribution":15},null],[43,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":9,"previous_smaller":12,"next_smaller_or_equal":9,"total":15,"contribution":15},null],[44,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":9,"previous_smaller":12,"next_smaller_or_equal":9,"total":15,"contribution":25},null],[42,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":9,"previous_smaller":12,"next_smaller_or_equal":9,"total":26,"contribution":25},null],[43,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":12,"previous_smaller":12,"next_smaller_or_equal":9,"total":26,"contribution":25},null],[44,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":12,"previous_smaller":12,"next_smaller_or_equal":9,"total":26,"contribution":2},null],[42,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":12,"previous_smaller":12,"next_smaller_or_equal":9,"total":27,"contribution":2},null],[43,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":15,"previous_smaller":12,"next_smaller_or_equal":9,"total":27,"contribution":2},null],[44,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":15,"previous_smaller":12,"next_smaller_or_equal":9,"total":27,"contribution":2},null],[42,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":15,"previous_smaller":12,"next_smaller_or_equal":9,"total":28,"contribution":2},null],[45,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":15,"previous_smaller":12,"next_smaller_or_equal":9,"total":28,"contribution":2},null],[45,1,"sumSubarrayMins",{"arr":0,"MOD":1,"n":2,"left_count":16,"right_count":23,"stack":24,"i":15,"previous_smaller":12,"next_smaller_or_equal":9,"total":28,"contribution":2},null,28]],"truncated":false}</script>
+        <!-- trace:end 907 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>MOD</code> is 10⁹+7, required by the problem because the sum can be huge. <code>left_count</code> and <code>right_count</code> start as lists of zeros, one slot per element.</li>
@@ -1048,7 +1207,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-84">
-      <summary><span class="tag hard">Hard</span> 84. Largest Rectangle in Histogram <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 84. Largest Rectangle in Histogram <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bars of width 1 have heights <code>heights[i]</code>. Find the area of the largest rectangle that fits entirely inside the histogram.</p>
         <!-- enrich-top:start 84 -->
@@ -1105,6 +1264,10 @@ class Solution:
                     best = area
             stack.append(i)
         return best</code></pre>
+        <!-- trace:start 84 -->
+        <div class="trace-viz" id="trace-p84"></div>
+        <script type="application/json" id="trace-p84-data">{"src":["from typing import List","","class Solution:","    def largestRectangleArea(self, heights: List[int]) -> int:","        # Copy the heights and add a sentinel bar of height 0 at the end.","        # The 0 is shorter than everything, so it pops (finishes) every bar.","        bars = []","        for i in range(len(heights)):","            bars.append(heights[i])","        bars.append(0)","        # stack holds indices whose heights are increasing bottom -> top","        stack = []","        best = 0","        for i in range(len(bars)):","            current_height = bars[i]","            # The top bar cannot stretch past i, so its rectangle is finished","            while len(stack) > 0 and bars[stack[-1]] >= current_height:","                top_index = stack.pop()","                height = bars[top_index]","                # Left wall = first shorter bar to the left (new top), or -1","                if len(stack) > 0:","                    left_wall = stack[-1]","                else:","                    left_wall = -1","                # The rectangle spans the bars strictly between the two walls","                width = i - left_wall - 1","                area = height * width","                if area > best:","                    best = area","            stack.append(i)","        return best"],"notes":{"7":"Copy the heights and add a sentinel bar of height 0 at the end. The 0 is shorter than everything, so it pops (finishes) every bar.","12":"stack holds indices whose heights are increasing bottom -> top","17":"The top bar cannot stretch past i, so its rectangle is finished","21":"Left wall = first shorter bar to the left (new top), or -1","26":"The rectangle spans the bars strictly between the two walls"},"input":"heights = [2,4]","output":"4","values":[{"~":"list","v":[2,4]},{"~":"list","v":[]},0,{"~":"list","v":[2]},1,{"~":"list","v":[2,4,0]},2,{"~":"list","v":[0]},4,{"~":"list","v":[0,1]},-1],"steps":[[7,1,"largestRectangleArea",{"heights":0},null],[8,1,"largestRectangleArea",{"heights":0,"bars":1},null],[9,1,"largestRectangleArea",{"heights":0,"bars":1,"i":2},null],[8,1,"largestRectangleArea",{"heights":0,"bars":3,"i":2},null],[9,1,"largestRectangleArea",{"heights":0,"bars":3,"i":4},null],[8,1,"largestRectangleArea",{"heights":0,"bars":0,"i":4},null],[10,1,"largestRectangleArea",{"heights":0,"bars":0,"i":4},null],[12,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4},null],[13,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4,"stack":1},null],[14,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4,"stack":1,"best":2},null],[15,1,"largestRectangleArea",{"heights":0,"bars":5,"i":2,"stack":1,"best":2},null],[17,1,"largestRectangleArea",{"heights":0,"bars":5,"i":2,"stack":1,"best":2,"current_height":6},null],[30,1,"largestRectangleArea",{"heights":0,"bars":5,"i":2,"stack":1,"best":2,"current_height":6},null],[14,1,"largestRectangleArea",{"heights":0,"bars":5,"i":2,"stack":7,"best":2,"current_height":6},null],[15,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4,"stack":7,"best":2,"current_height":6},null],[17,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4,"stack":7,"best":2,"current_height":8},null],[30,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4,"stack":7,"best":2,"current_height":8},null],[14,1,"largestRectangleArea",{"heights":0,"bars":5,"i":4,"stack":9,"best":2,"current_height":8},null],[15,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":9,"best":2,"current_height":8},null],[17,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":9,"best":2,"current_height":2},null],[18,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":9,"best":2,"current_height":2},null],[19,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4},null],[21,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4,"height":8},null],[22,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4,"height":8},null],[26,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4,"height":8,"left_wall":2},null],[27,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4,"height":8,"left_wall":2,"width":4},null],[28,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4,"height":8,"left_wall":2,"width":4,"area":8},null],[29,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":2,"current_height":2,"top_index":4,"height":8,"left_wall":2,"width":4,"area":8},null],[17,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":8,"current_height":2,"top_index":4,"height":8,"left_wall":2,"width":4,"area":8},null],[18,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":7,"best":8,"current_height":2,"top_index":4,"height":8,"left_wall":2,"width":4,"area":8},null],[19,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":8,"left_wall":2,"width":4,"area":8},null],[21,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":2,"width":4,"area":8},null],[24,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":2,"width":4,"area":8},null],[26,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":4,"area":8},null],[27,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null],[28,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null],[17,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null],[30,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":1,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null],[14,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":3,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null],[31,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":3,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null],[31,1,"largestRectangleArea",{"heights":0,"bars":5,"i":6,"stack":3,"best":8,"current_height":2,"top_index":2,"height":6,"left_wall":10,"width":6,"area":8},null,8]],"truncated":false}</script>
+        <!-- trace:end 84 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li>The first loop copies <code>heights</code> into <code>bars</code> (so we don't change the caller's list), then appends a sentinel 0. Because 0 is shorter than every real bar, reaching it pops everything left on the stack, so no bar is forgotten.</li>
@@ -1188,17 +1351,24 @@ class Solution:
         <tr><td>907</td><td><a href="#p-907">Sum of Subarray Minimums</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Contribution counting, tie-break</td></tr>
         <tr><td>456</td><td><a href="#p-456">132 Pattern</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Scan from the right, track the "2"</td></tr>
         <tr><td>853</td><td><a href="#p-853">Car Fleet</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Sort by position; a stack of arrival times that must strictly increase</td></tr>
+        <tr><td>316</td><td><a href="#p-316">Remove Duplicate Letters</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></td><td>Increasing stack; pop a bigger letter only if it appears again later</td></tr>
+        <tr><td>581</td><td><a href="#p-581">Shortest Unsorted Continuous Subarray</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Right end = last element below the running max; left end = last element (from the right) above the running min</td></tr>
+        <tr><td>962</td><td><a href="#p-962">Maximum Width Ramp</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Decreasing stack of candidate starts; then scan ends from the right, popping matched starts</td></tr>
+        <tr><td>1008</td><td><a href="#p-1008">Construct Binary Search Tree from Preorder Traversal</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">BST</span><span class="ds">Stack</span></span></td><td>A stack of the current right spine: pop smaller nodes to find the parent of a right child</td></tr>
+        <tr><td>2104</td><td><a href="#p-2104">Sum of Subarray Ranges</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Σ(max) − Σ(min) over all subarrays, each via contribution counting with monotonic stacks</td></tr>
         <tr><td>84</td><td><a href="#p-84">Largest Rectangle in Histogram</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Increasing stack + sentinel</td></tr>
         <tr><td>42</td><td><a href="#p-42">Trapping Rain Water</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Water fills "valleys" when a taller bar pops</td></tr>
         <tr><td>85</td><td><a href="#p-85">Maximal Rectangle</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Stack</span></span></td><td>Each row becomes a histogram → 84</td></tr>
         <tr><td>239</td><td><a href="#p-239">Sliding Window Maximum</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></td><td>Monotonic deque</td></tr>
+        <tr><td>975</td><td><a href="#p-975">Odd Even Jump</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Next jump targets via sorted order + monotonic stack; then DP from the right</td></tr>
+        <tr><td>1944</td><td><a href="#p-1944">Number of Visible People in a Queue</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></td><td>Scan from the right with a decreasing stack; each pop is a person you can see</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Every problem in the table that isn't solved in section 7 is worked out below. Click a problem name in the table to jump to it.</p>
 
     <details class="problem" id="p-496">
-      <summary><span class="tag easy">Easy</span> 496. Next Greater Element I <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span><span class="ds">Hash Map</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 496. Next Greater Element I <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>nums1</code> is a subset of <code>nums2</code> (all values distinct). For each value in <code>nums1</code>, find the first greater value to its right <em>in <code>nums2</code></em>, or -1.</p>
         <!-- enrich-top:start 496 -->
@@ -1249,6 +1419,10 @@ class Solution:
             else:
                 answer.append(-1)
         return answer</code></pre>
+        <!-- trace:start 496 -->
+        <div class="trace-viz" id="trace-p496"></div>
+        <script type="application/json" id="trace-p496-data">{"src":["from typing import List","","class Solution:","    def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:","        # next_bigger[value] = first bigger value to its right in nums2","        next_bigger = {}","        # decreasing stack of VALUES (allowed because the values are distinct)","        stack = []","        for i in range(len(nums2)):","            current = nums2[i]","            # current is the first bigger value for every smaller value on top","            while len(stack) > 0 and stack[-1] < current:","                smaller_value = stack.pop()","                next_bigger[smaller_value] = current","            stack.append(current)","        # Answer each query; values never popped have no bigger value (-1)","        answer = []","        for i in range(len(nums1)):","            value = nums1[i]","            if value in next_bigger:","                answer.append(next_bigger[value])","            else:","                answer.append(-1)","        return answer"],"notes":{"6":"next_bigger[value] = first bigger value to its right in nums2","8":"decreasing stack of VALUES (allowed because the values are distinct)","12":"current is the first bigger value for every smaller value on top","17":"Answer each query; values never popped have no bigger value (-1)"},"input":"nums1 = [2,4], nums2 = [1,2,3,4]","output":"[3,-1]","values":[{"~":"list","v":[2,4]},{"~":"list","v":[1,2,3,4]},{"~":"dict","v":[]},{"~":"list","v":[]},0,1,{"~":"list","v":[1]},2,{"~":"dict","v":[[1,2]]},{"~":"list","v":[2]},3,{"~":"dict","v":[[1,2],[2,3]]},{"~":"list","v":[3]},4,{"~":"dict","v":[[1,2],[2,3],[3,4]]},{"~":"list","v":[4]},{"~":"list","v":[3,-1]}],"steps":[[6,1,"nextGreaterElement",{"nums1":0,"nums2":1},null],[8,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2},null],[9,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":3},null],[10,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":3,"i":4},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":3,"i":4,"current":5},null],[15,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":3,"i":4,"current":5},null],[9,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":6,"i":4,"current":5},null],[10,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":6,"i":5,"current":5},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":6,"i":5,"current":7},null],[13,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":6,"i":5,"current":7},null],[14,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":2,"stack":3,"i":5,"current":7,"smaller_value":5},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":3,"i":5,"current":7,"smaller_value":5},null],[15,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":3,"i":5,"current":7,"smaller_value":5},null],[9,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":9,"i":5,"current":7,"smaller_value":5},null],[10,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":9,"i":7,"current":7,"smaller_value":5},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":9,"i":7,"current":10,"smaller_value":5},null],[13,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":9,"i":7,"current":10,"smaller_value":5},null],[14,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":8,"stack":3,"i":7,"current":10,"smaller_value":7},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":3,"i":7,"current":10,"smaller_value":7},null],[15,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":3,"i":7,"current":10,"smaller_value":7},null],[9,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":12,"i":7,"current":10,"smaller_value":7},null],[10,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":12,"i":10,"current":10,"smaller_value":7},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":12,"i":10,"current":13,"smaller_value":7},null],[13,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":12,"i":10,"current":13,"smaller_value":7},null],[14,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":11,"stack":3,"i":10,"current":13,"smaller_value":10},null],[12,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":3,"i":10,"current":13,"smaller_value":10},null],[15,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":3,"i":10,"current":13,"smaller_value":10},null],[9,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":10,"current":13,"smaller_value":10},null],[17,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":10,"current":13,"smaller_value":10},null],[18,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":10,"current":13,"smaller_value":10,"answer":3},null],[19,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":4,"current":13,"smaller_value":10,"answer":3},null],[20,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":4,"current":13,"smaller_value":10,"answer":3,"value":7},null],[21,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":4,"current":13,"smaller_value":10,"answer":3,"value":7},null],[18,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":4,"current":13,"smaller_value":10,"answer":12,"value":7},null],[19,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":5,"current":13,"smaller_value":10,"answer":12,"value":7},null],[20,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":5,"current":13,"smaller_value":10,"answer":12,"value":13},null],[23,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":5,"current":13,"smaller_value":10,"answer":12,"value":13},null],[18,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":5,"current":13,"smaller_value":10,"answer":16,"value":13},null],[24,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":5,"current":13,"smaller_value":10,"answer":16,"value":13},null],[24,1,"nextGreaterElement",{"nums1":0,"nums2":1,"next_bigger":14,"stack":15,"i":5,"current":13,"smaller_value":10,"answer":16,"value":13},null,16]],"truncated":false}</script>
+        <!-- trace:end 496 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>next_bigger</code> is a dictionary that maps a value to the first bigger value after it in <code>nums2</code>. We key by value (not index) because the queries in <code>nums1</code> are values.</li>
@@ -1281,7 +1455,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-901">
-      <summary><span class="tag medium">Medium</span> 901. Online Stock Span <span class="ds-tags"><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 901. Online Stock Span <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Prices arrive one per day. For each new price, return its <em>span</em>: how many consecutive days, ending today and going backwards, had a price ≤ today's.</p>
         <!-- enrich-top:start 901 -->
@@ -1326,6 +1500,10 @@ stockSpanner.next(85); // return 6</span></div></div>
             span = span + top_span
         self.stack.append((price, span))
         return span</code></pre>
+        <!-- trace:start 901 -->
+        <div class="trace-viz" id="trace-p901"></div>
+        <script type="application/json" id="trace-p901-data">{"src":["class StockSpanner:","    def __init__(self):","        # Each entry is a pair (price, span). Prices are strictly decreasing","        # from bottom to top.","        self.stack = []","","    def next(self, price: int) -> int:","        span = 1                                   # today always counts","        # Every earlier price <= today is covered by today's span.","        # Its span already counts the days IT covered, so add them all at once.","        while len(self.stack) > 0 and self.stack[-1][0] <= price:","            top_pair = self.stack.pop()","            top_span = top_pair[1]                 # index 1 = the span part","            span = span + top_span","        self.stack.append((price, span))","        return span"],"notes":{"5":"Each entry is a pair (price, span). Prices are strictly decreasing from bottom to top.","8":"today always counts","11":"Every earlier price <= today is covered by today's span. Its span already counts the days IT covered, so add them all at once.","13":"index 1 = the span part"},"input":"[\"StockSpanner\", \"next\", \"next\", \"next\", \"next\", \"next\", \"next\", \"next\"]\n[[], [100], [80], [60], [70], [60], [75], [85]]","output":"[null, 1, 1, 1, 2, 1, 4, 6]","values":[null,100,1,80,60,70,{"~":"tuple","v":[60,1]},2,75,{"~":"tuple","v":[70,2]},4,85,{"~":"tuple","v":[75,4]},5,{"~":"tuple","v":[80,1]},6],"steps":[[5,1,"__init__",{},null],[5,1,"__init__",{},null,0],[8,1,"next",{"price":1},null],[11,1,"next",{"price":1,"span":2},null],[15,1,"next",{"price":1,"span":2},null],[16,1,"next",{"price":1,"span":2},null],[16,1,"next",{"price":1,"span":2},null,2],[8,1,"next",{"price":3},null],[11,1,"next",{"price":3,"span":2},null],[15,1,"next",{"price":3,"span":2},null],[16,1,"next",{"price":3,"span":2},null],[16,1,"next",{"price":3,"span":2},null,2],[8,1,"next",{"price":4},null],[11,1,"next",{"price":4,"span":2},null],[15,1,"next",{"price":4,"span":2},null],[16,1,"next",{"price":4,"span":2},null],[16,1,"next",{"price":4,"span":2},null,2],[8,1,"next",{"price":5},null],[11,1,"next",{"price":5,"span":2},null],[12,1,"next",{"price":5,"span":2},null],[13,1,"next",{"price":5,"span":2,"top_pair":6},null],[14,1,"next",{"price":5,"span":2,"top_pair":6,"top_span":2},null],[11,1,"next",{"price":5,"span":7,"top_pair":6,"top_span":2},null],[15,1,"next",{"price":5,"span":7,"top_pair":6,"top_span":2},null],[16,1,"next",{"price":5,"span":7,"top_pair":6,"top_span":2},null],[16,1,"next",{"price":5,"span":7,"top_pair":6,"top_span":2},null,7],[8,1,"next",{"price":4},null],[11,1,"next",{"price":4,"span":2},null],[15,1,"next",{"price":4,"span":2},null],[16,1,"next",{"price":4,"span":2},null],[16,1,"next",{"price":4,"span":2},null,2],[8,1,"next",{"price":8},null],[11,1,"next",{"price":8,"span":2},null],[12,1,"next",{"price":8,"span":2},null],[13,1,"next",{"price":8,"span":2,"top_pair":6},null],[14,1,"next",{"price":8,"span":2,"top_pair":6,"top_span":2},null],[11,1,"next",{"price":8,"span":7,"top_pair":6,"top_span":2},null],[12,1,"next",{"price":8,"span":7,"top_pair":6,"top_span":2},null],[13,1,"next",{"price":8,"span":7,"top_pair":9,"top_span":2},null],[14,1,"next",{"price":8,"span":7,"top_pair":9,"top_span":7},null],[11,1,"next",{"price":8,"span":10,"top_pair":9,"top_span":7},null],[15,1,"next",{"price":8,"span":10,"top_pair":9,"top_span":7},null],[16,1,"next",{"price":8,"span":10,"top_pair":9,"top_span":7},null],[16,1,"next",{"price":8,"span":10,"top_pair":9,"top_span":7},null,10],[8,1,"next",{"price":11},null],[11,1,"next",{"price":11,"span":2},null],[12,1,"next",{"price":11,"span":2},null],[13,1,"next",{"price":11,"span":2,"top_pair":12},null],[14,1,"next",{"price":11,"span":2,"top_pair":12,"top_span":10},null],[11,1,"next",{"price":11,"span":13,"top_pair":12,"top_span":10},null],[12,1,"next",{"price":11,"span":13,"top_pair":12,"top_span":10},null],[13,1,"next",{"price":11,"span":13,"top_pair":14,"top_span":10},null],[14,1,"next",{"price":11,"span":13,"top_pair":14,"top_span":2},null],[11,1,"next",{"price":11,"span":15,"top_pair":14,"top_span":2},null],[15,1,"next",{"price":11,"span":15,"top_pair":14,"top_span":2},null],[16,1,"next",{"price":11,"span":15,"top_pair":14,"top_span":2},null],[16,1,"next",{"price":11,"span":15,"top_pair":14,"top_span":2},null,15]],"truncated":false}</script>
+        <!-- trace:end 901 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>__init__</code> creates an empty stack. Each entry will be a pair <code>(price, span)</code>; <code>pair[0]</code> is the price and <code>pair[1]</code> is the span.</li>
@@ -1360,7 +1538,7 @@ stockSpanner.next(85); // return 6</span></div></div>
     </details>
 
     <details class="problem" id="p-1081">
-      <summary><span class="tag medium">Medium</span> 1081. Smallest Subsequence of Distinct Characters <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span><span class="ds">Hash Set</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 1081. Smallest Subsequence of Distinct Characters <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span><span class="ds">Hash Set</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the lexicographically smallest subsequence of <code>s</code> that contains every distinct letter exactly once. (Same as LeetCode 316.)</p>
         <!-- enrich-top:start 1081 -->
@@ -1408,6 +1586,10 @@ stockSpanner.next(85); // return 6</span></div></div>
         for i in range(len(stack)):
             result = result + stack[i]
         return result</code></pre>
+        <!-- trace:start 1081 -->
+        <div class="trace-viz" id="trace-p1081"></div>
+        <script type="application/json" id="trace-p1081-data">{"src":["class Solution:","    def smallestSubsequence(self, s: str) -> str:","        # last_index[letter] = last position where that letter appears.","        # Later positions overwrite earlier ones, so we end with the last one.","        last_index = {}","        for i in range(len(s)):","            letter = s[i]","            last_index[letter] = i","        stack = []          # letters of the answer, built left to right","        used = set()        # letters currently on the stack","        for i in range(len(s)):","            letter = s[i]","            if letter in used:","                continue    # each letter appears only once in the answer","            # Drop a bigger letter on top if it shows up again later","            # (we can re-add it later in a better position).","            while len(stack) > 0 and stack[-1] > letter and last_index[stack[-1]] > i:","                removed_letter = stack.pop()","                used.remove(removed_letter)","            stack.append(letter)","            used.add(letter)","        # Glue the letters together into one string","        result = \"\"","        for i in range(len(stack)):","            result = result + stack[i]","        return result"],"notes":{"5":"last_index[letter] = last position where that letter appears. Later positions overwrite earlier ones, so we end with the last one.","9":"letters of the answer, built left to right","10":"letters currently on the stack","14":"each letter appears only once in the answer","17":"Drop a bigger letter on top if it shows up again later (we can re-add it later in a better position).","23":"Glue the letters together into one string"},"input":"s = \"bcabc\"","output":"\"abc\"","values":["bcabc",{"~":"dict","v":[]},0,"b",{"~":"dict","v":[["b",0]]},1,"c",{"~":"dict","v":[["b",0],["c",1]]},2,"a",{"~":"dict","v":[["b",0],["c",1],["a",2]]},3,{"~":"dict","v":[["b",3],["c",1],["a",2]]},4,{"~":"dict","v":[["b",3],["c",4],["a",2]]},{"~":"list","v":[]},{"~":"set","v":[]},{"~":"list","v":["b"]},{"~":"set","v":["b"]},{"~":"list","v":["b","c"]},{"~":"set","v":["b","c"]},{"~":"list","v":["a"]},{"~":"set","v":["a"]},{"~":"list","v":["a","b"]},{"~":"set","v":["a","b"]},{"~":"list","v":["a","b","c"]},{"~":"set","v":["a","b","c"]},"","ab","abc"],"steps":[[5,1,"smallestSubsequence",{"s":0},null],[6,1,"smallestSubsequence",{"s":0,"last_index":1},null],[7,1,"smallestSubsequence",{"s":0,"last_index":1,"i":2},null],[8,1,"smallestSubsequence",{"s":0,"last_index":1,"i":2,"letter":3},null],[6,1,"smallestSubsequence",{"s":0,"last_index":4,"i":2,"letter":3},null],[7,1,"smallestSubsequence",{"s":0,"last_index":4,"i":5,"letter":3},null],[8,1,"smallestSubsequence",{"s":0,"last_index":4,"i":5,"letter":6},null],[6,1,"smallestSubsequence",{"s":0,"last_index":7,"i":5,"letter":6},null],[7,1,"smallestSubsequence",{"s":0,"last_index":7,"i":8,"letter":6},null],[8,1,"smallestSubsequence",{"s":0,"last_index":7,"i":8,"letter":9},null],[6,1,"smallestSubsequence",{"s":0,"last_index":10,"i":8,"letter":9},null],[7,1,"smallestSubsequence",{"s":0,"last_index":10,"i":11,"letter":9},null],[8,1,"smallestSubsequence",{"s":0,"last_index":10,"i":11,"letter":3},null],[6,1,"smallestSubsequence",{"s":0,"last_index":12,"i":11,"letter":3},null],[7,1,"smallestSubsequence",{"s":0,"last_index":12,"i":13,"letter":3},null],[8,1,"smallestSubsequence",{"s":0,"last_index":12,"i":13,"letter":6},null],[6,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6},null],[9,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6},null],[10,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":15},null],[11,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":15,"used":16},null],[12,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":6,"stack":15,"used":16},null],[13,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":3,"stack":15,"used":16},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":3,"stack":15,"used":16},null],[20,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":3,"stack":15,"used":16},null],[21,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":3,"stack":17,"used":16},null],[11,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":3,"stack":17,"used":18},null],[12,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":3,"stack":17,"used":18},null],[13,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":17,"used":18},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":17,"used":18},null],[20,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":17,"used":18},null],[21,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":19,"used":18},null],[11,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":19,"used":20},null],[12,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":6,"stack":19,"used":20},null],[13,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":19,"used":20},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":19,"used":20},null],[18,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":19,"used":20},null],[19,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":17,"used":20,"removed_letter":6},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":17,"used":18,"removed_letter":6},null],[18,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":17,"used":18,"removed_letter":6},null],[19,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":15,"used":18,"removed_letter":3},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":15,"used":16,"removed_letter":3},null],[20,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":15,"used":16,"removed_letter":3},null],[21,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":21,"used":16,"removed_letter":3},null],[11,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":9,"stack":21,"used":22,"removed_letter":3},null],[12,1,"smallestSubsequence",{"s":0,"last_index":14,"i":11,"letter":9,"stack":21,"used":22,"removed_letter":3},null],[13,1,"smallestSubsequence",{"s":0,"last_index":14,"i":11,"letter":3,"stack":21,"used":22,"removed_letter":3},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":11,"letter":3,"stack":21,"used":22,"removed_letter":3},null],[20,1,"smallestSubsequence",{"s":0,"last_index":14,"i":11,"letter":3,"stack":21,"used":22,"removed_letter":3},null],[21,1,"smallestSubsequence",{"s":0,"last_index":14,"i":11,"letter":3,"stack":23,"used":22,"removed_letter":3},null],[11,1,"smallestSubsequence",{"s":0,"last_index":14,"i":11,"letter":3,"stack":23,"used":24,"removed_letter":3},null],[12,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":3,"stack":23,"used":24,"removed_letter":3},null],[13,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":23,"used":24,"removed_letter":3},null],[17,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":23,"used":24,"removed_letter":3},null],[20,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":23,"used":24,"removed_letter":3},null],[21,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":25,"used":24,"removed_letter":3},null],[11,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":25,"used":26,"removed_letter":3},null],[23,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":25,"used":26,"removed_letter":3},null],[24,1,"smallestSubsequence",{"s":0,"last_index":14,"i":13,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":27},null],[25,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":27},null],[24,1,"smallestSubsequence",{"s":0,"last_index":14,"i":2,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":9},null],[25,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":9},null],[24,1,"smallestSubsequence",{"s":0,"last_index":14,"i":5,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":28},null],[25,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":28},null],[24,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":29},null],[26,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":29},null],[26,1,"smallestSubsequence",{"s":0,"last_index":14,"i":8,"letter":6,"stack":25,"used":26,"removed_letter":3,"result":29},null,29]],"truncated":false}</script>
+        <!-- trace:end 1081 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li>The first loop fills <code>last_index</code>. Each time a letter is seen, its entry is overwritten with the current position, so at the end it holds the <em>last</em> position of every letter.</li>
@@ -1484,6 +1666,10 @@ class Solution:
             stack.append(current)
             i = i - 1                       # move one step to the left
         return False</code></pre>
+        <!-- trace:start 456 -->
+        <div class="trace-viz" id="trace-p456"></div>
+        <script type="application/json" id="trace-p456-data">{"src":["from typing import List","","class Solution:","    def find132pattern(self, nums: List[int]) -> bool:","        # third = best \"2\" found so far (it has a bigger \"3\" to its left)","        third = float(\"-inf\")","        # decreasing stack of values, filled while scanning right -> left","        stack = []","        i = len(nums) - 1","        while i >= 0:","            current = nums[i]","            # current < third means: current (\"1\") < third (\"2\") < some \"3\"","            if current < third:","                return True","            # current is a \"3\" for every smaller value on top; they become \"2\" candidates","            while len(stack) > 0 and stack[-1] < current:","                third = stack.pop()","            stack.append(current)","            i = i - 1                       # move one step to the left","        return False"],"notes":{"6":"third = best \"2\" found so far (it has a bigger \"3\" to its left)","8":"decreasing stack of values, filled while scanning right -> left","13":"current < third means: current (\"1\") < third (\"2\") < some \"3\"","16":"current is a \"3\" for every smaller value on top; they become \"2\" candidates","19":"move one step to the left"},"input":"nums = [3,1,4,2]","output":"true","values":[{"~":"list","v":[3,1,4,2]},{"~":"num","v":"-∞"},{"~":"list","v":[]},3,2,{"~":"list","v":[2]},4,{"~":"list","v":[4]},1,true],"steps":[[6,1,"find132pattern",{"nums":0},null],[8,1,"find132pattern",{"nums":0,"third":1},null],[9,1,"find132pattern",{"nums":0,"third":1,"stack":2},null],[10,1,"find132pattern",{"nums":0,"third":1,"stack":2,"i":3},null],[11,1,"find132pattern",{"nums":0,"third":1,"stack":2,"i":3},null],[13,1,"find132pattern",{"nums":0,"third":1,"stack":2,"i":3,"current":4},null],[16,1,"find132pattern",{"nums":0,"third":1,"stack":2,"i":3,"current":4},null],[18,1,"find132pattern",{"nums":0,"third":1,"stack":2,"i":3,"current":4},null],[19,1,"find132pattern",{"nums":0,"third":1,"stack":5,"i":3,"current":4},null],[10,1,"find132pattern",{"nums":0,"third":1,"stack":5,"i":4,"current":4},null],[11,1,"find132pattern",{"nums":0,"third":1,"stack":5,"i":4,"current":4},null],[13,1,"find132pattern",{"nums":0,"third":1,"stack":5,"i":4,"current":6},null],[16,1,"find132pattern",{"nums":0,"third":1,"stack":5,"i":4,"current":6},null],[17,1,"find132pattern",{"nums":0,"third":1,"stack":5,"i":4,"current":6},null],[16,1,"find132pattern",{"nums":0,"third":4,"stack":2,"i":4,"current":6},null],[18,1,"find132pattern",{"nums":0,"third":4,"stack":2,"i":4,"current":6},null],[19,1,"find132pattern",{"nums":0,"third":4,"stack":7,"i":4,"current":6},null],[10,1,"find132pattern",{"nums":0,"third":4,"stack":7,"i":8,"current":6},null],[11,1,"find132pattern",{"nums":0,"third":4,"stack":7,"i":8,"current":6},null],[13,1,"find132pattern",{"nums":0,"third":4,"stack":7,"i":8,"current":8},null],[14,1,"find132pattern",{"nums":0,"third":4,"stack":7,"i":8,"current":8},null],[14,1,"find132pattern",{"nums":0,"third":4,"stack":7,"i":8,"current":8},null,9]],"truncated":false}</script>
+        <!-- trace:end 456 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>third</code> starts at minus infinity (<code>float("-inf")</code>, smaller than every number), meaning "no valid 2 found yet".</li>
@@ -1516,7 +1702,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-42">
-      <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 42. Trapping Rain Water <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Bars of width 1 have heights <code>height[i]</code>. How much rain water is trapped between them after it rains?</p>
         <!-- enrich-top:start 42 -->
@@ -1564,6 +1750,10 @@ class Solution:
                 water = water + depth * width         # one horizontal layer of water
             stack.append(i)
         return water</code></pre>
+        <!-- trace:start 42 -->
+        <div class="trace-viz" id="trace-p42"></div>
+        <script type="application/json" id="trace-p42-data">{"src":["from typing import List","","class Solution:","    def trap(self, height: List[int]) -> int:","        # stack holds indices whose heights are decreasing bottom -> top","        stack = []","        water = 0","        for i in range(len(height)):","            current_height = height[i]","            # A taller bar closes the valley of the shorter bar on top","            while len(stack) > 0 and height[stack[-1]] < current_height:","                bottom = stack.pop()                  # the valley floor","                if len(stack) == 0:","                    break                             # no left wall: water spills out","                left_wall = stack[-1]","                # Water rises to the LOWER of the two walls","                if height[left_wall] < current_height:","                    water_level = height[left_wall]","                else:","                    water_level = current_height","                depth = water_level - height[bottom]","                width = i - left_wall - 1","                water = water + depth * width         # one horizontal layer of water","            stack.append(i)","        return water"],"notes":{"6":"stack holds indices whose heights are decreasing bottom -> top","11":"A taller bar closes the valley of the shorter bar on top","12":"the valley floor","14":"no left wall: water spills out","17":"Water rises to the LOWER of the two walls","23":"one horizontal layer of water"},"input":"height = [4,2,0,3,2,5]","output":"9","values":[{"~":"list","v":[4,2,0,3,2,5]},{"~":"list","v":[]},0,4,{"~":"list","v":[0]},1,2,{"~":"list","v":[0,1]},{"~":"list","v":[0,1,2]},3,{"~":"list","v":[0,3]},{"~":"list","v":[0,3,4]},5,9,{"~":"list","v":[5]}],"steps":[[6,1,"trap",{"height":0},null],[7,1,"trap",{"height":0,"stack":1},null],[8,1,"trap",{"height":0,"stack":1,"water":2},null],[9,1,"trap",{"height":0,"stack":1,"water":2,"i":2},null],[11,1,"trap",{"height":0,"stack":1,"water":2,"i":2,"current_height":3},null],[24,1,"trap",{"height":0,"stack":1,"water":2,"i":2,"current_height":3},null],[8,1,"trap",{"height":0,"stack":4,"water":2,"i":2,"current_height":3},null],[9,1,"trap",{"height":0,"stack":4,"water":2,"i":5,"current_height":3},null],[11,1,"trap",{"height":0,"stack":4,"water":2,"i":5,"current_height":6},null],[24,1,"trap",{"height":0,"stack":4,"water":2,"i":5,"current_height":6},null],[8,1,"trap",{"height":0,"stack":7,"water":2,"i":5,"current_height":6},null],[9,1,"trap",{"height":0,"stack":7,"water":2,"i":6,"current_height":6},null],[11,1,"trap",{"height":0,"stack":7,"water":2,"i":6,"current_height":2},null],[24,1,"trap",{"height":0,"stack":7,"water":2,"i":6,"current_height":2},null],[8,1,"trap",{"height":0,"stack":8,"water":2,"i":6,"current_height":2},null],[9,1,"trap",{"height":0,"stack":8,"water":2,"i":9,"current_height":2},null],[11,1,"trap",{"height":0,"stack":8,"water":2,"i":9,"current_height":9},null],[12,1,"trap",{"height":0,"stack":8,"water":2,"i":9,"current_height":9},null],[13,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6},null],[15,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6},null],[17,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6,"left_wall":5},null],[18,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6,"left_wall":5},null],[21,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6,"left_wall":5,"water_level":6},null],[22,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6,"left_wall":5,"water_level":6,"depth":6},null],[23,1,"trap",{"height":0,"stack":7,"water":2,"i":9,"current_height":9,"bottom":6,"left_wall":5,"water_level":6,"depth":6,"width":5},null],[11,1,"trap",{"height":0,"stack":7,"water":6,"i":9,"current_height":9,"bottom":6,"left_wall":5,"water_level":6,"depth":6,"width":5},null],[12,1,"trap",{"height":0,"stack":7,"water":6,"i":9,"current_height":9,"bottom":6,"left_wall":5,"water_level":6,"depth":6,"width":5},null],[13,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":5,"water_level":6,"depth":6,"width":5},null],[15,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":5,"water_level":6,"depth":6,"width":5},null],[17,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":6,"depth":6,"width":5},null],[20,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":6,"depth":6,"width":5},null],[21,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":6,"width":5},null],[22,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":5},null],[23,1,"trap",{"height":0,"stack":4,"water":6,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[11,1,"trap",{"height":0,"stack":4,"water":3,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[24,1,"trap",{"height":0,"stack":4,"water":3,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[8,1,"trap",{"height":0,"stack":10,"water":3,"i":9,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[9,1,"trap",{"height":0,"stack":10,"water":3,"i":3,"current_height":9,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[11,1,"trap",{"height":0,"stack":10,"water":3,"i":3,"current_height":6,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[24,1,"trap",{"height":0,"stack":10,"water":3,"i":3,"current_height":6,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[8,1,"trap",{"height":0,"stack":11,"water":3,"i":3,"current_height":6,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[9,1,"trap",{"height":0,"stack":11,"water":3,"i":12,"current_height":6,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[11,1,"trap",{"height":0,"stack":11,"water":3,"i":12,"current_height":12,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[12,1,"trap",{"height":0,"stack":11,"water":3,"i":12,"current_height":12,"bottom":5,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[13,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[15,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":2,"water_level":9,"depth":5,"width":6},null],[17,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":6},null],[18,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":6},null],[21,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":6},null],[22,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":6},null],[23,1,"trap",{"height":0,"stack":10,"water":3,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":5},null],[11,1,"trap",{"height":0,"stack":10,"water":12,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":5},null],[12,1,"trap",{"height":0,"stack":10,"water":12,"i":12,"current_height":12,"bottom":3,"left_wall":9,"water_level":9,"depth":5,"width":5},null],[13,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":9,"water_level":9,"depth":5,"width":5},null],[15,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":9,"water_level":9,"depth":5,"width":5},null],[17,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":9,"depth":5,"width":5},null],[18,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":9,"depth":5,"width":5},null],[21,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":3,"depth":5,"width":5},null],[22,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":3,"depth":5,"width":5},null],[23,1,"trap",{"height":0,"stack":4,"water":12,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[11,1,"trap",{"height":0,"stack":4,"water":13,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[12,1,"trap",{"height":0,"stack":4,"water":13,"i":12,"current_height":12,"bottom":9,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[13,1,"trap",{"height":0,"stack":1,"water":13,"i":12,"current_height":12,"bottom":2,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[14,1,"trap",{"height":0,"stack":1,"water":13,"i":12,"current_height":12,"bottom":2,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[24,1,"trap",{"height":0,"stack":1,"water":13,"i":12,"current_height":12,"bottom":2,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[8,1,"trap",{"height":0,"stack":14,"water":13,"i":12,"current_height":12,"bottom":2,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[25,1,"trap",{"height":0,"stack":14,"water":13,"i":12,"current_height":12,"bottom":2,"left_wall":2,"water_level":3,"depth":5,"width":3},null],[25,1,"trap",{"height":0,"stack":14,"water":13,"i":12,"current_height":12,"bottom":2,"left_wall":2,"water_level":3,"depth":5,"width":3},null,13]],"truncated":false}</script>
+        <!-- trace:end 42 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>stack</code> holds indices of bars with decreasing heights (each one could be the left wall of a future pool). <code>water</code> is the running total.</li>
@@ -1605,7 +1795,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-85">
-      <summary><span class="tag hard">Hard</span> 85. Maximal Rectangle <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 85. Maximal Rectangle <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Matrix</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> In a binary matrix of <code>"0"</code>/<code>"1"</code>, find the area of the largest rectangle containing only 1s.</p>
         <!-- enrich-top:start 85 -->
@@ -1673,6 +1863,10 @@ class Solution:
                     best = area
             stack.append(i)
         return best</code></pre>
+        <!-- trace:start 85 -->
+        <div class="trace-viz" id="trace-p85"></div>
+        <script type="application/json" id="trace-p85-data">{"src":["from typing import List","","class Solution:","    def maximalRectangle(self, matrix: List[List[str]]) -> int:","        if len(matrix) == 0:","            return 0","        column_count = len(matrix[0])","        # heights[j] = number of consecutive \"1\"s ending at the current row in column j","        heights = [0] * column_count","        best = 0","        for i in range(len(matrix)):","            row = matrix[i]","            # Grow or reset each column's bar for this row","            for j in range(column_count):","                if row[j] == \"1\":","                    heights[j] = heights[j] + 1","                else:","                    heights[j] = 0","            # Problem 84 on this row's histogram","            area = self.largest(heights)","            if area > best:","                best = area","        return best","","    def largest(self, heights: List[int]) -> int:","        # Same as problem 84: copy the bars and add a sentinel 0","        bars = []","        for i in range(len(heights)):","            bars.append(heights[i])","        bars.append(0)","        stack = []          # indices, heights increasing","        best = 0","        for i in range(len(bars)):","            current_height = bars[i]","            while len(stack) > 0 and bars[stack[-1]] >= current_height:","                top_index = stack.pop()","                height = bars[top_index]","                if len(stack) > 0:","                    left_wall = stack[-1]","                else:","                    left_wall = -1","                width = i - left_wall - 1","                area = height * width","                if area > best:","                    best = area","            stack.append(i)","        return best"],"notes":{"9":"heights[j] = number of consecutive \"1\"s ending at the current row in column j","14":"Grow or reset each column's bar for this row","20":"Problem 84 on this row's histogram","27":"Same as problem 84: copy the bars and add a sentinel 0","31":"indices, heights increasing"},"input":"matrix = [[\"0\"]]","output":"0","values":[{"~":"list","v":[{"~":"list","v":["0"]}]},1,{"~":"list","v":[0]},0,{"~":"list","v":["0"]},"maximalRectangle(matrix=[1 items]) › largest(heights=[1 items])",{"~":"list","v":[]},{"~":"list","v":[0,0]},-1,{"~":"list","v":[1]}],"steps":[[5,1,"maximalRectangle",{"matrix":0},null],[7,1,"maximalRectangle",{"matrix":0},null],[9,1,"maximalRectangle",{"matrix":0,"column_count":1},null],[10,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2},null],[11,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3},null],[12,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3},null],[14,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4},null],[15,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3},null],[18,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3},null],[14,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3},null],[20,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3},null],[27,2,"largest",{"heights":2},5],[28,2,"largest",{"heights":2,"bars":6},5],[29,2,"largest",{"heights":2,"bars":6,"i":3},5],[28,2,"largest",{"heights":2,"bars":2,"i":3},5],[30,2,"largest",{"heights":2,"bars":2,"i":3},5],[31,2,"largest",{"heights":2,"bars":7,"i":3},5],[32,2,"largest",{"heights":2,"bars":7,"i":3,"stack":6},5],[33,2,"largest",{"heights":2,"bars":7,"i":3,"stack":6,"best":3},5],[34,2,"largest",{"heights":2,"bars":7,"i":3,"stack":6,"best":3},5],[35,2,"largest",{"heights":2,"bars":7,"i":3,"stack":6,"best":3,"current_height":3},5],[46,2,"largest",{"heights":2,"bars":7,"i":3,"stack":6,"best":3,"current_height":3},5],[33,2,"largest",{"heights":2,"bars":7,"i":3,"stack":2,"best":3,"current_height":3},5],[34,2,"largest",{"heights":2,"bars":7,"i":1,"stack":2,"best":3,"current_height":3},5],[35,2,"largest",{"heights":2,"bars":7,"i":1,"stack":2,"best":3,"current_height":3},5],[36,2,"largest",{"heights":2,"bars":7,"i":1,"stack":2,"best":3,"current_height":3},5],[37,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3},5],[38,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3},5],[41,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3},5],[42,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8},5],[43,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1},5],[44,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1,"area":3},5],[35,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1,"area":3},5],[46,2,"largest",{"heights":2,"bars":7,"i":1,"stack":6,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1,"area":3},5],[33,2,"largest",{"heights":2,"bars":7,"i":1,"stack":9,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1,"area":3},5],[47,2,"largest",{"heights":2,"bars":7,"i":1,"stack":9,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1,"area":3},5],[47,2,"largest",{"heights":2,"bars":7,"i":1,"stack":9,"best":3,"current_height":3,"top_index":3,"height":3,"left_wall":8,"width":1,"area":3},5,3],[21,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3,"area":3},null],[11,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3,"area":3},null],[23,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3,"area":3},null],[23,1,"maximalRectangle",{"matrix":0,"column_count":1,"heights":2,"best":3,"i":3,"row":4,"j":3,"area":3},null,3]],"truncated":false}</script>
+        <!-- trace:end 85 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li>An empty matrix has no rectangle, so return 0 right away.</li>
@@ -1705,7 +1899,7 @@ class Solution:
     </details>
 
     <details class="problem" id="p-239">
-      <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 239. Sliding Window Maximum <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Deque</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the maximum of every contiguous window of size <code>k</code> as it slides from left to right.</p>
         <!-- enrich-top:start 239 -->
@@ -1758,6 +1952,10 @@ class Solution:
             if i &gt;= k - 1:
                 result.append(nums[window[0]])
         return result</code></pre>
+        <!-- trace:start 239 -->
+        <div class="trace-viz" id="trace-p239"></div>
+        <script type="application/json" id="trace-p239-data">{"src":["from collections import deque","from typing import List","","class Solution:","    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:","        # A deque is a list that is fast to change at BOTH ends:","        #   append(x) adds at the back, pop() removes from the back,","        #   popleft() removes from the front, window[0] reads the front.","        # It holds indices whose values are decreasing front -> back.","        window = deque()","        result = []","        for i in range(len(nums)):","            current = nums[i]","            # Values <= current can never be a window maximum again","            while len(window) > 0 and nums[window[-1]] <= current:","                window.pop()","            window.append(i)","            # The front index slid out of the window [i - k + 1, i]","            if window[0] <= i - k:","                window.popleft()","            # Once the first full window is reached, the front is the maximum","            if i >= k - 1:","                result.append(nums[window[0]])","        return result"],"notes":{"10":"A deque is a list that is fast to change at BOTH ends: append(x) adds at the back, pop() removes from the back, popleft() removes from the front, window[0] reads the front. It holds indices whose values are decreasing front -> back.","15":"Values <= current can never be a window maximum again","19":"The front index slid out of the window [i - k + 1, i]","22":"Once the first full window is reached, the front is the maximum"},"input":"nums = [1], k = 1","output":"[1]","values":[{"~":"list","v":[1]},1,{"~":"deque","v":[]},{"~":"list","v":[]},0,{"~":"deque","v":[0]}],"steps":[[10,1,"maxSlidingWindow",{"nums":0,"k":1},null],[11,1,"maxSlidingWindow",{"nums":0,"k":1,"window":2},null],[12,1,"maxSlidingWindow",{"nums":0,"k":1,"window":2,"result":3},null],[13,1,"maxSlidingWindow",{"nums":0,"k":1,"window":2,"result":3,"i":4},null],[15,1,"maxSlidingWindow",{"nums":0,"k":1,"window":2,"result":3,"i":4,"current":1},null],[17,1,"maxSlidingWindow",{"nums":0,"k":1,"window":2,"result":3,"i":4,"current":1},null],[19,1,"maxSlidingWindow",{"nums":0,"k":1,"window":5,"result":3,"i":4,"current":1},null],[22,1,"maxSlidingWindow",{"nums":0,"k":1,"window":5,"result":3,"i":4,"current":1},null],[23,1,"maxSlidingWindow",{"nums":0,"k":1,"window":5,"result":3,"i":4,"current":1},null],[12,1,"maxSlidingWindow",{"nums":0,"k":1,"window":5,"result":0,"i":4,"current":1},null],[24,1,"maxSlidingWindow",{"nums":0,"k":1,"window":5,"result":0,"i":4,"current":1},null],[24,1,"maxSlidingWindow",{"nums":0,"k":1,"window":5,"result":0,"i":4,"current":1},null,0]],"truncated":false}</script>
+        <!-- trace:end 239 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
           <li><code>window = deque()</code> creates a double-ended queue. Unlike a plain list, removing from the <em>front</em> (<code>popleft()</code>) is instant. It stores <em>indices</em>, and the values at those indices go down from front to back.</li>
@@ -1797,7 +1995,7 @@ class Solution:
 
 
     <details class="problem" id="p-853">
-      <summary><span class="tag medium">Medium</span> 853. Car Fleet <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 853. Car Fleet <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>n</code> cars drive toward <code>target</code> on a one-lane road. Car <code>i</code> starts at <code>position[i]</code> with <code>speed[i]</code>. A faster car that catches a slower one ahead must slow down and drive with it as one <strong>fleet</strong>. How many fleets arrive at the target?</p>
         <!-- enrich-top:start 853 -->
@@ -1835,6 +2033,10 @@ class Solution:
                 stack.append(time)
             # else: it catches up and joins the fleet ahead (nothing to push)
         return len(stack)</code></pre>
+        <!-- trace:start 853 -->
+        <div class="trace-viz" id="trace-p853"></div>
+        <script type="application/json" id="trace-p853-data">{"src":["class Solution:","    def carFleet(self, target: int, position: List[int], speed: List[int]) -> int:","        # pair each car's position with its speed, nearest-to-target first","        cars = sorted(zip(position, speed), reverse=True)","        # arrival times of the fleets ahead, slowest (latest) on top","        stack = []","        for pos, spd in cars:","            time = (target - pos) / spd","            if not stack or time > stack[-1]:","                # can't catch the fleet ahead before the target: a new fleet","                stack.append(time)","            # else: it catches up and joins the fleet ahead (nothing to push)","        return len(stack)"],"notes":{"4":"pair each car's position with its speed, nearest-to-target first","6":"arrival times of the fleets ahead, slowest (latest) on top","11":"can't catch the fleet ahead before the target: a new fleet","13":"else: it catches up and joins the fleet ahead (nothing to push)"},"input":"target = 10, position = [3], speed = [3]","output":"1","values":[10,{"~":"list","v":[3]},{"~":"list","v":[{"~":"tuple","v":[3,3]}]},{"~":"list","v":[]},3,2.33333,{"~":"list","v":[2.33333]},1],"steps":[[4,1,"carFleet",{"target":0,"position":1,"speed":1},null],[6,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2},null],[7,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":3},null],[8,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":3,"pos":4,"spd":4},null],[9,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":3,"pos":4,"spd":4,"time":5},null],[11,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":3,"pos":4,"spd":4,"time":5},null],[7,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":6,"pos":4,"spd":4,"time":5},null],[13,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":6,"pos":4,"spd":4,"time":5},null],[13,1,"carFleet",{"target":0,"position":1,"speed":1,"cars":2,"stack":6,"pos":4,"spd":4,"time":5},null,7]],"truncated":false}</script>
+        <!-- trace:end 853 -->
         <!-- explain:start 853 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1868,6 +2070,534 @@ class Solution:
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time for the sort, <code>O(n)</code> space.</p>
       </div>
     </details>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- gen:start 316 -->
+    <details class="problem" id="p-316">
+      <summary><span class="tag medium">Medium</span> 316. Remove Duplicate Letters <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Remove duplicate letters so each letter appears once, and return the lexicographically smallest such result (a subsequence of <code>s</code>).</p>
+        <!-- enrich-top:start 316 -->
+        <p class="links"><a href="https://leetcode.com/problems/remove-duplicate-letters/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "bcabc"</code></div><div><strong>Output:</strong> <code class="ex">"abc"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "cbacdcbc"</code></div><div><strong>Output:</strong> <code class="ex">"acdb"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> consists of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Build the answer left to right. When would you want to remove a letter you already placed?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep an increasing stack; pop a bigger letter if it appears again later. Skip letters already in the stack.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Generating every subsequence with each letter once and picking the smallest is exponential. The greedy stack makes each decision locally and safely, in one pass.</p>
+        <!-- enrich-top:end 316 -->
+        <p><strong>Spot it:</strong> "Lexicographically smallest subsequence" + greedy removal of bigger letters that come before smaller ones = a monotonic (increasing) stack, with a guard: never pop a letter that won't appear again.</p>
+        <p><strong>Why not another pattern?</strong> Trying all subsequences with each letter once is exponential. Plain sorting ignores that the result must keep the original order.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Record each letter's last index.</li>
+          <li>Scan <code>s</code>. Skip letters already in the stack.</li>
+          <li>While the top is bigger than the current letter <strong>and</strong> appears again later, pop it (it can be placed later, in a better position).</li>
+          <li>Push the current letter. The stack is the answer.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def removeDuplicateLetters(self, s: str) -&gt; str:
+        last = {c: i for i, c in enumerate(s)}  # last index of every letter
+        stack = []
+        in_stack = set()
+        for i, c in enumerate(s):
+            if c in in_stack:
+                continue  # already placed in the best spot so far
+            while stack and stack[-1] &gt; c and last[stack[-1]] &gt; i:
+                in_stack.remove(stack.pop())  # a bigger letter that can come later: drop it now
+            stack.append(c)
+            in_stack.add(c)
+        return "".join(stack)</code></pre>
+        <!-- trace:start 316 -->
+        <div class="trace-viz" id="trace-p316"></div>
+        <script type="application/json" id="trace-p316-data">{"src":["class Solution:","    def removeDuplicateLetters(self, s: str) -> str:","        last = {c: i for i, c in enumerate(s)}  # last index of every letter","        stack = []","        in_stack = set()","        for i, c in enumerate(s):","            if c in in_stack:","                continue  # already placed in the best spot so far","            while stack and stack[-1] > c and last[stack[-1]] > i:","                in_stack.remove(stack.pop())  # a bigger letter that can come later: drop it now","            stack.append(c)","            in_stack.add(c)","        return \"\".join(stack)"],"notes":{"3":"last index of every letter","8":"already placed in the best spot so far","10":"a bigger letter that can come later: drop it now"},"input":"s = \"bcabc\"","output":"\"abc\"","values":["bcabc",0,"b",1,"c",2,"a",3,4,{"~":"dict","v":[["b",3],["c",4],["a",2]]},{"~":"list","v":[]},{"~":"set","v":[]},{"~":"list","v":["b"]},{"~":"set","v":["b"]},{"~":"list","v":["b","c"]},{"~":"set","v":["b","c"]},{"~":"list","v":["a"]},{"~":"set","v":["a"]},{"~":"list","v":["a","b"]},{"~":"set","v":["a","b"]},{"~":"list","v":["a","b","c"]},{"~":"set","v":["a","b","c"]},"abc"],"steps":[[3,1,"removeDuplicateLetters",{"s":0},null],[3,1,"removeDuplicateLetters",{"s":0,"i":1,"c":2},null],[3,1,"removeDuplicateLetters",{"s":0,"i":3,"c":4},null],[3,1,"removeDuplicateLetters",{"s":0,"i":5,"c":6},null],[3,1,"removeDuplicateLetters",{"s":0,"i":7,"c":2},null],[3,1,"removeDuplicateLetters",{"s":0,"i":8,"c":4},null],[4,1,"removeDuplicateLetters",{"s":0,"last":9},null],[5,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10},null],[6,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10,"in_stack":11},null],[7,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10,"in_stack":11,"i":1,"c":2},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10,"in_stack":11,"i":1,"c":2},null],[11,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10,"in_stack":11,"i":1,"c":2},null],[12,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":11,"i":1,"c":2},null],[6,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":13,"i":1,"c":2},null],[7,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":13,"i":3,"c":4},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":13,"i":3,"c":4},null],[11,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":13,"i":3,"c":4},null],[12,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":14,"in_stack":13,"i":3,"c":4},null],[6,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":14,"in_stack":15,"i":3,"c":4},null],[7,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":14,"in_stack":15,"i":5,"c":6},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":14,"in_stack":15,"i":5,"c":6},null],[10,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":14,"in_stack":15,"i":5,"c":6},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":13,"i":5,"c":6},null],[10,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":12,"in_stack":13,"i":5,"c":6},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10,"in_stack":11,"i":5,"c":6},null],[11,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":10,"in_stack":11,"i":5,"c":6},null],[12,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":16,"in_stack":11,"i":5,"c":6},null],[6,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":16,"in_stack":17,"i":5,"c":6},null],[7,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":16,"in_stack":17,"i":7,"c":2},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":16,"in_stack":17,"i":7,"c":2},null],[11,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":16,"in_stack":17,"i":7,"c":2},null],[12,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":18,"in_stack":17,"i":7,"c":2},null],[6,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":18,"in_stack":19,"i":7,"c":2},null],[7,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":18,"in_stack":19,"i":8,"c":4},null],[9,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":18,"in_stack":19,"i":8,"c":4},null],[11,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":18,"in_stack":19,"i":8,"c":4},null],[12,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":20,"in_stack":19,"i":8,"c":4},null],[6,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":20,"in_stack":21,"i":8,"c":4},null],[13,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":20,"in_stack":21,"i":8,"c":4},null],[13,1,"removeDuplicateLetters",{"s":0,"last":9,"stack":20,"in_stack":21,"i":8,"c":4},null,22]],"truncated":false}</script>
+        <!-- trace:end 316 -->
+        <!-- explain:start 316 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>last[c]</code> tells us whether a letter can still be placed later.</li>
+          <li>Letters already in the stack are skipped: their current position is already optimal.</li>
+          <li>Popping a bigger top letter makes the result smaller, but only if that letter appears again (<code>last[...] &gt; i</code>).</li>
+          <li>The stack stays as small as possible at every step and contains each letter once.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 316 -->
+        <!-- enrich-edges:start 316 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All letters distinct → unchanged.</li>
+          <li><code>"bcabc"</code> → <code>"abc"</code>.</li>
+          <li>A big letter that appears only once must stay, e.g. <code>"cbacdcbc"</code> → <code>"acdb"</code>.</li>
+        </ul>
+        <!-- enrich-edges:end 316 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time (each letter is pushed and popped at most once), <code>O(1)</code> space for 26 letters.</p>
+      </div>
+    </details>
+    <!-- gen:end 316 -->
+
+    <!-- gen:start 581 -->
+    <details class="problem" id="p-581">
+      <summary><span class="tag medium">Medium</span> 581. Shortest Unsorted Continuous Subarray <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Find the shortest subarray that, if sorted, makes the whole array sorted. Return its length.</p>
+        <!-- enrich-top:start 581 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-unsorted-continuous-subarray/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,6,4,8,10,9,15]</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You need to sort [6, 4, 8, 10, 9] in ascending order to make the whole array sorted in ascending order.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>-10⁵ ≤ nums[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which elements are definitely out of place?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>An element smaller than the maximum to its left (or bigger than the minimum to its right) must be inside the subarray.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sorting a copy and comparing with the original is <code>O(n log n)</code>. Two linear scans with a running max and running min find the same boundaries in <code>O(n)</code>.</p>
+        <!-- enrich-top:end 581 -->
+        <p><strong>Spot it:</strong> An element is out of place if something before it is bigger (or something after it is smaller). Tracking the running maximum from the left and the running minimum from the right finds both boundaries, the same "compare with what came before" idea as a monotonic stack, but with one value.</p>
+        <p><strong>Why not another pattern?</strong> Sorting a copy and comparing is <code>O(n log n)</code>. A monotonic stack finds the boundaries in <code>O(n)</code> with <code>O(n)</code> space; the running max/min version needs only <code>O(1)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Left to right with <code>running_max</code>: any <code>nums[i] &lt; running_max</code> is out of place; the last such <code>i</code> is the right boundary.</li>
+          <li>Right to left with <code>running_min</code>: any <code>nums[i] &gt; running_min</code> is out of place; the last such <code>i</code> (leftmost) is the left boundary.</li>
+          <li>If no boundary was found, the array is sorted: 0. Otherwise <code>right − left + 1</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def findUnsortedSubarray(self, nums: List[int]) -&gt; int:
+        n = len(nums)
+        right = -1
+        running_max = float("-inf")
+        for i in range(n):
+            if nums[i] &lt; running_max:
+                right = i  # something before it is bigger: i must be inside the subarray
+            else:
+                running_max = nums[i]
+        left = 0
+        running_min = float("inf")
+        for i in range(n - 1, -1, -1):
+            if nums[i] &gt; running_min:
+                left = i  # something after it is smaller: i must be inside
+            else:
+                running_min = nums[i]
+        return right - left + 1 if right != -1 else 0</code></pre>
+        <!-- trace:start 581 -->
+        <div class="trace-viz" id="trace-p581"></div>
+        <script type="application/json" id="trace-p581-data">{"src":["class Solution:","    def findUnsortedSubarray(self, nums: List[int]) -> int:","        n = len(nums)","        right = -1","        running_max = float(\"-inf\")","        for i in range(n):","            if nums[i] < running_max:","                right = i  # something before it is bigger: i must be inside the subarray","            else:","                running_max = nums[i]","        left = 0","        running_min = float(\"inf\")","        for i in range(n - 1, -1, -1):","            if nums[i] > running_min:","                left = i  # something after it is smaller: i must be inside","            else:","                running_min = nums[i]","        return right - left + 1 if right != -1 else 0"],"notes":{"8":"something before it is bigger: i must be inside the subarray","15":"something after it is smaller: i must be inside"},"input":"nums = [1]","output":"0","values":[{"~":"list","v":[1]},1,-1,{"~":"num","v":"-∞"},0,{"~":"num","v":"∞"}],"steps":[[3,1,"findUnsortedSubarray",{"nums":0},null],[4,1,"findUnsortedSubarray",{"nums":0,"n":1},null],[5,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2},null],[6,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":3},null],[7,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":3,"i":4},null],[10,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":3,"i":4},null],[6,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4},null],[11,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4},null],[12,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4},null],[13,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4,"running_min":5},null],[14,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4,"running_min":5},null],[17,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4,"running_min":5},null],[13,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4,"running_min":1},null],[18,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4,"running_min":1},null],[18,1,"findUnsortedSubarray",{"nums":0,"n":1,"right":2,"running_max":1,"i":4,"left":4,"running_min":1},null,4]],"truncated":false}</script>
+        <!-- trace:end 581 -->
+        <!-- explain:start 581 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>From the left, an element smaller than the maximum before it can't stay where it is, so the subarray must reach at least that far right.</li>
+          <li>From the right, an element bigger than the minimum after it must be inside the subarray too.</li>
+          <li>The last such positions in each scan are the tightest boundaries.</li>
+          <li><code>right == -1</code> means no element was out of place.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 581 -->
+        <!-- enrich-edges:start 581 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Already sorted → 0.</li>
+          <li>Reverse sorted → <code>n</code>.</li>
+          <li>Duplicates at the boundary, e.g. <code>[1, 3, 2, 2, 2]</code> → 4.</li>
+        </ul>
+        <!-- enrich-edges:end 581 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 581 -->
+
+    <!-- gen:start 962 -->
+    <details class="problem" id="p-962">
+      <summary><span class="tag medium">Medium</span> 962. Maximum Width Ramp <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A ramp is a pair <code>i &lt; j</code> with <code>nums[i] ≤ nums[j]</code>; its width is <code>j − i</code>. Return the maximum width (0 if none).</p>
+        <!-- enrich-top:start 962 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-width-ramp/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [6,0,8,2,1,5]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The maximum width ramp is achieved at (i, j) = (1, 5): nums[1] = 0 and nums[5] = 5.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [9,8,1,0,1,9,4,0,4,1]</code></div><div><strong>Output:</strong> <code class="ex">7</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The maximum width ramp is achieved at (i, j) = (2, 9): nums[2] = 1 and nums[9] = 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>2 ≤ nums.length ≤ 5 * 10⁴</code> · <code>0 ≤ nums[i] ≤ 5 * 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which indices can possibly be the left end of the widest ramp?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep only new minimums from the left (a decreasing stack), then scan right ends from the end of the array.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Checking every pair is <code>O(n²)</code>. Only prefix minima can be optimal starts, and scanning ends from the right lets each start be matched and discarded once: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 962 -->
+        <p><strong>Spot it:</strong> The best start for any ramp is a "new minimum" from the left (a smaller value earlier always beats it). Those candidates form a <strong>decreasing</strong> stack. Then scan <code>j</code> from the right and pop every start that <code>nums[j]</code> can reach.</p>
+        <p><strong>Why not another pattern?</strong> Checking all pairs is <code>O(n²)</code>. Sorting indices by value and tracking the minimum index is <code>O(n log n)</code>; the stack is <code>O(n)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Push index <code>i</code> when <code>nums[i]</code> is smaller than the value at the stack's top (a new minimum).</li>
+          <li>Scan <code>j</code> from the end: while the stack's top value ≤ <code>nums[j]</code>, pop it and update the width <code>j − top</code>.</li>
+          <li>Popping is safe: any later (smaller) <code>j</code> would give a narrower ramp for that start.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxWidthRamp(self, nums: List[int]) -&gt; int:
+        stack = []  # indices of decreasing values: the only useful starts
+        for i in range(len(nums)):
+            if not stack or nums[i] &lt; nums[stack[-1]]:
+                stack.append(i)  # a new minimum: a better start than anything after it
+        best = 0
+        for j in range(len(nums) - 1, -1, -1):
+            while stack and nums[stack[-1]] &lt;= nums[j]:
+                best = max(best, j - stack.pop())  # widest ramp for this start
+        return best</code></pre>
+        <!-- trace:start 962 -->
+        <div class="trace-viz" id="trace-p962"></div>
+        <script type="application/json" id="trace-p962-data">{"src":["class Solution:","    def maxWidthRamp(self, nums: List[int]) -> int:","        stack = []  # indices of decreasing values: the only useful starts","        for i in range(len(nums)):","            if not stack or nums[i] < nums[stack[-1]]:","                stack.append(i)  # a new minimum: a better start than anything after it","        best = 0","        for j in range(len(nums) - 1, -1, -1):","            while stack and nums[stack[-1]] <= nums[j]:","                best = max(best, j - stack.pop())  # widest ramp for this start","        return best"],"notes":{"3":"indices of decreasing values: the only useful starts","6":"a new minimum: a better start than anything after it","10":"widest ramp for this start"},"input":"nums = [6,0,8,2,1,5]","output":"4","values":[{"~":"list","v":[6,0,8,2,1,5]},{"~":"list","v":[]},0,{"~":"list","v":[0]},1,{"~":"list","v":[0,1]},2,3,4,5],"steps":[[3,1,"maxWidthRamp",{"nums":0},null],[4,1,"maxWidthRamp",{"nums":0,"stack":1},null],[5,1,"maxWidthRamp",{"nums":0,"stack":1,"i":2},null],[6,1,"maxWidthRamp",{"nums":0,"stack":1,"i":2},null],[4,1,"maxWidthRamp",{"nums":0,"stack":3,"i":2},null],[5,1,"maxWidthRamp",{"nums":0,"stack":3,"i":4},null],[6,1,"maxWidthRamp",{"nums":0,"stack":3,"i":4},null],[4,1,"maxWidthRamp",{"nums":0,"stack":5,"i":4},null],[5,1,"maxWidthRamp",{"nums":0,"stack":5,"i":6},null],[4,1,"maxWidthRamp",{"nums":0,"stack":5,"i":6},null],[5,1,"maxWidthRamp",{"nums":0,"stack":5,"i":7},null],[4,1,"maxWidthRamp",{"nums":0,"stack":5,"i":7},null],[5,1,"maxWidthRamp",{"nums":0,"stack":5,"i":8},null],[4,1,"maxWidthRamp",{"nums":0,"stack":5,"i":8},null],[5,1,"maxWidthRamp",{"nums":0,"stack":5,"i":9},null],[4,1,"maxWidthRamp",{"nums":0,"stack":5,"i":9},null],[7,1,"maxWidthRamp",{"nums":0,"stack":5,"i":9},null],[8,1,"maxWidthRamp",{"nums":0,"stack":5,"i":9,"best":2},null],[9,1,"maxWidthRamp",{"nums":0,"stack":5,"i":9,"best":2,"j":9},null],[10,1,"maxWidthRamp",{"nums":0,"stack":5,"i":9,"best":2,"j":9},null],[9,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":9},null],[8,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":9},null],[9,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":8},null],[8,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":8},null],[9,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":7},null],[8,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":7},null],[9,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":6},null],[10,1,"maxWidthRamp",{"nums":0,"stack":3,"i":9,"best":8,"j":6},null],[9,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":6},null],[8,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":6},null],[9,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":4},null],[8,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":4},null],[9,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":2},null],[8,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":2},null],[11,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":2},null],[11,1,"maxWidthRamp",{"nums":0,"stack":1,"i":9,"best":8,"j":2},null,8]],"truncated":false}</script>
+        <!-- trace:end 962 -->
+        <!-- explain:start 962 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A start <code>i</code> is only useful if no earlier index has a smaller or equal value; such indices form a decreasing sequence.</li>
+          <li>Scanning <code>j</code> from the right means the first <code>j</code> that works for a start is the widest one for that start.</li>
+          <li>After popping a start, no other <code>j</code> can beat that width, so it never needs to be checked again.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 962 -->
+        <!-- enrich-edges:start 962 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Strictly decreasing → 0.</li>
+          <li>All equal → <code>n − 1</code>.</li>
+          <li>The best ramp uses the first element.</li>
+        </ul>
+        <!-- enrich-edges:end 962 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 962 -->
+
+    <!-- gen:start 1008 -->
+    <details class="problem" id="p-1008">
+      <summary><span class="tag medium">Medium</span> 1008. Construct Binary Search Tree from Preorder Traversal <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">BST</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Rebuild the BST whose preorder traversal is <code>preorder</code> (all values distinct).</p>
+        <!-- enrich-top:start 1008 -->
+        <p class="links"><a href="https://leetcode.com/problems/construct-binary-search-tree-from-preorder-traversal/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">preorder = [8,5,1,7,10,12]</code></div><div><strong>Output:</strong> <code class="ex">[8,5,10,1,7,null,12]</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">preorder = [1,3]</code></div><div><strong>Output:</strong> <code class="ex">[1,null,3]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ preorder.length ≤ 100</code> · <code>1 ≤ preorder[i] ≤ 1000</code> · All the values of <code>preorder</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>In preorder, where does the next value go relative to the previous nodes?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep a stack of the current path; pop nodes smaller than the new value to find its parent.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Inserting each value into the BST from the root is <code>O(n log n)</code> on average and <code>O(n²)</code> when skewed. The stack attaches each node in amortised <code>O(1)</code>.</p>
+        <!-- enrich-top:end 1008 -->
+        <p><strong>Spot it:</strong> In preorder, each new value is either the left child of the previous node (if smaller) or the right child of the last ancestor that is smaller than it. A stack of nodes along the current path, popped while smaller than the new value, finds that ancestor: a monotonic (decreasing) stack.</p>
+        <p><strong>Why not another pattern?</strong> Inserting each value from the root is <code>O(n²)</code> on skewed input. Recursion with value bounds is also <code>O(n)</code>; the stack makes the same logic iterative.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Make the first value the root and push it.</li>
+          <li>For each next value: create a node. Pop while the top is smaller than it; the last popped node is its parent (right child).</li>
+          <li>If nothing was popped, it's the left child of the top.</li>
+          <li>Push the new node.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def bstFromPreorder(self, preorder: List[int]) -&gt; Optional[TreeNode]:
+        root = TreeNode(preorder[0])
+        stack = [root]  # current path; values decrease from bottom to top
+        for value in preorder[1:]:
+            node = TreeNode(value)
+            parent = None
+            while stack and stack[-1].val &lt; value:
+                parent = stack.pop()  # the last smaller ancestor becomes the parent
+            if parent is not None:
+                parent.right = node  # bigger than parent: right child
+            else:
+                stack[-1].left = node  # smaller than the top: left child
+            stack.append(node)
+        return root</code></pre>
+        <!-- trace:start 1008 -->
+        <div class="trace-viz" id="trace-p1008"></div>
+        <script type="application/json" id="trace-p1008-data">{"src":["class Solution:","    def bstFromPreorder(self, preorder: List[int]) -> Optional[TreeNode]:","        root = TreeNode(preorder[0])","        stack = [root]  # current path; values decrease from bottom to top","        for value in preorder[1:]:","            node = TreeNode(value)","            parent = None","            while stack and stack[-1].val < value:","                parent = stack.pop()  # the last smaller ancestor becomes the parent","            if parent is not None:","                parent.right = node  # bigger than parent: right child","            else:","                stack[-1].left = node  # smaller than the top: left child","            stack.append(node)","        return root"],"notes":{"4":"current path; values decrease from bottom to top","9":"the last smaller ancestor becomes the parent","11":"bigger than parent: right child","13":"smaller than the top: left child"},"input":"preorder = [1,3]","output":"[1,null,3]","values":[{"~":"list","v":[1,3]},{"~":"node","v":1},{"~":"list","v":[{"~":"node","v":1}]},3,{"~":"node","v":3},null,{"~":"list","v":[]},{"~":"list","v":[{"~":"node","v":3}]}],"steps":[[3,1,"bstFromPreorder",{"preorder":0},null],[4,1,"bstFromPreorder",{"preorder":0,"root":1},null],[5,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":2},null],[6,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":2,"value":3},null],[7,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":2,"value":3,"node":4},null],[8,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":2,"value":3,"node":4,"parent":5},null],[9,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":2,"value":3,"node":4,"parent":5},null],[8,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":6,"value":3,"node":4,"parent":1},null],[10,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":6,"value":3,"node":4,"parent":1},null],[11,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":6,"value":3,"node":4,"parent":1},null],[14,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":6,"value":3,"node":4,"parent":1},null],[5,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":7,"value":3,"node":4,"parent":1},null],[15,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":7,"value":3,"node":4,"parent":1},null],[15,1,"bstFromPreorder",{"preorder":0,"root":1,"stack":7,"value":3,"node":4,"parent":1},null,1]],"truncated":false}</script>
+        <!-- trace:end 1008 -->
+        <!-- explain:start 1008 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The stack holds the path of nodes that can still receive children, with values decreasing upward.</li>
+          <li>Popping all smaller nodes leaves <code>parent</code> as the deepest node smaller than <code>value</code>, so <code>value</code> is its right child.</li>
+          <li>If no node is smaller, <code>value</code> is smaller than the top and becomes its left child.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1008 -->
+        <!-- enrich-edges:start 1008 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single value.</li>
+          <li>Strictly increasing (right chain) or decreasing (left chain).</li>
+          <li>Values that go deep left, then jump right.</li>
+        </ul>
+        <!-- enrich-edges:end 1008 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1008 -->
+
+    <!-- gen:start 2104 -->
+    <details class="problem" id="p-2104">
+      <summary><span class="tag medium">Medium</span> 2104. Sum of Subarray Ranges <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> The range of a subarray is <code>max − min</code>. Return the sum of the ranges of all subarrays.</p>
+        <!-- enrich-top:start 2104 -->
+        <p class="links"><a href="https://leetcode.com/problems/sum-of-subarray-ranges/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 6 subarrays of nums are the following:
+[1], range = largest - smallest = 1 - 1 = 0 
+[2], range = 2 - 2 = 0
+[3], range = 3 - 3 = 0
+[1,2], range = 2 - 1 = 1
+[2,3], range = 3 - 2 = 1
+[1,2,3], range = 3 - 1 = 2
+So the sum of all ranges is 0 + 0 + 0 + 1 + 1 + 2 = 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,3]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The 6 subarrays of nums are the following:
+[1], range = largest - smallest = 1 - 1 = 0
+[3], range = 3 - 3 = 0
+[3], range = 3 - 3 = 0
+[1,3], range = 3 - 1 = 2
+[3,3], range = 3 - 3 = 0
+[1,3,3], range = 3 - 1 = 2
+So the sum of all ranges is 0 + 0 + 0 + 2 + 0 + 2 = 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 1000</code> · <code>-10⁹ ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Split the sum: Σ(max − min) = Σmax − Σmin.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Count, for every element, how many subarrays it is the maximum (or minimum) of, using previous/next greater (or smaller) elements.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Extending every start to the right while tracking min and max is <code>O(n²)</code>. Counting each element's contribution with monotonic stacks makes it <code>O(n)</code>.</p>
+        <!-- enrich-top:end 2104 -->
+        <p><strong>Spot it:</strong> Sum of ranges = (sum of all subarray maximums) − (sum of all subarray minimums). Each is the "Sum of Subarray Minimums" contribution trick: element <code>i</code> is the min (or max) of <code>left × right</code> subarrays, found with previous/next smaller (greater) elements on a monotonic stack.</p>
+        <p><strong>Why not another pattern?</strong> Enumerating every subarray while tracking its min and max is <code>O(n²)</code>, which passes for <code>n ≤ 1000</code> but doesn't scale.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Write a helper <code>total(cmp)</code> that returns the sum over subarrays of the min (or max) using contributions.</li>
+          <li>For each index, the stack gives how far it extends left and right as the min (strict on one side, non-strict on the other to avoid double counting).</li>
+          <li>Contribution of <code>nums[i]</code> = <code>nums[i] × left × right</code>.</li>
+          <li>Answer = total of maxima − total of minima.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def subArrayRanges(self, nums: List[int]) -&gt; int:
+        n = len(nums)
+
+        def total(better):
+            # sum over all subarrays of the element that is "best" (min or max)
+            result = 0
+            stack = []  # indices; a sentinel pass at i == n flushes the stack
+            for i in range(n + 1):
+                while stack and (i == n or better(nums[i], nums[stack[-1]])):
+                    mid = stack.pop()
+                    left = mid - (stack[-1] if stack else -1)  # choices for the left end
+                    right = i - mid  # choices for the right end
+                    result = result + nums[mid] * left * right
+                stack.append(i)
+            return result
+
+        sum_max = total(lambda a, b: a &gt; b)  # popped when a bigger value arrives
+        sum_min = total(lambda a, b: a &lt; b)  # popped when a smaller value arrives
+        return sum_max - sum_min</code></pre>
+        <!-- trace:start 2104 -->
+        <div class="trace-viz" id="trace-p2104"></div>
+        <script type="application/json" id="trace-p2104-data">{"src":["class Solution:","    def subArrayRanges(self, nums: List[int]) -> int:","        n = len(nums)","","        def total(better):","            # sum over all subarrays of the element that is \"best\" (min or max)","            result = 0","            stack = []  # indices; a sentinel pass at i == n flushes the stack","            for i in range(n + 1):","                while stack and (i == n or better(nums[i], nums[stack[-1]])):","                    mid = stack.pop()","                    left = mid - (stack[-1] if stack else -1)  # choices for the left end","                    right = i - mid  # choices for the right end","                    result = result + nums[mid] * left * right","                stack.append(i)","            return result","","        sum_max = total(lambda a, b: a > b)  # popped when a bigger value arrives","        sum_min = total(lambda a, b: a < b)  # popped when a smaller value arrives","        return sum_max - sum_min"],"notes":{"7":"sum over all subarrays of the element that is \"best\" (min or max)","8":"indices; a sentinel pass at i == n flushes the stack","12":"choices for the left end","13":"choices for the right end","18":"popped when a bigger value arrives","19":"popped when a smaller value arrives"},"input":"nums = [1,2,3]","output":"4","values":[{"~":"list","v":[1,2,3]},3,"subArrayRanges(nums=[3 items]) › total(better=function)",0,{"~":"list","v":[]},{"~":"list","v":[0]},1,2,"subArrayRanges(nums=[3 items]) › total(better=function) › <lambda>(a=2, b=1)",true,{"~":"list","v":[1]},"subArrayRanges(nums=[3 items]) › total(better=function) › <lambda>(a=3, b=2)",5,{"~":"list","v":[2]},14,{"~":"list","v":[3]},false,{"~":"list","v":[0,1]},{"~":"list","v":[0,1,2]},7,10,4],"steps":[[3,1,"subArrayRanges",{"nums":0},null],[5,1,"subArrayRanges",{"nums":0,"n":1},null],[18,1,"subArrayRanges",{"nums":0,"n":1},null],[7,2,"total",{"n":1,"nums":0},2],[8,2,"total",{"n":1,"nums":0,"result":3},2],[9,2,"total",{"n":1,"nums":0,"result":3,"stack":4},2],[10,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":3},2],[15,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":3},2],[9,2,"total",{"n":1,"nums":0,"result":3,"stack":5,"i":3},2],[10,2,"total",{"n":1,"nums":0,"result":3,"stack":5,"i":6},2],[18,3,"<lambda>",{"a":7,"b":6},8],[18,3,"<lambda>",{"a":7,"b":6},8,9],[11,2,"total",{"n":1,"nums":0,"result":3,"stack":5,"i":6},2],[12,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":6,"mid":3},2],[13,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":6,"mid":3,"left":6},2],[14,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":6,"mid":3,"left":6,"right":6},2],[10,2,"total",{"n":1,"nums":0,"result":6,"stack":4,"i":6,"mid":3,"left":6,"right":6},2],[15,2,"total",{"n":1,"nums":0,"result":6,"stack":4,"i":6,"mid":3,"left":6,"right":6},2],[9,2,"total",{"n":1,"nums":0,"result":6,"stack":10,"i":6,"mid":3,"left":6,"right":6},2],[10,2,"total",{"n":1,"nums":0,"result":6,"stack":10,"i":7,"mid":3,"left":6,"right":6},2],[18,3,"<lambda>",{"a":1,"b":7},11],[18,3,"<lambda>",{"a":1,"b":7},11,9],[11,2,"total",{"n":1,"nums":0,"result":6,"stack":10,"i":7,"mid":3,"left":6,"right":6},2],[12,2,"total",{"n":1,"nums":0,"result":6,"stack":4,"i":7,"mid":6,"left":6,"right":6},2],[13,2,"total",{"n":1,"nums":0,"result":6,"stack":4,"i":7,"mid":6,"left":7,"right":6},2],[14,2,"total",{"n":1,"nums":0,"result":6,"stack":4,"i":7,"mid":6,"left":7,"right":6},2],[10,2,"total",{"n":1,"nums":0,"result":12,"stack":4,"i":7,"mid":6,"left":7,"right":6},2],[15,2,"total",{"n":1,"nums":0,"result":12,"stack":4,"i":7,"mid":6,"left":7,"right":6},2],[9,2,"total",{"n":1,"nums":0,"result":12,"stack":13,"i":7,"mid":6,"left":7,"right":6},2],[10,2,"total",{"n":1,"nums":0,"result":12,"stack":13,"i":1,"mid":6,"left":7,"right":6},2],[11,2,"total",{"n":1,"nums":0,"result":12,"stack":13,"i":1,"mid":6,"left":7,"right":6},2],[12,2,"total",{"n":1,"nums":0,"result":12,"stack":4,"i":1,"mid":7,"left":7,"right":6},2],[13,2,"total",{"n":1,"nums":0,"result":12,"stack":4,"i":1,"mid":7,"left":1,"right":6},2],[14,2,"total",{"n":1,"nums":0,"result":12,"stack":4,"i":1,"mid":7,"left":1,"right":6},2],[10,2,"total",{"n":1,"nums":0,"result":14,"stack":4,"i":1,"mid":7,"left":1,"right":6},2],[15,2,"total",{"n":1,"nums":0,"result":14,"stack":4,"i":1,"mid":7,"left":1,"right":6},2],[9,2,"total",{"n":1,"nums":0,"result":14,"stack":15,"i":1,"mid":7,"left":1,"right":6},2],[16,2,"total",{"n":1,"nums":0,"result":14,"stack":15,"i":1,"mid":7,"left":1,"right":6},2],[16,2,"total",{"n":1,"nums":0,"result":14,"stack":15,"i":1,"mid":7,"left":1,"right":6},2,14],[19,1,"subArrayRanges",{"nums":0,"n":1,"sum_max":14},null],[7,2,"total",{"n":1,"nums":0},2],[8,2,"total",{"n":1,"nums":0,"result":3},2],[9,2,"total",{"n":1,"nums":0,"result":3,"stack":4},2],[10,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":3},2],[15,2,"total",{"n":1,"nums":0,"result":3,"stack":4,"i":3},2],[9,2,"total",{"n":1,"nums":0,"result":3,"stack":5,"i":3},2],[10,2,"total",{"n":1,"nums":0,"result":3,"stack":5,"i":6},2],[19,3,"<lambda>",{"a":7,"b":6},8],[19,3,"<lambda>",{"a":7,"b":6},8,16],[15,2,"total",{"n":1,"nums":0,"result":3,"stack":5,"i":6},2],[9,2,"total",{"n":1,"nums":0,"result":3,"stack":17,"i":6},2],[10,2,"total",{"n":1,"nums":0,"result":3,"stack":17,"i":7},2],[19,3,"<lambda>",{"a":1,"b":7},11],[19,3,"<lambda>",{"a":1,"b":7},11,16],[15,2,"total",{"n":1,"nums":0,"result":3,"stack":17,"i":7},2],[9,2,"total",{"n":1,"nums":0,"result":3,"stack":18,"i":7},2],[10,2,"total",{"n":1,"nums":0,"result":3,"stack":18,"i":1},2],[11,2,"total",{"n":1,"nums":0,"result":3,"stack":18,"i":1},2],[12,2,"total",{"n":1,"nums":0,"result":3,"stack":17,"i":1,"mid":7},2],[13,2,"total",{"n":1,"nums":0,"result":3,"stack":17,"i":1,"mid":7,"left":6},2],[14,2,"total",{"n":1,"nums":0,"result":3,"stack":17,"i":1,"mid":7,"left":6,"right":6},2],[10,2,"total",{"n":1,"nums":0,"result":1,"stack":17,"i":1,"mid":7,"left":6,"right":6},2],[11,2,"total",{"n":1,"nums":0,"result":1,"stack":17,"i":1,"mid":7,"left":6,"right":6},2],[12,2,"total",{"n":1,"nums":0,"result":1,"stack":5,"i":1,"mid":6,"left":6,"right":6},2],[13,2,"total",{"n":1,"nums":0,"result":1,"stack":5,"i":1,"mid":6,"left":6,"right":6},2],[14,2,"total",{"n":1,"nums":0,"result":1,"stack":5,"i":1,"mid":6,"left":6,"right":7},2],[10,2,"total",{"n":1,"nums":0,"result":19,"stack":5,"i":1,"mid":6,"left":6,"right":7},2],[11,2,"total",{"n":1,"nums":0,"result":19,"stack":5,"i":1,"mid":6,"left":6,"right":7},2],[12,2,"total",{"n":1,"nums":0,"result":19,"stack":4,"i":1,"mid":3,"left":6,"right":7},2],[13,2,"total",{"n":1,"nums":0,"result":19,"stack":4,"i":1,"mid":3,"left":6,"right":7},2],[14,2,"total",{"n":1,"nums":0,"result":19,"stack":4,"i":1,"mid":3,"left":6,"right":1},2],[10,2,"total",{"n":1,"nums":0,"result":20,"stack":4,"i":1,"mid":3,"left":6,"right":1},2],[15,2,"total",{"n":1,"nums":0,"result":20,"stack":4,"i":1,"mid":3,"left":6,"right":1},2],[9,2,"total",{"n":1,"nums":0,"result":20,"stack":15,"i":1,"mid":3,"left":6,"right":1},2],[16,2,"total",{"n":1,"nums":0,"result":20,"stack":15,"i":1,"mid":3,"left":6,"right":1},2],[16,2,"total",{"n":1,"nums":0,"result":20,"stack":15,"i":1,"mid":3,"left":6,"right":1},2,20],[20,1,"subArrayRanges",{"nums":0,"n":1,"sum_max":14,"sum_min":20},null],[20,1,"subArrayRanges",{"nums":0,"n":1,"sum_max":14,"sum_min":20},null,21]],"truncated":false}</script>
+        <!-- trace:end 2104 -->
+        <!-- explain:start 2104 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>total(better)</code> computes Σ over subarrays of their best element, where <code>better</code> is <code>&gt;</code> for maxima and <code>&lt;</code> for minima.</li>
+          <li>When index <code>mid</code> is popped by <code>i</code>, <code>i</code> is the first element to its right that beats it; the new stack top is the previous element that beats-or-equals it.</li>
+          <li>So <code>nums[mid]</code> is the best element of every subarray starting in <code>(stack top, mid]</code> and ending in <code>[mid, i)</code>: <code>left × right</code> subarrays.</li>
+          <li>The final iteration with <code>i == n</code> pops whatever is left.</li>
+          <li>Σ(max − min) splits into Σmax − Σmin.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 2104 -->
+        <!-- enrich-edges:start 2104 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → 0.</li>
+          <li>Equal values (strict vs non-strict comparisons prevent double counting).</li>
+          <li>Negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 2104 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 2104 -->
+
+    <!-- gen:start 975 -->
+    <details class="problem" id="p-975">
+      <summary><span class="tag hard">Hard</span> 975. Odd Even Jump <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> From index <code>i</code>, odd-numbered jumps go to the smallest value ≥ <code>arr[i]</code> to the right (smallest index on ties); even-numbered jumps go to the largest value ≤ <code>arr[i]</code> to the right. Count the starting indices that can reach the end.</p>
+        <!-- enrich-top:start 975 -->
+        <p class="links"><a href="https://leetcode.com/problems/odd-even-jump/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">arr = [10,13,12,14,15]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">From starting index i = 0, we can make our 1st jump to i = 2 (since arr[2] is the smallest among arr[1], arr[2], arr[3], arr[4] that is greater or equal to arr[0]), then we cannot jump any more.
+From starting index i = 1 and i = 2, we can make our 1st jump to i = 3, then we cannot jump any more.
+From starting index i = 3, we can make our 1st jump to i = 4, so we have reached the end.
+From starting index i = 4, we have reached the end already.
+In total, there are 2 different starting indices i = 3 and i = 4, where we can reach the end with some number of
+jumps.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">arr = [2,3,1,1,4]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">From starting index i = 0, we make jumps to i = 1, i = 2, i = 3:
+During our 1st jump (odd-numbered), we first jump to i = 1 because arr[1] is the smallest value in [arr[1], arr[2], arr[3], arr[4]] that is greater than or equal to arr[0].
+During our 2nd jump (even-numbered), we jump from i = 1 to i = 2 because arr[2] is the largest value in [arr[2], arr[3], arr[4]] that is less than or equal to arr[1]. arr[3] is also the largest value, but 2 is a smaller index, so we can only jump to i = 2 and not i = 3
+During our 3rd jump (odd-numbered), we jump from i = 2 to i = 3 because arr[3] is the smallest value in [arr[3], arr[4]] that is greater than or equal to arr[2].
+We can't jump from i = 3 to i = 4, so the starting index i = 0 is not good.
+In a similar manner, we can deduce that:
+From starting index i = 1, we jump to i = 4, so we reach the end.
+From starting index i = 2, we jump to i = 3, and then we can't jump anymore.
+From starting index i = 3, we jump to i = 4, so we reach the end.
+From starting index i = 4, we are already at the end.
+In total, there are 3 different starting indices i = 1, i = 3, and i = 4, where we can reach the end with some
+number of jumps.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ arr.length ≤ 2 * 10⁴</code> · <code>0 ≤ arr[i] &lt; 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Separate the problem: first find where each jump goes, then decide which starts succeed.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Sort indices by value; a monotonic stack over that order gives each index's jump target. Then a DP from the right with two states.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Scanning right from every index to find the jump target is <code>O(n²)</code>. Sorting plus a monotonic stack finds all targets in <code>O(n log n)</code>, and the success DP is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 975 -->
+        <p><strong>Spot it:</strong> Two steps: (1) for every index find its odd-jump and even-jump target, a "next greater element" in <strong>sorted order</strong>, done with a monotonic stack over indices sorted by value; (2) DP from the right: <code>odd[i] = even[next_odd[i]]</code>, <code>even[i] = odd[next_even[i]]</code>.</p>
+        <p><strong>Why not another pattern?</strong> Finding targets by scanning right is <code>O(n²)</code>. A balanced BST / sorted container scanned from the right is the other <code>O(n log n)</code> way.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Sort indices by <code>(value, index)</code>. Walking them in this order with a stack of indices, every index popped by a larger index <code>i</code> gets <code>i</code> as its odd target.</li>
+          <li>Sort indices by <code>(−value, index)</code> and do the same for even targets.</li>
+          <li><code>odd[n−1] = even[n−1] = True</code>. From right to left: <code>odd[i] = even[odd_next[i]]</code>, <code>even[i] = odd[even_next[i]]</code>.</li>
+          <li>Count the indices with <code>odd[i]</code> true (the first jump is odd).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def oddEvenJumps(self, arr: List[int]) -&gt; int:
+        n = len(arr)
+
+        def next_targets(order):
+            # for indices visited in `order`, the next index (to the right) in that order
+            target = [None] * n
+            stack = []
+            for i in order:
+                while stack and stack[-1] &lt; i:
+                    target[stack.pop()] = i  # i is the first later index in this sorted order
+                stack.append(i)
+            return target
+
+        odd_next = next_targets(sorted(range(n), key=lambda i: (arr[i], i)))  # smallest value &gt;= arr[i]
+        even_next = next_targets(sorted(range(n), key=lambda i: (-arr[i], i)))  # largest value &lt;= arr[i]
+        odd = [False] * n  # can reach the end starting with an odd jump
+        even = [False] * n  # ... starting with an even jump
+        odd[n - 1] = True
+        even[n - 1] = True
+        for i in range(n - 2, -1, -1):
+            if odd_next[i] is not None:
+                odd[i] = even[odd_next[i]]  # after an odd jump comes an even jump
+            if even_next[i] is not None:
+                even[i] = odd[even_next[i]]
+        return sum(odd)  # every start begins with jump number 1 (odd)</code></pre>
+        <!-- trace:start 975 -->
+        <div class="trace-viz" id="trace-p975"></div>
+        <script type="application/json" id="trace-p975-data">{"src":["class Solution:","    def oddEvenJumps(self, arr: List[int]) -> int:","        n = len(arr)","","        def next_targets(order):","            # for indices visited in `order`, the next index (to the right) in that order","            target = [None] * n","            stack = []","            for i in order:","                while stack and stack[-1] < i:","                    target[stack.pop()] = i  # i is the first later index in this sorted order","                stack.append(i)","            return target","","        odd_next = next_targets(sorted(range(n), key=lambda i: (arr[i], i)))  # smallest value >= arr[i]","        even_next = next_targets(sorted(range(n), key=lambda i: (-arr[i], i)))  # largest value <= arr[i]","        odd = [False] * n  # can reach the end starting with an odd jump","        even = [False] * n  # ... starting with an even jump","        odd[n - 1] = True","        even[n - 1] = True","        for i in range(n - 2, -1, -1):","            if odd_next[i] is not None:","                odd[i] = even[odd_next[i]]  # after an odd jump comes an even jump","            if even_next[i] is not None:","                even[i] = odd[even_next[i]]","        return sum(odd)  # every start begins with jump number 1 (odd)"],"notes":{"7":"for indices visited in `order`, the next index (to the right) in that order","11":"i is the first later index in this sorted order","15":"smallest value >= arr[i]","16":"largest value <= arr[i]","17":"can reach the end starting with an odd jump","18":"... starting with an even jump","23":"after an odd jump comes an even jump","26":"every start begins with jump number 1 (odd)"},"input":"arr = [10,13,12,14,15]","output":"2","values":[{"~":"list","v":[10,13,12,14,15]},5,0,"oddEvenJumps(arr=[5 items]) › <lambda>(i=0)",{"~":"tuple","v":[10,0]},1,"oddEvenJumps(arr=[5 items]) › <lambda>(i=1)",{"~":"tuple","v":[13,1]},2,"oddEvenJumps(arr=[5 items]) › <lambda>(i=2)",{"~":"tuple","v":[12,2]},3,"oddEvenJumps(arr=[5 items]) › <lambda>(i=3)",{"~":"tuple","v":[14,3]},4,"oddEvenJumps(arr=[5 items]) › <lambda>(i=4)",{"~":"tuple","v":[15,4]},{"~":"list","v":[0,2,1,3,4]},"oddEvenJumps(arr=[5 items]) › next_targets(order=[5 items])",{"~":"list","v":[null,null,null,null,null]},{"~":"list","v":[]},{"~":"list","v":[0]},{"~":"list","v":[2,null,null,null,null]},{"~":"list","v":[2]},{"~":"list","v":[2,1]},{"~":"list","v":[2,3,null,null,null]},{"~":"list","v":[2,3,3,null,null]},{"~":"list","v":[3]},{"~":"list","v":[2,3,3,4,null]},{"~":"list","v":[4]},{"~":"tuple","v":[-10,0]},{"~":"tuple","v":[-13,1]},{"~":"tuple","v":[-12,2]},{"~":"tuple","v":[-14,3]},{"~":"tuple","v":[-15,4]},{"~":"list","v":[4,3,1,2,0]},{"~":"list","v":[4,3]},{"~":"list","v":[4,3,1]},{"~":"list","v":[null,2,null,null,null]},{"~":"list","v":[4,3,2]},{"~":"list","v":[4,3,2,0]},{"~":"list","v":[false,false,false,false,false]},{"~":"list","v":[false,false,false,false,true]},{"~":"list","v":[false,false,false,true,true]}],"steps":[[3,1,"oddEvenJumps",{"arr":0},null],[5,1,"oddEvenJumps",{"arr":0,"n":1},null],[15,1,"oddEvenJumps",{"arr":0,"n":1},null],[15,2,"<lambda>",{"i":2,"arr":0},3],[15,2,"<lambda>",{"i":2,"arr":0},3,4],[15,2,"<lambda>",{"i":5,"arr":0},6],[15,2,"<lambda>",{"i":5,"arr":0},6,7],[15,2,"<lambda>",{"i":8,"arr":0},9],[15,2,"<lambda>",{"i":8,"arr":0},9,10],[15,2,"<lambda>",{"i":11,"arr":0},12],[15,2,"<lambda>",{"i":11,"arr":0},12,13],[15,2,"<lambda>",{"i":14,"arr":0},15],[15,2,"<lambda>",{"i":14,"arr":0},15,16],[7,2,"next_targets",{"order":17,"n":1},18],[8,2,"next_targets",{"order":17,"n":1,"target":19},18],[9,2,"next_targets",{"order":17,"n":1,"target":19,"stack":20},18],[10,2,"next_targets",{"order":17,"n":1,"target":19,"stack":20,"i":2},18],[12,2,"next_targets",{"order":17,"n":1,"target":19,"stack":20,"i":2},18],[9,2,"next_targets",{"order":17,"n":1,"target":19,"stack":21,"i":2},18],[10,2,"next_targets",{"order":17,"n":1,"target":19,"stack":21,"i":8},18],[11,2,"next_targets",{"order":17,"n":1,"target":19,"stack":21,"i":8},18],[10,2,"next_targets",{"order":17,"n":1,"target":22,"stack":20,"i":8},18],[12,2,"next_targets",{"order":17,"n":1,"target":22,"stack":20,"i":8},18],[9,2,"next_targets",{"order":17,"n":1,"target":22,"stack":23,"i":8},18],[10,2,"next_targets",{"order":17,"n":1,"target":22,"stack":23,"i":5},18],[12,2,"next_targets",{"order":17,"n":1,"target":22,"stack":23,"i":5},18],[9,2,"next_targets",{"order":17,"n":1,"target":22,"stack":24,"i":5},18],[10,2,"next_targets",{"order":17,"n":1,"target":22,"stack":24,"i":11},18],[11,2,"next_targets",{"order":17,"n":1,"target":22,"stack":24,"i":11},18],[10,2,"next_targets",{"order":17,"n":1,"target":25,"stack":23,"i":11},18],[11,2,"next_targets",{"order":17,"n":1,"target":25,"stack":23,"i":11},18],[10,2,"next_targets",{"order":17,"n":1,"target":26,"stack":20,"i":11},18],[12,2,"next_targets",{"order":17,"n":1,"target":26,"stack":20,"i":11},18],[9,2,"next_targets",{"order":17,"n":1,"target":26,"stack":27,"i":11},18],[10,2,"next_targets",{"order":17,"n":1,"target":26,"stack":27,"i":14},18],[11,2,"next_targets",{"order":17,"n":1,"target":26,"stack":27,"i":14},18],[10,2,"next_targets",{"order":17,"n":1,"target":28,"stack":20,"i":14},18],[12,2,"next_targets",{"order":17,"n":1,"target":28,"stack":20,"i":14},18],[9,2,"next_targets",{"order":17,"n":1,"target":28,"stack":29,"i":14},18],[13,2,"next_targets",{"order":17,"n":1,"target":28,"stack":29,"i":14},18],[13,2,"next_targets",{"order":17,"n":1,"target":28,"stack":29,"i":14},18,28],[16,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28},null],[16,2,"<lambda>",{"i":2,"arr":0},3],[16,2,"<lambda>",{"i":2,"arr":0},3,30],[16,2,"<lambda>",{"i":5,"arr":0},6],[16,2,"<lambda>",{"i":5,"arr":0},6,31],[16,2,"<lambda>",{"i":8,"arr":0},9],[16,2,"<lambda>",{"i":8,"arr":0},9,32],[16,2,"<lambda>",{"i":11,"arr":0},12],[16,2,"<lambda>",{"i":11,"arr":0},12,33],[16,2,"<lambda>",{"i":14,"arr":0},15],[16,2,"<lambda>",{"i":14,"arr":0},15,34],[7,2,"next_targets",{"order":35,"n":1},18],[8,2,"next_targets",{"order":35,"n":1,"target":19},18],[9,2,"next_targets",{"order":35,"n":1,"target":19,"stack":20},18],[10,2,"next_targets",{"order":35,"n":1,"target":19,"stack":20,"i":14},18],[12,2,"next_targets",{"order":35,"n":1,"target":19,"stack":20,"i":14},18],[9,2,"next_targets",{"order":35,"n":1,"target":19,"stack":29,"i":14},18],[10,2,"next_targets",{"order":35,"n":1,"target":19,"stack":29,"i":11},18],[12,2,"next_targets",{"order":35,"n":1,"target":19,"stack":29,"i":11},18],[9,2,"next_targets",{"order":35,"n":1,"target":19,"stack":36,"i":11},18],[10,2,"next_targets",{"order":35,"n":1,"target":19,"stack":36,"i":5},18],[12,2,"next_targets",{"order":35,"n":1,"target":19,"stack":36,"i":5},18],[9,2,"next_targets",{"order":35,"n":1,"target":19,"stack":37,"i":5},18],[10,2,"next_targets",{"order":35,"n":1,"target":19,"stack":37,"i":8},18],[11,2,"next_targets",{"order":35,"n":1,"target":19,"stack":37,"i":8},18],[10,2,"next_targets",{"order":35,"n":1,"target":38,"stack":36,"i":8},18],[12,2,"next_targets",{"order":35,"n":1,"target":38,"stack":36,"i":8},18],[9,2,"next_targets",{"order":35,"n":1,"target":38,"stack":39,"i":8},18],[10,2,"next_targets",{"order":35,"n":1,"target":38,"stack":39,"i":2},18],[12,2,"next_targets",{"order":35,"n":1,"target":38,"stack":39,"i":2},18],[9,2,"next_targets",{"order":35,"n":1,"target":38,"stack":40,"i":2},18],[13,2,"next_targets",{"order":35,"n":1,"target":38,"stack":40,"i":2},18],[13,2,"next_targets",{"order":35,"n":1,"target":38,"stack":40,"i":2},18,38],[17,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38},null],[18,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":41},null],[19,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":41,"even":41},null],[20,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":42,"even":41},null],[21,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":42,"even":42},null],[22,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":42,"even":42,"i":11},null],[23,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":42,"even":42,"i":11},null],[24,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":11},null],[21,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":11},null],[22,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":8},null],[23,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":8},null],[24,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":8},null],[21,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":8},null],[22,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":5},null],[23,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":5},null],[24,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":5},null],[25,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":5},null],[21,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":5},null],[22,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":2},null],[23,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":2},null],[24,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":2},null],[21,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":2},null],[26,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":2},null],[26,1,"oddEvenJumps",{"arr":0,"n":1,"odd_next":28,"even_next":38,"odd":43,"even":42,"i":2},null,8]],"truncated":false}</script>
+        <!-- trace:end 975 -->
+        <!-- explain:start 975 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Sorting by <code>(value, index)</code> lines indices up so that the odd target of <code>i</code> is the first index <strong>after <code>i</code> in that order</strong> that is also to the right of <code>i</code> in the array: a next-greater-index problem solved by the stack.</li>
+          <li>For even jumps, sort by <code>(−value, index)</code>: the largest value ≤ <code>arr[i]</code>, smallest index on ties.</li>
+          <li><code>odd[i] = even[odd_next[i]]</code>: after an odd jump the next one is even, so the answer chains through the target.</li>
+          <li>The last index is already the end, for either parity.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 975 -->
+        <!-- enrich-edges:start 975 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A single element → 1.</li>
+          <li>Equal values (ties go to the smallest index).</li>
+          <li>No jump possible from some index (target is <code>None</code>).</li>
+        </ul>
+        <!-- enrich-edges:end 975 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time (the two sorts), <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 975 -->
+
+    <!-- gen:start 1944 -->
+    <details class="problem" id="p-1944">
+      <summary><span class="tag hard">Hard</span> 1944. Number of Visible People in a Queue <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Stack</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> People stand in a line with distinct heights. Person <code>i</code> can see person <code>j &gt; i</code> if everyone between them is shorter than both. Return how many people each person can see to their right.</p>
+        <!-- enrich-top:start 1944 -->
+        <p class="links"><a href="https://leetcode.com/problems/number-of-visible-people-in-a-queue/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">heights = [10,6,8,5,11,9]</code></div><div><strong>Output:</strong> <code class="ex">[3,1,2,1,1,0]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Person 0 can see person 1, 2, and 4.
+Person 1 can see person 2.
+Person 2 can see person 3 and 4.
+Person 3 can see person 4.
+Person 4 can see person 5.
+Person 5 can see no one since nobody is to the right of them.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">heights = [5,1,2,3,10]</code></div><div><strong>Output:</strong> <code class="ex">[4,1,1,1,0]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == heights.length</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>1 ≤ heights[i] ≤ 10⁵</code> · All the values of <code>heights</code> are <strong>unique</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Who blocks your view to the right?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Process from the right with a decreasing stack; everyone you pop is visible, plus the first taller person.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> For every person, scanning right and stopping at the first taller person is <code>O(n²)</code>. The stack keeps only people who can still be seen, and each person is popped once.</p>
+        <!-- enrich-top:end 1944 -->
+        <p><strong>Spot it:</strong> Looking right until something taller blocks the view: next greater element territory. Scanning from the right with a <strong>decreasing</strong> stack, the people person <code>i</code> pops (shorter than them) are visible, and the first taller one left on the stack is visible too.</p>
+        <p><strong>Why not another pattern?</strong> For each person, scanning right and tracking the tallest seen so far is <code>O(n²)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Scan from right to left, keeping a stack of heights that are visible from the left (decreasing from bottom to top).</li>
+          <li>For person <code>i</code>: pop everyone shorter; each popped person is visible from <code>i</code>.</li>
+          <li>If the stack is non-empty afterwards, the person on top (taller) is visible too: one more.</li>
+          <li>Push <code>heights[i]</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def canSeePersonsCount(self, heights: List[int]) -&gt; List[int]:
+        n = len(heights)
+        answer = [0] * n
+        stack = []  # heights to the right that are still visible from the left (decreasing)
+        for i in range(n - 1, -1, -1):
+            seen = 0
+            while stack and stack[-1] &lt; heights[i]:
+                stack.pop()  # shorter than i: visible, and hidden for anyone further left
+                seen = seen + 1
+            if stack:
+                seen = seen + 1  # the first taller person is visible too
+            answer[i] = seen
+            stack.append(heights[i])
+        return answer</code></pre>
+        <!-- trace:start 1944 -->
+        <div class="trace-viz" id="trace-p1944"></div>
+        <script type="application/json" id="trace-p1944-data">{"src":["class Solution:","    def canSeePersonsCount(self, heights: List[int]) -> List[int]:","        n = len(heights)","        answer = [0] * n","        stack = []  # heights to the right that are still visible from the left (decreasing)","        for i in range(n - 1, -1, -1):","            seen = 0","            while stack and stack[-1] < heights[i]:","                stack.pop()  # shorter than i: visible, and hidden for anyone further left","                seen = seen + 1","            if stack:","                seen = seen + 1  # the first taller person is visible too","            answer[i] = seen","            stack.append(heights[i])","        return answer"],"notes":{"5":"heights to the right that are still visible from the left (decreasing)","9":"shorter than i: visible, and hidden for anyone further left","12":"the first taller person is visible too"},"input":"heights = [5,1,2,3,10]","output":"[4,1,1,1,0]","values":[{"~":"list","v":[5,1,2,3,10]},5,{"~":"list","v":[0,0,0,0,0]},{"~":"list","v":[]},4,0,{"~":"list","v":[10]},3,1,{"~":"list","v":[0,0,0,1,0]},{"~":"list","v":[10,3]},2,{"~":"list","v":[0,0,1,1,0]},{"~":"list","v":[10,3,2]},{"~":"list","v":[0,1,1,1,0]},{"~":"list","v":[10,3,2,1]},{"~":"list","v":[4,1,1,1,0]},{"~":"list","v":[10,5]}],"steps":[[3,1,"canSeePersonsCount",{"heights":0},null],[4,1,"canSeePersonsCount",{"heights":0,"n":1},null],[5,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2},null],[6,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":3},null],[7,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":3,"i":4},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":3,"i":4,"seen":5},null],[11,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":3,"i":4,"seen":5},null],[13,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":3,"i":4,"seen":5},null],[14,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":3,"i":4,"seen":5},null],[6,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":6,"i":4,"seen":5},null],[7,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":6,"i":7,"seen":5},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":6,"i":7,"seen":5},null],[11,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":6,"i":7,"seen":5},null],[12,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":6,"i":7,"seen":5},null],[13,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":2,"stack":6,"i":7,"seen":8},null],[14,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":6,"i":7,"seen":8},null],[6,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":10,"i":7,"seen":8},null],[7,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":10,"i":11,"seen":8},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":10,"i":11,"seen":5},null],[11,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":10,"i":11,"seen":5},null],[12,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":10,"i":11,"seen":5},null],[13,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":9,"stack":10,"i":11,"seen":8},null],[14,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":10,"i":11,"seen":8},null],[6,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":13,"i":11,"seen":8},null],[7,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":13,"i":8,"seen":8},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":13,"i":8,"seen":5},null],[11,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":13,"i":8,"seen":5},null],[12,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":13,"i":8,"seen":5},null],[13,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":12,"stack":13,"i":8,"seen":8},null],[14,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":13,"i":8,"seen":8},null],[6,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":15,"i":8,"seen":8},null],[7,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":15,"i":5,"seen":8},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":15,"i":5,"seen":5},null],[9,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":15,"i":5,"seen":5},null],[10,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":13,"i":5,"seen":5},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":13,"i":5,"seen":8},null],[9,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":13,"i":5,"seen":8},null],[10,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":10,"i":5,"seen":8},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":10,"i":5,"seen":11},null],[9,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":10,"i":5,"seen":11},null],[10,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":6,"i":5,"seen":11},null],[8,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":6,"i":5,"seen":7},null],[11,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":6,"i":5,"seen":7},null],[12,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":6,"i":5,"seen":7},null],[13,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":14,"stack":6,"i":5,"seen":4},null],[14,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":16,"stack":6,"i":5,"seen":4},null],[6,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":16,"stack":17,"i":5,"seen":4},null],[15,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":16,"stack":17,"i":5,"seen":4},null],[15,1,"canSeePersonsCount",{"heights":0,"n":1,"answer":16,"stack":17,"i":5,"seen":4},null,16]],"truncated":false}</script>
+        <!-- trace:end 1944 -->
+        <!-- explain:start 1944 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Scanning from the right, the stack holds the people who could still be seen by someone further left.</li>
+          <li>Everyone popped is shorter than person <code>i</code>, so nothing between them blocks the view: all are visible.</li>
+          <li>Once popped, they're hidden behind person <code>i</code> for everyone to the left, so they never need to be considered again.</li>
+          <li>The remaining top is taller than <code>i</code>: visible, but it blocks everything behind it.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1944 -->
+        <!-- enrich-edges:start 1944 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The last person → 0.</li>
+          <li>Increasing heights: each person sees exactly one.</li>
+          <li>Decreasing heights: each person sees just the next one.</li>
+        </ul>
+        <!-- enrich-edges:end 1944 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1944 -->
 
     <nav class="pager">
       <a href="05-linkedlist-reversal.html"><small>Previous pattern</small>← 05 · LinkedList Reversal</a>

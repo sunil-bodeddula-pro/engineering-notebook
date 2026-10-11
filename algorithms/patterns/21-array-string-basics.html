@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 21 of 21</div>
+    <div class="eyebrow">Pattern 21 of 24</div>
     <h1>Array &amp; String Basics</h1>
     <p class="lede">Not every problem hides a clever pattern. Many just ask you to follow the rules exactly: scan once, keep a little state, build the output piece by piece. Doing that cleanly, without off-by-one errors, is a skill of its own.</p>
 
@@ -680,7 +823,7 @@ def words_reversed(s):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-13" open>
-      <summary><span class="tag easy">Easy</span> 13. Roman to Integer <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 13. Roman to Integer <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Hash Map</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Convert a Roman numeral (<code>I V X L C D M</code> = 1, 5, 10, 50, 100, 500, 1000) to an integer. <code>IV</code> = 4, <code>IX</code> = 9, <code>XL</code> = 40, etc.</p>
         <!-- enrich-top:start 13 -->
@@ -712,6 +855,10 @@ def words_reversed(s):
             else:
                 total = total + current
         return total</code></pre>
+        <!-- trace:start 13 -->
+        <div class="trace-viz" id="trace-p13"></div>
+        <script type="application/json" id="trace-p13-data">{"src":["class Solution:","    def romanToInt(self, s: str) -> int:","        value = {\"I\": 1, \"V\": 5, \"X\": 10, \"L\": 50, \"C\": 100, \"D\": 500, \"M\": 1000}","        total = 0","        for i in range(len(s)):","            current = value[s[i]]","            if i + 1 < len(s) and value[s[i + 1]] > current:","                total = total - current     # e.g. the I in IV","            else:","                total = total + current","        return total"],"notes":{"8":"e.g. the I in IV"},"input":"s = \"III\"","output":"3","values":["III",{"~":"dict","v":[["I",1],["V",5],["X",10],["L",50],["C",100],["D",500],["M",1000]]},0,1,2,3],"steps":[[3,1,"romanToInt",{"s":0},null],[4,1,"romanToInt",{"s":0,"value":1},null],[5,1,"romanToInt",{"s":0,"value":1,"total":2},null],[6,1,"romanToInt",{"s":0,"value":1,"total":2,"i":2},null],[7,1,"romanToInt",{"s":0,"value":1,"total":2,"i":2,"current":3},null],[10,1,"romanToInt",{"s":0,"value":1,"total":2,"i":2,"current":3},null],[5,1,"romanToInt",{"s":0,"value":1,"total":3,"i":2,"current":3},null],[6,1,"romanToInt",{"s":0,"value":1,"total":3,"i":3,"current":3},null],[7,1,"romanToInt",{"s":0,"value":1,"total":3,"i":3,"current":3},null],[10,1,"romanToInt",{"s":0,"value":1,"total":3,"i":3,"current":3},null],[5,1,"romanToInt",{"s":0,"value":1,"total":4,"i":3,"current":3},null],[6,1,"romanToInt",{"s":0,"value":1,"total":4,"i":4,"current":3},null],[7,1,"romanToInt",{"s":0,"value":1,"total":4,"i":4,"current":3},null],[10,1,"romanToInt",{"s":0,"value":1,"total":4,"i":4,"current":3},null],[5,1,"romanToInt",{"s":0,"value":1,"total":5,"i":4,"current":3},null],[11,1,"romanToInt",{"s":0,"value":1,"total":5,"i":4,"current":3},null],[11,1,"romanToInt",{"s":0,"value":1,"total":5,"i":4,"current":3},null,5]],"truncated":false}</script>
+        <!-- trace:end 13 -->
         <!-- explain:start 13 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -747,7 +894,7 @@ def words_reversed(s):
     </details>
 
     <details class="problem" id="p-14">
-      <summary><span class="tag easy">Easy</span> 14. Longest Common Prefix <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 14. Longest Common Prefix <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the longest prefix shared by all strings in <code>strs</code>, or <code>""</code> if there is none.</p>
         <!-- enrich-top:start 14 -->
@@ -777,6 +924,10 @@ def words_reversed(s):
                 if i == len(word) or word[i] != ch:
                     return first[:i]      # column i is not shared by everyone
         return first</code></pre>
+        <!-- trace:start 14 -->
+        <div class="trace-viz" id="trace-p14"></div>
+        <script type="application/json" id="trace-p14-data">{"src":["class Solution:","    def longestCommonPrefix(self, strs: List[str]) -> str:","        first = strs[0]","        for i in range(len(first)):","            ch = first[i]","            for word in strs[1:]:","                if i == len(word) or word[i] != ch:","                    return first[:i]      # column i is not shared by everyone","        return first"],"notes":{"8":"column i is not shared by everyone"},"input":"strs = [\"dog\",\"racecar\",\"car\"]","output":"\"\"","values":[{"~":"list","v":["dog","racecar","car"]},"dog",0,"d","racecar",""],"steps":[[3,1,"longestCommonPrefix",{"strs":0},null],[4,1,"longestCommonPrefix",{"strs":0,"first":1},null],[5,1,"longestCommonPrefix",{"strs":0,"first":1,"i":2},null],[6,1,"longestCommonPrefix",{"strs":0,"first":1,"i":2,"ch":3},null],[7,1,"longestCommonPrefix",{"strs":0,"first":1,"i":2,"ch":3,"word":4},null],[8,1,"longestCommonPrefix",{"strs":0,"first":1,"i":2,"ch":3,"word":4},null],[8,1,"longestCommonPrefix",{"strs":0,"first":1,"i":2,"ch":3,"word":4},null,5]],"truncated":false}</script>
+        <!-- trace:end 14 -->
         <!-- explain:start 14 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -809,7 +960,7 @@ def words_reversed(s):
     </details>
 
     <details class="problem" id="p-6">
-      <summary><span class="tag medium">Medium</span> 6. Zigzag Conversion <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 6. Zigzag Conversion <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Write <code>s</code> in a zigzag on <code>numRows</code> rows (down the rows, then diagonally back up, repeating), then read the rows left to right. Return that string.</p>
         <!-- enrich-top:start 6 -->
@@ -850,6 +1001,10 @@ P I</span></div></div>
                 step = -1
             row = row + step
         return "".join("".join(r) for r in rows)</code></pre>
+        <!-- trace:start 6 -->
+        <div class="trace-viz" id="trace-p6"></div>
+        <script type="application/json" id="trace-p6-data">{"src":["class Solution:","    def convert(self, s: str, numRows: int) -> str:","        if numRows == 1 or numRows >= len(s):","            return s","        rows = [[] for _ in range(numRows)]","        row = 0","        step = 1                      # +1 = moving down, -1 = moving up","        for ch in s:","            rows[row].append(ch)","            # bounce off the top and bottom rows","            if row == 0:","                step = 1","            elif row == numRows - 1:","                step = -1","            row = row + step","        return \"\".join(\"\".join(r) for r in rows)"],"notes":{"7":"+1 = moving down, -1 = moving up","11":"bounce off the top and bottom rows"},"input":"s = \"A\", numRows = 1","output":"\"A\"","values":["A",1],"steps":[[3,1,"convert",{"s":0,"numRows":1},null],[4,1,"convert",{"s":0,"numRows":1},null],[4,1,"convert",{"s":0,"numRows":1},null,0]],"truncated":false}</script>
+        <!-- trace:end 6 -->
         <!-- explain:start 6 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -932,6 +1087,18 @@ P I</span></div></div>
         <tr><td>238</td><td><a href="01-prefix-sum.html#p-238">Product of Array Except Self</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Solved in <a href="01-prefix-sum.html">01 · Prefix Sum</a>: Prefix <em>and</em> suffix products</td></tr>
         <tr><td>54</td><td><a href="13-matrix-traversal.html#p-54">Spiral Matrix</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Solved in <a href="13-matrix-traversal.html">13 · Matrix Traversal</a>: Shrinking fences</td></tr>
         <tr><td>48</td><td><a href="13-matrix-traversal.html#p-48">Rotate Image</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Solved in <a href="13-matrix-traversal.html">13 · Matrix Traversal</a>: Transpose + mirror</td></tr>
+        <tr><td>8</td><td><a href="#p-8">String to Integer (atoi)</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Skip spaces, read one sign, read digits, clamp to 32-bit</td></tr>
+        <tr><td>38</td><td><a href="#p-38">Count and Say</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Run-length encode the previous term n − 1 times</td></tr>
+        <tr><td>43</td><td><a href="#p-43">Multiply Strings</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Array</span></span></td><td>Grade-school multiplication: digit i × digit j lands in position i + j + 1</td></tr>
+        <tr><td>468</td><td><a href="#p-468">Validate IP Address</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Split and check each part against the exact IPv4 / IPv6 rules</td></tr>
+        <tr><td>686</td><td><a href="#p-686">Repeated String Match</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Repeat a until it's at least as long as b; b must appear in that or one more copy</td></tr>
+        <tr><td>789</td><td><a href="#p-789">Escape The Ghosts</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Math</span></span></td><td>You escape iff your Manhattan distance to the target is smaller than every ghost's</td></tr>
+        <tr><td>1404</td><td><a href="#p-1404">Number of Steps to Reduce a Number in Binary Representation to One</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Scan bits right to left with a carry: a 1 (with carry) costs 2 steps and keeps the carry</td></tr>
+        <tr><td>1545</td><td><a href="#p-1545">Find Kth Bit in Nth Binary String</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Math</span></span></td><td>Recurse by halves: the middle is '1'; the right half mirrors the left half inverted</td></tr>
+        <tr><td>3517</td><td><a href="#p-3517">Smallest Palindromic Rearrangement I</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Sort the first half; mirror it around the (fixed) middle character</td></tr>
+        <tr><td>68</td><td><a href="#p-68">Text Justification</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Array</span></span></td><td>Greedy line packing; spread spaces with divmod (extra to the left); last line left-justified</td></tr>
+        <tr><td>214</td><td><a href="#p-214">Shortest Palindrome</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Longest palindromic prefix via the KMP failure function of s + '#' + reverse(s)</td></tr>
+        <tr><td>3518</td><td><a href="#p-3518">Smallest Palindromic Rearrangement II</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span><span class="ds">Math</span></span></td><td>k-th permutation of the half's multiset: count arrangements per first letter, skip whole groups</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
@@ -973,6 +1140,10 @@ Thus, the closest number to 0 in the array is 1.</span></div></div>
             elif abs(x) == abs(closest) and x &gt; closest:
                 closest = x                   # same distance: prefer the positive one
         return closest</code></pre>
+        <!-- trace:start 2239 -->
+        <div class="trace-viz" id="trace-p2239"></div>
+        <script type="application/json" id="trace-p2239-data">{"src":["class Solution:","    def findClosestNumber(self, nums: List[int]) -> int:","        closest = nums[0]","        for x in nums:","            if abs(x) < abs(closest):","                closest = x                   # strictly nearer to zero","            elif abs(x) == abs(closest) and x > closest:","                closest = x                   # same distance: prefer the positive one","        return closest"],"notes":{"6":"strictly nearer to zero","8":"same distance: prefer the positive one"},"input":"nums = [2,-1,1]","output":"1","values":[{"~":"list","v":[2,-1,1]},2,-1,1],"steps":[[3,1,"findClosestNumber",{"nums":0},null],[4,1,"findClosestNumber",{"nums":0,"closest":1},null],[5,1,"findClosestNumber",{"nums":0,"closest":1,"x":1},null],[7,1,"findClosestNumber",{"nums":0,"closest":1,"x":1},null],[4,1,"findClosestNumber",{"nums":0,"closest":1,"x":1},null],[5,1,"findClosestNumber",{"nums":0,"closest":1,"x":2},null],[6,1,"findClosestNumber",{"nums":0,"closest":1,"x":2},null],[4,1,"findClosestNumber",{"nums":0,"closest":2,"x":2},null],[5,1,"findClosestNumber",{"nums":0,"closest":2,"x":3},null],[7,1,"findClosestNumber",{"nums":0,"closest":2,"x":3},null],[8,1,"findClosestNumber",{"nums":0,"closest":2,"x":3},null],[4,1,"findClosestNumber",{"nums":0,"closest":3,"x":3},null],[9,1,"findClosestNumber",{"nums":0,"closest":3,"x":3},null],[9,1,"findClosestNumber",{"nums":0,"closest":3,"x":3},null,3]],"truncated":false}</script>
+        <!-- trace:end 2239 -->
         <!-- explain:start 2239 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1006,13 +1177,13 @@ Thus, the closest number to 0 in the array is 1.</span></div></div>
     </details>
 
     <details class="problem" id="p-58">
-      <summary><span class="tag easy">Easy</span> 58. Length of Last Word <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 58. Length of Last Word <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>s</code> has words separated by spaces (possibly with extra spaces anywhere). Return the length of the last word.</p>
         <!-- enrich-top:start 58 -->
         <p class="links"><a href="https://leetcode.com/problems/length-of-last-word/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=49WmHAJVkB0" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
         <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "Hello World"</code></div><div><strong>Output:</strong> <code class="ex">5</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The last word is "World" with length 5.</span></div></div>
-        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " fly me to the moon "</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The last word is "moon" with length 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "   fly me   to   the moon  "</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The last word is "moon" with length 4.</span></div></div>
         <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> consists of only English letters and spaces <code>' '</code>. · There will be at least one word in <code>s</code>.</p>
         <div class="hints">
           <details class="hint"><summary>Hint 1</summary><p>Only the end of the string matters.</p></details>
@@ -1038,6 +1209,10 @@ Thus, the closest number to 0 in the array is 1.</span></div></div>
             length = length + 1
             i = i - 1
         return length</code></pre>
+        <!-- trace:start 58 -->
+        <div class="trace-viz" id="trace-p58"></div>
+        <script type="application/json" id="trace-p58-data">{"src":["class Solution:","    def lengthOfLastWord(self, s: str) -> int:","        i = len(s) - 1","        # skip spaces at the end","        while i >= 0 and s[i] == \" \":","            i = i - 1","        length = 0","        # count letters of the last word","        while i >= 0 and s[i] != \" \":","            length = length + 1","            i = i - 1","        return length"],"notes":{"5":"skip spaces at the end","9":"count letters of the last word"},"input":"s = \"Hello World\"","output":"5","values":["Hello World",10,0,1,9,2,8,3,7,4,6,5],"steps":[[3,1,"lengthOfLastWord",{"s":0},null],[5,1,"lengthOfLastWord",{"s":0,"i":1},null],[7,1,"lengthOfLastWord",{"s":0,"i":1},null],[9,1,"lengthOfLastWord",{"s":0,"i":1,"length":2},null],[10,1,"lengthOfLastWord",{"s":0,"i":1,"length":2},null],[11,1,"lengthOfLastWord",{"s":0,"i":1,"length":3},null],[9,1,"lengthOfLastWord",{"s":0,"i":4,"length":3},null],[10,1,"lengthOfLastWord",{"s":0,"i":4,"length":3},null],[11,1,"lengthOfLastWord",{"s":0,"i":4,"length":5},null],[9,1,"lengthOfLastWord",{"s":0,"i":6,"length":5},null],[10,1,"lengthOfLastWord",{"s":0,"i":6,"length":5},null],[11,1,"lengthOfLastWord",{"s":0,"i":6,"length":7},null],[9,1,"lengthOfLastWord",{"s":0,"i":8,"length":7},null],[10,1,"lengthOfLastWord",{"s":0,"i":8,"length":7},null],[11,1,"lengthOfLastWord",{"s":0,"i":8,"length":9},null],[9,1,"lengthOfLastWord",{"s":0,"i":10,"length":9},null],[10,1,"lengthOfLastWord",{"s":0,"i":10,"length":9},null],[11,1,"lengthOfLastWord",{"s":0,"i":10,"length":11},null],[9,1,"lengthOfLastWord",{"s":0,"i":11,"length":11},null],[12,1,"lengthOfLastWord",{"s":0,"i":11,"length":11},null],[12,1,"lengthOfLastWord",{"s":0,"i":11,"length":11},null,11]],"truncated":false}</script>
+        <!-- trace:end 58 -->
         <!-- explain:start 58 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1071,7 +1246,7 @@ Thus, the closest number to 0 in the array is 1.</span></div></div>
     </details>
 
     <details class="problem" id="p-28">
-      <summary><span class="tag easy">Easy</span> 28. Find the Index of the First Occurrence in a String <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <summary><span class="tag easy">Easy</span> 28. Find the Index of the First Occurrence in a String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Return the index of the first occurrence of <code>needle</code> in <code>haystack</code>, or <code>-1</code> if <code>needle</code> isn't part of it.</p>
         <!-- enrich-top:start 28 -->
@@ -1104,6 +1279,10 @@ The first occurrence is at index 0, so we return 0.</span></div></div>
             if j == m:
                 return i              # every character matched
         return -1</code></pre>
+        <!-- trace:start 28 -->
+        <div class="trace-viz" id="trace-p28"></div>
+        <script type="application/json" id="trace-p28-data">{"src":["class Solution:","    def strStr(self, haystack: str, needle: str) -> int:","        n = len(haystack)","        m = len(needle)","        for i in range(n - m + 1):","            # compare the window that starts at i, character by character","            j = 0","            while j < m and haystack[i + j] == needle[j]:","                j = j + 1","            if j == m:","                return i              # every character matched","        return -1"],"notes":{"7":"compare the window that starts at i, character by character","11":"every character matched"},"input":"haystack = \"sadbutsad\", needle = \"sad\"","output":"0","values":["sadbutsad","sad",9,3,0,1,2],"steps":[[3,1,"strStr",{"haystack":0,"needle":1},null],[4,1,"strStr",{"haystack":0,"needle":1,"n":2},null],[5,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3},null],[7,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4},null],[8,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":4},null],[9,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":4},null],[8,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":5},null],[9,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":5},null],[8,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":6},null],[9,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":6},null],[8,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":3},null],[10,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":3},null],[11,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":3},null],[11,1,"strStr",{"haystack":0,"needle":1,"n":2,"m":3,"i":4,"j":3},null,4]],"truncated":false}</script>
+        <!-- trace:end 28 -->
         <!-- explain:start 28 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1137,7 +1316,7 @@ The first occurrence is at index 0, so we return 0.</span></div></div>
     </details>
 
     <details class="problem" id="p-12">
-      <summary><span class="tag medium">Medium</span> 12. Integer to Roman <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 12. Integer to Roman <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Convert an integer <code>1..3999</code> to a Roman numeral.</p>
         <!-- enrich-top:start 12 -->
@@ -1175,6 +1354,10 @@ Note: 49 is not 1 (I) less of 50 (L) because the conversion is based on decimal 
                 parts.append(symbol)
                 num = num - value
         return "".join(parts)</code></pre>
+        <!-- trace:start 12 -->
+        <div class="trace-viz" id="trace-p12"></div>
+        <script type="application/json" id="trace-p12-data">{"src":["class Solution:","    def intToRoman(self, num: int) -> str:","        table = [(1000, \"M\"), (900, \"CM\"), (500, \"D\"), (400, \"CD\"),","                 (100, \"C\"), (90, \"XC\"), (50, \"L\"), (40, \"XL\"),","                 (10, \"X\"), (9, \"IX\"), (5, \"V\"), (4, \"IV\"), (1, \"I\")]","        parts = []","        for value, symbol in table:","            # take this symbol as many times as it fits","            while num >= value:","                parts.append(symbol)","                num = num - value","        return \"\".join(parts)"],"notes":{"9":"take this symbol as many times as it fits"},"input":"num = 1994","output":"\"MCMXCIV\"","values":[1994,{"~":"list","v":[{"~":"tuple","v":[1000,"M"]},{"~":"tuple","v":[900,"CM"]},{"~":"tuple","v":[500,"D"]},{"~":"tuple","v":[400,"CD"]},{"~":"tuple","v":[100,"C"]},{"~":"tuple","v":[90,"XC"]},{"~":"tuple","v":[50,"L"]},{"~":"tuple","v":[40,"XL"]},{"~":"tuple","v":[10,"X"]},{"~":"tuple","v":[9,"IX"]},{"~":"tuple","v":[5,"V"]},{"~":"tuple","v":[4,"IV"]},{"~":"tuple","v":[1,"I"]}]},{"~":"list","v":[]},1000,"M",{"~":"list","v":["M"]},994,900,"CM",{"~":"list","v":["M","CM"]},94,500,"D",400,"CD",100,"C",90,"XC",{"~":"list","v":["M","CM","XC"]},4,50,"L",40,"XL",10,"X",9,"IX",5,"V","IV",{"~":"list","v":["M","CM","XC","IV"]},0,1,"I","MCMXCIV"],"steps":[[3,1,"intToRoman",{"num":0},null],[6,1,"intToRoman",{"num":0,"table":1},null],[7,1,"intToRoman",{"num":0,"table":1,"parts":2},null],[9,1,"intToRoman",{"num":0,"table":1,"parts":2,"value":3,"symbol":4},null],[10,1,"intToRoman",{"num":0,"table":1,"parts":2,"value":3,"symbol":4},null],[11,1,"intToRoman",{"num":0,"table":1,"parts":5,"value":3,"symbol":4},null],[9,1,"intToRoman",{"num":6,"table":1,"parts":5,"value":3,"symbol":4},null],[7,1,"intToRoman",{"num":6,"table":1,"parts":5,"value":3,"symbol":4},null],[9,1,"intToRoman",{"num":6,"table":1,"parts":5,"value":7,"symbol":8},null],[10,1,"intToRoman",{"num":6,"table":1,"parts":5,"value":7,"symbol":8},null],[11,1,"intToRoman",{"num":6,"table":1,"parts":9,"value":7,"symbol":8},null],[9,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":7,"symbol":8},null],[7,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":7,"symbol":8},null],[9,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":11,"symbol":12},null],[7,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":11,"symbol":12},null],[9,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":13,"symbol":14},null],[7,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":13,"symbol":14},null],[9,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":15,"symbol":16},null],[7,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":15,"symbol":16},null],[9,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":17,"symbol":18},null],[10,1,"intToRoman",{"num":10,"table":1,"parts":9,"value":17,"symbol":18},null],[11,1,"intToRoman",{"num":10,"table":1,"parts":19,"value":17,"symbol":18},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":17,"symbol":18},null],[7,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":17,"symbol":18},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":21,"symbol":22},null],[7,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":21,"symbol":22},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":23,"symbol":24},null],[7,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":23,"symbol":24},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":25,"symbol":26},null],[7,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":25,"symbol":26},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":27,"symbol":28},null],[7,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":27,"symbol":28},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":29,"symbol":30},null],[7,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":29,"symbol":30},null],[9,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":20,"symbol":31},null],[10,1,"intToRoman",{"num":20,"table":1,"parts":19,"value":20,"symbol":31},null],[11,1,"intToRoman",{"num":20,"table":1,"parts":32,"value":20,"symbol":31},null],[9,1,"intToRoman",{"num":33,"table":1,"parts":32,"value":20,"symbol":31},null],[7,1,"intToRoman",{"num":33,"table":1,"parts":32,"value":20,"symbol":31},null],[9,1,"intToRoman",{"num":33,"table":1,"parts":32,"value":34,"symbol":35},null],[7,1,"intToRoman",{"num":33,"table":1,"parts":32,"value":34,"symbol":35},null],[12,1,"intToRoman",{"num":33,"table":1,"parts":32,"value":34,"symbol":35},null],[12,1,"intToRoman",{"num":33,"table":1,"parts":32,"value":34,"symbol":35},null,36]],"truncated":false}</script>
+        <!-- trace:end 12 -->
         <!-- explain:start 12 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1207,13 +1390,13 @@ Note: 49 is not 1 (I) less of 50 (L) because the conversion is based on decimal 
     </details>
 
     <details class="problem" id="p-151">
-      <summary><span class="tag medium">Medium</span> 151. Reverse Words in a String <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 151. Reverse Words in a String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Reverse the order of the words in <code>s</code>. The result must have exactly one space between words and no leading or trailing spaces, even if <code>s</code> has extra spaces.</p>
         <!-- enrich-top:start 151 -->
         <p class="links"><a href="https://leetcode.com/problems/reverse-words-in-a-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a> · <a href="https://www.youtube.com/watch?v=pDzMALTsNYM" target="_blank" rel="noopener">Video walkthrough ↗</a></p>
         <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "the sky is blue"</code></div><div><strong>Output:</strong> <code class="ex">"blue is sky the"</code></div></div>
-        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " hello world "</code></div><div><strong>Output:</strong> <code class="ex">"world hello"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your reversed string should not contain leading or trailing spaces.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "  hello world  "</code></div><div><strong>Output:</strong> <code class="ex">"world hello"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Your reversed string should not contain leading or trailing spaces.</span></div></div>
         <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> contains English letters (upper-case and lower-case), digits, and spaces <code>' '</code>. · There is <strong>at least one</strong> word in <code>s</code>.</p>
         <div class="hints">
           <details class="hint"><summary>Hint 1</summary><p>Extract the words first, ignoring extra spaces.</p></details>
@@ -1243,6 +1426,10 @@ Note: 49 is not 1 (I) less of 50 (L) because the conversion is based on decimal 
             words.append(s[start:i])
         words.reverse()
         return " ".join(words)</code></pre>
+        <!-- trace:start 151 -->
+        <div class="trace-viz" id="trace-p151"></div>
+        <script type="application/json" id="trace-p151-data">{"src":["class Solution:","    def reverseWords(self, s: str) -> str:","        words = []","        i = 0","        n = len(s)","        while i < n:","            if s[i] == \" \":","                i = i + 1                 # skip any number of spaces","                continue","            start = i","            while i < n and s[i] != \" \":","                i = i + 1                 # read to the end of the word","            words.append(s[start:i])","        words.reverse()","        return \" \".join(words)"],"notes":{"8":"skip any number of spaces","12":"read to the end of the word"},"input":"s = \"  hello world  \"","output":"\"world hello\"","values":["  hello world  ",{"~":"list","v":[]},0,15,1,2,3,4,5,6,7,{"~":"list","v":["hello"]},8,9,10,11,12,13,{"~":"list","v":["hello","world"]},14,{"~":"list","v":["world","hello"]},"world hello"],"steps":[[3,1,"reverseWords",{"s":0},null],[4,1,"reverseWords",{"s":0,"words":1},null],[5,1,"reverseWords",{"s":0,"words":1,"i":2},null],[6,1,"reverseWords",{"s":0,"words":1,"i":2,"n":3},null],[7,1,"reverseWords",{"s":0,"words":1,"i":2,"n":3},null],[8,1,"reverseWords",{"s":0,"words":1,"i":2,"n":3},null],[9,1,"reverseWords",{"s":0,"words":1,"i":4,"n":3},null],[6,1,"reverseWords",{"s":0,"words":1,"i":4,"n":3},null],[7,1,"reverseWords",{"s":0,"words":1,"i":4,"n":3},null],[8,1,"reverseWords",{"s":0,"words":1,"i":4,"n":3},null],[9,1,"reverseWords",{"s":0,"words":1,"i":5,"n":3},null],[6,1,"reverseWords",{"s":0,"words":1,"i":5,"n":3},null],[7,1,"reverseWords",{"s":0,"words":1,"i":5,"n":3},null],[10,1,"reverseWords",{"s":0,"words":1,"i":5,"n":3},null],[11,1,"reverseWords",{"s":0,"words":1,"i":5,"n":3,"start":5},null],[12,1,"reverseWords",{"s":0,"words":1,"i":5,"n":3,"start":5},null],[11,1,"reverseWords",{"s":0,"words":1,"i":6,"n":3,"start":5},null],[12,1,"reverseWords",{"s":0,"words":1,"i":6,"n":3,"start":5},null],[11,1,"reverseWords",{"s":0,"words":1,"i":7,"n":3,"start":5},null],[12,1,"reverseWords",{"s":0,"words":1,"i":7,"n":3,"start":5},null],[11,1,"reverseWords",{"s":0,"words":1,"i":8,"n":3,"start":5},null],[12,1,"reverseWords",{"s":0,"words":1,"i":8,"n":3,"start":5},null],[11,1,"reverseWords",{"s":0,"words":1,"i":9,"n":3,"start":5},null],[12,1,"reverseWords",{"s":0,"words":1,"i":9,"n":3,"start":5},null],[11,1,"reverseWords",{"s":0,"words":1,"i":10,"n":3,"start":5},null],[13,1,"reverseWords",{"s":0,"words":1,"i":10,"n":3,"start":5},null],[6,1,"reverseWords",{"s":0,"words":11,"i":10,"n":3,"start":5},null],[7,1,"reverseWords",{"s":0,"words":11,"i":10,"n":3,"start":5},null],[8,1,"reverseWords",{"s":0,"words":11,"i":10,"n":3,"start":5},null],[9,1,"reverseWords",{"s":0,"words":11,"i":12,"n":3,"start":5},null],[6,1,"reverseWords",{"s":0,"words":11,"i":12,"n":3,"start":5},null],[7,1,"reverseWords",{"s":0,"words":11,"i":12,"n":3,"start":5},null],[10,1,"reverseWords",{"s":0,"words":11,"i":12,"n":3,"start":5},null],[11,1,"reverseWords",{"s":0,"words":11,"i":12,"n":3,"start":12},null],[12,1,"reverseWords",{"s":0,"words":11,"i":12,"n":3,"start":12},null],[11,1,"reverseWords",{"s":0,"words":11,"i":13,"n":3,"start":12},null],[12,1,"reverseWords",{"s":0,"words":11,"i":13,"n":3,"start":12},null],[11,1,"reverseWords",{"s":0,"words":11,"i":14,"n":3,"start":12},null],[12,1,"reverseWords",{"s":0,"words":11,"i":14,"n":3,"start":12},null],[11,1,"reverseWords",{"s":0,"words":11,"i":15,"n":3,"start":12},null],[12,1,"reverseWords",{"s":0,"words":11,"i":15,"n":3,"start":12},null],[11,1,"reverseWords",{"s":0,"words":11,"i":16,"n":3,"start":12},null],[12,1,"reverseWords",{"s":0,"words":11,"i":16,"n":3,"start":12},null],[11,1,"reverseWords",{"s":0,"words":11,"i":17,"n":3,"start":12},null],[13,1,"reverseWords",{"s":0,"words":11,"i":17,"n":3,"start":12},null],[6,1,"reverseWords",{"s":0,"words":18,"i":17,"n":3,"start":12},null],[7,1,"reverseWords",{"s":0,"words":18,"i":17,"n":3,"start":12},null],[8,1,"reverseWords",{"s":0,"words":18,"i":17,"n":3,"start":12},null],[9,1,"reverseWords",{"s":0,"words":18,"i":19,"n":3,"start":12},null],[6,1,"reverseWords",{"s":0,"words":18,"i":19,"n":3,"start":12},null],[7,1,"reverseWords",{"s":0,"words":18,"i":19,"n":3,"start":12},null],[8,1,"reverseWords",{"s":0,"words":18,"i":19,"n":3,"start":12},null],[9,1,"reverseWords",{"s":0,"words":18,"i":3,"n":3,"start":12},null],[6,1,"reverseWords",{"s":0,"words":18,"i":3,"n":3,"start":12},null],[14,1,"reverseWords",{"s":0,"words":18,"i":3,"n":3,"start":12},null],[15,1,"reverseWords",{"s":0,"words":20,"i":3,"n":3,"start":12},null],[15,1,"reverseWords",{"s":0,"words":20,"i":3,"n":3,"start":12},null,21]],"truncated":false}</script>
+        <!-- trace:end 151 -->
         <!-- explain:start 151 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1277,9 +1464,787 @@ Note: 49 is not 1 (I) less of 50 (L) because the conversion is based on decimal 
     </details>
 
 
+    <!-- gen:start 8 -->
+    <details class="problem" id="p-8">
+      <summary><span class="tag medium">Medium</span> 8. String to Integer (atoi) <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Implement <code>myAtoi</code>: skip leading spaces, optional sign, read digits until a non-digit, clamp to <code>[−2³¹, 2³¹ − 1]</code>.</p>
+        <!-- enrich-top:start 8 -->
+        <p class="links"><a href="https://leetcode.com/problems/string-to-integer-atoi/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "42"</code></div><div><strong>Output:</strong> <code class="ex">42</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The underlined characters are what is read in and the caret is the current reader position.
+Step 1: "42" (no characters read because there is no leading whitespace)
+ ^
+Step 2: "42" (no characters read because there is neither a '-' nor '+')
+ ^
+Step 3: "42" ("42" is read in)
+ ^</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = " -042"</code></div><div><strong>Output:</strong> <code class="ex">-42</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Step 1: "   -042" (leading whitespace is read and ignored)
+ ^
+Step 2: "   -042" ('-' is read, so the result should be negative)
+ ^
+Step 3: "   -042" ("042" is read in, leading zeros ignored in the result)
+ ^</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ s.length ≤ 200</code> · <code>s</code> consists of English letters (lower-case and upper-case), digits (<code>0 - 9</code>), <code>' '</code>, <code>'+'</code>, <code>'-'</code>, and <code>'.'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Process the string in phases: spaces, sign, digits.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Clamp the result to the 32-bit range.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> There's no shortcut; the point is handling every phase correctly.</p>
+        <!-- enrich-top:end 8 -->
+        <p><strong>Spot it:</strong> A <strong>careful left-to-right parse</strong> (a tiny state machine): whitespace → sign → digits → stop. The only trap is the order of checks.</p>
+        <p><strong>Why not another pattern?</strong> Regex or <code>int()</code> on slices hides the edge cases the interviewer is testing.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Skip spaces.</li>
+          <li>Read <code>+</code>/<code>−</code> once.</li>
+          <li>Accumulate digits; stop at the first non-digit.</li>
+          <li>Apply the sign and clamp.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def myAtoi(self, s: str) -&gt; int:
+        i, n = 0, len(s)
+        while i &lt; n and s[i] == " ":
+            i += 1  # leading spaces
+        sign = 1
+        if i &lt; n and s[i] in "+-":
+            sign = -1 if s[i] == "-" else 1  # at most one sign
+            i += 1
+        value = 0
+        while i &lt; n and s[i].isdigit():
+            value = value * 10 + int(s[i])
+            i += 1
+        value *= sign
+        return max(-2**31, min(2**31 - 1, value))  # clamp to 32-bit</code></pre>
+        <!-- trace:start 8 -->
+        <div class="trace-viz" id="trace-p8"></div>
+        <script type="application/json" id="trace-p8-data">{"src":["class Solution:","    def myAtoi(self, s: str) -> int:","        i, n = 0, len(s)","        while i < n and s[i] == \" \":","            i += 1  # leading spaces","        sign = 1","        if i < n and s[i] in \"+-\":","            sign = -1 if s[i] == \"-\" else 1  # at most one sign","            i += 1","        value = 0","        while i < n and s[i].isdigit():","            value = value * 10 + int(s[i])","            i += 1","        value *= sign","        return max(-2**31, min(2**31 - 1, value))  # clamp to 32-bit"],"notes":{"5":"leading spaces","8":"at most one sign","15":"clamp to 32-bit"},"input":"s = \"words and 987\"","output":"0","values":["words and 987",0,13,1],"steps":[[3,1,"myAtoi",{"s":0},null],[4,1,"myAtoi",{"s":0,"i":1,"n":2},null],[6,1,"myAtoi",{"s":0,"i":1,"n":2},null],[7,1,"myAtoi",{"s":0,"i":1,"n":2,"sign":3},null],[10,1,"myAtoi",{"s":0,"i":1,"n":2,"sign":3},null],[11,1,"myAtoi",{"s":0,"i":1,"n":2,"sign":3,"value":1},null],[14,1,"myAtoi",{"s":0,"i":1,"n":2,"sign":3,"value":1},null],[15,1,"myAtoi",{"s":0,"i":1,"n":2,"sign":3,"value":1},null],[15,1,"myAtoi",{"s":0,"i":1,"n":2,"sign":3,"value":1},null,1]],"truncated":false}</script>
+        <!-- trace:end 8 -->
+        <!-- explain:start 8 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Anything after the digits is ignored, including more digits after a letter.</li>
+          <li>Python integers don't overflow, so clamping once at the end is safe (in Java/C++ check before multiplying).</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 8 -->
+        <!-- enrich-edges:start 8 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>"  -42"</code></li>
+          <li><code>"words 987"</code> → 0.</li>
+          <li>Overflow both ways.</li>
+          <li><code>"+-12"</code> → 0.</li>
+        </ul>
+        <!-- enrich-edges:end 8 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 8 -->
+
+    <!-- gen:start 38 -->
+    <details class="problem" id="p-38">
+      <summary><span class="tag medium">Medium</span> 38. Count and Say <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Term 1 is <code>"1"</code>; each next term reads the previous one aloud as (count, digit) pairs. Return term <code>n</code>.</p>
+        <!-- enrich-top:start 38 -->
+        <p class="links"><a href="https://leetcode.com/problems/count-and-say/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 4</code></div><div><strong>Output:</strong> <code class="ex">"1211"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">countAndSay(1) = "1"
+countAndSay(2) = RLE of "1" = "11"
+countAndSay(3) = RLE of "11" = "21"
+countAndSay(4) = RLE of "21" = "1211"</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 1</code></div><div><strong>Output:</strong> <code class="ex">"1"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">This is the base case.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 30</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How do you describe a run of equal digits?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Repeat run-length encoding n − 1 times.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulation is the intended solution.</p>
+        <!-- enrich-top:end 38 -->
+        <p><strong>Spot it:</strong> Each step is <strong>run-length encoding</strong>: group equal consecutive digits and write count then digit.</p>
+        <p><strong>Why not another pattern?</strong> There's no closed form; simulation is the solution.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>term = "1"</code>.</li>
+          <li>Repeat <code>n − 1</code> times: scan runs, append <code>str(run length) + digit</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def countAndSay(self, n: int) -&gt; str:
+        term = "1"
+        for _ in range(n - 1):
+            out = []
+            i = 0
+            while i &lt; len(term):
+                j = i
+                while j &lt; len(term) and term[j] == term[i]:
+                    j += 1  # end of this run of equal digits
+                out.append(str(j - i) + term[i])  # "how many" then "which digit"
+                i = j
+            term = "".join(out)
+        return term</code></pre>
+        <!-- trace:start 38 -->
+        <div class="trace-viz" id="trace-p38"></div>
+        <script type="application/json" id="trace-p38-data">{"src":["class Solution:","    def countAndSay(self, n: int) -> str:","        term = \"1\"","        for _ in range(n - 1):","            out = []","            i = 0","            while i < len(term):","                j = i","                while j < len(term) and term[j] == term[i]:","                    j += 1  # end of this run of equal digits","                out.append(str(j - i) + term[i])  # \"how many\" then \"which digit\"","                i = j","            term = \"\".join(out)","        return term"],"notes":{"10":"end of this run of equal digits","11":"\"how many\" then \"which digit\""},"input":"n = 1","output":"\"1\"","values":[1,"1"],"steps":[[3,1,"countAndSay",{"n":0},null],[4,1,"countAndSay",{"n":0,"term":1},null],[14,1,"countAndSay",{"n":0,"term":1},null],[14,1,"countAndSay",{"n":0,"term":1},null,1]],"truncated":false}</script>
+        <!-- trace:end 38 -->
+        <!-- explain:start 38 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>j</code> moves to the end of each run; the run length is <code>j − i</code>.</li>
+          <li>Joining a list avoids quadratic string building.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 38 -->
+        <!-- enrich-edges:start 38 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>n = 1</code> → "1".</li>
+          <li>Runs of three ("111" → "31").</li>
+          <li>Larger n (fast growth).</li>
+        </ul>
+        <!-- enrich-edges:end 38 -->
+        <p><strong>Complexity:</strong> <code>O(total length of all terms)</code>; terms grow about 30% per step.</p>
+      </div>
+    </details>
+    <!-- gen:end 38 -->
+
+    <!-- gen:start 43 -->
+    <details class="problem" id="p-43">
+      <summary><span class="tag medium">Medium</span> 43. Multiply Strings <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Multiply two non-negative integers given as strings, without converting them to integers directly.</p>
+        <!-- enrich-top:start 43 -->
+        <p class="links"><a href="https://leetcode.com/problems/multiply-strings/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">num1 = "2", num2 = "3"</code></div><div><strong>Output:</strong> <code class="ex">"6"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">num1 = "123", num2 = "456"</code></div><div><strong>Output:</strong> <code class="ex">"56088"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ num1.length, num2.length ≤ 200</code> · <code>num1</code> and <code>num2</code> consist of digits only. · Both <code>num1</code> and <code>num2</code> do not contain any leading zero, except the number <code>0</code> itself.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Do it the way you learned in school.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Where does the product of digit i and digit j go in the result?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Summing <code>n</code> shifted partial products as strings works but is clumsier; the position array does it directly.</p>
+        <!-- enrich-top:end 43 -->
+        <p><strong>Spot it:</strong> <strong>Grade-school multiplication</strong> on digit arrays: the product of <code>num1[i]</code> and <code>num2[j]</code> contributes to positions <code>i + j</code> and <code>i + j + 1</code> of a result array of length <code>m + n</code>.</p>
+        <p><strong>Why not another pattern?</strong> <code>int(num1) * int(num2)</code> is forbidden; repeated string addition is slower.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>res = [0] * (m + n)</code>.</li>
+          <li>For <code>i</code>, <code>j</code> from the right: <code>total = d1 · d2 + res[i + j + 1]</code>; <code>res[i + j + 1] = total % 10</code>; <code>res[i + j] += total // 10</code>.</li>
+          <li>Strip leading zeros.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def multiply(self, num1: str, num2: str) -&gt; str:
+        m, n = len(num1), len(num2)
+        res = [0] * (m + n)  # the product has at most m + n digits
+        for i in range(m - 1, -1, -1):
+            for j in range(n - 1, -1, -1):
+                total = int(num1[i]) * int(num2[j]) + res[i + j + 1]
+                res[i + j + 1] = total % 10  # this position's digit
+                res[i + j] += total // 10  # carry to the left
+        digits = "".join(map(str, res)).lstrip("0")
+        return digits or "0"</code></pre>
+        <!-- trace:start 43 -->
+        <div class="trace-viz" id="trace-p43"></div>
+        <script type="application/json" id="trace-p43-data">{"src":["class Solution:","    def multiply(self, num1: str, num2: str) -> str:","        m, n = len(num1), len(num2)","        res = [0] * (m + n)  # the product has at most m + n digits","        for i in range(m - 1, -1, -1):","            for j in range(n - 1, -1, -1):","                total = int(num1[i]) * int(num2[j]) + res[i + j + 1]","                res[i + j + 1] = total % 10  # this position's digit","                res[i + j] += total // 10  # carry to the left","        digits = \"\".join(map(str, res)).lstrip(\"0\")","        return digits or \"0\""],"notes":{"4":"the product has at most m + n digits","8":"this position's digit","9":"carry to the left"},"input":"num1 = \"2\", num2 = \"3\"","output":"\"6\"","values":["2","3",1,{"~":"list","v":[0,0]},0,6,{"~":"list","v":[0,6]},"6"],"steps":[[3,1,"multiply",{"num1":0,"num2":1},null],[4,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2},null],[5,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":3},null],[6,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":3,"i":4},null],[7,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":3,"i":4,"j":4},null],[8,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":3,"i":4,"j":4,"total":5},null],[9,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":6,"i":4,"j":4,"total":5},null],[6,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":6,"i":4,"j":4,"total":5},null],[5,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":6,"i":4,"j":4,"total":5},null],[10,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":6,"i":4,"j":4,"total":5},null],[11,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":6,"i":4,"j":4,"total":5,"digits":7},null],[11,1,"multiply",{"num1":0,"num2":1,"m":2,"n":2,"res":6,"i":4,"j":4,"total":5,"digits":7},null,7]],"truncated":false}</script>
+        <!-- trace:end 43 -->
+        <!-- explain:start 43 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Digit <code>i</code> from the left of a length-<code>m</code> number has place value <code>10^(m−1−i)</code>; the product lands at index <code>i + j + 1</code> from the left.</li>
+          <li>Carries are pushed one position left right away.</li>
+          <li>An all-zero result becomes <code>"0"</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 43 -->
+        <!-- enrich-edges:start 43 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A zero operand → "0".</li>
+          <li>Carries spreading left.</li>
+          <li>Single digits.</li>
+        </ul>
+        <!-- enrich-edges:end 43 -->
+        <p><strong>Complexity:</strong> <code>O(m · n)</code> time, <code>O(m + n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 43 -->
+
+    <!-- gen:start 468 -->
+    <details class="problem" id="p-468">
+      <summary><span class="tag medium">Medium</span> 468. Validate IP Address <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return <code>"IPv4"</code>, <code>"IPv6"</code> or <code>"Neither"</code> for a query string.</p>
+        <!-- enrich-top:start 468 -->
+        <p class="links"><a href="https://leetcode.com/problems/validate-ip-address/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">queryIP = "172.16.254.1"</code></div><div><strong>Output:</strong> <code class="ex">"IPv4"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">This is a valid IPv4 address, return "IPv4".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">queryIP = "2001:0db8:85a3:0:0:8A2E:0370:7334"</code></div><div><strong>Output:</strong> <code class="ex">"IPv6"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">This is a valid IPv6 address, return "IPv6".</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>queryIP</code> consists only of English letters, digits and the characters <code>'.'</code> and <code>':'</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Write out the exact rules for each format.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Split on the separator and validate every part.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> There's no shortcut: precise validation is the task.</p>
+        <!-- enrich-top:end 468 -->
+        <p><strong>Spot it:</strong> A <strong>parsing</strong> problem: split on <code>.</code> or <code>:</code> and validate each part (digits, ranges, leading zeros, hex length).</p>
+        <p><strong>Why not another pattern?</strong> <code>int()</code> alone accepts signs, spaces and leading zeros that are invalid here.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>IPv4: 4 parts, each 1–3 digits, no leading zero unless <code>"0"</code>, value ≤ 255.</li>
+          <li>IPv6: 8 parts, each 1–4 hex digits.</li>
+          <li>Otherwise <code>"Neither"</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def validIPAddress(self, queryIP: str) -&gt; str:
+        parts = queryIP.split(".")
+        if len(parts) == 4 and all(
+            p.isdigit() and p.isascii() and len(p) &lt;= 3 and (p == "0" or p[0] != "0") and int(p) &lt;= 255
+            for p in parts
+        ):
+            return "IPv4"  # four decimal numbers 0-255, no leading zeros
+        groups = queryIP.split(":")
+        hexdigits = set("0123456789abcdefABCDEF")
+        if len(groups) == 8 and all(1 &lt;= len(g) &lt;= 4 and set(g) &lt;= hexdigits for g in groups):
+            return "IPv6"  # eight groups of 1-4 hex digits
+        return "Neither"</code></pre>
+        <!-- trace:start 468 -->
+        <div class="trace-viz" id="trace-p468"></div>
+        <script type="application/json" id="trace-p468-data">{"src":["class Solution:","    def validIPAddress(self, queryIP: str) -> str:","        parts = queryIP.split(\".\")","        if len(parts) == 4 and all(","            p.isdigit() and p.isascii() and len(p) <= 3 and (p == \"0\" or p[0] != \"0\") and int(p) <= 255","            for p in parts","        ):","            return \"IPv4\"  # four decimal numbers 0-255, no leading zeros","        groups = queryIP.split(\":\")","        hexdigits = set(\"0123456789abcdefABCDEF\")","        if len(groups) == 8 and all(1 <= len(g) <= 4 and set(g) <= hexdigits for g in groups):","            return \"IPv6\"  # eight groups of 1-4 hex digits","        return \"Neither\""],"notes":{"8":"four decimal numbers 0-255, no leading zeros","12":"eight groups of 1-4 hex digits"},"input":"queryIP = \"256.256.256.256\"","output":"\"Neither\"","values":["256.256.256.256",{"~":"list","v":["256","256","256","256"]},{"~":"obj","v":"list_iterator"},"validIPAddress(queryIP='256.256.25…') › <genexpr>(.0=list_iterator)","256",false,null,{"~":"list","v":["256.256.256.256"]},{"~":"set","v":["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F","a","b","c","d","e","f"]},"Neither"],"steps":[[3,1,"validIPAddress",{"queryIP":0},null],[4,1,"validIPAddress",{"queryIP":0,"parts":1},null],[6,1,"validIPAddress",{"queryIP":0,"parts":1},null],[4,1,"validIPAddress",{"queryIP":0,"parts":1},null],[4,2,"<genexpr>",{".0":2},3],[6,2,"<genexpr>",{".0":2},3],[5,2,"<genexpr>",{".0":2,"p":4},3],[5,2,"<genexpr>",{".0":2,"p":4},3,5],[5,2,"<genexpr>",{".0":2,"p":4},3,6],[9,1,"validIPAddress",{"queryIP":0,"parts":1},null],[10,1,"validIPAddress",{"queryIP":0,"parts":1,"groups":7},null],[11,1,"validIPAddress",{"queryIP":0,"parts":1,"groups":7,"hexdigits":8},null],[13,1,"validIPAddress",{"queryIP":0,"parts":1,"groups":7,"hexdigits":8},null],[13,1,"validIPAddress",{"queryIP":0,"parts":1,"groups":7,"hexdigits":8},null,9]],"truncated":false}</script>
+        <!-- trace:end 468 -->
+        <!-- explain:start 468 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>isdigit()</code> rejects signs and spaces; <code>isascii()</code> rejects other Unicode digits.</li>
+          <li>A part like <code>"01"</code> is invalid in IPv4 but <code>"0"</code> is fine.</li>
+          <li>IPv6 groups allow leading zeros but at most 4 characters.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 468 -->
+        <!-- enrich-edges:start 468 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Leading zeros in IPv4.</li>
+          <li>Empty parts (<code>"1..1.1"</code>).</li>
+          <li>Five-character IPv6 group.</li>
+        </ul>
+        <!-- enrich-edges:end 468 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 468 -->
+
+    <!-- gen:start 686 -->
+    <details class="problem" id="p-686">
+      <summary><span class="tag medium">Medium</span> 686. Repeated String Match <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the minimum number of times to repeat <code>a</code> so that <code>b</code> is a substring of it, or −1.</p>
+        <!-- enrich-top:start 686 -->
+        <p class="links"><a href="https://leetcode.com/problems/repeated-string-match/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">a = "abcd", b = "cdabcdab"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We return 3 because by repeating a three times "abcdabcdabcd", b is a substring of it.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">a = "a", b = "aa"</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ a.length, b.length ≤ 10⁴</code> · <code>a</code> and <code>b</code> consist of lowercase English letters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How many copies are needed just for the length?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>At most one extra copy is needed. Why?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Growing the repeat count without a bound can loop forever; two checks suffice.</p>
+        <!-- enrich-top:end 686 -->
+        <p><strong>Spot it:</strong> If <code>b</code> fits anywhere, it starts within the first copy of <code>a</code>, so it ends within <code>ceil(len(b)/len(a)) + 1</code> copies. Only two candidates need a <strong>substring search</strong>.</p>
+        <p><strong>Why not another pattern?</strong> Repeating more and more copies without a bound never terminates for impossible inputs.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>q = ceil(len(b) / len(a))</code>.</li>
+          <li>If <code>b in a * q</code>, return <code>q</code>; if <code>b in a * (q + 1)</code>, return <code>q + 1</code>; else −1.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def repeatedStringMatch(self, a: str, b: str) -&gt; int:
+        q = -(-len(b) // len(a))  # ceil: copies needed just to be long enough
+        for times in (q, q + 1):  # b can start anywhere in the first copy
+            if b in a * times:
+                return times
+        return -1</code></pre>
+        <!-- trace:start 686 -->
+        <div class="trace-viz" id="trace-p686"></div>
+        <script type="application/json" id="trace-p686-data">{"src":["class Solution:","    def repeatedStringMatch(self, a: str, b: str) -> int:","        q = -(-len(b) // len(a))  # ceil: copies needed just to be long enough","        for times in (q, q + 1):  # b can start anywhere in the first copy","            if b in a * times:","                return times","        return -1"],"notes":{"3":"ceil: copies needed just to be long enough","4":"b can start anywhere in the first copy"},"input":"a = \"a\", b = \"aa\"","output":"2","values":["a","aa",2],"steps":[[3,1,"repeatedStringMatch",{"a":0,"b":1},null],[4,1,"repeatedStringMatch",{"a":0,"b":1,"q":2},null],[5,1,"repeatedStringMatch",{"a":0,"b":1,"q":2,"times":2},null],[6,1,"repeatedStringMatch",{"a":0,"b":1,"q":2,"times":2},null],[6,1,"repeatedStringMatch",{"a":0,"b":1,"q":2,"times":2},null,2]],"truncated":false}</script>
+        <!-- trace:end 686 -->
+        <!-- explain:start 686 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>b</code> must start at some offset inside the first copy of <code>a</code> (later starts repeat earlier ones).</li>
+          <li>From that offset, <code>q + 1</code> copies always cover all of <code>b</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 686 -->
+        <!-- enrich-edges:start 686 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>b</code> shorter than <code>a</code>.</li>
+          <li>Characters of <code>b</code> not in <code>a</code> → −1.</li>
+          <li><code>b</code> needs to wrap around a copy boundary.</li>
+        </ul>
+        <!-- enrich-edges:end 686 -->
+        <p><strong>Complexity:</strong> <code>O((m + n) · n)</code> with naive search, <code>O(m + n)</code> with KMP.</p>
+      </div>
+    </details>
+    <!-- gen:end 686 -->
+
+    <!-- gen:start 789 -->
+    <details class="problem" id="p-789">
+      <summary><span class="tag medium">Medium</span> 789. Escape The Ghosts <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Math</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> On an infinite grid, can you reach <code>target</code> before any ghost (moving optimally) can catch you?</p>
+        <!-- enrich-top:start 789 -->
+        <p class="links"><a href="https://leetcode.com/problems/escape-the-ghosts/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">ghosts = [[1,0],[0,3]], target = [0,1]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You can reach the destination (0, 1) after 1 turn, while the ghosts located at (1, 0) and (0, 3) cannot catch up with you.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">ghosts = [[1,0]], target = [2,0]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You need to reach the destination (2, 0), but the ghost at (1, 0) lies between you and the destination.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ ghosts.length ≤ 100</code> · <code>ghosts[i].length == 2</code> · <code>-10⁴ ≤ xi, yi ≤ 10⁴</code> · There can be <strong>multiple ghosts</strong> in the same location. · <code>target.length == 2</code> · <code>-10⁴ ≤ xtarget, ytarget ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Where is the best place for a ghost to wait?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Compare distances to the target.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Game simulation is unnecessary; the distance comparison is exact.</p>
+        <!-- enrich-top:end 789 -->
+        <p><strong>Spot it:</strong> A ghost's best strategy is to go straight to the target and wait. So it's a comparison of <strong>Manhattan distances</strong>; no simulation needed.</p>
+        <p><strong>Why not another pattern?</strong> Simulating moves on an infinite grid is pointless; intercepting earlier is never better for a ghost than waiting at the target.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>mine = |tx| + |ty|</code>.</li>
+          <li>Escape iff every ghost has <code>|gx − tx| + |gy − ty| &gt; mine</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def escapeGhosts(self, ghosts: List[List[int]], target: List[int]) -&gt; bool:
+        tx, ty = target
+        mine = abs(tx) + abs(ty)
+        return all(abs(gx - tx) + abs(gy - ty) &gt; mine for gx, gy in ghosts)  # every ghost arrives later</code></pre>
+        <!-- trace:start 789 -->
+        <div class="trace-viz" id="trace-p789"></div>
+        <script type="application/json" id="trace-p789-data">{"src":["class Solution:","    def escapeGhosts(self, ghosts: List[List[int]], target: List[int]) -> bool:","        tx, ty = target","        mine = abs(tx) + abs(ty)","        return all(abs(gx - tx) + abs(gy - ty) > mine for gx, gy in ghosts)  # every ghost arrives later"],"notes":{"5":"every ghost arrives later"},"input":"ghosts = [[1,0]], target = [2,0]","output":"false","values":[{"~":"list","v":[{"~":"list","v":[1,0]}]},{"~":"list","v":[2,0]},2,0,{"~":"obj","v":"list_iterator"},"escapeGhosts(ghosts=[1 items], target=[2 items]) › <genexpr>(.0=list_iterator)",1,false],"steps":[[3,1,"escapeGhosts",{"ghosts":0,"target":1},null],[4,1,"escapeGhosts",{"ghosts":0,"target":1,"tx":2,"ty":3},null],[5,1,"escapeGhosts",{"ghosts":0,"target":1,"tx":2,"ty":3,"mine":2},null],[5,2,"<genexpr>",{".0":4,"mine":2,"tx":2,"ty":3},5],[5,2,"<genexpr>",{".0":4,"mine":2,"tx":2,"ty":3,"gx":6,"gy":3},5,7],[5,1,"escapeGhosts",{"ghosts":0,"target":1,"tx":2,"ty":3,"mine":2},null,7]],"truncated":false}</script>
+        <!-- trace:end 789 -->
+        <!-- explain:start 789 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>If a ghost could catch you anywhere on your route, it could also reach the target no later than you (triangle inequality).</li>
+          <li>Ties count as being caught, hence the strict <code>&gt;</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 789 -->
+        <!-- enrich-edges:start 789 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A ghost exactly as far as you → false.</li>
+          <li>A ghost at the target.</li>
+          <li>Several ghosts at one spot.</li>
+        </ul>
+        <!-- enrich-edges:end 789 -->
+        <p><strong>Complexity:</strong> <code>O(g)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 789 -->
+
+    <!-- gen:start 1404 -->
+    <details class="problem" id="p-1404">
+      <summary><span class="tag medium">Medium</span> 1404. Number of Steps to Reduce a Number in Binary Representation to One <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Even → divide by 2; odd → add 1. Count steps to reach 1 for a binary string (up to 500 bits).</p>
+        <!-- enrich-top:start 1404 -->
+        <p class="links"><a href="https://leetcode.com/problems/number-of-steps-to-reduce-a-number-in-binary-representation-to-one/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "1101"</code></div><div><strong>Output:</strong> <code class="ex">6</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"1101" corressponds to number 13 in their decimal representation.
+Step 1) 13 is odd, add 1 and obtain 14. 
+Step 2) 14 is even, divide by 2 and obtain 7.
+Step 3) 7 is odd, add 1 and obtain 8.
+Step 4) 8 is even, divide by 2 and obtain 4. 
+Step 5) 4 is even, divide by 2 and obtain 2. 
+Step 6) 2 is even, divide by 2 and obtain 1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "10"</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"10" corresponds to number 2 in their decimal representation.
+Step 1) 2 is even, divide by 2 and obtain 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 500</code> · <code>s</code> consists of characters '0' or '1' · <code>s[0] == '1'</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Process the bits from least significant to most significant.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Keep track of the carry produced by adding 1.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Big-integer simulation is <code>O(n²)</code> bit operations; the carry scan is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1404 -->
+        <p><strong>Spot it:</strong> Simulate on the bits from the right, tracking the <strong>carry</strong> from <code>+1</code>: an effective 0 bit costs 1 step (divide); an effective 1 costs 2 (add 1, making a carry, then divide).</p>
+        <p><strong>Why not another pattern?</strong> Converting to an int works in Python, but the bit-level reasoning is what interviews look for (and works in any language).</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>steps = 0</code>, <code>carry = 0</code>; for <code>i</code> from the last bit down to index 1:</li>
+          <li><code>bit = int(s[i]) + carry</code>; <code>bit == 1</code> → <code>steps += 2</code>, <code>carry = 1</code>; else <code>steps += 1</code> (carry unchanged).</li>
+          <li>Return <code>steps + carry</code> (a final carry turns the leading 1 into 10, needing one more division).</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def numSteps(self, s: str) -&gt; int:
+        steps = 0
+        carry = 0
+        for i in range(len(s) - 1, 0, -1):  # every bit except the leading 1
+            bit = int(s[i]) + carry
+            if bit == 1:
+                steps += 2  # odd: add 1 (carry), then divide
+                carry = 1
+            else:
+                steps += 1  # even (0, or 1 + carry = 2): just divide
+        return steps + carry  # a leftover carry makes "10": one more division</code></pre>
+        <!-- trace:start 1404 -->
+        <div class="trace-viz" id="trace-p1404"></div>
+        <script type="application/json" id="trace-p1404-data">{"src":["class Solution:","    def numSteps(self, s: str) -> int:","        steps = 0","        carry = 0","        for i in range(len(s) - 1, 0, -1):  # every bit except the leading 1","            bit = int(s[i]) + carry","            if bit == 1:","                steps += 2  # odd: add 1 (carry), then divide","                carry = 1","            else:","                steps += 1  # even (0, or 1 + carry = 2): just divide","        return steps + carry  # a leftover carry makes \"10\": one more division"],"notes":{"5":"every bit except the leading 1","8":"odd: add 1 (carry), then divide","11":"even (0, or 1 + carry = 2): just divide","12":"a leftover carry makes \"10\": one more division"},"input":"s = \"1\"","output":"0","values":["1",0],"steps":[[3,1,"numSteps",{"s":0},null],[4,1,"numSteps",{"s":0,"steps":1},null],[5,1,"numSteps",{"s":0,"steps":1,"carry":1},null],[12,1,"numSteps",{"s":0,"steps":1,"carry":1},null],[12,1,"numSteps",{"s":0,"steps":1,"carry":1},null,1]],"truncated":false}</script>
+        <!-- trace:end 1404 -->
+        <!-- explain:start 1404 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each loop iteration removes one bit (one division), plus one addition when the bit is effectively 1.</li>
+          <li>Once a carry exists it never disappears until the top, because 1 + 1 = 10 propagates.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1404 -->
+        <!-- enrich-edges:start 1404 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>"1"</code> → 0.</li>
+          <li>All ones.</li>
+          <li>A power of two.</li>
+        </ul>
+        <!-- enrich-edges:end 1404 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1404 -->
+
+    <!-- gen:start 1545 -->
+    <details class="problem" id="p-1545">
+      <summary><span class="tag medium">Medium</span> 1545. Find Kth Bit in Nth Binary String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Math</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> <code>S1 = "0"</code>, <code>Sn = S(n−1) + "1" + reverse(invert(S(n−1)))</code>. Return the <code>k</code>-th bit of <code>Sn</code>.</p>
+        <!-- enrich-top:start 1545 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-kth-bit-in-nth-binary-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = 3, k = 1</code></div><div><strong>Output:</strong> <code class="ex">"0"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">S3 is "0111001".
+The 1st bit is "0".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = 4, k = 11</code></div><div><strong>Output:</strong> <code class="ex">"1"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">S4 is "011100110110001".
+The 11th bit is "1".</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n ≤ 20</code> · <code>1 ≤ k ≤ 2n - 1</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How long is Sn, and what is its middle bit?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>How does a position in the right half relate to a position in the left half?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building the whole string is <code>O(2ⁿ)</code>; the index walk is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 1545 -->
+        <p><strong>Spot it:</strong> <code>Sn</code> has length <code>2ⁿ − 1</code> with <code>"1"</code> in the middle. The left half is <code>S(n−1)</code>, and position <code>k</code> in the right half mirrors position <code>2ⁿ − k</code> of the left half, inverted → a <strong>divide-and-conquer</strong> index walk, no string building.</p>
+        <p><strong>Why not another pattern?</strong> Building <code>S20</code> (about a million characters) works but wastes memory; the recursion is <code>O(n)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>mid = 2^(n−1)</code>. If <code>k == mid</code>: <code>"1"</code>.</li>
+          <li>If <code>k &lt; mid</code>: answer in <code>S(n−1)</code> at <code>k</code>.</li>
+          <li>Else: invert the answer for <code>S(n−1)</code> at <code>2ⁿ − k</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def findKthBit(self, n: int, k: int) -&gt; str:
+        flip = 0
+        while n &gt; 1:
+            mid = 1 &lt;&lt; (n - 1)
+            if k == mid:
+                return "1" if flip == 0 else "0"  # the middle bit is 1
+            if k &gt; mid:
+                k = (1 &lt;&lt; n) - k  # mirror into the left half
+                flip ^= 1  # the right half is inverted
+            n -= 1
+        return "0" if flip == 0 else "1"  # S1 = "0"</code></pre>
+        <!-- trace:start 1545 -->
+        <div class="trace-viz" id="trace-p1545"></div>
+        <script type="application/json" id="trace-p1545-data">{"src":["class Solution:","    def findKthBit(self, n: int, k: int) -> str:","        flip = 0","        while n > 1:","            mid = 1 << (n - 1)","            if k == mid:","                return \"1\" if flip == 0 else \"0\"  # the middle bit is 1","            if k > mid:","                k = (1 << n) - k  # mirror into the left half","                flip ^= 1  # the right half is inverted","            n -= 1","        return \"0\" if flip == 0 else \"1\"  # S1 = \"0\""],"notes":{"7":"the middle bit is 1","9":"mirror into the left half","10":"the right half is inverted","12":"S1 = \"0\""},"input":"n = 3, k = 1","output":"\"0\"","values":[3,1,0,4,2,"0"],"steps":[[3,1,"findKthBit",{"n":0,"k":1},null],[4,1,"findKthBit",{"n":0,"k":1,"flip":2},null],[5,1,"findKthBit",{"n":0,"k":1,"flip":2},null],[6,1,"findKthBit",{"n":0,"k":1,"flip":2,"mid":3},null],[8,1,"findKthBit",{"n":0,"k":1,"flip":2,"mid":3},null],[11,1,"findKthBit",{"n":0,"k":1,"flip":2,"mid":3},null],[4,1,"findKthBit",{"n":4,"k":1,"flip":2,"mid":3},null],[5,1,"findKthBit",{"n":4,"k":1,"flip":2,"mid":3},null],[6,1,"findKthBit",{"n":4,"k":1,"flip":2,"mid":4},null],[8,1,"findKthBit",{"n":4,"k":1,"flip":2,"mid":4},null],[11,1,"findKthBit",{"n":4,"k":1,"flip":2,"mid":4},null],[4,1,"findKthBit",{"n":1,"k":1,"flip":2,"mid":4},null],[12,1,"findKthBit",{"n":1,"k":1,"flip":2,"mid":4},null],[12,1,"findKthBit",{"n":1,"k":1,"flip":2,"mid":4},null,5]],"truncated":false}</script>
+        <!-- trace:end 1545 -->
+        <!-- explain:start 1545 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The loop replaces recursion: each step moves to <code>S(n−1)</code>, remembering whether the bit is inverted.</li>
+          <li>Position <code>k</code> in the right half corresponds to position <code>2ⁿ − k</code> in the left half (the reversal).</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1545 -->
+        <!-- enrich-edges:start 1545 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k</code> is the middle.</li>
+          <li><code>n = 1</code>.</li>
+          <li><code>k</code> in the far right (many inversions).</li>
+        </ul>
+        <!-- enrich-edges:end 1545 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1545 -->
+
+    <!-- gen:start 3517 -->
+    <details class="problem" id="p-3517">
+      <summary><span class="tag medium">Medium</span> 3517. Smallest Palindromic Rearrangement I <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Given a palindrome, return its lexicographically smallest palindromic permutation.</p>
+        <!-- enrich-top:start 3517 -->
+        <p class="links"><a href="https://leetcode.com/problems/smallest-palindromic-rearrangement-i/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "z"</code></div><div><strong>Output:</strong> <code class="ex">"z"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A string of only one character is already the lexicographically smallest palindrome.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "babab"</code></div><div><strong>Output:</strong> <code class="ex">"abbba"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Rearranging "babab" → "abbba" gives the smallest lexicographic palindrome.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁵</code> · <code>s</code> consists of lowercase English letters. · <code>s</code> is guaranteed to be palindromic.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which half of a palindrome do you actually choose?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Make that half as small as possible.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> All permutations is factorial; sorting the half is <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 3517 -->
+        <p><strong>Spot it:</strong> A palindrome is decided by its first half. The smallest first half is the half's letters <strong>sorted</strong>; the middle (odd length) is forced.</p>
+        <p><strong>Why not another pattern?</strong> Generating permutations is factorial.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>half = sorted(s[:n // 2])</code>.</li>
+          <li>Return <code>half + middle + reversed(half)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def smallestPalindrome(self, s: str) -&gt; str:
+        n = len(s)
+        half = "".join(sorted(s[:n // 2]))  # the first half determines everything
+        middle = s[n // 2] if n % 2 else ""
+        return half + middle + half[::-1]</code></pre>
+        <!-- trace:start 3517 -->
+        <div class="trace-viz" id="trace-p3517"></div>
+        <script type="application/json" id="trace-p3517-data">{"src":["class Solution:","    def smallestPalindrome(self, s: str) -> str:","        n = len(s)","        half = \"\".join(sorted(s[:n // 2]))  # the first half determines everything","        middle = s[n // 2] if n % 2 else \"\"","        return half + middle + half[::-1]"],"notes":{"4":"the first half determines everything"},"input":"s = \"z\"","output":"\"z\"","values":["z",1,""],"steps":[[3,1,"smallestPalindrome",{"s":0},null],[4,1,"smallestPalindrome",{"s":0,"n":1},null],[5,1,"smallestPalindrome",{"s":0,"n":1,"half":2},null],[6,1,"smallestPalindrome",{"s":0,"n":1,"half":2,"middle":0},null],[6,1,"smallestPalindrome",{"s":0,"n":1,"half":2,"middle":0},null,0]],"truncated":false}</script>
+        <!-- trace:end 3517 -->
+        <!-- explain:start 3517 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The first half of a palindrome contains exactly half of each letter's count.</li>
+          <li>For odd length, the middle letter is the one with an odd count, already in the middle of <code>s</code>.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3517 -->
+        <!-- enrich-edges:start 3517 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Length 1.</li>
+          <li>All the same letter.</li>
+          <li>Odd length (the middle stays).</li>
+        </ul>
+        <!-- enrich-edges:end 3517 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time (or <code>O(n)</code> with counting), <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3517 -->
+
+    <!-- gen:start 68 -->
+    <details class="problem" id="p-68">
+      <summary><span class="tag hard">Hard</span> 68. Text Justification <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Fully justify words into lines of exactly <code>maxWidth</code> characters; the last line and single-word lines are left-justified.</p>
+        <!-- enrich-top:start 68 -->
+        <p class="links"><a href="https://leetcode.com/problems/text-justification/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">words = ["This", "is", "an", "example", "of", "text", "justification."], maxWidth = 16</code></div><div><strong>Output:</strong> <code class="ex">["This    is    an", "example  of text", "justification.  "]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Line 1 has 8 spare spaces for 2 gaps (4 each). The last line is left-justified and padded on the right.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">words = ["What","must","be","acknowledgment","shall","be"], maxWidth = 16</code></div><div><strong>Output:</strong> <code class="ex">["What   must   be", "acknowledgment  ", "shall be        "]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">"acknowledgment" is alone on its line, so it is left-justified.</span></div></div>
+        <div class="example"><div class="ex-title">Example 3</div><div><strong>Input:</strong> <code class="ex">words = ["Science","is","what","we","understand","well","enough","to","explain","to","a","computer.","Art","is","everything","else","we","do"], maxWidth = 20</code></div><div><strong>Output:</strong> <code class="ex">["Science  is  what we", "understand      well", "enough to explain to", "a  computer.  Art is", "everything  else  we", "do                  "]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ words.length ≤ 300</code> · <code>1 ≤ words[i].length ≤ 20</code> · <code>words[i]</code> consists of only English letters and symbols · <code>1 ≤ maxWidth ≤ 100</code> · <code>words[i].length ≤ maxWidth</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Fill each line greedily.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>How do you spread the leftover spaces as evenly as possible, with extras on the left?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> This is a careful simulation; there's no faster trick.</p>
+        <!-- enrich-top:end 68 -->
+        <p><strong>Spot it:</strong> <strong>Greedy packing</strong>: put as many words on a line as fit (with one space between). Then distribute the remaining spaces with <code>divmod</code>, giving the leftmost gaps one extra.</p>
+        <p><strong>Why not another pattern?</strong> Any smarter line breaking (minimising raggedness) isn't what's asked; the problem specifies greedy.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Collect words while <code>letters + len(word) + gaps ≤ maxWidth</code>.</li>
+          <li>Normal line: <code>spaces, extra = divmod(maxWidth − letters, gaps)</code>; the first <code>extra</code> gaps get one more.</li>
+          <li>Last line or one word: join with single spaces and pad right.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def fullJustify(self, words: List[str], maxWidth: int) -&gt; List[str]:
+        lines = []
+        i = 0
+        while i &lt; len(words):
+            j = i
+            letters = 0
+            while j &lt; len(words) and letters + len(words[j]) + (j - i) &lt;= maxWidth:
+                letters += len(words[j])  # fits with one space per gap
+                j += 1
+            line_words = words[i:j]
+            gaps = j - i - 1
+            if j == len(words) or gaps == 0:
+                line = " ".join(line_words)
+                lines.append(line + " " * (maxWidth - len(line)))  # left-justified
+            else:
+                spaces, extra = divmod(maxWidth - letters, gaps)
+                line = ""
+                for g, w in enumerate(line_words[:-1]):
+                    line += w + " " * (spaces + (1 if g &lt; extra else 0))  # leftmost gaps get the extra
+                lines.append(line + line_words[-1])
+            i = j
+        return lines</code></pre>
+        <!-- trace:start 68 -->
+        <div class="trace-viz" id="trace-p68"></div>
+        <script type="application/json" id="trace-p68-data">{"src":["class Solution:","    def fullJustify(self, words: List[str], maxWidth: int) -> List[str]:","        lines = []","        i = 0","        while i < len(words):","            j = i","            letters = 0","            while j < len(words) and letters + len(words[j]) + (j - i) <= maxWidth:","                letters += len(words[j])  # fits with one space per gap","                j += 1","            line_words = words[i:j]","            gaps = j - i - 1","            if j == len(words) or gaps == 0:","                line = \" \".join(line_words)","                lines.append(line + \" \" * (maxWidth - len(line)))  # left-justified","            else:","                spaces, extra = divmod(maxWidth - letters, gaps)","                line = \"\"","                for g, w in enumerate(line_words[:-1]):","                    line += w + \" \" * (spaces + (1 if g < extra else 0))  # leftmost gaps get the extra","                lines.append(line + line_words[-1])","            i = j","        return lines"],"notes":{"9":"fits with one space per gap","15":"left-justified","20":"leftmost gaps get the extra"},"input":"words = [\"What\",\"must\",\"be\",\"acknowledgment\",\"shall\",\"be\"], maxWidth = 16","output":"[\n \"What   must   be\",\n \"acknowledgment  \",\n \"shall be        \"\n]","values":[{"~":"list","v":["What","must","be","acknowledgment","shall","be"]},16,{"~":"list","v":[]},0,4,1,8,2,10,3,{"~":"list","v":["What","must","be"]},"","What","What   ","must","What   must   ",{"~":"list","v":["What   must   be"]},14,{"~":"list","v":["acknowledgment"]},"acknowledgment",{"~":"list","v":["What   must   be","acknowledgment  "]},5,7,6,{"~":"list","v":["shall","be"]},"shall be",{"~":"list","v":["What   must   be","acknowledgment  ","shall be        "]}],"steps":[[3,1,"fullJustify",{"words":0,"maxWidth":1},null],[4,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2},null],[5,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3},null],[6,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3},null],[7,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":3},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":3,"letters":3},null],[9,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":3,"letters":3},null],[10,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":3,"letters":4},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":5,"letters":4},null],[9,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":5,"letters":4},null],[10,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":5,"letters":6},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":7,"letters":6},null],[9,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":7,"letters":6},null],[10,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":7,"letters":8},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8},null],[11,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8},null],[12,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10},null],[13,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7},null],[17,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7},null],[18,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3},null],[19,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":11},null],[20,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":11,"g":3,"w":12},null],[19,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":13,"g":3,"w":12},null],[20,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":13,"g":5,"w":14},null],[19,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[21,1,"fullJustify",{"words":0,"maxWidth":1,"lines":2,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[22,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":3,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[5,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[6,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[7,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":9,"letters":8,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":9,"letters":3,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[9,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":9,"letters":3,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[10,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":9,"letters":17,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":4,"letters":17,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[11,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":4,"letters":17,"line_words":10,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[12,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":4,"letters":17,"line_words":18,"gaps":7,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[13,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[14,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":15,"g":5,"w":14},null],[15,1,"fullJustify",{"words":0,"maxWidth":1,"lines":16,"i":9,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[22,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":9,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[5,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[6,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[7,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":4,"letters":17,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":4,"letters":3,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[9,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":4,"letters":3,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[10,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":4,"letters":21,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":21,"letters":21,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[9,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":21,"letters":21,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[10,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":21,"letters":22,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[8,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":23,"letters":22,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[11,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":23,"letters":22,"line_words":18,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[12,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":23,"letters":22,"line_words":24,"gaps":3,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[13,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[14,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":19,"g":5,"w":14},null],[15,1,"fullJustify",{"words":0,"maxWidth":1,"lines":20,"i":4,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":25,"g":5,"w":14},null],[22,1,"fullJustify",{"words":0,"maxWidth":1,"lines":26,"i":4,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":25,"g":5,"w":14},null],[5,1,"fullJustify",{"words":0,"maxWidth":1,"lines":26,"i":23,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":25,"g":5,"w":14},null],[23,1,"fullJustify",{"words":0,"maxWidth":1,"lines":26,"i":23,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":25,"g":5,"w":14},null],[23,1,"fullJustify",{"words":0,"maxWidth":1,"lines":26,"i":23,"j":23,"letters":22,"line_words":24,"gaps":5,"spaces":9,"extra":3,"line":25,"g":5,"w":14},null,26]],"truncated":false}</script>
+        <!-- trace:end 68 -->
+        <!-- explain:start 68 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li><code>(j − i)</code> counts the minimum spaces needed between the words already chosen plus the new one.</li>
+          <li><code>divmod</code> splits the spare spaces evenly; the remainder goes to the leftmost gaps.</li>
+          <li>The last line and single-word lines use one space between words and pad on the right.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 68 -->
+        <!-- enrich-edges:start 68 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>A word exactly <code>maxWidth</code> long.</li>
+          <li>A single word on a non-last line.</li>
+          <li>The last line.</li>
+        </ul>
+        <!-- enrich-edges:end 68 -->
+        <p><strong>Complexity:</strong> <code>O(total characters)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 68 -->
+
+    <!-- gen:start 214 -->
+    <details class="problem" id="p-214">
+      <summary><span class="tag hard">Hard</span> 214. Shortest Palindrome <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Add characters only in front of <code>s</code> to make the shortest palindrome.</p>
+        <!-- enrich-top:start 214 -->
+        <p class="links"><a href="https://leetcode.com/problems/shortest-palindrome/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "aacecaaa"</code></div><div><strong>Output:</strong> <code class="ex">"aaacecaaa"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "abcd"</code></div><div><strong>Output:</strong> <code class="ex">"dcbabcd"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>0 ≤ s.length ≤ 5 * 10⁴</code> · <code>s</code> consists of lowercase English letters only.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which part of s can stay as the centre of the palindrome?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Find the longest palindromic prefix quickly: KMP on s + '#' + reverse(s).</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Testing prefixes from longest to shortest is <code>O(n²)</code>; KMP is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 214 -->
+        <p><strong>Spot it:</strong> Keep the <strong>longest palindromic prefix</strong>; reverse the rest and put it in front. That prefix is the longest prefix of <code>s</code> that's also a suffix of <code>reverse(s)</code> → the <strong>KMP prefix function</strong> of <code>s + '#' + reverse(s)</code>.</p>
+        <p><strong>Why not another pattern?</strong> Checking each prefix for being a palindrome is <code>O(n²)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>t = s + '#' + s[::-1]</code>.</li>
+          <li>Compute the KMP failure array of <code>t</code>; <code>L = fail[-1]</code>.</li>
+          <li>Return <code>s[L:][::-1] + s</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def shortestPalindrome(self, s: str) -&gt; str:
+        t = s + "#" + s[::-1]  # '#' stops matches from crossing the middle
+        fail = [0] * len(t)  # longest proper prefix that is also a suffix
+        for i in range(1, len(t)):
+            k = fail[i - 1]
+            while k and t[i] != t[k]:
+                k = fail[k - 1]  # fall back to a shorter border
+            if t[i] == t[k]:
+                k += 1
+            fail[i] = k
+        keep = fail[-1]  # length of the longest palindromic prefix of s
+        return s[keep:][::-1] + s</code></pre>
+        <!-- trace:start 214 -->
+        <div class="trace-viz" id="trace-p214"></div>
+        <script type="application/json" id="trace-p214-data">{"src":["class Solution:","    def shortestPalindrome(self, s: str) -> str:","        t = s + \"#\" + s[::-1]  # '#' stops matches from crossing the middle","        fail = [0] * len(t)  # longest proper prefix that is also a suffix","        for i in range(1, len(t)):","            k = fail[i - 1]","            while k and t[i] != t[k]:","                k = fail[k - 1]  # fall back to a shorter border","            if t[i] == t[k]:","                k += 1","            fail[i] = k","        keep = fail[-1]  # length of the longest palindromic prefix of s","        return s[keep:][::-1] + s"],"notes":{"3":"\" + s[::-1]  # '#' stops matches from crossing the middle","4":"longest proper prefix that is also a suffix","8":"fall back to a shorter border","12":"length of the longest palindromic prefix of s"},"input":"s = \"abcd\"","output":"\"dcbabcd\"","values":["abcd","abcd#dcba",{"~":"list","v":[0,0,0,0,0,0,0,0,0]},1,0,2,3,4,5,6,7,8,{"~":"list","v":[0,0,0,0,0,0,0,0,1]},"dcbabcd"],"steps":[[3,1,"shortestPalindrome",{"s":0},null],[4,1,"shortestPalindrome",{"s":0,"t":1},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":3},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":3,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":3,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":3,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":3,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":5,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":5,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":5,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":5,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":5,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":6,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":6,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":6,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":6,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":6,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":7,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":7,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":7,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":7,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":7,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":8,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":8,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":8,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":8,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":8,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":9,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":9,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":9,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":9,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":9,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":10,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":10,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":10,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":10,"k":4},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":10,"k":4},null],[6,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":11,"k":4},null],[7,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":11,"k":4},null],[9,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":11,"k":4},null],[10,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":11,"k":4},null],[11,1,"shortestPalindrome",{"s":0,"t":1,"fail":2,"i":11,"k":3},null],[5,1,"shortestPalindrome",{"s":0,"t":1,"fail":12,"i":11,"k":3},null],[12,1,"shortestPalindrome",{"s":0,"t":1,"fail":12,"i":11,"k":3},null],[13,1,"shortestPalindrome",{"s":0,"t":1,"fail":12,"i":11,"k":3,"keep":3},null],[13,1,"shortestPalindrome",{"s":0,"t":1,"fail":12,"i":11,"k":3,"keep":3},null,13]],"truncated":false}</script>
+        <!-- trace:end 214 -->
+        <!-- explain:start 214 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A prefix of <code>s</code> equal to a suffix of <code>reverse(s)</code> reads the same backwards: it's a palindrome.</li>
+          <li>The separator keeps the border from being longer than <code>s</code>.</li>
+          <li>The characters after the palindromic prefix are mirrored in front.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 214 -->
+        <!-- enrich-edges:start 214 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Already a palindrome → unchanged.</li>
+          <li>Empty string.</li>
+          <li>All characters distinct.</li>
+        </ul>
+        <!-- enrich-edges:end 214 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 214 -->
+
+    <!-- gen:start 3518 -->
+    <details class="problem" id="p-3518">
+      <summary><span class="tag hard">Hard</span> 3518. Smallest Palindromic Rearrangement II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span><span class="ds">Math</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the <code>k</code>-th smallest distinct palindromic permutation of a palindrome <code>s</code>, or <code>""</code> if there are fewer than <code>k</code>.</p>
+        <!-- enrich-top:start 3518 -->
+        <p class="links"><a href="https://leetcode.com/problems/smallest-palindromic-rearrangement-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "abba", k = 2</code></div><div><strong>Output:</strong> <code class="ex">"baab"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The two distinct palindromic rearrangements of "abba" are "abba" and "baab".
+ Lexicographically, "abba" comes before "baab". Since k = 2, the output is "baab".</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "aa", k = 2</code></div><div><strong>Output:</strong> <code class="ex">""</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">There is only one palindromic rearrangement: "aa".
+ The output is an empty string since k = 2 exceeds the number of possible rearrangements.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 10⁴</code> · <code>s</code> consists of lowercase English letters. · <code>s</code> is guaranteed to be palindromic. · <code>1 ≤ k ≤ 10⁶</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>A palindrome is fixed by its first half. How many distinct first halves are there?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>To find the k-th arrangement, count how many arrangements start with each letter and skip whole groups.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Enumerating arrangements up to <code>k</code> is <code>O(k · n)</code>; group counting is <code>O(26n)</code>.</p>
+        <!-- enrich-top:end 3518 -->
+        <p><strong>Spot it:</strong> Choose the first half; it's a <strong>multiset permutation</strong>. Build it letter by letter: placing <code>c</code> first leaves <code>P · cnt[c] / L</code> arrangements (<code>P</code> = arrangements of the current multiset, <code>L</code> its size). Skip whole groups while <code>k</code> is larger, like Permutation Sequence.</p>
+        <p><strong>Why not another pattern?</strong> Listing permutations up to <code>k</code> is <code>O(k · n)</code> and generating all is factorial.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>cnt[c]</code> = half of each letter's count; <code>L = Σ cnt</code>; <code>P = L! / Π cnt[c]!</code>. If <code>k &gt; P</code>, return <code>""</code>.</li>
+          <li>For each position: for letters <code>c</code> ascending with <code>cnt[c] &gt; 0</code>: <code>ways = P · cnt[c] // L</code>. If <code>k ≤ ways</code>, take <code>c</code>; else <code>k −= ways</code>.</li>
+          <li>After taking <code>c</code>: <code>P = ways</code>, <code>cnt[c] −= 1</code>, <code>L −= 1</code>.</li>
+          <li>Return <code>half + middle + reverse(half)</code>.</li>
+        </ol>
+        <pre><code class="python">from collections import Counter
+from math import factorial
+
+class Solution:
+    def smallestPalindrome(self, s: str, k: int) -&gt; str:
+        n = len(s)
+        cnt = Counter(s[:n // 2])  # letters of the first half
+        middle = s[n // 2] if n % 2 else ""
+        L = n // 2
+        P = factorial(L)
+        for c in cnt.values():
+            P //= factorial(c)  # distinct arrangements of the half
+        if k &gt; P:
+            return ""
+        half = []
+        for _ in range(n // 2):
+            for c in sorted(cnt):
+                if cnt[c] == 0:
+                    continue
+                ways = P * cnt[c] // L  # arrangements that start with c
+                if k &lt;= ways:
+                    half.append(c)
+                    P = ways
+                    cnt[c] -= 1
+                    L -= 1
+                    break
+                k -= ways  # skip every arrangement starting with c
+        h = "".join(half)
+        return h + middle + h[::-1]</code></pre>
+        <!-- trace:start 3518 -->
+        <div class="trace-viz" id="trace-p3518"></div>
+        <script type="application/json" id="trace-p3518-data">{"src":["from collections import Counter","from math import factorial","","class Solution:","    def smallestPalindrome(self, s: str, k: int) -> str:","        n = len(s)","        cnt = Counter(s[:n // 2])  # letters of the first half","        middle = s[n // 2] if n % 2 else \"\"","        L = n // 2","        P = factorial(L)","        for c in cnt.values():","            P //= factorial(c)  # distinct arrangements of the half","        if k > P:","            return \"\"","        half = []","        for _ in range(n // 2):","            for c in sorted(cnt):","                if cnt[c] == 0:","                    continue","                ways = P * cnt[c] // L  # arrangements that start with c","                if k <= ways:","                    half.append(c)","                    P = ways","                    cnt[c] -= 1","                    L -= 1","                    break","                k -= ways  # skip every arrangement starting with c","        h = \"\".join(half)","        return h + middle + h[::-1]"],"notes":{"7":"letters of the first half","12":"distinct arrangements of the half","20":"arrangements that start with c","27":"skip every arrangement starting with c"},"input":"s = \"aa\", k = 2","output":"\"\"","values":["aa",2,{"~":"dict","v":[["a",1]]},"",1],"steps":[[6,1,"smallestPalindrome",{"s":0,"k":1},null],[7,1,"smallestPalindrome",{"s":0,"k":1,"n":1},null],[8,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2},null],[9,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3},null],[10,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4},null],[11,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4,"P":4},null],[12,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4,"P":4,"c":4},null],[11,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4,"P":4,"c":4},null],[13,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4,"P":4,"c":4},null],[14,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4,"P":4,"c":4},null],[14,1,"smallestPalindrome",{"s":0,"k":1,"n":1,"cnt":2,"middle":3,"L":4,"P":4,"c":4},null,3]],"truncated":false}</script>
+        <!-- trace:end 3518 -->
+        <!-- explain:start 3518 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Fixing the first letter as <code>c</code> leaves a multiset with <code>cnt[c] − 1</code> copies of <code>c</code>, whose arrangement count is <code>P · cnt[c] / L</code>.</li>
+          <li>Skipping all arrangements that start with a smaller letter is what makes this <code>O(n · 26)</code> instead of <code>O(k)</code>.</li>
+          <li>Python's big integers keep <code>P</code> exact; it shrinks quickly as letters are placed.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3518 -->
+        <!-- enrich-edges:start 3518 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than k palindromes → "".</li>
+          <li>One distinct letter → only k = 1 works.</li>
+          <li>Odd length (middle fixed).</li>
+        </ul>
+        <!-- enrich-edges:end 3518 -->
+        <p><strong>Complexity:</strong> <code>O(26 · n)</code> big-integer steps, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3518 -->
+
     <nav class="pager">
       <a href="20-shortest-path-mst.html"><small>Previous pattern</small>← 20 · Shortest Path &amp; MST</a>
-      <a class="next" href="../cheatsheet.html"><small>You finished all 21</small>Cheat sheet →</a>
+      <a class="next" href="22-math-bit-manipulation.html"><small>Next pattern</small>22 · Math &amp; Bit Manipulation →</a>
     </nav>
   </main>
 </div>

@@ -145,6 +145,7 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
 .ds { display: inline-block; font-size: .7rem; font-weight: 500; line-height: 1.5; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.gtag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); letter-spacing: .02em; vertical-align: 1px; }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -195,6 +196,26 @@ details.problem ul.edges { margin-top: 4px; }
 .steps-list > li { counter-increment: s; position: relative; padding-left: 38px; margin: 10px 0; }
 .steps-list > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
 
+/* ---------- traced step-through (Viz.trace) ---------- */
+.trace-code { font: .8rem/1.55 var(--mono); background: hsl(220 24% 13%); color: hsl(40 20% 90%); border-radius: 10px; padding: 8px 0; margin: 0 0 12px; overflow-x: auto; text-align: left; }
+.trace-code .tl { white-space: pre; padding: 0 12px 0 0; }
+.trace-code .tl.cur { background: hsl(45 90% 55% / .22); box-shadow: inset 3px 0 0 hsl(45 90% 60%); }
+.trace-code .ln { display: inline-block; width: 3.2em; padding-right: .8em; text-align: right; color: hsl(220 10% 50%); user-select: none; }
+.trace-code .kw { color: hsl(330 70% 72%); } .trace-code .fn { color: hsl(200 80% 72%); } .trace-code .str { color: hsl(95 45% 68%); }
+.trace-code .num { color: hsl(30 90% 68%); } .trace-code .com { color: hsl(220 10% 55%); font-style: italic; }
+.trace-pics { display: flex; flex-wrap: wrap; gap: 14px 22px; justify-content: center; margin: 4px 0 10px; }
+.trace-pic { padding: 4px 6px; border-radius: 8px; }
+.trace-pic.changed { background: var(--gold-soft); }
+.trace-vars { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: .78rem var(--mono); text-align: left; }
+.trace-vars .tv { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.trace-vars .tv.changed { background: var(--gold-soft); border-color: var(--gold); }
+/* the step-through player keeps a fixed, top-left layout so nothing slides around while it plays */
+.viz.trace .stage { align-items: stretch; justify-content: flex-start; }
+.viz.trace .trace-code { width: 100%; box-sizing: border-box; }
+.viz.trace .trace-pics { justify-content: flex-start; }
+.viz.trace .trace-pic { max-width: 100%; overflow-x: auto; }
+.viz.trace .trace-vars { align-content: flex-start; }
+
 /* ---------- visualizer ---------- */
 .viz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin: 18px 0; }
 .viz .viz-title { font-weight: 600; margin-bottom: 4px; }
@@ -202,7 +223,7 @@ details.problem ul.edges { margin-top: 4px; }
 .viz .stage { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 8px; background: var(--surface-2); border-radius: 10px; overflow-x: auto; }
 .viz .note { min-height: 3.2em; margin: 12px 2px 4px; font-size: .95rem; }
 .viz .note b { color: var(--accent); }
-.viz .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.viz .vars { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; margin-top: 6px; }
 .viz .vars span { font-family: var(--mono); font-size: .8rem; background: var(--surface-2); padding: 3px 9px; border-radius: 6px; }
 .viz .controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .viz button { font: 600 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, transform .1s; }
@@ -416,6 +437,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
     root.classList.add("viz");
+    if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
       (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
       (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
@@ -431,12 +453,13 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
+    const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
       stage.innerHTML = f.view || "";
       note.innerHTML = f.note || "";
-      vars.innerHTML = f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+      vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
     }
@@ -452,6 +475,33 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
     range.oninput = () => { stop(); show(+range.value); };
+    // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
+    // Measured once it is visible (a hidden element has no size), and again when its width changes.
+    let lockedWidth = 0;
+    function lockHeights() {
+      const w = root.clientWidth;
+      if (!w || w === lockedWidth || frames.length < 2) return;
+      lockedWidth = w;
+      const parts = [[stage, "view"], [note, "note"], [vars, "vars"]];
+      parts.forEach(([el]) => { el.style.minHeight = ""; });
+      const tallest = parts.map(() => 0);
+      for (const f of frames) {
+        stage.innerHTML = f.view || "";
+        note.innerHTML = f.note || "";
+        vars.innerHTML = varsHtml(f);
+        parts.forEach(([el], n) => { tallest[n] = Math.max(tallest[n], Math.ceil(el.getBoundingClientRect().height)); });
+      }
+      parts.forEach(([el], n) => { el.style.minHeight = tallest[n] + "px"; });
+      show(i);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) lockHeights(); });
+      io.observe(root);
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let pending = null;
+      new ResizeObserver(() => { clearTimeout(pending); pending = setTimeout(lockHeights, 150); }).observe(root);
+    }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
@@ -477,7 +527,100 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
 
+  /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
+  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
+  const fmt = (v) => {
+    if (v === null) return "None";
+    if (typeof v === "boolean") return v ? "True" : "False";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (typeof v !== "object") return String(v);
+    const t = v["~"], items = v.v;
+    if (t === "num" || t === "obj") return String(items);
+    if (t === "node") return `Node(${fmt(items)})`;
+    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
+    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
+    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
+    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+  };
+  function traceView(data, k) {
+    const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
+    const [line, depth, fn, locals, stackIdx, ret] = step;
+    const val = (name) => data.values[locals[name]];
+    const changed = (name) => !prev || prev[1] !== depth || prev[3][name] !== locals[name];
+    // code window: always 7 lines (slid inside the source near its ends), so its height never changes
+    const WIN = 7, lo = Math.max(1, Math.min(line - 3, data.src.length - WIN + 1));
+    let code = `<div class="trace-code">`;
+    for (let n = lo; n < lo + WIN; n++) {
+      code += n <= data.src.length
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        : `<div class="tl"><span class="ln"></span> </div>`;
+    }
+    code += `</div>`;
+    // pointer variables (small ints with index-like names)
+    const ints = Object.keys(locals).filter((nm) => PTR.test(nm) && Number.isInteger(val(nm)));
+    // pictures for containers
+    let pics = "";
+    const names = Object.keys(locals).sort((a, b) => (changed(b) ? 1 : 0) - (changed(a) ? 1 : 0));
+    let count = 0;
+    for (const nm of names) {
+      if (count >= 4) break;
+      const v = val(nm);
+      if (isScalar(v) && typeof v !== "string") continue;
+      let pic = "";
+      if (typeof v === "string") {
+        const ptrs = {};
+        ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.length) ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; });
+        if (!Object.keys(ptrs).length || v.length > 40 || v.length < 2) continue;
+        pic = array(v.split(""), { label: nm, ptrs, small: v.length > 14, hl: Object.fromEntries(Object.keys(ptrs).map((x) => [x, "active"])) });
+      } else if ((v["~"] === "list" || v["~"] === "tuple" || v["~"] === "deque") && v.v.every(isScalar)) {
+        const ptrs = {}, hl = {};
+        if (v["~"] !== "deque") ints.forEach((p) => { const x = val(p); if (x >= 0 && x < v.v.length) { ptrs[x] = ptrs[x] ? ptrs[x] + "," + p : p; hl[x] = "active"; } });
+        pic = array(v.v.map(fmt), { label: nm, ptrs, hl, small: v.v.length > 12 });
+      } else if (v["~"] === "list" && v.v.length && v.v.every((row) => row && row["~"] === "list" && row.v.every(isScalar))) {
+        const m = v.v.map((row) => row.v.map(fmt)), hl = {};
+        const rn = ["r", "row", "i", "nr", "rr"].find((p) => p in locals && Number.isInteger(val(p))), cn = ["c", "col", "j", "nc", "cc"].find((p) => p in locals && Number.isInteger(val(p)));
+        if (rn && cn) hl[val(rn) + "," + val(cn)] = "active";
+        pic = `<div class="row-label" style="width:auto">${esc(nm)}</div>` + grid(m, { hl, small: true });
+      } else if (v["~"] === "ll") {
+        pic = list(v.v.map(fmt), { label: nm });
+      } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
+        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+      } else continue;
+      pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
+      count++;
+    }
+    // variable table
+    const rows = Object.keys(locals).map((nm) => `<span class="tv${changed(nm) ? " changed" : ""}"><b>${esc(nm)}</b> = ${esc(fmt(val(nm)))}</span>`).join("");
+    const where = depth > 1 && stackIdx !== null && stackIdx !== undefined
+      ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
+      : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
+    const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
+    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
+    if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
+    return { view, note };
+  }
+  function trace(target, data) {
+    const frames = data.steps.map((_, k) => traceView(data, k));
+    stepper(target, { title: "Step through the solution", sub: `Running on <code>${esc(data.input)}</code> → expected <code>${esc(data.output)}</code>. Each step is about to run the highlighted line; changed values are highlighted.`, frames, speed: 900, className: "trace" });
+  }
+  function bootTraces() {
+    document.querySelectorAll(".trace-viz").forEach((el) => {
+      const src = document.getElementById(el.id + "-data");
+      if (!src) return;
+      let built = false;
+      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      const det = el.closest("details");
+      if (!det || det.open) build();
+      else det.addEventListener("toggle", () => { if (det.open) build(); });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootTraces();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -521,7 +664,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -530,7 +673,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google interview</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -551,7 +694,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
   </aside>
 
   <main>
-    <div class="eyebrow">Pattern 18 of 21</div>
+    <div class="eyebrow">Pattern 18 of 24</div>
     <h1>Greedy</h1>
     <p class="lede">Make the choice that looks best right now, never look back, and still end up optimal. Greedy is the fastest pattern there is, and the hard part is convincing yourself the local choice can never hurt.</p>
 
@@ -684,7 +827,7 @@ def min_candies(ratings):
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
 
     <details class="problem" id="p-55" open>
-      <summary><span class="tag medium">Medium</span> 55. Jump Game <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 55. Jump Game <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You start at index 0; <code>nums[i]</code> is the <strong>maximum</strong> jump length from index <code>i</code>. Return <code>True</code> if you can reach the last index.</p>
         <!-- enrich-top:start 55 -->
@@ -717,6 +860,10 @@ def min_candies(ratings):
             if farthest &gt;= last:
                 return True
         return True</code></pre>
+        <!-- trace:start 55 -->
+        <div class="trace-viz" id="trace-p55"></div>
+        <script type="application/json" id="trace-p55-data">{"src":["class Solution:","    def canJump(self, nums: List[int]) -> bool:","        farthest = 0          # every index up to here can be reached","        last = len(nums) - 1","        for i in range(len(nums)):","            if i > farthest:","                return False  # a gap: we can never get to i","            farthest = max(farthest, i + nums[i])","            if farthest >= last:","                return True","        return True"],"notes":{"3":"every index up to here can be reached","7":"a gap: we can never get to i"},"input":"nums = [2,3,1,1,4]","output":"true","values":[{"~":"list","v":[2,3,1,1,4]},0,4,2,1,true],"steps":[[3,1,"canJump",{"nums":0},null],[4,1,"canJump",{"nums":0,"farthest":1},null],[5,1,"canJump",{"nums":0,"farthest":1,"last":2},null],[6,1,"canJump",{"nums":0,"farthest":1,"last":2,"i":1},null],[8,1,"canJump",{"nums":0,"farthest":1,"last":2,"i":1},null],[9,1,"canJump",{"nums":0,"farthest":3,"last":2,"i":1},null],[5,1,"canJump",{"nums":0,"farthest":3,"last":2,"i":1},null],[6,1,"canJump",{"nums":0,"farthest":3,"last":2,"i":4},null],[8,1,"canJump",{"nums":0,"farthest":3,"last":2,"i":4},null],[9,1,"canJump",{"nums":0,"farthest":2,"last":2,"i":4},null],[10,1,"canJump",{"nums":0,"farthest":2,"last":2,"i":4},null],[10,1,"canJump",{"nums":0,"farthest":2,"last":2,"i":4},null,5]],"truncated":false}</script>
+        <!-- trace:end 55 -->
         <!-- explain:start 55 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -751,7 +898,7 @@ def min_candies(ratings):
     </details>
 
     <details class="problem" id="p-134">
-      <summary><span class="tag medium">Medium</span> 134. Gas Station <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 134. Gas Station <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> A circular route has stations; <code>gas[i]</code> is fuel available at <code>i</code> and <code>cost[i]</code> is fuel to drive from <code>i</code> to <code>i + 1</code>. Return the starting index that lets you drive one full lap with an initially empty tank, or <code>-1</code>. The answer is unique if it exists.</p>
         <!-- enrich-top:start 134 -->
@@ -797,6 +944,10 @@ Therefore, you can't travel around the circuit once no matter where you start.</
                 start = i + 1
                 tank = 0
         return start</code></pre>
+        <!-- trace:start 134 -->
+        <div class="trace-viz" id="trace-p134"></div>
+        <script type="application/json" id="trace-p134-data">{"src":["class Solution:","    def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:","        if sum(gas) < sum(cost):","            return -1             # not enough fuel in total for any start","        start = 0","        tank = 0","        for i in range(len(gas)):","            tank = tank + gas[i] - cost[i]","            if tank < 0:","                # we can't get past i from start, nor from any station in between","                start = i + 1","                tank = 0","        return start"],"notes":{"4":"not enough fuel in total for any start","11":"we can't get past i from start, nor from any station in between"},"input":"gas = [2,3,4], cost = [3,4,3]","output":"-1","values":[{"~":"list","v":[2,3,4]},{"~":"list","v":[3,4,3]},-1],"steps":[[3,1,"canCompleteCircuit",{"gas":0,"cost":1},null],[4,1,"canCompleteCircuit",{"gas":0,"cost":1},null],[4,1,"canCompleteCircuit",{"gas":0,"cost":1},null,2]],"truncated":false}</script>
+        <!-- trace:end 134 -->
         <!-- explain:start 134 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -831,7 +982,7 @@ Therefore, you can't travel around the circuit once no matter where you start.</
     </details>
 
     <details class="problem" id="p-135">
-      <summary><span class="tag hard">Hard</span> 135. Candy <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag hard">Hard</span> 135. Candy <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> Children stand in a line with <code>ratings</code>. Give each at least one candy, and give a child with a higher rating than an <strong>adjacent</strong> child more candies than that neighbour. Return the minimum total.</p>
         <!-- enrich-top:start 135 -->
@@ -867,6 +1018,10 @@ The third child gets 1 candy because it satisfies the above two conditions.</spa
             if ratings[i] &gt; ratings[i + 1]:
                 candy[i] = max(candy[i], candy[i + 1] + 1)
         return sum(candy)</code></pre>
+        <!-- trace:start 135 -->
+        <div class="trace-viz" id="trace-p135"></div>
+        <script type="application/json" id="trace-p135-data">{"src":["class Solution:","    def candy(self, ratings: List[int]) -> int:","        n = len(ratings)","        candy = [1] * n","        # pass 1: beat the LEFT neighbour when rated higher","        for i in range(1, n):","            if ratings[i] > ratings[i - 1]:","                candy[i] = candy[i - 1] + 1","        # pass 2: beat the RIGHT neighbour too, without losing pass 1's guarantee","        for i in range(n - 2, -1, -1):","            if ratings[i] > ratings[i + 1]:","                candy[i] = max(candy[i], candy[i + 1] + 1)","        return sum(candy)"],"notes":{"6":"pass 1: beat the LEFT neighbour when rated higher","10":"pass 2: beat the RIGHT neighbour too, without losing pass 1's guarantee"},"input":"ratings = [1,2,2]","output":"4","values":[{"~":"list","v":[1,2,2]},3,{"~":"list","v":[1,1,1]},1,{"~":"list","v":[1,2,1]},2,0,4],"steps":[[3,1,"candy",{"ratings":0},null],[4,1,"candy",{"ratings":0,"n":1},null],[6,1,"candy",{"ratings":0,"n":1,"candy":2},null],[7,1,"candy",{"ratings":0,"n":1,"candy":2,"i":3},null],[8,1,"candy",{"ratings":0,"n":1,"candy":2,"i":3},null],[6,1,"candy",{"ratings":0,"n":1,"candy":4,"i":3},null],[7,1,"candy",{"ratings":0,"n":1,"candy":4,"i":5},null],[6,1,"candy",{"ratings":0,"n":1,"candy":4,"i":5},null],[10,1,"candy",{"ratings":0,"n":1,"candy":4,"i":5},null],[11,1,"candy",{"ratings":0,"n":1,"candy":4,"i":3},null],[10,1,"candy",{"ratings":0,"n":1,"candy":4,"i":3},null],[11,1,"candy",{"ratings":0,"n":1,"candy":4,"i":6},null],[10,1,"candy",{"ratings":0,"n":1,"candy":4,"i":6},null],[13,1,"candy",{"ratings":0,"n":1,"candy":4,"i":6},null],[13,1,"candy",{"ratings":0,"n":1,"candy":4,"i":6},null,7]],"truncated":false}</script>
+        <!-- trace:end 135 -->
         <!-- explain:start 135 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -946,14 +1101,34 @@ The third child gets 1 candy because it satisfies the above two conditions.</spa
         <tr><td>452</td><td><a href="08-overlapping-intervals.html#p-452">Minimum Number of Arrows to Burst Balloons</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Solved in <a href="08-overlapping-intervals.html">08 · Overlapping Intervals</a>: Same greedy; touching counts as overlap</td></tr>
         <tr><td>435</td><td><a href="08-overlapping-intervals.html#p-435">Non-overlapping Intervals</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Solved in <a href="08-overlapping-intervals.html">08 · Overlapping Intervals</a>: Sort by end, greedy</td></tr>
         <tr><td>621</td><td><a href="07-top-k-elements.html#p-621">Task Scheduler</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span><span class="ds">Heap</span></span></td><td>Solved in <a href="07-top-k-elements.html">07 · Top 'K' Elements</a>: Max-heap + cooldown queue</td></tr>
+        <tr><td>45</td><td><a href="#p-45">Jump Game II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Greedy BFS by levels: within the current reach, find the farthest next reach; each level is one jump</td></tr>
+        <tr><td>164</td><td><a href="#p-164">Maximum Gap</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Pigeonhole buckets of size ⌈(max − min)/(n − 1)⌉: the max gap is between buckets, so keep each bucket's min and max</td></tr>
+        <tr><td>179</td><td><a href="#p-179">Largest Number</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">String</span></span></td><td>Sort with comparator: a before b if a + b &gt; b + a (as strings)</td></tr>
+        <tr><td>406</td><td><a href="#p-406">Queue Reconstruction by Height</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Sort tallest first (k ascending); insert each person at index k</td></tr>
+        <tr><td>846</td><td><a href="#p-846">Hand of Straights</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>The smallest remaining card must start a group: take x, x+1, …, x+groupSize−1 from the counter</td></tr>
+        <tr><td>912</td><td><a href="#p-912">Sort an Array</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Merge sort: sort halves, then merge by repeatedly taking the smaller head</td></tr>
+        <tr><td>1296</td><td><a href="#p-1296">Divide Array in Sets of K Consecutive Numbers</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></td><td>Same as Hand of Straights: the smallest remaining value starts a run of k</td></tr>
+        <tr><td>1589</td><td><a href="#p-1589">Maximum Sum Obtained of Any Permutation</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Count how many requests cover each index (difference array); give the largest numbers to the busiest indices</td></tr>
+        <tr><td>1689</td><td><a href="#p-1689">Partitioning Into Minimum Number Of Deci-Binary Numbers</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Each deci-binary number adds at most 1 per digit: the answer is the largest digit</td></tr>
+        <tr><td>1727</td><td><a href="#p-1727">Largest Submatrix With Rearrangements</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Matrix</span></span></td><td>Per row, column heights of consecutive 1s; sort them descending; area = height × width</td></tr>
+        <tr><td>1833</td><td><a href="#p-1833">Maximum Ice Cream Bars</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Buy the cheapest bars first (counting sort since costs ≤ 10⁵)</td></tr>
+        <tr><td>1846</td><td><a href="#p-1846">Maximum Element After Decreasing and Rearranging</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Sort; each next element becomes min(itself, previous + 1), starting from 1</td></tr>
+        <tr><td>2126</td><td><a href="#p-2126">Destroying Asteroids</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Absorb asteroids smallest first; fail at the first one bigger than the planet</td></tr>
+        <tr><td>2895</td><td><a href="#p-2895">Minimum Processing Time</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Earliest processor gets the four longest tasks: sort processors ascending, tasks descending</td></tr>
+        <tr><td>3499</td><td><a href="#p-3499">Maximize Active Section with Trade I</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>The best trade removes a 1-block between two 0-blocks and fills all three: gain = sum of two neighbouring 0-blocks</td></tr>
+        <tr><td>3635</td><td><a href="#p-3635">Earliest Finish Time for Land and Water Rides II</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Whatever ride comes first, finish it as early as possible; then try every ride of the other kind</td></tr>
+        <tr><td>3689</td><td><a href="#p-3689">Maximum Total Subarray Value I</a></td><td><span class="tag medium">Medium</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>The whole array has the largest possible value; choose it k times</td></tr>
         <tr><td>135</td><td><a href="#p-135">Candy</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Two passes: satisfy left neighbours, then right neighbours</td></tr>
+        <tr><td>761</td><td><a href="#p-761">Special Binary String</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Split into top-level special blocks, recursively maximise each block's inside, sort blocks descending</td></tr>
+        <tr><td>1665</td><td><a href="#p-1665">Minimum Initial Energy to Finish Tasks</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span></span></td><td>Do tasks in decreasing (minimum − actual) order; the needed start is the max over prefixes</td></tr>
+        <tr><td>3474</td><td><a href="#p-3474">Lexicographically Smallest Generated String</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">String</span></span></td><td>Place str2 at every 'T'; fill the rest with 'a'; break each matching 'F' window by bumping its last free cell to 'b'</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
     <p>Problems already solved in <a href="#problems">section 7</a> link back up there, and rows marked "Solved in …" link to the page where that problem is worked through. Every other problem from the table is solved here.</p>
 
     <details class="problem" id="p-122">
-      <summary><span class="tag medium">Medium</span> 122. Best Time to Buy and Sell Stock II <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 122. Best Time to Buy and Sell Stock II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> You may buy and sell as many times as you like, holding at most one share at a time (you can sell and buy again on the same day). Return the maximum profit.</p>
         <!-- enrich-top:start 122 -->
@@ -986,6 +1161,10 @@ Total profit is 4.</span></div></div>
                 # buy yesterday, sell today: always worth it on an up day
                 profit = profit + rise
         return profit</code></pre>
+        <!-- trace:start 122 -->
+        <div class="trace-viz" id="trace-p122"></div>
+        <script type="application/json" id="trace-p122-data">{"src":["class Solution:","    def maxProfit(self, prices: List[int]) -> int:","        profit = 0","        for i in range(1, len(prices)):","            rise = prices[i] - prices[i - 1]","            if rise > 0:","                # buy yesterday, sell today: always worth it on an up day","                profit = profit + rise","        return profit"],"notes":{"8":"buy yesterday, sell today: always worth it on an up day"},"input":"prices = [7,6,4,3,1]","output":"0","values":[{"~":"list","v":[7,6,4,3,1]},0,1,-1,2,-2,3,4],"steps":[[3,1,"maxProfit",{"prices":0},null],[4,1,"maxProfit",{"prices":0,"profit":1},null],[5,1,"maxProfit",{"prices":0,"profit":1,"i":2},null],[6,1,"maxProfit",{"prices":0,"profit":1,"i":2,"rise":3},null],[4,1,"maxProfit",{"prices":0,"profit":1,"i":2,"rise":3},null],[5,1,"maxProfit",{"prices":0,"profit":1,"i":4,"rise":3},null],[6,1,"maxProfit",{"prices":0,"profit":1,"i":4,"rise":5},null],[4,1,"maxProfit",{"prices":0,"profit":1,"i":4,"rise":5},null],[5,1,"maxProfit",{"prices":0,"profit":1,"i":6,"rise":5},null],[6,1,"maxProfit",{"prices":0,"profit":1,"i":6,"rise":3},null],[4,1,"maxProfit",{"prices":0,"profit":1,"i":6,"rise":3},null],[5,1,"maxProfit",{"prices":0,"profit":1,"i":7,"rise":3},null],[6,1,"maxProfit",{"prices":0,"profit":1,"i":7,"rise":5},null],[4,1,"maxProfit",{"prices":0,"profit":1,"i":7,"rise":5},null],[9,1,"maxProfit",{"prices":0,"profit":1,"i":7,"rise":5},null],[9,1,"maxProfit",{"prices":0,"profit":1,"i":7,"rise":5},null,1]],"truncated":false}</script>
+        <!-- trace:end 122 -->
         <!-- explain:start 122 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1019,7 +1198,7 @@ Total profit is 4.</span></div></div>
     </details>
 
     <details class="problem" id="p-274">
-      <summary><span class="tag medium">Medium</span> 274. H-Index <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 274. H-Index <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> <code>citations[i]</code> is the citation count of paper <code>i</code>. The h-index is the largest <code>h</code> such that at least <code>h</code> papers have at least <code>h</code> citations each. Return it.</p>
         <!-- enrich-top:start 274 -->
@@ -1052,6 +1231,10 @@ Since the researcher has 3 papers with at least 3 citations each and the remaini
             else:
                 break        # later papers have even fewer citations
         return h</code></pre>
+        <!-- trace:start 274 -->
+        <div class="trace-viz" id="trace-p274"></div>
+        <script type="application/json" id="trace-p274-data">{"src":["class Solution:","    def hIndex(self, citations: List[int]) -> int:","        papers = sorted(citations, reverse=True)","        h = 0","        for i in range(len(papers)):","            # papers[0..i] are the i + 1 most-cited papers","            if papers[i] >= i + 1:","                h = i + 1","            else:","                break        # later papers have even fewer citations","        return h"],"notes":{"7":"papers[0..i] are the i + 1 most-cited papers","10":"later papers have even fewer citations"},"input":"citations = [1,3,1]","output":"1","values":[{"~":"list","v":[1,3,1]},{"~":"list","v":[3,1,1]},0,1],"steps":[[3,1,"hIndex",{"citations":0},null],[4,1,"hIndex",{"citations":0,"papers":1},null],[5,1,"hIndex",{"citations":0,"papers":1,"h":2},null],[7,1,"hIndex",{"citations":0,"papers":1,"h":2,"i":2},null],[8,1,"hIndex",{"citations":0,"papers":1,"h":2,"i":2},null],[5,1,"hIndex",{"citations":0,"papers":1,"h":3,"i":2},null],[7,1,"hIndex",{"citations":0,"papers":1,"h":3,"i":3},null],[10,1,"hIndex",{"citations":0,"papers":1,"h":3,"i":3},null],[11,1,"hIndex",{"citations":0,"papers":1,"h":3,"i":3},null],[11,1,"hIndex",{"citations":0,"papers":1,"h":3,"i":3},null,3]],"truncated":false}</script>
+        <!-- trace:end 274 -->
         <!-- explain:start 274 -->
         <p><strong>What the code is doing, line by line:</strong></p>
         <ol>
@@ -1083,6 +1266,1292 @@ Since the researcher has 3 papers with at least 3 citations each and the remaini
         <p><strong>Complexity:</strong> <code>O(n log n)</code> time for the sort, <code>O(n)</code> space for the sorted copy.</p>
       </div>
     </details>
+
+    <!-- gen:start 45 -->
+    <details class="problem" id="p-45">
+      <summary><span class="tag medium">Medium</span> 45. Jump Game II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> From index 0, <code>nums[i]</code> is the max jump length at <code>i</code>. Return the minimum number of jumps to reach the last index.</p>
+        <!-- enrich-top:start 45 -->
+        <p class="links"><a href="https://leetcode.com/problems/jump-game-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [2,3,1,1,4]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The minimum number of jumps to reach the last index is 2. Jump 1 step from index 0 to 1, then 3 steps to the last index.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [2,3,0,1,4]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁴</code> · <code>0 ≤ nums[i] ≤ 1000</code> · It's guaranteed that you can reach <code>nums[n - 1]</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Think in levels: which indices can you reach with exactly one jump? Two?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Track the farthest reach of the current level.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> DP <code>min jumps</code> for each index over all its jumps is <code>O(n²)</code>; level greedy is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 45 -->
+        <p><strong>Spot it:</strong> Indices reachable with <code>j</code> jumps form a contiguous range. Scan it, tracking the <strong>farthest</strong> index reachable with one more jump: that's the next range. Counting ranges is a <strong>greedy</strong> BFS without a queue.</p>
+        <p><strong>Why not another pattern?</strong> DP over every index and every jump length is <code>O(n²)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>end</code> = end of the current range, <code>far</code> = farthest reach seen.</li>
+          <li>For <code>i</code> in <code>0..n − 2</code>: <code>far = max(far, i + nums[i])</code>; when <code>i == end</code>, take a jump: <code>jumps += 1</code>, <code>end = far</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def jump(self, nums: List[int]) -&gt; int:
+        jumps = 0
+        end = 0  # last index reachable with `jumps` jumps
+        far = 0  # farthest index reachable with one more jump
+        for i in range(len(nums) - 1):
+            far = max(far, i + nums[i])
+            if i == end:
+                jumps += 1  # we must jump to go past this range
+                end = far
+        return jumps</code></pre>
+        <!-- trace:start 45 -->
+        <div class="trace-viz" id="trace-p45"></div>
+        <script type="application/json" id="trace-p45-data">{"src":["class Solution:","    def jump(self, nums: List[int]) -> int:","        jumps = 0","        end = 0  # last index reachable with `jumps` jumps","        far = 0  # farthest index reachable with one more jump","        for i in range(len(nums) - 1):","            far = max(far, i + nums[i])","            if i == end:","                jumps += 1  # we must jump to go past this range","                end = far","        return jumps"],"notes":{"4":"last index reachable with `jumps` jumps","5":"farthest index reachable with one more jump","9":"we must jump to go past this range"},"input":"nums = [2,3,1,1,4]","output":"2","values":[{"~":"list","v":[2,3,1,1,4]},0,2,1,4,3],"steps":[[3,1,"jump",{"nums":0},null],[4,1,"jump",{"nums":0,"jumps":1},null],[5,1,"jump",{"nums":0,"jumps":1,"end":1},null],[6,1,"jump",{"nums":0,"jumps":1,"end":1,"far":1},null],[7,1,"jump",{"nums":0,"jumps":1,"end":1,"far":1,"i":1},null],[8,1,"jump",{"nums":0,"jumps":1,"end":1,"far":2,"i":1},null],[9,1,"jump",{"nums":0,"jumps":1,"end":1,"far":2,"i":1},null],[10,1,"jump",{"nums":0,"jumps":3,"end":1,"far":2,"i":1},null],[6,1,"jump",{"nums":0,"jumps":3,"end":2,"far":2,"i":1},null],[7,1,"jump",{"nums":0,"jumps":3,"end":2,"far":2,"i":3},null],[8,1,"jump",{"nums":0,"jumps":3,"end":2,"far":4,"i":3},null],[6,1,"jump",{"nums":0,"jumps":3,"end":2,"far":4,"i":3},null],[7,1,"jump",{"nums":0,"jumps":3,"end":2,"far":4,"i":2},null],[8,1,"jump",{"nums":0,"jumps":3,"end":2,"far":4,"i":2},null],[9,1,"jump",{"nums":0,"jumps":3,"end":2,"far":4,"i":2},null],[10,1,"jump",{"nums":0,"jumps":2,"end":2,"far":4,"i":2},null],[6,1,"jump",{"nums":0,"jumps":2,"end":4,"far":4,"i":2},null],[7,1,"jump",{"nums":0,"jumps":2,"end":4,"far":4,"i":5},null],[8,1,"jump",{"nums":0,"jumps":2,"end":4,"far":4,"i":5},null],[6,1,"jump",{"nums":0,"jumps":2,"end":4,"far":4,"i":5},null],[11,1,"jump",{"nums":0,"jumps":2,"end":4,"far":4,"i":5},null],[11,1,"jump",{"nums":0,"jumps":2,"end":4,"far":4,"i":5},null,2]],"truncated":false}</script>
+        <!-- trace:end 45 -->
+        <!-- explain:start 45 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>All indices up to <code>end</code> are reachable in <code>jumps</code> jumps.</li>
+          <li>Reaching <code>end</code> without being done means another jump is needed, and the best next range ends at <code>far</code>.</li>
+          <li>The loop stops before the last index, so no extra jump is counted there.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 45 -->
+        <!-- enrich-edges:start 45 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One element → 0.</li>
+          <li>One big first jump.</li>
+          <li>Many zeros that must be jumped over.</li>
+        </ul>
+        <!-- enrich-edges:end 45 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 45 -->
+
+    <!-- gen:start 164 -->
+    <details class="problem" id="p-164">
+      <summary><span class="tag medium">Medium</span> 164. Maximum Gap <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the maximum difference between successive elements in sorted order, in linear time.</p>
+        <!-- enrich-top:start 164 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-gap/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [3,6,9,1]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The sorted form of the array is [1,3,6,9], either (3,6) or (6,9) has the maximum difference 3.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [10]</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The array contains less than 2 elements, therefore return 0.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 10⁵</code> · <code>0 ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>The maximum gap is at least (max − min)/(n − 1).</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use buckets of about that width; where can the maximum gap be?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Sort and scan: <code>O(n log n)</code>. Buckets: <code>O(n)</code>.</p>
+        <!-- enrich-top:end 164 -->
+        <p><strong>Spot it:</strong> The answer is at least the average gap <code>(max − min) / (n − 1)</code>. With buckets narrower than that, the max gap can't be inside a bucket, only between a bucket's max and the next non-empty bucket's min — a <strong>pigeonhole</strong> argument.</p>
+        <p><strong>Why not another pattern?</strong> Sorting is <code>O(n log n)</code>; the problem asks for linear time.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>size = max(1, (hi − lo) // (n − 1))</code>; bucket index <code>(x − lo) // size</code>.</li>
+          <li>Keep min and max per bucket.</li>
+          <li>Scan buckets in order: gap = bucket min − previous bucket max.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maximumGap(self, nums: List[int]) -&gt; int:
+        n = len(nums)
+        if n &lt; 2:
+            return 0
+        lo, hi = min(nums), max(nums)
+        size = max(1, (hi - lo) // (n - 1))  # no bigger than the average gap
+        count = (hi - lo) // size + 1
+        bucket_min = [None] * count
+        bucket_max = [None] * count
+        for x in nums:
+            b = (x - lo) // size
+            bucket_min[b] = x if bucket_min[b] is None else min(bucket_min[b], x)
+            bucket_max[b] = x if bucket_max[b] is None else max(bucket_max[b], x)
+        best = 0
+        prev_max = lo
+        for b in range(count):
+            if bucket_min[b] is not None:
+                best = max(best, bucket_min[b] - prev_max)  # gap across empty space between buckets
+                prev_max = bucket_max[b]
+        return best</code></pre>
+        <!-- trace:start 164 -->
+        <div class="trace-viz" id="trace-p164"></div>
+        <script type="application/json" id="trace-p164-data">{"src":["class Solution:","    def maximumGap(self, nums: List[int]) -> int:","        n = len(nums)","        if n < 2:","            return 0","        lo, hi = min(nums), max(nums)","        size = max(1, (hi - lo) // (n - 1))  # no bigger than the average gap","        count = (hi - lo) // size + 1","        bucket_min = [None] * count","        bucket_max = [None] * count","        for x in nums:","            b = (x - lo) // size","            bucket_min[b] = x if bucket_min[b] is None else min(bucket_min[b], x)","            bucket_max[b] = x if bucket_max[b] is None else max(bucket_max[b], x)","        best = 0","        prev_max = lo","        for b in range(count):","            if bucket_min[b] is not None:","                best = max(best, bucket_min[b] - prev_max)  # gap across empty space between buckets","                prev_max = bucket_max[b]","        return best"],"notes":{"7":"no bigger than the average gap","19":"gap across empty space between buckets"},"input":"nums = [10]","output":"0","values":[{"~":"list","v":[10]},1,0],"steps":[[3,1,"maximumGap",{"nums":0},null],[4,1,"maximumGap",{"nums":0,"n":1},null],[5,1,"maximumGap",{"nums":0,"n":1},null],[5,1,"maximumGap",{"nums":0,"n":1},null,2]],"truncated":false}</script>
+        <!-- trace:end 164 -->
+        <!-- explain:start 164 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Inside one bucket, values differ by less than <code>size</code> ≤ the answer, so they can't hold the maximum gap.</li>
+          <li>Only each bucket's extremes matter.</li>
+          <li>Empty buckets are skipped; the gap jumps over them.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 164 -->
+        <!-- enrich-edges:start 164 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than 2 elements → 0.</li>
+          <li>All equal → 0.</li>
+          <li>Two elements.</li>
+        </ul>
+        <!-- enrich-edges:end 164 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 164 -->
+
+    <!-- gen:start 179 -->
+    <details class="problem" id="p-179">
+      <summary><span class="tag medium">Medium</span> 179. Largest Number <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Arrange non-negative integers to form the largest number; return it as a string.</p>
+        <!-- enrich-top:start 179 -->
+        <p class="links"><a href="https://leetcode.com/problems/largest-number/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [10,2]</code></div><div><strong>Output:</strong> <code class="ex">"210"</code></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,30,34,5,9]</code></div><div><strong>Output:</strong> <code class="ex">"9534330"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 100</code> · <code>0 ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Ordinary string sort fails for 3 and 30. Why?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Compare two numbers by the two possible concatenations.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all permutations is <code>n!</code>; the comparator sort is <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 179 -->
+        <p><strong>Spot it:</strong> A <strong>greedy ordering</strong>: for any two numbers, the better order is decided by comparing the concatenations <code>a + b</code> and <code>b + a</code>. This comparison is transitive, so sorting with it gives the answer.</p>
+        <p><strong>Why not another pattern?</strong> Sorting numerically or lexicographically fails: <code>[3, 30]</code> should give <code>330</code>, not <code>303</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Convert to strings.</li>
+          <li>Sort with <code>cmp(a, b) = −1</code> if <code>a + b &gt; b + a</code>.</li>
+          <li>Join; if the result starts with <code>0</code>, return <code>"0"</code>.</li>
+        </ol>
+        <pre><code class="python">from functools import cmp_to_key
+
+class Solution:
+    def largestNumber(self, nums: List[int]) -&gt; str:
+        strs = [str(x) for x in nums]
+
+        def order(a, b):
+            if a + b &gt; b + a:
+                return -1  # a should come first
+            if a + b &lt; b + a:
+                return 1
+            return 0
+
+        strs.sort(key=cmp_to_key(order))
+        result = "".join(strs)
+        return "0" if result[0] == "0" else result  # all zeros</code></pre>
+        <!-- trace:start 179 -->
+        <div class="trace-viz" id="trace-p179"></div>
+        <script type="application/json" id="trace-p179-data">{"src":["from functools import cmp_to_key","","class Solution:","    def largestNumber(self, nums: List[int]) -> str:","        strs = [str(x) for x in nums]","","        def order(a, b):","            if a + b > b + a:","                return -1  # a should come first","            if a + b < b + a:","                return 1","            return 0","","        strs.sort(key=cmp_to_key(order))","        result = \"\".join(strs)","        return \"0\" if result[0] == \"0\" else result  # all zeros"],"notes":{"9":"a should come first","16":"all zeros"},"input":"nums = [10,2]","output":"\"210\"","values":[{"~":"list","v":[10,2]},10,2,{"~":"list","v":["10","2"]},"2","10","largestNumber(nums=[2 items]) › order(a='2', b='10')",-1,{"~":"list","v":["2","10"]},"210"],"steps":[[5,1,"largestNumber",{"nums":0},null],[5,1,"largestNumber",{"nums":0,"x":1},null],[5,1,"largestNumber",{"nums":0,"x":2},null],[7,1,"largestNumber",{"nums":0,"strs":3},null],[14,1,"largestNumber",{"nums":0,"strs":3},null],[8,2,"order",{"a":4,"b":5},6],[9,2,"order",{"a":4,"b":5},6],[9,2,"order",{"a":4,"b":5},6,7],[15,1,"largestNumber",{"nums":0,"strs":8},null],[16,1,"largestNumber",{"nums":0,"strs":8,"result":9},null],[16,1,"largestNumber",{"nums":0,"strs":8,"result":9},null,9]],"truncated":false}</script>
+        <!-- trace:end 179 -->
+        <!-- explain:start 179 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Comparing <code>a + b</code> vs <code>b + a</code> asks which order is better for this pair, and a sorted list is locally optimal everywhere.</li>
+          <li>If the largest piece is <code>0</code>, every piece is 0.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 179 -->
+        <!-- enrich-edges:start 179 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All zeros → "0".</li>
+          <li>Prefixes like 3, 34, 30.</li>
+          <li>A single number.</li>
+        </ul>
+        <!-- enrich-edges:end 179 -->
+        <p><strong>Complexity:</strong> <code>O(n log n · L)</code> time, <code>O(n · L)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 179 -->
+
+    <!-- gen:start 406 -->
+    <details class="problem" id="p-406">
+      <summary><span class="tag medium">Medium</span> 406. Queue Reconstruction by Height <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Each person is <code>[h, k]</code>: <code>k</code> people in front are at least as tall. Reconstruct the queue.</p>
+        <!-- enrich-top:start 406 -->
+        <p class="links"><a href="https://leetcode.com/problems/queue-reconstruction-by-height/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">people = [[7,0],[4,4],[7,1],[5,0],[6,1],[5,2]]</code></div><div><strong>Output:</strong> <code class="ex">[[5,0],[7,0],[5,2],[6,1],[4,4],[7,1]]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Person 0 has height 5 with no other people taller or the same height in front.
+Person 1 has height 7 with no other people taller or the same height in front.
+Person 2 has height 5 with two persons taller or the same height in front, which is person 0 and 1.
+Person 3 has height 6 with one person taller or the same height in front, which is person 1.
+Person 4 has height 4 with four people taller or the same height in front, which are people 0, 1, 2, and 3.
+Person 5 has height 7 with one person taller or the same height in front, which is person 1.
+Hence [[5,0],[7,0],[5,2],[6,1],[4,4],[7,1]] is the reconstructed queue.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">people = [[6,0],[5,0],[4,0],[3,2],[2,2],[1,4]]</code></div><div><strong>Output:</strong> <code class="ex">[[4,0],[5,0],[2,2],[3,2],[1,4],[6,0]]</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ people.length ≤ 2000</code> · <code>0 ≤ hi ≤ 10⁶</code> · <code>0 ≤ ki &lt; people.length</code> · It is guaranteed that the queue can be reconstructed.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Whose positions don't affect the k of a tall person?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Process the tallest people first.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying permutations is <code>n!</code>; sorted insertion is <code>O(n²)</code>.</p>
+        <!-- enrich-top:end 406 -->
+        <p><strong>Spot it:</strong> Shorter people are invisible to taller ones' <code>k</code>. Place the <strong>tallest first</strong>; then each shorter person inserted at index <code>k</code> has exactly <code>k</code> taller-or-equal people before them, and later (shorter) inserts don't break earlier counts — a <strong>greedy insertion</strong>.</p>
+        <p><strong>Why not another pattern?</strong> Placing the shortest first makes every later insertion disturb existing counts.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Sort by height descending, <code>k</code> ascending.</li>
+          <li>Insert each person at position <code>k</code> of the result list.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def reconstructQueue(self, people: List[List[int]]) -&gt; List[List[int]]:
+        people = sorted(people, key=lambda p: (-p[0], p[1]))  # tall first; fewer in front first
+        queue = []
+        for person in people:
+            queue.insert(person[1], person)  # exactly k taller-or-equal people are already placed
+        return queue</code></pre>
+        <!-- trace:start 406 -->
+        <div class="trace-viz" id="trace-p406"></div>
+        <script type="application/json" id="trace-p406-data">{"src":["class Solution:","    def reconstructQueue(self, people: List[List[int]]) -> List[List[int]]:","        people = sorted(people, key=lambda p: (-p[0], p[1]))  # tall first; fewer in front first","        queue = []","        for person in people:","            queue.insert(person[1], person)  # exactly k taller-or-equal people are already placed","        return queue"],"notes":{"3":"tall first; fewer in front first","6":"exactly k taller-or-equal people are already placed"},"input":"people = [[7,0],[4,4],[7,1],[5,0],[6,1],[5,2]]","output":"[[5,0],[7,0],[5,2],[6,1],[4,4],[7,1]]","values":[{"~":"list","v":[{"~":"list","v":[7,0]},{"~":"list","v":[4,4]},{"~":"list","v":[7,1]},{"~":"list","v":[5,0]},{"~":"list","v":[6,1]},{"~":"list","v":[5,2]}]},{"~":"list","v":[7,0]},"reconstructQueue(people=[6 items]) › <lambda>(p=[2 items])",{"~":"tuple","v":[-7,0]},{"~":"list","v":[4,4]},{"~":"tuple","v":[-4,4]},{"~":"list","v":[7,1]},{"~":"tuple","v":[-7,1]},{"~":"list","v":[5,0]},{"~":"tuple","v":[-5,0]},{"~":"list","v":[6,1]},{"~":"tuple","v":[-6,1]},{"~":"list","v":[5,2]},{"~":"tuple","v":[-5,2]},{"~":"list","v":[{"~":"list","v":[7,0]},{"~":"list","v":[7,1]},{"~":"list","v":[6,1]},{"~":"list","v":[5,0]},{"~":"list","v":[5,2]},{"~":"list","v":[4,4]}]},{"~":"list","v":[]},{"~":"list","v":[{"~":"list","v":[7,0]}]},{"~":"list","v":[{"~":"list","v":[7,0]},{"~":"list","v":[7,1]}]},{"~":"list","v":[{"~":"list","v":[7,0]},{"~":"list","v":[6,1]},{"~":"list","v":[7,1]}]},{"~":"list","v":[{"~":"list","v":[5,0]},{"~":"list","v":[7,0]},{"~":"list","v":[6,1]},{"~":"list","v":[7,1]}]},{"~":"list","v":[{"~":"list","v":[5,0]},{"~":"list","v":[7,0]},{"~":"list","v":[5,2]},{"~":"list","v":[6,1]},{"~":"list","v":[7,1]}]},{"~":"list","v":[{"~":"list","v":[5,0]},{"~":"list","v":[7,0]},{"~":"list","v":[5,2]},{"~":"list","v":[6,1]},{"~":"list","v":[4,4]},{"~":"list","v":[7,1]}]}],"steps":[[3,1,"reconstructQueue",{"people":0},null],[3,2,"<lambda>",{"p":1},2],[3,2,"<lambda>",{"p":1},2,3],[3,2,"<lambda>",{"p":4},2],[3,2,"<lambda>",{"p":4},2,5],[3,2,"<lambda>",{"p":6},2],[3,2,"<lambda>",{"p":6},2,7],[3,2,"<lambda>",{"p":8},2],[3,2,"<lambda>",{"p":8},2,9],[3,2,"<lambda>",{"p":10},2],[3,2,"<lambda>",{"p":10},2,11],[3,2,"<lambda>",{"p":12},2],[3,2,"<lambda>",{"p":12},2,13],[4,1,"reconstructQueue",{"people":14},null],[5,1,"reconstructQueue",{"people":14,"queue":15},null],[6,1,"reconstructQueue",{"people":14,"queue":15,"person":1},null],[5,1,"reconstructQueue",{"people":14,"queue":16,"person":1},null],[6,1,"reconstructQueue",{"people":14,"queue":16,"person":6},null],[5,1,"reconstructQueue",{"people":14,"queue":17,"person":6},null],[6,1,"reconstructQueue",{"people":14,"queue":17,"person":10},null],[5,1,"reconstructQueue",{"people":14,"queue":18,"person":10},null],[6,1,"reconstructQueue",{"people":14,"queue":18,"person":8},null],[5,1,"reconstructQueue",{"people":14,"queue":19,"person":8},null],[6,1,"reconstructQueue",{"people":14,"queue":19,"person":12},null],[5,1,"reconstructQueue",{"people":14,"queue":20,"person":12},null],[6,1,"reconstructQueue",{"people":14,"queue":20,"person":4},null],[5,1,"reconstructQueue",{"people":14,"queue":21,"person":4},null],[7,1,"reconstructQueue",{"people":14,"queue":21,"person":4},null],[7,1,"reconstructQueue",{"people":14,"queue":21,"person":4},null,21]],"truncated":false}</script>
+        <!-- trace:end 406 -->
+        <!-- explain:start 406 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>When a person is inserted, everyone already placed is at least as tall, so index <code>k</code> is exactly right.</li>
+          <li>Shorter people inserted later don't change the count of taller people ahead of anyone.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 406 -->
+        <!-- enrich-edges:start 406 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Equal heights (k ascending).</li>
+          <li>All k = 0.</li>
+          <li>One person.</li>
+        </ul>
+        <!-- enrich-edges:end 406 -->
+        <p><strong>Complexity:</strong> <code>O(n²)</code> time (list inserts), <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 406 -->
+
+    <!-- gen:start 846 -->
+    <details class="problem" id="p-846">
+      <summary><span class="tag medium">Medium</span> 846. Hand of Straights <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Can the cards be split into groups of <code>groupSize</code> consecutive values?</p>
+        <!-- enrich-top:start 846 -->
+        <p class="links"><a href="https://leetcode.com/problems/hand-of-straights/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">hand = [1,2,3,6,2,3,4,7,8], groupSize = 3</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Alice's hand can be rearranged as [1,2,3],[2,3,4],[6,7,8]</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">hand = [1,2,3,4,5], groupSize = 4</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Alice's hand can not be rearranged into groups of 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ hand.length ≤ 10⁴</code> · <code>0 ≤ hand[i] ≤ 10⁹</code> · <code>1 ≤ groupSize ≤ hand.length</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which card is forced to start a group?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Form groups from the smallest value upward.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying all groupings is exponential; greedy from the smallest is near-linear after sorting.</p>
+        <!-- enrich-top:end 846 -->
+        <p><strong>Spot it:</strong> The smallest card can't be in the middle of a group, so it must <strong>start</strong> one. Greedily form groups from the smallest value using a <strong>counter</strong>.</p>
+        <p><strong>Why not another pattern?</strong> Backtracking over group choices is exponential.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>If <code>len(hand) % groupSize</code>, false.</li>
+          <li>For each value <code>x</code> in sorted order with <code>c = count[x] &gt; 0</code>: every <code>x + d</code> (d &lt; groupSize) needs <code>count ≥ c</code>; subtract <code>c</code>.</li>
+        </ol>
+        <pre><code class="python">from collections import Counter
+
+class Solution:
+    def isNStraightHand(self, hand: List[int], groupSize: int) -&gt; bool:
+        if len(hand) % groupSize:
+            return False
+        count = Counter(hand)
+        for x in sorted(count):
+            c = count[x]
+            if c == 0:
+                continue
+            for v in range(x, x + groupSize):  # x must start c groups
+                if count[v] &lt; c:
+                    return False
+                count[v] -= c
+        return True</code></pre>
+        <!-- trace:start 846 -->
+        <div class="trace-viz" id="trace-p846"></div>
+        <script type="application/json" id="trace-p846-data">{"src":["from collections import Counter","","class Solution:","    def isNStraightHand(self, hand: List[int], groupSize: int) -> bool:","        if len(hand) % groupSize:","            return False","        count = Counter(hand)","        for x in sorted(count):","            c = count[x]","            if c == 0:","                continue","            for v in range(x, x + groupSize):  # x must start c groups","                if count[v] < c:","                    return False","                count[v] -= c","        return True"],"notes":{"12":"x must start c groups"},"input":"hand = [1,2,3,4,5], groupSize = 4","output":"false","values":[{"~":"list","v":[1,2,3,4,5]},4,false],"steps":[[5,1,"isNStraightHand",{"hand":0,"groupSize":1},null],[6,1,"isNStraightHand",{"hand":0,"groupSize":1},null],[6,1,"isNStraightHand",{"hand":0,"groupSize":1},null,2]],"truncated":false}</script>
+        <!-- trace:end 846 -->
+        <!-- explain:start 846 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The smallest remaining value has nothing below it, so every copy starts a group.</li>
+          <li>All <code>c</code> groups starting at <code>x</code> are formed at once.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 846 -->
+        <!-- enrich-edges:start 846 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>groupSize = 1</code> → true.</li>
+          <li>Count not divisible → false.</li>
+          <li>Duplicates spanning several groups.</li>
+        </ul>
+        <!-- enrich-edges:end 846 -->
+        <p><strong>Complexity:</strong> <code>O(n log n + n · groupSize)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 846 -->
+
+    <!-- gen:start 912 -->
+    <details class="problem" id="p-912">
+      <summary><span class="tag medium">Medium</span> 912. Sort an Array <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Sort the array in <code>O(n log n)</code> without built-in sort, using as little space as possible.</p>
+        <!-- enrich-top:start 912 -->
+        <p class="links"><a href="https://leetcode.com/problems/sort-an-array/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [5,2,3,1]</code></div><div><strong>Output:</strong> <code class="ex">[1,2,3,5]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">After sorting the array, the positions of some numbers are not changed (for example, 2 and 3), while the positions of other numbers are changed (for example, 1 and 5).</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [5,1,1,2,0,0]</code></div><div><strong>Output:</strong> <code class="ex">[0,0,1,1,2,5]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Note that the values of nums are not necessarily unique.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ nums.length ≤ 5 * 10⁴</code> · <code>-5 * 10⁴ ≤ nums[i] ≤ 5 * 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Pick an algorithm with a guaranteed <code>O(n log n)</code> bound.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Merge sort: how do you merge two sorted lists in linear time?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Insertion sort is <code>O(n²)</code>; merge sort is <code>O(n log n)</code> in every case.</p>
+        <!-- enrich-top:end 912 -->
+        <p><strong>Spot it:</strong> Interviewers want a real <code>O(n log n)</code> sort. <strong>Merge sort</strong> is guaranteed <code>O(n log n)</code>; its merge step is the same greedy "take the smaller front element" used in many problems.</p>
+        <p><strong>Why not another pattern?</strong> Quicksort with a fixed pivot hits <code>O(n²)</code> on sorted or duplicate-heavy tests; bubble/insertion sorts are <code>O(n²)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Split in half and sort each recursively.</li>
+          <li>Merge: compare the heads of the two halves, append the smaller.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def sortArray(self, nums: List[int]) -&gt; List[int]:
+        if len(nums) &lt;= 1:
+            return nums
+        mid = len(nums) // 2
+        left = self.sortArray(nums[:mid])
+        right = self.sortArray(nums[mid:])
+        merged = []
+        i = j = 0
+        while i &lt; len(left) and j &lt; len(right):
+            if left[i] &lt;= right[j]:
+                merged.append(left[i])  # the smaller head goes next
+                i += 1
+            else:
+                merged.append(right[j])
+                j += 1
+        merged.extend(left[i:])  # one side may have leftovers
+        merged.extend(right[j:])
+        return merged</code></pre>
+        <!-- trace:start 912 -->
+        <div class="trace-viz" id="trace-p912"></div>
+        <script type="application/json" id="trace-p912-data">{"src":["class Solution:","    def sortArray(self, nums: List[int]) -> List[int]:","        if len(nums) <= 1:","            return nums","        mid = len(nums) // 2","        left = self.sortArray(nums[:mid])","        right = self.sortArray(nums[mid:])","        merged = []","        i = j = 0","        while i < len(left) and j < len(right):","            if left[i] <= right[j]:","                merged.append(left[i])  # the smaller head goes next","                i += 1","            else:","                merged.append(right[j])","                j += 1","        merged.extend(left[i:])  # one side may have leftovers","        merged.extend(right[j:])","        return merged"],"notes":{"12":"the smaller head goes next","17":"one side may have leftovers"},"input":"nums = [5,2,3,1]","output":"[1,2,3,5]","values":[{"~":"list","v":[5,2,3,1]},2,{"~":"list","v":[5,2]},"sortArray(nums=[4 items]) › sortArray(nums=[2 items])",1,{"~":"list","v":[5]},"sortArray(nums=[4 items]) › sortArray(nums=[2 items]) › sortArray(nums=[1 items])",{"~":"list","v":[2]},{"~":"list","v":[]},0,{"~":"list","v":[2,5]},{"~":"list","v":[3,1]},{"~":"list","v":[3]},{"~":"list","v":[1]},{"~":"list","v":[1,3]},{"~":"list","v":[1,2]},{"~":"list","v":[1,2,3]},{"~":"list","v":[1,2,3,5]}],"steps":[[3,1,"sortArray",{"nums":0},null],[5,1,"sortArray",{"nums":0},null],[6,1,"sortArray",{"nums":0,"mid":1},null],[3,2,"sortArray",{"nums":2},3],[5,2,"sortArray",{"nums":2},3],[6,2,"sortArray",{"nums":2,"mid":4},3],[3,3,"sortArray",{"nums":5},6],[4,3,"sortArray",{"nums":5},6],[4,3,"sortArray",{"nums":5},6,5],[7,2,"sortArray",{"nums":2,"mid":4,"left":5},3],[3,3,"sortArray",{"nums":7},6],[4,3,"sortArray",{"nums":7},6],[4,3,"sortArray",{"nums":7},6,7],[8,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7},3],[9,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":8},3],[10,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":8,"i":9,"j":9},3],[11,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":8,"i":9,"j":9},3],[15,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":8,"i":9,"j":9},3],[16,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":7,"i":9,"j":9},3],[10,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":7,"i":9,"j":4},3],[17,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":7,"i":9,"j":4},3],[18,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":10,"i":9,"j":4},3],[19,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":10,"i":9,"j":4},3],[19,2,"sortArray",{"nums":2,"mid":4,"left":5,"right":7,"merged":10,"i":9,"j":4},3,10],[7,1,"sortArray",{"nums":0,"mid":1,"left":10},null],[3,2,"sortArray",{"nums":11},3],[5,2,"sortArray",{"nums":11},3],[6,2,"sortArray",{"nums":11,"mid":4},3],[3,3,"sortArray",{"nums":12},6],[4,3,"sortArray",{"nums":12},6],[4,3,"sortArray",{"nums":12},6,12],[7,2,"sortArray",{"nums":11,"mid":4,"left":12},3],[3,3,"sortArray",{"nums":13},6],[4,3,"sortArray",{"nums":13},6],[4,3,"sortArray",{"nums":13},6,13],[8,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13},3],[9,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":8},3],[10,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":8,"i":9,"j":9},3],[11,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":8,"i":9,"j":9},3],[15,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":8,"i":9,"j":9},3],[16,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":13,"i":9,"j":9},3],[10,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":13,"i":9,"j":4},3],[17,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":13,"i":9,"j":4},3],[18,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":14,"i":9,"j":4},3],[19,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":14,"i":9,"j":4},3],[19,2,"sortArray",{"nums":11,"mid":4,"left":12,"right":13,"merged":14,"i":9,"j":4},3,14],[8,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14},null],[9,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":8},null],[10,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":8,"i":9,"j":9},null],[11,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":8,"i":9,"j":9},null],[15,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":8,"i":9,"j":9},null],[16,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":13,"i":9,"j":9},null],[10,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":13,"i":9,"j":4},null],[11,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":13,"i":9,"j":4},null],[12,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":13,"i":9,"j":4},null],[13,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":15,"i":9,"j":4},null],[10,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":15,"i":4,"j":4},null],[11,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":15,"i":4,"j":4},null],[15,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":15,"i":4,"j":4},null],[16,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":16,"i":4,"j":4},null],[10,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":16,"i":4,"j":1},null],[17,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":16,"i":4,"j":1},null],[18,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":17,"i":4,"j":1},null],[19,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":17,"i":4,"j":1},null],[19,1,"sortArray",{"nums":0,"mid":1,"left":10,"right":14,"merged":17,"i":4,"j":1},null,17]],"truncated":false}</script>
+        <!-- trace:end 912 -->
+        <!-- explain:start 912 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each level of recursion does <code>O(n)</code> merging work, and there are <code>log n</code> levels.</li>
+          <li><code>&lt;=</code> keeps equal elements in their original order (stable).</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 912 -->
+        <!-- enrich-edges:start 912 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Duplicates.</li>
+          <li>Already sorted.</li>
+          <li>Negative numbers.</li>
+        </ul>
+        <!-- enrich-edges:end 912 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 912 -->
+
+    <!-- gen:start 1296 -->
+    <details class="problem" id="p-1296">
+      <summary><span class="tag medium">Medium</span> 1296. Divide Array in Sets of K Consecutive Numbers <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Hash Map</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Can <code>nums</code> be divided into sets of <code>k</code> consecutive numbers?</p>
+        <!-- enrich-top:start 1296 -->
+        <p class="links"><a href="https://leetcode.com/problems/divide-array-in-sets-of-k-consecutive-numbers/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,3,4,4,5,6], k = 4</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Array can be divided into [1,2,3,4] and [3,4,5,6].</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [3,2,1,2,3,4,3,4,5,9,10,11], k = 3</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Array can be divided into [1,2,3] , [2,3,4] , [3,4,5] and [9,10,11].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ nums.length ≤ 10⁵</code> · <code>1 ≤ nums[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which number must start a set?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Use counts to form sets from the smallest value up.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Exponential search vs a near-linear greedy.</p>
+        <!-- enrich-top:end 1296 -->
+        <p><strong>Spot it:</strong> The smallest remaining number must start a set → <strong>greedy from the smallest</strong> with a counter.</p>
+        <p><strong>Why not another pattern?</strong> Backtracking over set choices is exponential.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>If <code>len(nums) % k</code>, false.</li>
+          <li>For each value <code>x</code> ascending with <code>c = count[x]</code>: subtract <code>c</code> from <code>x..x + k − 1</code>, failing if any count is short.</li>
+        </ol>
+        <pre><code class="python">from collections import Counter
+
+class Solution:
+    def isPossibleDivide(self, nums: List[int], k: int) -&gt; bool:
+        if len(nums) % k:
+            return False
+        count = Counter(nums)
+        for x in sorted(count):
+            c = count[x]
+            if c:
+                for v in range(x, x + k):  # every copy of x starts a run
+                    if count[v] &lt; c:
+                        return False
+                    count[v] -= c
+        return True</code></pre>
+        <!-- trace:start 1296 -->
+        <div class="trace-viz" id="trace-p1296"></div>
+        <script type="application/json" id="trace-p1296-data">{"src":["from collections import Counter","","class Solution:","    def isPossibleDivide(self, nums: List[int], k: int) -> bool:","        if len(nums) % k:","            return False","        count = Counter(nums)","        for x in sorted(count):","            c = count[x]","            if c:","                for v in range(x, x + k):  # every copy of x starts a run","                    if count[v] < c:","                        return False","                    count[v] -= c","        return True"],"notes":{"11":"every copy of x starts a run"},"input":"nums = [1,2,3,4], k = 3","output":"false","values":[{"~":"list","v":[1,2,3,4]},3,false],"steps":[[5,1,"isPossibleDivide",{"nums":0,"k":1},null],[6,1,"isPossibleDivide",{"nums":0,"k":1},null],[6,1,"isPossibleDivide",{"nums":0,"k":1},null,2]],"truncated":false}</script>
+        <!-- trace:end 1296 -->
+        <!-- explain:start 1296 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Identical to Hand of Straights with <code>groupSize = k</code>.</li>
+          <li>Handling all <code>c</code> copies at once avoids repeated scans.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1296 -->
+        <!-- enrich-edges:start 1296 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li><code>k = 1</code>.</li>
+          <li>Length not divisible by k.</li>
+          <li>Large repeated values.</li>
+        </ul>
+        <!-- enrich-edges:end 1296 -->
+        <p><strong>Complexity:</strong> <code>O(n log n + n · k)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1296 -->
+
+    <!-- gen:start 1589 -->
+    <details class="problem" id="p-1589">
+      <summary><span class="tag medium">Medium</span> 1589. Maximum Sum Obtained of Any Permutation <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Permute <code>nums</code> to maximise the total of all range-sum requests (mod 10⁹ + 7).</p>
+        <!-- enrich-top:start 1589 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-sum-obtained-of-any-permutation/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4,5], requests = [[1,3],[0,1]]</code></div><div><strong>Output:</strong> <code class="ex">19</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One permutation of nums is [2,1,3,4,5] with the following result: 
+requests[0] -&gt; nums[1] + nums[2] + nums[3] = 1 + 3 + 4 = 8
+requests[1] -&gt; nums[0] + nums[1] = 2 + 1 = 3
+Total sum: 8 + 3 = 11.
+A permutation with a higher total sum is [3,5,4,2,1] with the following result:
+requests[0] -&gt; nums[1] + nums[2] + nums[3] = 5 + 4 + 2 = 11
+requests[1] -&gt; nums[0] + nums[1] = 3 + 5 = 8
+Total sum: 11 + 8 = 19, which is the best that you can do.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [1,2,3,4,5,6], requests = [[0,1]]</code></div><div><strong>Output:</strong> <code class="ex">11</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">A permutation with the max total sum is [6,5,4,3,2,1] with request sums [11].</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == nums.length</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>0 ≤ nums[i] ≤ 10⁵</code> · <code>1 ≤ requests.length ≤ 10⁵</code> · <code>requests[i].length == 2</code> · <code>0 ≤ starti ≤ endi &lt; n</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How many times does each index get counted across all requests?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Which number should go to the most counted index?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Every permutation is <code>n!</code>; coverage counts + sorting is <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 1589 -->
+        <p><strong>Spot it:</strong> Each index contributes <code>nums[index] × (number of requests covering it)</code>. By the rearrangement inequality, pair the largest values with the largest counts (<strong>greedy sort</strong>). Counts come from a <strong>difference array</strong>.</p>
+        <p><strong>Why not another pattern?</strong> Trying permutations is <code>n!</code>; counting coverage per request naively is <code>O(n · requests)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>diff[start] += 1</code>, <code>diff[end + 1] −= 1</code>; prefix sums give <code>freq</code>.</li>
+          <li>Sort <code>freq</code> and <code>nums</code>; sum the products.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxSumRangeQuery(self, nums: List[int], requests: List[List[int]]) -&gt; int:
+        n = len(nums)
+        diff = [0] * (n + 1)
+        for start, end in requests:
+            diff[start] += 1  # coverage starts here
+            diff[end + 1] -= 1  # and stops after end
+        freq = []
+        running = 0
+        for i in range(n):
+            running += diff[i]
+            freq.append(running)  # how many requests include index i
+        freq.sort()
+        return sum(a * b for a, b in zip(sorted(nums), freq)) % (10**9 + 7)  # biggest with busiest</code></pre>
+        <!-- trace:start 1589 -->
+        <div class="trace-viz" id="trace-p1589"></div>
+        <script type="application/json" id="trace-p1589-data">{"src":["class Solution:","    def maxSumRangeQuery(self, nums: List[int], requests: List[List[int]]) -> int:","        n = len(nums)","        diff = [0] * (n + 1)","        for start, end in requests:","            diff[start] += 1  # coverage starts here","            diff[end + 1] -= 1  # and stops after end","        freq = []","        running = 0","        for i in range(n):","            running += diff[i]","            freq.append(running)  # how many requests include index i","        freq.sort()","        return sum(a * b for a, b in zip(sorted(nums), freq)) % (10**9 + 7)  # biggest with busiest"],"notes":{"6":"coverage starts here","7":"and stops after end","12":"how many requests include index i","14":"biggest with busiest"},"input":"nums = [1,2,3,4,5], requests = [[1,3],[0,1]]","output":"19","values":[{"~":"list","v":[1,2,3,4,5]},{"~":"list","v":[{"~":"list","v":[1,3]},{"~":"list","v":[0,1]}]},5,{"~":"list","v":[0,0,0,0,0,0]},1,3,{"~":"list","v":[0,1,0,0,0,0]},{"~":"list","v":[0,1,0,0,-1,0]},0,{"~":"list","v":[1,1,0,0,-1,0]},{"~":"list","v":[1,1,-1,0,-1,0]},{"~":"list","v":[]},{"~":"list","v":[1]},2,{"~":"list","v":[1,2]},{"~":"list","v":[1,2,1]},{"~":"list","v":[1,2,1,1]},4,{"~":"list","v":[1,2,1,1,0]},{"~":"list","v":[0,1,1,1,2]},{"~":"obj","v":"zip"},"maxSumRangeQuery(nums=[5 items], requests=[2 items]) › <genexpr>(.0=zip)",10,null,19],"steps":[[3,1,"maxSumRangeQuery",{"nums":0,"requests":1},null],[4,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2},null],[5,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":3},null],[6,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":3,"start":4,"end":5},null],[7,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":6,"start":4,"end":5},null],[5,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":7,"start":4,"end":5},null],[6,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":7,"start":8,"end":4},null],[7,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":9,"start":8,"end":4},null],[5,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4},null],[8,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4},null],[9,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":11},null],[10,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":11,"running":8},null],[11,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":11,"running":8,"i":8},null],[12,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":11,"running":4,"i":8},null],[10,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":12,"running":4,"i":8},null],[11,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":12,"running":4,"i":4},null],[12,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":12,"running":13,"i":4},null],[10,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":14,"running":13,"i":4},null],[11,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":14,"running":13,"i":13},null],[12,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":14,"running":4,"i":13},null],[10,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":15,"running":4,"i":13},null],[11,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":15,"running":4,"i":5},null],[12,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":15,"running":4,"i":5},null],[10,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":16,"running":4,"i":5},null],[11,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":16,"running":4,"i":17},null],[12,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":16,"running":8,"i":17},null],[10,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":18,"running":8,"i":17},null],[13,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":18,"running":8,"i":17},null],[14,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":19,"running":8,"i":17},null],[14,2,"<genexpr>",{".0":20},21],[14,2,"<genexpr>",{".0":20,"a":4,"b":8},21,8],[14,2,"<genexpr>",{".0":20,"a":4,"b":8},21],[14,2,"<genexpr>",{".0":20,"a":13,"b":4},21,13],[14,2,"<genexpr>",{".0":20,"a":13,"b":4},21],[14,2,"<genexpr>",{".0":20,"a":5,"b":4},21,5],[14,2,"<genexpr>",{".0":20,"a":5,"b":4},21],[14,2,"<genexpr>",{".0":20,"a":17,"b":4},21,17],[14,2,"<genexpr>",{".0":20,"a":17,"b":4},21],[14,2,"<genexpr>",{".0":20,"a":2,"b":13},21,22],[14,2,"<genexpr>",{".0":20,"a":2,"b":13},21],[14,2,"<genexpr>",{".0":20,"a":2,"b":13},21,23],[14,1,"maxSumRangeQuery",{"nums":0,"requests":1,"n":2,"diff":10,"start":8,"end":4,"freq":19,"running":8,"i":17},null,24]],"truncated":false}</script>
+        <!-- trace:end 1589 -->
+        <!-- explain:start 1589 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The total equals <code>Σ nums[i] · freq[i]</code> for the chosen arrangement.</li>
+          <li>Pairing sorted with sorted maximises a sum of products (rearrangement inequality).</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1589 -->
+        <!-- enrich-edges:start 1589 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Indices covered by no request (smallest numbers go there).</li>
+          <li>One request.</li>
+          <li>Overlapping requests.</li>
+        </ul>
+        <!-- enrich-edges:end 1589 -->
+        <p><strong>Complexity:</strong> <code>O(n log n + requests)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1589 -->
+
+    <!-- gen:start 1689 -->
+    <details class="problem" id="p-1689">
+      <summary><span class="tag medium">Medium</span> 1689. Partitioning Into Minimum Number Of Deci-Binary Numbers <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Return the minimum number of deci-binary numbers (digits 0/1) that sum to the decimal string <code>n</code>.</p>
+        <!-- enrich-top:start 1689 -->
+        <p class="links"><a href="https://leetcode.com/problems/partitioning-into-minimum-number-of-deci-binary-numbers/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">n = "32"</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">10 + 11 + 11 = 32</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">n = "82734"</code></div><div><strong>Output:</strong> <code class="ex">8</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n.length ≤ 10⁵</code> · <code>n</code> consists of only digits. · <code>n</code> does not contain any leading zeros and represents a positive integer.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>How much can one deci-binary number add to a single digit?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Look at the largest digit.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Building summands one at a time is <code>O(9 · len)</code>; the max digit is the answer directly.</p>
+        <!-- enrich-top:end 1689 -->
+        <p><strong>Spot it:</strong> Each summand contributes at most 1 to each digit position (no carries help), so the biggest digit <code>d</code> needs <code>d</code> summands, and <code>d</code> summands are enough (<strong>greedy</strong>).</p>
+        <p><strong>Why not another pattern?</strong> Constructing summands explicitly is unnecessary.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Return <code>int(max(n))</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def minPartitions(self, n: str) -&gt; int:
+        return int(max(n))  # the largest digit needs that many 1s stacked on it</code></pre>
+        <!-- trace:start 1689 -->
+        <div class="trace-viz" id="trace-p1689"></div>
+        <script type="application/json" id="trace-p1689-data">{"src":["class Solution:","    def minPartitions(self, n: str) -> int:","        return int(max(n))  # the largest digit needs that many 1s stacked on it"],"notes":{"3":"the largest digit needs that many 1s stacked on it"},"input":"n = \"32\"","output":"3","values":["32",3],"steps":[[3,1,"minPartitions",{"n":0},null],[3,1,"minPartitions",{"n":0},null,1]],"truncated":false}</script>
+        <!-- trace:end 1689 -->
+        <!-- explain:start 1689 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A digit <code>d</code> requires at least <code>d</code> summands with a 1 there.</li>
+          <li>With <code>d = max digit</code> summands, put a 1 in position <code>p</code> of the first <code>digit[p]</code> summands.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1689 -->
+        <!-- enrich-edges:start 1689 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All 1s → 1.</li>
+          <li>A 9 anywhere → 9.</li>
+          <li>Very long strings.</li>
+        </ul>
+        <!-- enrich-edges:end 1689 -->
+        <p><strong>Complexity:</strong> <code>O(len(n))</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1689 -->
+
+    <!-- gen:start 1727 -->
+    <details class="problem" id="p-1727">
+      <summary><span class="tag medium">Medium</span> 1727. Largest Submatrix With Rearrangements <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Matrix</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> You may reorder the columns freely. Return the largest all-ones submatrix area.</p>
+        <!-- enrich-top:start 1727 -->
+        <p class="links"><a href="https://leetcode.com/problems/largest-submatrix-with-rearrangements/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">matrix = [[0,0,1],[1,1,1],[1,0,1]]</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You can rearrange the columns as shown above.
+The largest submatrix of 1s, in bold, has an area of 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">matrix = [[1,0,1,0,1]]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">You can rearrange the columns as shown above.
+The largest submatrix of 1s, in bold, has an area of 3.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>m == matrix.length</code> · <code>n == matrix[i].length</code> · <code>1 ≤ m * n ≤ 10⁵</code> · <code>matrix[i][j]</code> is either <code>0</code> or <code>1</code>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For each row, compute the height of 1s above each cell.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>If you can reorder columns, which order is best?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Permutations of columns are factorial; sorting heights per row is <code>O(mn log n)</code>.</p>
+        <!-- enrich-top:end 1727 -->
+        <p><strong>Spot it:</strong> Fix the bottom row. Each column has a height of consecutive 1s ending there. Since columns can be rearranged, <strong>sort heights descending</strong>: using the first <code>w</code> columns gives area <code>heights[w − 1] · w</code> (greedy).</p>
+        <p><strong>Why not another pattern?</strong> Trying column permutations is factorial.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Update <code>height[c]</code> row by row (reset to 0 on a 0).</li>
+          <li>Sort a copy descending; area candidates <code>h · (i + 1)</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def largestSubmatrix(self, matrix: List[List[int]]) -&gt; int:
+        n = len(matrix[0])
+        height = [0] * n  # consecutive 1s ending at the current row
+        best = 0
+        for row in matrix:
+            for c in range(n):
+                height[c] = height[c] + 1 if row[c] else 0
+            for width, h in enumerate(sorted(height, reverse=True), 1):
+                best = max(best, h * width)  # tallest `width` columns side by side
+        return best</code></pre>
+        <!-- trace:start 1727 -->
+        <div class="trace-viz" id="trace-p1727"></div>
+        <script type="application/json" id="trace-p1727-data">{"src":["class Solution:","    def largestSubmatrix(self, matrix: List[List[int]]) -> int:","        n = len(matrix[0])","        height = [0] * n  # consecutive 1s ending at the current row","        best = 0","        for row in matrix:","            for c in range(n):","                height[c] = height[c] + 1 if row[c] else 0","            for width, h in enumerate(sorted(height, reverse=True), 1):","                best = max(best, h * width)  # tallest `width` columns side by side","        return best"],"notes":{"4":"consecutive 1s ending at the current row","10":"tallest `width` columns side by side"},"input":"matrix = [[1,0,1,0,1]]","output":"3","values":[{"~":"list","v":[{"~":"list","v":[1,0,1,0,1]}]},5,{"~":"list","v":[0,0,0,0,0]},0,{"~":"list","v":[1,0,1,0,1]},{"~":"list","v":[1,0,0,0,0]},1,2,{"~":"list","v":[1,0,1,0,0]},3,4],"steps":[[3,1,"largestSubmatrix",{"matrix":0},null],[4,1,"largestSubmatrix",{"matrix":0,"n":1},null],[5,1,"largestSubmatrix",{"matrix":0,"n":1,"height":2},null],[6,1,"largestSubmatrix",{"matrix":0,"n":1,"height":2,"best":3},null],[7,1,"largestSubmatrix",{"matrix":0,"n":1,"height":2,"best":3,"row":4},null],[8,1,"largestSubmatrix",{"matrix":0,"n":1,"height":2,"best":3,"row":4,"c":3},null],[7,1,"largestSubmatrix",{"matrix":0,"n":1,"height":5,"best":3,"row":4,"c":3},null],[8,1,"largestSubmatrix",{"matrix":0,"n":1,"height":5,"best":3,"row":4,"c":6},null],[7,1,"largestSubmatrix",{"matrix":0,"n":1,"height":5,"best":3,"row":4,"c":6},null],[8,1,"largestSubmatrix",{"matrix":0,"n":1,"height":5,"best":3,"row":4,"c":7},null],[7,1,"largestSubmatrix",{"matrix":0,"n":1,"height":8,"best":3,"row":4,"c":7},null],[8,1,"largestSubmatrix",{"matrix":0,"n":1,"height":8,"best":3,"row":4,"c":9},null],[7,1,"largestSubmatrix",{"matrix":0,"n":1,"height":8,"best":3,"row":4,"c":9},null],[8,1,"largestSubmatrix",{"matrix":0,"n":1,"height":8,"best":3,"row":4,"c":10},null],[7,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":3,"row":4,"c":10},null],[9,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":3,"row":4,"c":10},null],[10,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":3,"row":4,"c":10,"width":6,"h":6},null],[9,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":6,"row":4,"c":10,"width":6,"h":6},null],[10,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":6,"row":4,"c":10,"width":7,"h":6},null],[9,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":7,"row":4,"c":10,"width":7,"h":6},null],[10,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":7,"row":4,"c":10,"width":9,"h":6},null],[9,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":9,"h":6},null],[10,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":10,"h":3},null],[9,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":10,"h":3},null],[10,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":1,"h":3},null],[9,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":1,"h":3},null],[6,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":1,"h":3},null],[11,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":1,"h":3},null],[11,1,"largestSubmatrix",{"matrix":0,"n":1,"height":4,"best":9,"row":4,"c":10,"width":1,"h":3},null,9]],"truncated":false}</script>
+        <!-- trace:end 1727 -->
+        <!-- explain:start 1727 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Heights describe how far up a full column of 1s reaches from this row.</li>
+          <li>Placing the tallest columns next to each other is optimal; the shortest of them limits the rectangle.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1727 -->
+        <!-- enrich-edges:start 1727 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All zeros → 0.</li>
+          <li>One row → number of 1s.</li>
+          <li>One column.</li>
+        </ul>
+        <!-- enrich-edges:end 1727 -->
+        <p><strong>Complexity:</strong> <code>O(m · n log n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1727 -->
+
+    <!-- gen:start 1833 -->
+    <details class="problem" id="p-1833">
+      <summary><span class="tag medium">Medium</span> 1833. Maximum Ice Cream Bars <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> With <code>coins</code>, buy as many ice cream bars as possible (each costs <code>costs[i]</code>).</p>
+        <!-- enrich-top:start 1833 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-ice-cream-bars/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">costs = [1,3,2,4,1], coins = 7</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The boy can buy ice cream bars at indices 0,1,2,4 for a total price of 1 + 3 + 2 + 1 = 7.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">costs = [10,6,8,7,7,8], coins = 5</code></div><div><strong>Output:</strong> <code class="ex">0</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The boy cannot afford any of the ice cream bars.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>costs.length == n</code> · <code>1 ≤ n ≤ 10⁵</code> · <code>1 ≤ costs[i] ≤ 10⁵</code> · <code>1 ≤ coins ≤ 10⁸</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>To buy the most bars, which bars should you pick?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Costs are small: counting sort.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Comparison sorting is <code>O(n log n)</code>; counting sort is <code>O(n + C)</code>.</p>
+        <!-- enrich-top:end 1833 -->
+        <p><strong>Spot it:</strong> To maximise the <strong>count</strong>, always buy the cheapest available bar → <strong>greedy</strong>. The problem asks for counting sort, as costs are small.</p>
+        <p><strong>Why not another pattern?</strong> Any other choice can be swapped for a cheaper bar without reducing the count.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Count bars per cost.</li>
+          <li>Go through costs ascending; buy <code>min(count, coins // cost)</code> bars.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxIceCream(self, costs: List[int], coins: int) -&gt; int:
+        count = [0] * (max(costs) + 1)
+        for c in costs:
+            count[c] += 1  # counting sort
+        bought = 0
+        for cost in range(1, len(count)):
+            if count[cost] == 0:
+                continue
+            take = min(count[cost], coins // cost)  # as many as we can afford at this price
+            bought += take
+            coins -= take * cost
+            if take &lt; count[cost]:
+                break  # can't afford more at this price, so nothing pricier either
+        return bought</code></pre>
+        <!-- trace:start 1833 -->
+        <div class="trace-viz" id="trace-p1833"></div>
+        <script type="application/json" id="trace-p1833-data">{"src":["class Solution:","    def maxIceCream(self, costs: List[int], coins: int) -> int:","        count = [0] * (max(costs) + 1)","        for c in costs:","            count[c] += 1  # counting sort","        bought = 0","        for cost in range(1, len(count)):","            if count[cost] == 0:","                continue","            take = min(count[cost], coins // cost)  # as many as we can afford at this price","            bought += take","            coins -= take * cost","            if take < count[cost]:","                break  # can't afford more at this price, so nothing pricier either","        return bought"],"notes":{"5":"counting sort","10":"as many as we can afford at this price","14":"can't afford more at this price, so nothing pricier either"},"input":"costs = [10,6,8,7,7,8], coins = 5","output":"0","values":[{"~":"list","v":[10,6,8,7,7,8]},5,{"~":"list","v":[0,0,0,0,0,0,0,0,0,0,0]},10,{"~":"list","v":[0,0,0,0,0,0,0,0,0,0,1]},6,{"~":"list","v":[0,0,0,0,0,0,1,0,0,0,1]},8,{"~":"list","v":[0,0,0,0,0,0,1,0,1,0,1]},7,{"~":"list","v":[0,0,0,0,0,0,1,1,1,0,1]},{"~":"list","v":[0,0,0,0,0,0,1,2,1,0,1]},{"~":"list","v":[0,0,0,0,0,0,1,2,2,0,1]},0,1,2,3,4],"steps":[[3,1,"maxIceCream",{"costs":0,"coins":1},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":2},null],[5,1,"maxIceCream",{"costs":0,"coins":1,"count":2,"c":3},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":4,"c":3},null],[5,1,"maxIceCream",{"costs":0,"coins":1,"count":4,"c":5},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":6,"c":5},null],[5,1,"maxIceCream",{"costs":0,"coins":1,"count":6,"c":7},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":8,"c":7},null],[5,1,"maxIceCream",{"costs":0,"coins":1,"count":8,"c":9},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":10,"c":9},null],[5,1,"maxIceCream",{"costs":0,"coins":1,"count":10,"c":9},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":11,"c":9},null],[5,1,"maxIceCream",{"costs":0,"coins":1,"count":11,"c":7},null],[4,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7},null],[6,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7},null],[7,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13},null],[8,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":14},null],[9,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":14},null],[7,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":14},null],[8,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":15},null],[9,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":15},null],[7,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":15},null],[8,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":16},null],[9,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":16},null],[7,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":16},null],[8,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":17},null],[9,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":17},null],[7,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":17},null],[8,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":1},null],[9,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":1},null],[7,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":1},null],[8,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5},null],[10,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5},null],[11,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5,"take":13},null],[12,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5,"take":13},null],[13,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5,"take":13},null],[14,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5,"take":13},null],[15,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5,"take":13},null],[15,1,"maxIceCream",{"costs":0,"coins":1,"count":12,"c":7,"bought":13,"cost":5,"take":13},null,13]],"truncated":false}</script>
+        <!-- trace:end 1833 -->
+        <!-- explain:start 1833 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Cheapest-first maximises how many bars fit in the budget.</li>
+          <li>If not all bars at one price fit, no more expensive bar fits either.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1833 -->
+        <!-- enrich-edges:start 1833 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Not enough for any bar → 0.</li>
+          <li>Enough for all.</li>
+          <li>Many equal costs.</li>
+        </ul>
+        <!-- enrich-edges:end 1833 -->
+        <p><strong>Complexity:</strong> <code>O(n + max cost)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1833 -->
+
+    <!-- gen:start 1846 -->
+    <details class="problem" id="p-1846">
+      <summary><span class="tag medium">Medium</span> 1846. Maximum Element After Decreasing and Rearranging <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> You may decrease elements and rearrange. The first must be 1 and neighbours differ by ≤ 1. Maximise the largest element.</p>
+        <!-- enrich-top:start 1846 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-element-after-decreasing-and-rearranging/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">arr = [2,2,1,2,1]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">We can satisfy the conditions by rearranging arr so it becomes [1,2,2,2,1].
+The largest element in arr is 2.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">arr = [100,1,1000]</code></div><div><strong>Output:</strong> <code class="ex">3</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One possible way to satisfy the conditions is by doing the following:
+1. Rearrange arr so it becomes [1,100,1000].
+2. Decrease the value of the second element to 2.
+3. Decrease the value of the third element to 3.
+Now arr = [1,2,3], which satisfies the conditions.
+The largest element in arr is 3.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ arr.length ≤ 10⁵</code> · <code>1 ≤ arr[i] ≤ 10⁹</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>What order of the elements helps the values climb?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Each value can be at most previous + 1.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying arrangements is factorial; sort + one pass is <code>O(n log n)</code>.</p>
+        <!-- enrich-top:end 1846 -->
+        <p><strong>Spot it:</strong> Sorted order gives each element its best chance to climb. <strong>Greedily</strong> make each value as large as allowed: <code>min(value, previous + 1)</code>.</p>
+        <p><strong>Why not another pattern?</strong> Decreasing values more than necessary only lowers the final maximum.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Sort.</li>
+          <li><code>cur = 0</code>; for each <code>x</code>: <code>cur = min(x, cur + 1)</code>.</li>
+          <li>Return <code>cur</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maximumElementAfterDecrementingAndRearranging(self, arr: List[int]) -&gt; int:
+        cur = 0
+        for x in sorted(arr):
+            cur = min(x, cur + 1)  # climb by at most 1, never above x
+        return cur</code></pre>
+        <!-- trace:start 1846 -->
+        <div class="trace-viz" id="trace-p1846"></div>
+        <script type="application/json" id="trace-p1846-data">{"src":["class Solution:","    def maximumElementAfterDecrementingAndRearranging(self, arr: List[int]) -> int:","        cur = 0","        for x in sorted(arr):","            cur = min(x, cur + 1)  # climb by at most 1, never above x","        return cur"],"notes":{"5":"climb by at most 1, never above x"},"input":"arr = [100,1,1000]","output":"3","values":[{"~":"list","v":[100,1,1000]},0,1,100,2,1000,3],"steps":[[3,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0},null],[4,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":1},null],[5,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":1,"x":2},null],[4,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":2,"x":2},null],[5,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":2,"x":3},null],[4,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":4,"x":3},null],[5,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":4,"x":5},null],[4,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":6,"x":5},null],[6,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":6,"x":5},null],[6,1,"maximumElementAfterDecrementingAndRearranging",{"arr":0,"cur":6,"x":5},null,6]],"truncated":false}</script>
+        <!-- trace:end 1846 -->
+        <!-- explain:start 1846 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Starting from <code>cur = 0</code> makes the first value <code>min(x, 1) = 1</code>.</li>
+          <li>Ascending order lets the sequence climb as long as possible.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1846 -->
+        <!-- enrich-edges:start 1846 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All large values → n.</li>
+          <li>Many 1s.</li>
+          <li>One element → 1.</li>
+        </ul>
+        <!-- enrich-edges:end 1846 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1846 -->
+
+    <!-- gen:start 2126 -->
+    <details class="problem" id="p-2126">
+      <summary><span class="tag medium">Medium</span> 2126. Destroying Asteroids <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A planet of <code>mass</code> can absorb an asteroid of mass ≤ its own, gaining it. Can it destroy all asteroids?</p>
+        <!-- enrich-top:start 2126 -->
+        <p class="links"><a href="https://leetcode.com/problems/destroying-asteroids/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">mass = 10, asteroids = [3,9,19,5,21]</code></div><div><strong>Output:</strong> <code class="ex">true</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One way to order the asteroids is [9,19,5,3,21]:
+- The planet collides with the asteroid with a mass of 9. New planet mass: 10 + 9 = 19
+- The planet collides with the asteroid with a mass of 19. New planet mass: 19 + 19 = 38
+- The planet collides with the asteroid with a mass of 5. New planet mass: 38 + 5 = 43
+- The planet collides with the asteroid with a mass of 3. New planet mass: 43 + 3 = 46
+- The planet collides with the asteroid with a mass of 21. New planet mass: 46 + 21 = 67
+All asteroids are destroyed.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">mass = 5, asteroids = [4,9,23,4]</code></div><div><strong>Output:</strong> <code class="ex">false</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The planet cannot ever gain enough mass to destroy the asteroid with a mass of 23.
+After the planet destroys the other asteroids, it will have a mass of 5 + 4 + 9 + 4 = 22.
+This is less than 23, so a collision would not destroy the last asteroid.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ mass ≤ 10⁵</code> · <code>1 ≤ asteroids.length ≤ 10⁵</code> · <code>1 ≤ asteroids[i] ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Does absorbing an asteroid ever hurt?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Which asteroid should you take first?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying orders is factorial; sorting is optimal.</p>
+        <!-- enrich-top:end 2126 -->
+        <p><strong>Spot it:</strong> Absorbing small asteroids only helps, so take them in <strong>increasing order</strong> (greedy). If even the smallest remaining is too big, it's impossible.</p>
+        <p><strong>Why not another pattern?</strong> Any other order can only meet a big asteroid earlier with less mass.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Sort asteroids.</li>
+          <li>For each: if bigger than <code>mass</code>, false; else <code>mass += a</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def asteroidsDestroyed(self, mass: int, asteroids: List[int]) -&gt; bool:
+        for a in sorted(asteroids):  # smallest first
+            if a &gt; mass:
+                return False  # too big, and every later one is at least as big
+            mass += a
+        return True</code></pre>
+        <!-- trace:start 2126 -->
+        <div class="trace-viz" id="trace-p2126"></div>
+        <script type="application/json" id="trace-p2126-data">{"src":["class Solution:","    def asteroidsDestroyed(self, mass: int, asteroids: List[int]) -> bool:","        for a in sorted(asteroids):  # smallest first","            if a > mass:","                return False  # too big, and every later one is at least as big","            mass += a","        return True"],"notes":{"3":"smallest first","5":"too big, and every later one is at least as big"},"input":"mass = 5, asteroids = [4,9,23,4]","output":"false","values":[5,{"~":"list","v":[4,9,23,4]},4,9,13,22,23,false],"steps":[[3,1,"asteroidsDestroyed",{"mass":0,"asteroids":1},null],[4,1,"asteroidsDestroyed",{"mass":0,"asteroids":1,"a":2},null],[6,1,"asteroidsDestroyed",{"mass":0,"asteroids":1,"a":2},null],[3,1,"asteroidsDestroyed",{"mass":3,"asteroids":1,"a":2},null],[4,1,"asteroidsDestroyed",{"mass":3,"asteroids":1,"a":2},null],[6,1,"asteroidsDestroyed",{"mass":3,"asteroids":1,"a":2},null],[3,1,"asteroidsDestroyed",{"mass":4,"asteroids":1,"a":2},null],[4,1,"asteroidsDestroyed",{"mass":4,"asteroids":1,"a":3},null],[6,1,"asteroidsDestroyed",{"mass":4,"asteroids":1,"a":3},null],[3,1,"asteroidsDestroyed",{"mass":5,"asteroids":1,"a":3},null],[4,1,"asteroidsDestroyed",{"mass":5,"asteroids":1,"a":6},null],[5,1,"asteroidsDestroyed",{"mass":5,"asteroids":1,"a":6},null],[5,1,"asteroidsDestroyed",{"mass":5,"asteroids":1,"a":6},null,7]],"truncated":false}</script>
+        <!-- trace:end 2126 -->
+        <!-- explain:start 2126 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Mass never decreases, so absorbing easy asteroids first maximises mass for the hard ones.</li>
+          <li>Python integers don't overflow, so <code>mass</code> can grow freely.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 2126 -->
+        <!-- enrich-edges:start 2126 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One huge asteroid.</li>
+          <li>Equal mass (allowed).</li>
+          <li>Mass grows past all asteroids.</li>
+        </ul>
+        <!-- enrich-edges:end 2126 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 2126 -->
+
+    <!-- gen:start 2895 -->
+    <details class="problem" id="p-2895">
+      <summary><span class="tag medium">Medium</span> 2895. Minimum Processing Time <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Each processor has 4 cores and an availability time. Assign 4 tasks per processor to minimise the overall finish time.</p>
+        <!-- enrich-top:start 2895 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-processing-time/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">processorTime = [8,10], tasks = [2,2,3,1,8,7,4,5]</code></div><div><strong>Output:</strong> <code class="ex">16</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Assign the tasks at indices 4, 5, 6, 7 to the first processor which becomes available at time = 8, and the tasks at indices 0, 1, 2, 3 to the second processor which becomes available at time = 10. 
+The time taken by the first processor to finish the execution of all tasks is max(8 + 8, 8 + 7, 8 + 4, 8 + 5) = 16.
+The time taken by the second processor to finish the execution of all tasks is max(10 + 2, 10 + 2, 10 + 3, 10 + 1) = 13.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">processorTime = [10,20], tasks = [2,3,1,2,5,8,4,3]</code></div><div><strong>Output:</strong> <code class="ex">23</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Assign the tasks at indices 1, 4, 5, 6 to the first processor and the others to the second processor.
+The time taken by the first processor to finish the execution of all tasks is max(10 + 3, 10 + 5, 10 + 8, 10 + 4) = 18.
+The time taken by the second processor to finish the execution of all tasks is max(20 + 2, 20 + 1, 20 + 2, 20 + 3) = 23.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n == processorTime.length ≤ 25000</code> · <code>1 ≤ tasks.length ≤ 10⁵</code> · <code>0 ≤ processorTime[i] ≤ 10⁹</code> · <code>1 ≤ tasks[i] ≤ 10⁹</code> · <code>tasks.length == 4 * n</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>What determines when a single processor finishes?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Which processor should take the longest tasks?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying assignments is factorial; two sorts give the optimal pairing.</p>
+        <!-- enrich-top:end 2895 -->
+        <p><strong>Spot it:</strong> A processor's finish time is its start + its longest task. <strong>Greedy pairing</strong>: give the longest tasks to the earliest processors, four at a time.</p>
+        <p><strong>Why not another pattern?</strong> Balancing by total work is wrong: cores run in parallel, only the longest task per processor matters.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Sort processors ascending, tasks descending.</li>
+          <li>Processor <code>i</code> gets tasks <code>4i..4i + 3</code>; its finish is <code>p[i] + tasks[4i]</code>.</li>
+          <li>Return the maximum finish.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def minProcessingTime(self, processorTime: List[int], tasks: List[int]) -&gt; int:
+        processorTime = sorted(processorTime)
+        tasks = sorted(tasks, reverse=True)
+        return max(p + tasks[4 * i] for i, p in enumerate(processorTime))  # its longest of 4 tasks</code></pre>
+        <!-- trace:start 2895 -->
+        <div class="trace-viz" id="trace-p2895"></div>
+        <script type="application/json" id="trace-p2895-data">{"src":["class Solution:","    def minProcessingTime(self, processorTime: List[int], tasks: List[int]) -> int:","        processorTime = sorted(processorTime)","        tasks = sorted(tasks, reverse=True)","        return max(p + tasks[4 * i] for i, p in enumerate(processorTime))  # its longest of 4 tasks"],"notes":{"5":"its longest of 4 tasks"},"input":"processorTime = [8,10], tasks = [2,2,3,1,8,7,4,5]","output":"16","values":[{"~":"list","v":[8,10]},{"~":"list","v":[2,2,3,1,8,7,4,5]},{"~":"list","v":[8,7,5,4,3,2,2,1]},{"~":"obj","v":"enumerate"},"minProcessingTime(processorTime=[2 items], tasks=[8 items]) › <genexpr>(.0=enumerate)",0,8,16,1,10,13,null],"steps":[[3,1,"minProcessingTime",{"processorTime":0,"tasks":1},null],[4,1,"minProcessingTime",{"processorTime":0,"tasks":1},null],[5,1,"minProcessingTime",{"processorTime":0,"tasks":2},null],[5,2,"<genexpr>",{".0":3,"tasks":2},4],[5,2,"<genexpr>",{".0":3,"tasks":2,"i":5,"p":6},4,7],[5,2,"<genexpr>",{".0":3,"tasks":2,"i":5,"p":6},4],[5,2,"<genexpr>",{".0":3,"tasks":2,"i":8,"p":9},4,10],[5,2,"<genexpr>",{".0":3,"tasks":2,"i":8,"p":9},4],[5,2,"<genexpr>",{".0":3,"tasks":2,"i":8,"p":9},4,11],[5,1,"minProcessingTime",{"processorTime":0,"tasks":2},null,7]],"truncated":false}</script>
+        <!-- trace:end 2895 -->
+        <!-- explain:start 2895 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>The four tasks of a processor run in parallel; only the longest matters.</li>
+          <li>Pairing earliest processors with the longest tasks minimises the maximum (exchange argument).</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 2895 -->
+        <!-- enrich-edges:start 2895 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>One processor.</li>
+          <li>Equal processor times.</li>
+          <li>Very long single task.</li>
+        </ul>
+        <!-- enrich-edges:end 2895 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 2895 -->
+
+    <!-- gen:start 3499 -->
+    <details class="problem" id="p-3499">
+      <summary><span class="tag medium">Medium</span> 3499. Maximize Active Section with Trade I <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> One trade: turn a 1-block surrounded by 0s into 0s, then a 0-block surrounded by 1s into 1s. Maximise the number of 1s.</p>
+        <!-- enrich-top:start 3499 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximize-active-section-with-trade-i/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "01"</code></div><div><strong>Output:</strong> <code class="ex">1</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Because there is no block of '1's surrounded by '0's, no valid trade is possible. The maximum number of active sections is 1.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "0100"</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">String "0100" → Augmented to "101001".
+ Choose "0100", convert "101001" → "100001" → "111111".
+ The final string without augmentation is "1111". The maximum number of active sections is 4.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n == s.length ≤ 10⁵</code> · <code>s[i]</code> is either <code>'0'</code> or <code>'1'</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>What happens to the zeros around a 1-block when you clear it?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>The gain of the trade depends only on the two 0-blocks next to the cleared 1-block.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every trade and recounting is <code>O(n²)</code>; one pass over block lengths is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 3499 -->
+        <p><strong>Spot it:</strong> Clearing a 1-block glues its two neighbouring 0-blocks into one big 0-block, which then becomes all 1s. Net gain = the two 0-blocks' sizes. <strong>Greedy</strong>: pick the adjacent pair of 0-blocks with the largest total.</p>
+        <p><strong>Why not another pattern?</strong> Simulating every trade and recounting is <code>O(n²)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Count the 1s.</li>
+          <li>List the lengths of the 0-blocks in order.</li>
+          <li>Answer: <code>ones + max(z[i] + z[i + 1])</code> (just <code>ones</code> if fewer than two 0-blocks).</li>
+        </ol>
+        <pre><code class="python">from itertools import groupby
+
+class Solution:
+    def maxActiveSectionsAfterTrade(self, s: str) -&gt; int:
+        ones = s.count("1")
+        zeros = [len(list(g)) for ch, g in groupby(s) if ch == "0"]  # 0-block lengths, in order
+        best_gain = max((a + b for a, b in zip(zeros, zeros[1:])), default=0)  # merge two neighbouring 0-blocks
+        return ones + best_gain</code></pre>
+        <!-- trace:start 3499 -->
+        <div class="trace-viz" id="trace-p3499"></div>
+        <script type="application/json" id="trace-p3499-data">{"src":["from itertools import groupby","","class Solution:","    def maxActiveSectionsAfterTrade(self, s: str) -> int:","        ones = s.count(\"1\")","        zeros = [len(list(g)) for ch, g in groupby(s) if ch == \"0\"]  # 0-block lengths, in order","        best_gain = max((a + b for a, b in zip(zeros, zeros[1:])), default=0)  # merge two neighbouring 0-blocks","        return ones + best_gain"],"notes":{"6":"0-block lengths, in order","7":"merge two neighbouring 0-blocks"},"input":"s = \"01\"","output":"1","values":["01",1,"0",{"~":"obj","v":"_grouper"},"1",{"~":"list","v":[1]},{"~":"obj","v":"zip"},"maxActiveSectionsAfterTrade(s='01') › <genexpr>(.0=zip)",null,0],"steps":[[5,1,"maxActiveSectionsAfterTrade",{"s":0},null],[6,1,"maxActiveSectionsAfterTrade",{"s":0,"ones":1},null],[6,1,"maxActiveSectionsAfterTrade",{"s":0,"ones":1,"ch":2,"g":3},null],[6,1,"maxActiveSectionsAfterTrade",{"s":0,"ones":1,"ch":4,"g":3},null],[7,1,"maxActiveSectionsAfterTrade",{"s":0,"ones":1,"zeros":5},null],[7,2,"<genexpr>",{".0":6},7],[7,2,"<genexpr>",{".0":6},7,8],[8,1,"maxActiveSectionsAfterTrade",{"s":0,"ones":1,"zeros":5,"best_gain":9},null],[8,1,"maxActiveSectionsAfterTrade",{"s":0,"ones":1,"zeros":5,"best_gain":9},null,1]],"truncated":false}</script>
+        <!-- trace:end 3499 -->
+        <!-- explain:start 3499 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Consecutive 0-blocks are separated by exactly one 1-block, which is surrounded by 0s.</li>
+          <li>After removing that 1-block, the merged 0-block is surrounded by 1s (the augmented ends count), so it can be filled.</li>
+          <li>The removed 1s come back as part of the filled block, so the gain is exactly the two 0-blocks.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3499 -->
+        <!-- enrich-edges:start 3499 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Fewer than two 0-blocks → just the 1s.</li>
+          <li>All zeros.</li>
+          <li>All ones.</li>
+        </ul>
+        <!-- enrich-edges:end 3499 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(n)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3499 -->
+
+    <!-- gen:start 3635 -->
+    <details class="problem" id="p-3635">
+      <summary><span class="tag medium">Medium</span> 3635. Earliest Finish Time for Land and Water Rides II <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Take one land ride and one water ride, in either order (each starts no earlier than its opening). Return the earliest finish.</p>
+        <!-- enrich-top:start 3635 -->
+        <p class="links"><a href="https://leetcode.com/problems/earliest-finish-time-for-land-and-water-rides-ii/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">landStartTime = [2,8], landDuration = [4,1], waterStartTime = [6], waterDuration = [3]</code></div><div><strong>Output:</strong> <code class="ex">9</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Plan A (land ride 0 → water ride 0):
+Start land ride 0 at time landStartTime[0] = 2. Finish at 2 + landDuration[0] = 6.
+ Water ride 0 opens at time waterStartTime[0] = 6. Start immediately at 6, finish at 6 + waterDuration[0] = 9.
+Plan B (water ride 0 → land ride 1):
+Start water ride 0 at time waterStartTime[0] = 6. Finish at 6 + waterDuration[0] = 9.
+ Land ride 1 opens at landStartTime[1] = 8. Start at time 9, finish at 9 + landDuration[1] = 10.
+Plan C (land ride 1 → water ride 0):
+Start land ride 1 at time landStartTime[1] = 8. Finish at 8 + landDuration[1] = 9.
+ Water ride 0 opened at waterStartTime[0] = 6. Start at time 9, finish at 9 + waterDuration[0] = 12.
+Plan D (water ride 0 → land ride 0):
+Start water ride 0 at time waterStartTime[0] = 6. Finish at 6 + waterDuration[0] = 9.
+ Land ride 0 opened at landStartTime[0] = 2. Start at time 9, finish at 9 + landDuration[0] = 13.
+Plan A gives the earliest finish time of 9.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">landStartTime = [5], landDuration = [3], waterStartTime = [1], waterDuration = [10]</code></div><div><strong>Output:</strong> <code class="ex">14</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Plan A (water ride 0 → land ride 0):
+Start water ride 0 at time waterStartTime[0] = 1. Finish at 1 + waterDuration[0] = 11.
+ Land ride 0 opened at landStartTime[0] = 5. Start immediately at 11 and finish at 11 + landDuration[0] = 14.
+Plan B (land ride 0 → water ride 0):
+Start land ride 0 at time landStartTime[0] = 5. Finish at 5 + landDuration[0] = 8.
+ Water ride 0 opened at waterStartTime[0] = 1. Start immediately at 8 and finish at 8 + waterDuration[0] = 18.
+Plan A provides the earliest finish time of 14.</span></div></div>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>If land comes first, which land ride should you take?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Then check every water ride after it; also try the other order.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> All <code>n · m</code> pairs in both orders vs two linear passes.</p>
+        <!-- enrich-top:end 3635 -->
+        <p><strong>Spot it:</strong> If land goes first, only the <strong>earliest land finish</strong> matters (finishing earlier never hurts). Then each water ride finishes at <code>max(that time, its start) + duration</code>. Do both orders (<strong>greedy</strong> on the first ride).</p>
+        <p><strong>Why not another pattern?</strong> Trying all pairs is <code>O(n · m)</code>, too slow for 5·10⁴ each.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li><code>best_land = min(start + duration)</code>, same for water.</li>
+          <li>Land first: <code>min(max(best_land, ws) + wd)</code>; water first: symmetric.</li>
+          <li>Return the smaller.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def earliestFinishTime(self, landStartTime: List[int], landDuration: List[int],
+                           waterStartTime: List[int], waterDuration: List[int]) -&gt; int:
+        def then(first_start, first_dur, second_start, second_dur):
+            ready = min(s + d for s, d in zip(first_start, first_dur))  # earliest end of the first ride
+            return min(max(ready, s) + d for s, d in zip(second_start, second_dur))  # wait if it isn't open
+
+        return min(then(landStartTime, landDuration, waterStartTime, waterDuration),
+                   then(waterStartTime, waterDuration, landStartTime, landDuration))</code></pre>
+        <!-- trace:start 3635 -->
+        <div class="trace-viz" id="trace-p3635"></div>
+        <script type="application/json" id="trace-p3635-data">{"src":["class Solution:","    def earliestFinishTime(self, landStartTime: List[int], landDuration: List[int],","                           waterStartTime: List[int], waterDuration: List[int]) -> int:","        def then(first_start, first_dur, second_start, second_dur):","            ready = min(s + d for s, d in zip(first_start, first_dur))  # earliest end of the first ride","            return min(max(ready, s) + d for s, d in zip(second_start, second_dur))  # wait if it isn't open","","        return min(then(landStartTime, landDuration, waterStartTime, waterDuration),","                   then(waterStartTime, waterDuration, landStartTime, landDuration))"],"notes":{"5":"earliest end of the first ride","6":"wait if it isn't open"},"input":"landStartTime = [5], landDuration = [3], waterStartTime = [1], waterDuration = [10]","output":"14","values":[{"~":"list","v":[5]},{"~":"list","v":[3]},{"~":"list","v":[1]},{"~":"list","v":[10]},"earliestFinishTime(landStartTime=[1 items], landDuration=[1 items]) › then(first_start=[1 items], first_dur=[1 items])",{"~":"obj","v":"zip"},"earliestFinishTime(landStartTime=[1 items], landDuration=[1 items]) › then(first_start=[1 items], first_dur=[1 items]) › <genexpr>(.0=zip)",5,3,8,null,1,10,18,11,14],"steps":[[4,1,"earliestFinishTime",{"landStartTime":0,"landDuration":1,"waterStartTime":2,"waterDuration":3},null],[8,1,"earliestFinishTime",{"landStartTime":0,"landDuration":1,"waterStartTime":2,"waterDuration":3},null],[5,2,"then",{"first_start":0,"first_dur":1,"second_start":2,"second_dur":3},4],[5,3,"<genexpr>",{".0":5},6],[5,3,"<genexpr>",{".0":5,"s":7,"d":8},6,9],[5,3,"<genexpr>",{".0":5,"s":7,"d":8},6],[5,3,"<genexpr>",{".0":5,"s":7,"d":8},6,10],[6,2,"then",{"first_start":0,"first_dur":1,"second_start":2,"second_dur":3,"ready":9},4],[6,3,"<genexpr>",{".0":5,"ready":9},6],[6,3,"<genexpr>",{".0":5,"ready":9,"s":11,"d":12},6,13],[6,3,"<genexpr>",{".0":5,"ready":9,"s":11,"d":12},6],[6,3,"<genexpr>",{".0":5,"ready":9,"s":11,"d":12},6,10],[6,2,"then",{"first_start":0,"first_dur":1,"second_start":2,"second_dur":3,"ready":9},4,13],[9,1,"earliestFinishTime",{"landStartTime":0,"landDuration":1,"waterStartTime":2,"waterDuration":3},null],[5,2,"then",{"first_start":2,"first_dur":3,"second_start":0,"second_dur":1},4],[5,3,"<genexpr>",{".0":5},6],[5,3,"<genexpr>",{".0":5,"s":11,"d":12},6,14],[5,3,"<genexpr>",{".0":5,"s":11,"d":12},6],[5,3,"<genexpr>",{".0":5,"s":11,"d":12},6,10],[6,2,"then",{"first_start":2,"first_dur":3,"second_start":0,"second_dur":1,"ready":14},4],[6,3,"<genexpr>",{".0":5,"ready":14},6],[6,3,"<genexpr>",{".0":5,"ready":14,"s":7,"d":8},6,15],[6,3,"<genexpr>",{".0":5,"ready":14,"s":7,"d":8},6],[6,3,"<genexpr>",{".0":5,"ready":14,"s":7,"d":8},6,10],[6,2,"then",{"first_start":2,"first_dur":3,"second_start":0,"second_dur":1,"ready":14},4,15],[8,1,"earliestFinishTime",{"landStartTime":0,"landDuration":1,"waterStartTime":2,"waterDuration":3},null],[8,1,"earliestFinishTime",{"landStartTime":0,"landDuration":1,"waterStartTime":2,"waterDuration":3},null,15]],"truncated":false}</script>
+        <!-- trace:end 3635 -->
+        <!-- explain:start 3635 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Finishing the first ride earlier can only make the second ride finish earlier or at the same time.</li>
+          <li>So the first ride is always the one with the smallest finish time, and the second is tried exhaustively.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3635 -->
+        <!-- enrich-edges:start 3635 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>The second ride opens later than the first finishes (waiting).</li>
+          <li>One ride of each type.</li>
+          <li>A long early ride vs a short late one.</li>
+        </ul>
+        <!-- enrich-edges:end 3635 -->
+        <p><strong>Complexity:</strong> <code>O(n + m)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3635 -->
+
+    <!-- gen:start 3689 -->
+    <details class="problem" id="p-3689">
+      <summary><span class="tag medium">Medium</span> 3689. Maximum Total Subarray Value I <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Choose exactly <code>k</code> subarrays (repeats allowed); a subarray's value is max − min. Maximise the total.</p>
+        <!-- enrich-top:start 3689 -->
+        <p class="links"><a href="https://leetcode.com/problems/maximum-total-subarray-value-i/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">nums = [1,3,2], k = 2</code></div><div><strong>Output:</strong> <code class="ex">4</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One optimal approach is:
+Choose nums[0..1] = [1, 3]. The maximum is 3 and the minimum is 1, giving a value of 3 - 1 = 2.
+ Choose nums[0..2] = [1, 3, 2]. The maximum is still 3 and the minimum is still 1, so the value is also 3 - 1 = 2.
+Adding these gives 2 + 2 = 4.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">nums = [4,2,5,1], k = 3</code></div><div><strong>Output:</strong> <code class="ex">12</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">One optimal approach is:
+Choose nums[0..3] = [4, 2, 5, 1]. The maximum is 5 and the minimum is 1, giving a value of 5 - 1 = 4.
+ Choose nums[0..3] = [4, 2, 5, 1]. The maximum is 5 and the minimum is 1, so the value is also 4.
+ Choose nums[2..3] = [5, 1]. The maximum is 5 and the minimum is 1, so the value is again 4.
+Adding these gives 4 + 4 + 4 = 12.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n == nums.length ≤ 5 * 10⁴</code> · <code>0 ≤ nums[i] ≤ 10⁹</code> · <code>1 ≤ k ≤ 10⁵</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>What is the largest value any subarray can have?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Can you choose the same subarray more than once?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Listing all subarray values is <code>O(n²)</code>; the bound is reached by the whole array.</p>
+        <!-- enrich-top:end 3689 -->
+        <p><strong>Spot it:</strong> Every subarray's value is at most <code>max(nums) − min(nums)</code>, and the whole array achieves it. Repeats are allowed → <strong>greedy</strong>: pick it <code>k</code> times.</p>
+        <p><strong>Why not another pattern?</strong> Enumerating subarray values (as in Range II, where repeats aren't allowed) is unnecessary here.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Return <code>(max(nums) − min(nums)) · k</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def maxTotalValue(self, nums: List[int], k: int) -&gt; int:
+        return (max(nums) - min(nums)) * k  # the whole array, chosen k times</code></pre>
+        <!-- trace:start 3689 -->
+        <div class="trace-viz" id="trace-p3689"></div>
+        <script type="application/json" id="trace-p3689-data">{"src":["class Solution:","    def maxTotalValue(self, nums: List[int], k: int) -> int:","        return (max(nums) - min(nums)) * k  # the whole array, chosen k times"],"notes":{"3":"the whole array, chosen k times"},"input":"nums = [1,3,2], k = 2","output":"4","values":[{"~":"list","v":[1,3,2]},2,4],"steps":[[3,1,"maxTotalValue",{"nums":0,"k":1},null],[3,1,"maxTotalValue",{"nums":0,"k":1},null,2]],"truncated":false}</script>
+        <!-- trace:end 3689 -->
+        <!-- explain:start 3689 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A subarray's max is ≤ the global max and its min ≥ the global min.</li>
+          <li>Since the same subarray may be chosen repeatedly, the best one is used every time.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3689 -->
+        <!-- enrich-edges:start 3689 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All equal → 0.</li>
+          <li>One element → 0.</li>
+          <li>Large k (64-bit result).</li>
+        </ul>
+        <!-- enrich-edges:end 3689 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time, <code>O(1)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3689 -->
+
+    <!-- gen:start 761 -->
+    <details class="problem" id="p-761">
+      <summary><span class="tag hard">Hard</span> 761. Special Binary String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> A special binary string has equal 1s and 0s and every prefix has at least as many 1s as 0s. You may swap two adjacent special substrings. Return the lexicographically largest result.</p>
+        <!-- enrich-top:start 761 -->
+        <p class="links"><a href="https://leetcode.com/problems/special-binary-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">s = "11011000"</code></div><div><strong>Output:</strong> <code class="ex">"11100100"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The strings "10" [occuring at s[1]] and "1100" [at s[3]] are swapped.
+This is the lexicographically largest string possible after some number of swaps.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">s = "10"</code></div><div><strong>Output:</strong> <code class="ex">"10"</code></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ s.length ≤ 50</code> · <code>s[i]</code> is either <code>'0'</code> or <code>'1'</code>. · <code>s</code> is a special binary string.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Think of 1 as '(' and 0 as ')'.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>What can a swap of adjacent special substrings achieve on sibling blocks?</p></details>
+          <details class="hint"><summary>Hint 3</summary><p>Optimise inside each block recursively, then sort the blocks.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> BFS over swap results is exponential; recursive sorting is polynomial.</p>
+        <!-- enrich-top:end 761 -->
+        <p><strong>Spot it:</strong> Read <code>1</code> as <code>(</code> and <code>0</code> as <code>)</code>: special strings are balanced bracket strings. Swapping adjacent special substrings = reordering sibling blocks. <strong>Greedy</strong>: make each block's inside as large as possible (recursion), then sort sibling blocks in descending order.</p>
+        <p><strong>Why not another pattern?</strong> Simulating swaps with BFS explores exponentially many strings.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Split <code>s</code> into top-level blocks where the balance returns to 0.</li>
+          <li>Each block is <code>1 + inner + 0</code>; recursively optimise <code>inner</code>.</li>
+          <li>Sort blocks descending and concatenate.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def makeLargestSpecial(self, s: str) -&gt; str:
+        blocks = []
+        balance = 0
+        start = 0
+        for i, ch in enumerate(s):
+            balance += 1 if ch == "1" else -1
+            if balance == 0:  # a top-level special block ends here
+                inner = self.makeLargestSpecial(s[start + 1:i])  # best arrangement inside it
+                blocks.append("1" + inner + "0")
+                start = i + 1
+        return "".join(sorted(blocks, reverse=True))  # bigger blocks first</code></pre>
+        <!-- trace:start 761 -->
+        <div class="trace-viz" id="trace-p761"></div>
+        <script type="application/json" id="trace-p761-data">{"src":["class Solution:","    def makeLargestSpecial(self, s: str) -> str:","        blocks = []","        balance = 0","        start = 0","        for i, ch in enumerate(s):","            balance += 1 if ch == \"1\" else -1","            if balance == 0:  # a top-level special block ends here","                inner = self.makeLargestSpecial(s[start + 1:i])  # best arrangement inside it","                blocks.append(\"1\" + inner + \"0\")","                start = i + 1","        return \"\".join(sorted(blocks, reverse=True))  # bigger blocks first"],"notes":{"8":"a top-level special block ends here","9":"best arrangement inside it","12":"bigger blocks first"},"input":"s = \"10\"","output":"\"10\"","values":["10",{"~":"list","v":[]},0,"1",1,"0","","makeLargestSpecial(s='10') › makeLargestSpecial(s='')",{"~":"list","v":["10"]},2],"steps":[[3,1,"makeLargestSpecial",{"s":0},null],[4,1,"makeLargestSpecial",{"s":0,"blocks":1},null],[5,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":2},null],[6,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":2,"start":2},null],[7,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":2,"start":2,"i":2,"ch":3},null],[8,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":4,"start":2,"i":2,"ch":3},null],[6,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":4,"start":2,"i":2,"ch":3},null],[7,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":4,"start":2,"i":4,"ch":5},null],[8,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":2,"start":2,"i":4,"ch":5},null],[9,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":2,"start":2,"i":4,"ch":5},null],[3,2,"makeLargestSpecial",{"s":6},7],[4,2,"makeLargestSpecial",{"s":6,"blocks":1},7],[5,2,"makeLargestSpecial",{"s":6,"blocks":1,"balance":2},7],[6,2,"makeLargestSpecial",{"s":6,"blocks":1,"balance":2,"start":2},7],[12,2,"makeLargestSpecial",{"s":6,"blocks":1,"balance":2,"start":2},7],[12,2,"makeLargestSpecial",{"s":6,"blocks":1,"balance":2,"start":2},7,6],[10,1,"makeLargestSpecial",{"s":0,"blocks":1,"balance":2,"start":2,"i":4,"ch":5,"inner":6},null],[11,1,"makeLargestSpecial",{"s":0,"blocks":8,"balance":2,"start":2,"i":4,"ch":5,"inner":6},null],[6,1,"makeLargestSpecial",{"s":0,"blocks":8,"balance":2,"start":9,"i":4,"ch":5,"inner":6},null],[12,1,"makeLargestSpecial",{"s":0,"blocks":8,"balance":2,"start":9,"i":4,"ch":5,"inner":6},null],[12,1,"makeLargestSpecial",{"s":0,"blocks":8,"balance":2,"start":9,"i":4,"ch":5,"inner":6},null,0]],"truncated":false}</script>
+        <!-- trace:end 761 -->
+        <!-- explain:start 761 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Each top-level block is <code>1…0</code> with a special string inside.</li>
+          <li>Swaps can reorder sibling blocks arbitrarily, but never move characters across a block's wall.</li>
+          <li>Sorting siblings descending puts the largest prefix first, which is lexicographically optimal.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 761 -->
+        <!-- enrich-edges:start 761 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Already largest.</li>
+          <li>Deeply nested <code>1111…0000</code>.</li>
+          <li>Many sibling blocks.</li>
+        </ul>
+        <!-- enrich-edges:end 761 -->
+        <p><strong>Complexity:</strong> <code>O(n²)</code> time in the worst case, <code>O(n)</code> recursion depth.</p>
+      </div>
+    </details>
+    <!-- gen:end 761 -->
+
+    <!-- gen:start 1665 -->
+    <details class="problem" id="p-1665">
+      <summary><span class="tag hard">Hard</span> 1665. Minimum Initial Energy to Finish Tasks <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">Array</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Task <code>[actual, minimum]</code> needs at least <code>minimum</code> energy to start and costs <code>actual</code>. Return the least starting energy to finish all tasks in some order.</p>
+        <!-- enrich-top:start 1665 -->
+        <p class="links"><a href="https://leetcode.com/problems/minimum-initial-energy-to-finish-tasks/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">tasks = [[1,2],[2,4],[4,8]]</code></div><div><strong>Output:</strong> <code class="ex">8</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Starting with 8 energy, we finish the tasks in the following order:
+ - 3rd task. Now energy = 8 - 4 = 4.
+ - 2nd task. Now energy = 4 - 2 = 2.
+ - 1st task. Now energy = 2 - 1 = 1.
+Notice that even though we have leftover energy, starting with 7 energy does not work because we cannot do the 3rd task.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">tasks = [[1,3],[2,4],[10,11],[10,12],[8,9]]</code></div><div><strong>Output:</strong> <code class="ex">32</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Starting with 32 energy, we finish the tasks in the following order:
+ - 1st task. Now energy = 32 - 1 = 31.
+ - 2nd task. Now energy = 31 - 2 = 29.
+ - 3rd task. Now energy = 29 - 10 = 19.
+ - 4th task. Now energy = 19 - 10 = 9.
+ - 5th task. Now energy = 9 - 8 = 1.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ tasks.length ≤ 10⁵</code> · <code>1 ≤ actuali ≤ minimumi ≤ 10⁴</code></p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>For a fixed order, how much starting energy is needed?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Which tasks should be done while you still have lots of energy?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> All <code>n!</code> orders vs one sort.</p>
+        <!-- enrich-top:end 1665 -->
+        <p><strong>Spot it:</strong> An exchange argument: tasks with a large "slack" <code>minimum − actual</code> should go <strong>first</strong>, while energy is high. Sort by slack descending (<strong>greedy</strong>), then compute the required start.</p>
+        <p><strong>Why not another pattern?</strong> Trying all orders is <code>n!</code>; sorting by <code>minimum</code> alone is wrong.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Sort by <code>minimum − actual</code> descending.</li>
+          <li>Walk the order: <code>need = max(need, spent + minimum)</code>; <code>spent += actual</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def minimumEffort(self, tasks: List[List[int]]) -&gt; int:
+        tasks = sorted(tasks, key=lambda t: t[1] - t[0], reverse=True)  # largest slack first
+        need = 0
+        spent = 0
+        for actual, minimum in tasks:
+            need = max(need, spent + minimum)  # must still have `minimum` left after spending `spent`
+            spent += actual
+        return need</code></pre>
+        <!-- trace:start 1665 -->
+        <div class="trace-viz" id="trace-p1665"></div>
+        <script type="application/json" id="trace-p1665-data">{"src":["class Solution:","    def minimumEffort(self, tasks: List[List[int]]) -> int:","        tasks = sorted(tasks, key=lambda t: t[1] - t[0], reverse=True)  # largest slack first","        need = 0","        spent = 0","        for actual, minimum in tasks:","            need = max(need, spent + minimum)  # must still have `minimum` left after spending `spent`","            spent += actual","        return need"],"notes":{"3":"largest slack first","7":"must still have `minimum` left after spending `spent`"},"input":"tasks = [[1,2],[2,4],[4,8]]","output":"8","values":[{"~":"list","v":[{"~":"list","v":[1,2]},{"~":"list","v":[2,4]},{"~":"list","v":[4,8]}]},{"~":"list","v":[1,2]},"minimumEffort(tasks=[3 items]) › <lambda>(t=[2 items])",1,{"~":"list","v":[2,4]},2,{"~":"list","v":[4,8]},4,{"~":"list","v":[{"~":"list","v":[4,8]},{"~":"list","v":[2,4]},{"~":"list","v":[1,2]}]},0,8,6,7],"steps":[[3,1,"minimumEffort",{"tasks":0},null],[3,2,"<lambda>",{"t":1},2],[3,2,"<lambda>",{"t":1},2,3],[3,2,"<lambda>",{"t":4},2],[3,2,"<lambda>",{"t":4},2,5],[3,2,"<lambda>",{"t":6},2],[3,2,"<lambda>",{"t":6},2,7],[4,1,"minimumEffort",{"tasks":8},null],[5,1,"minimumEffort",{"tasks":8,"need":9},null],[6,1,"minimumEffort",{"tasks":8,"need":9,"spent":9},null],[7,1,"minimumEffort",{"tasks":8,"need":9,"spent":9,"actual":7,"minimum":10},null],[8,1,"minimumEffort",{"tasks":8,"need":10,"spent":9,"actual":7,"minimum":10},null],[6,1,"minimumEffort",{"tasks":8,"need":10,"spent":7,"actual":7,"minimum":10},null],[7,1,"minimumEffort",{"tasks":8,"need":10,"spent":7,"actual":5,"minimum":7},null],[8,1,"minimumEffort",{"tasks":8,"need":10,"spent":7,"actual":5,"minimum":7},null],[6,1,"minimumEffort",{"tasks":8,"need":10,"spent":11,"actual":5,"minimum":7},null],[7,1,"minimumEffort",{"tasks":8,"need":10,"spent":11,"actual":3,"minimum":5},null],[8,1,"minimumEffort",{"tasks":8,"need":10,"spent":11,"actual":3,"minimum":5},null],[6,1,"minimumEffort",{"tasks":8,"need":10,"spent":12,"actual":3,"minimum":5},null],[9,1,"minimumEffort",{"tasks":8,"need":10,"spent":12,"actual":3,"minimum":5},null],[9,1,"minimumEffort",{"tasks":8,"need":10,"spent":12,"actual":3,"minimum":5},null,10]],"truncated":false}</script>
+        <!-- trace:end 1665 -->
+        <!-- explain:start 1665 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>Starting with <code>E</code>, task <code>i</code> in the order needs <code>E − spent ≥ minimum</code>, i.e. <code>E ≥ spent + minimum</code>.</li>
+          <li>Swapping two adjacent tasks so the larger slack comes first never increases the requirement.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1665 -->
+        <!-- enrich-edges:start 1665 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Equal slacks.</li>
+          <li>One task → its minimum.</li>
+          <li>A task with huge minimum but small cost.</li>
+        </ul>
+        <!-- enrich-edges:end 1665 -->
+        <p><strong>Complexity:</strong> <code>O(n log n)</code> time, <code>O(1)</code> extra space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1665 -->
+
+    <!-- gen:start 3474 -->
+    <details class="problem" id="p-3474">
+      <summary><span class="tag hard">Hard</span> 3474. Lexicographically Smallest Generated String <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="ds-tags"><span class="ds">String</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Build the smallest string <code>word</code> (length <code>n + m − 1</code>) such that the window at <code>i</code> equals <code>str2</code> exactly when <code>str1[i] == 'T'</code>, or return <code>""</code>.</p>
+        <!-- enrich-top:start 3474 -->
+        <p class="links"><a href="https://leetcode.com/problems/lexicographically-smallest-generated-string/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">str1 = "TFTF", str2 = "ab"</code></div><div><strong>Output:</strong> <code class="ex">"ababa"</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The table below represents the string "ababa"
+Index
+ T/F
+ Substring of length m
+0
+ 'T'
+ "ab"
+1
+ 'F'
+ "ba"
+2
+ 'T'
+ "ab"
+3
+ 'F'
+ "ba"
+The strings "ababa" and "ababb" can be generated by str1 and str2.
+Return "ababa" since it is the lexicographically smaller string.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">str1 = "TFTF", str2 = "abc"</code></div><div><strong>Output:</strong> <code class="ex">""</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">No string that satisfies the conditions can be generated.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ n == str1.length ≤ 10⁴</code> · <code>1 ≤ m == str2.length ≤ 500</code> · <code>str1</code> consists only of <code>'T'</code> or <code>'F'</code>. · <code>str2</code> consists only of lowercase English characters.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which cells are forced by the T positions?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Fill every other cell with 'a'. Which F windows are now broken?</p></details>
+          <details class="hint"><summary>Hint 3</summary><p>To fix a broken F window with the smallest change, which cell should you modify?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Trying every letter in every free cell is exponential; the greedy is <code>O(nm)</code>.</p>
+        <!-- enrich-top:end 3474 -->
+        <p><strong>Spot it:</strong> <code>T</code> windows are forced: write <code>str2</code> there (a conflict means <code>""</code>). Every other cell is free; make it <code>'a'</code> (<strong>greedy smallest</strong>). An <code>F</code> window that accidentally equals <code>str2</code> must change one free cell; changing the <strong>rightmost</strong> free cell to <code>'b'</code> hurts the order the least.</p>
+        <p><strong>Why not another pattern?</strong> Trying characters for every free cell is exponential.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Write <code>str2</code> at every <code>T</code> start; conflict → <code>""</code>.</li>
+          <li>Remember which cells are free; set them to <code>'a'</code>.</li>
+          <li>For each <code>F</code> window (left to right) that equals <code>str2</code>: set its rightmost free cell to <code>'b'</code>; if it has none, return <code>""</code>.</li>
+        </ol>
+        <pre><code class="python">class Solution:
+    def generateString(self, str1: str, str2: str) -&gt; str:
+        n, m = len(str1), len(str2)
+        word = [None] * (n + m - 1)
+        for i, flag in enumerate(str1):
+            if flag == "T":
+                for j in range(m):
+                    if word[i + j] not in (None, str2[j]):
+                        return ""  # two T windows disagree
+                    word[i + j] = str2[j]
+        free = [ch is None for ch in word]  # cells no T window fixes
+        word = [ch or "a" for ch in word]  # smallest letter everywhere free
+        for i, flag in enumerate(str1):
+            if flag == "F" and "".join(word[i:i + m]) == str2:
+                p = next((q for q in range(i + m - 1, i - 1, -1) if free[q]), -1)
+                if p &lt; 0:
+                    return ""  # nothing we may change in this window
+                word[p] = "b"  # the latest change keeps the string smallest
+        return "".join(word)</code></pre>
+        <!-- trace:start 3474 -->
+        <div class="trace-viz" id="trace-p3474"></div>
+        <script type="application/json" id="trace-p3474-data">{"src":["class Solution:","    def generateString(self, str1: str, str2: str) -> str:","        n, m = len(str1), len(str2)","        word = [None] * (n + m - 1)","        for i, flag in enumerate(str1):","            if flag == \"T\":","                for j in range(m):","                    if word[i + j] not in (None, str2[j]):","                        return \"\"  # two T windows disagree","                    word[i + j] = str2[j]","        free = [ch is None for ch in word]  # cells no T window fixes","        word = [ch or \"a\" for ch in word]  # smallest letter everywhere free","        for i, flag in enumerate(str1):","            if flag == \"F\" and \"\".join(word[i:i + m]) == str2:","                p = next((q for q in range(i + m - 1, i - 1, -1) if free[q]), -1)","                if p < 0:","                    return \"\"  # nothing we may change in this window","                word[p] = \"b\"  # the latest change keeps the string smallest","        return \"\".join(word)"],"notes":{"9":"two T windows disagree","11":"cells no T window fixes","12":"smallest letter everywhere free","17":"nothing we may change in this window","18":"the latest change keeps the string smallest"},"input":"str1 = \"F\", str2 = \"d\"","output":"\"a\"","values":["F","d",1,{"~":"list","v":[null]},0,null,{"~":"list","v":[true]},{"~":"list","v":["a"]},"a"],"steps":[[3,1,"generateString",{"str1":0,"str2":1},null],[4,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2},null],[5,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3},null],[6,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3,"i":4,"flag":0},null],[5,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3,"i":4,"flag":0},null],[11,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3,"i":4,"flag":0},null],[11,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3,"i":4,"flag":0,"ch":5},null],[12,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3,"i":4,"flag":0,"free":6},null],[12,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":3,"i":4,"flag":0,"free":6,"ch":5},null],[13,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":7,"i":4,"flag":0,"free":6},null],[14,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":7,"i":4,"flag":0,"free":6},null],[13,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":7,"i":4,"flag":0,"free":6},null],[19,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":7,"i":4,"flag":0,"free":6},null],[19,1,"generateString",{"str1":0,"str2":1,"n":2,"m":2,"word":7,"i":4,"flag":0,"free":6},null,8]],"truncated":false}</script>
+        <!-- trace:end 3474 -->
+        <!-- explain:start 3474 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>T windows leave no choice; overlapping T windows must agree.</li>
+          <li>Every free cell starts as <code>'a'</code>, the smallest possible letter.</li>
+          <li>An F window equal to <code>str2</code> must differ somewhere; only free cells can change. Changing the rightmost one to <code>'b'</code> (the next letter) keeps the prefix as small as possible.</li>
+          <li>Windows are fixed left to right, so later bumps never undo earlier fixes.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 3474 -->
+        <!-- enrich-edges:start 3474 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>Conflicting T windows → "".</li>
+          <li>An F window fully covered by T cells that equals str2 → "".</li>
+          <li><code>str2</code> of length 1.</li>
+        </ul>
+        <!-- enrich-edges:end 3474 -->
+        <p><strong>Complexity:</strong> <code>O(n · m)</code> time, <code>O(n + m)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 3474 -->
 
     <nav class="pager">
       <a href="17-stack.html"><small>Previous pattern</small>← 17 · Stack</a>

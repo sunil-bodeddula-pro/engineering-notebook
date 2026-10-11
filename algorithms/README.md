@@ -1,6 +1,6 @@
 # Coding Patterns Mastery
 
-An offline, interactive course that takes you from zero to pro at the 21 coding-interview patterns.
+An offline, interactive course that takes you from zero to pro at the 24 coding-interview patterns.
 
 ## Open it
 
@@ -10,9 +10,10 @@ Double-click **`index.html`**. It opens in any browser straight from disk. No se
 
 | Path | What it is |
 |---|---|
-| `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 7-week study plan |
-| `patterns/01-…21-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
-| `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 21 |
+| `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 8-week study plan |
+| `patterns/01-…24-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
+| `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 24 |
+| `google.html` | **Google interview list**: all 785 problems from Google's six-month LeetCode list grouped by pattern, with frequency, search and difficulty filters, a per-browser "done" checklist and a 6-month study plan |
 | `assets/` | Source CSS and the small visualizer engine (plain JS). Every page already contains a copy of both, so **any single HTML file works on its own** (email it, move it, open it offline) |
 | `tools/inline_assets.py` | If you edit `assets/`, run `python3 tools/inline_assets.py` to refresh the copy inside every page |
 
@@ -21,6 +22,10 @@ Every problem on every page, including each problem in the practice list, is sol
 Every problem is also tagged with the **data structures** it is built on (Array, String, Hash Map, Linked List, Binary Tree, Heap, Graph, …): look for the small grey chips next to each problem title and in the "Data structure" column of every practice list.
 
 The practice lists cover every LeetCode problem from the YouTube playlist [Data Structures & Algorithms in Python – The Complete Pathway](https://www.youtube.com/playlist?list=PLKYEe2WisBTFEr6laH5bR2J19j7sl5O8R), each sorted into the pattern it belongs to.
+
+Every Medium and Hard Python problem on **Google's six-month interview list** is solved on its pattern page too, marked with a blue **Google** badge. Each one says which pattern to choose and why (and why not the obvious alternatives), gives hints, the brute-force-to-pattern bridge, edge cases, and the official LeetCode examples and constraints.
+
+Under every solution there is a **Step through the solution** player: it runs that exact Python code on a LeetCode example and lets you step line by line, watching the variables, arrays, grids and the call stack change.
 
 ### The 10 sections on every pattern page
 1. **What it's for**: plain English, with a real-world analogy
@@ -37,7 +42,7 @@ The practice lists cover every LeetCode problem from the YouTube playlist [Data 
 ## Visualizer controls
 Click inside a visualizer, then use <kbd>←</kbd> / <kbd>→</kbd> to step and <kbd>Space</kbd> to play or pause. You can also drag the slider.
 
-## The 21 memory hooks
+## The 24 memory hooks
 | # | Pattern | Hook |
 |---|---|---|
 | 01 | Prefix Sum | Odometer minus odometer |
@@ -61,6 +66,9 @@ Click inside a visualizer, then use <kbd>←</kbd> / <kbd>→</kbd> to step and 
 | 19 | Trie & Design | Thumb index + two-tool belt |
 | 20 | Shortest Path & MST | Closest unvisited city next |
 | 21 | Array & String Basics | The careful clerk |
+| 22 | Math & Bit Manipulation | Square and skip |
+| 23 | Union-Find | Ask the boss |
+| 24 | Segment Tree & Fenwick Tree | Up by the low bit, down by the low bit |
 
 ## Hosting it as a website (free)
 
