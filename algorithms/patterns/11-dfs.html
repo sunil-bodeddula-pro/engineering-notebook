@@ -150,6 +150,8 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .ntag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--green-soft); color: var(--green); letter-spacing: .02em; vertical-align: 1px; }
 .atag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--warm-soft); color: hsl(28 80% 36%); letter-spacing: .02em; vertical-align: 1px; }
 @media (prefers-color-scheme: dark) { .atag { color: var(--warm); } }
+.ctag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: hsl(265 70% 94%); color: hsl(265 50% 45%); letter-spacing: .02em; vertical-align: 1px; }
+@media (prefers-color-scheme: dark) { .ctag { background: hsl(265 30% 22%); color: hsl(265 60% 78%); } }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -677,7 +679,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../nvidia.html">Nvidia</a><a href="../amazon.html">Amazon</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../nvidia.html">Nvidia</a><a href="../amazon.html">Amazon</a><a href="../cisco.html">Cisco</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -1144,7 +1146,7 @@ def topo_sort(n, graph):
     </details>
 
     <details class="problem" id="p-207">
-      <summary><span class="tag medium">Medium</span> 207. Course Schedule <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="ds-tags"><span class="ds">Graph</span></span></summary>
+      <summary><span class="tag medium">Medium</span> 207. Course Schedule <span class="gtag" title="On Google's six-month interview list">Google</span> <span class="mtag" title="On Meta's six-month interview list">Meta</span> <span class="atag" title="On Amazon's six-month interview list">Amazon</span> <span class="ctag" title="On Cisco's all-time interview list">Cisco</span> <span class="ds-tags"><span class="ds">Graph</span></span></summary>
       <div class="body">
         <p><strong>Problem:</strong> There are <code>numCourses</code> courses. <code>[a, b]</code> means you must take <code>b</code> before <code>a</code>. Can you finish them all?</p>
         <!-- enrich-top:start 207 -->
@@ -1509,6 +1511,7 @@ So one correct course order is [0,1,2,3]. Another correct ordering is [0,2,1,3].
         <tr><td>2421</td><td><a href="#p-2421">Number of Good Paths</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Array</span></span></td><td>Add nodes by increasing value with union-find; within a component, equal maxima pair up</td></tr>
         <tr><td>3203</td><td><a href="#p-3203">Find Minimum Diameter After Merging Two Trees</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span></span></td><td>Join the two centres: answer = max(d1, d2, ⌈d1/2⌉ + ⌈d2/2⌉ + 1)</td></tr>
         <tr><td>2050</td><td><a href="#p-2050">Parallel Courses III</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></td><td>Topological order; finish[v] = time[v] + max finish of its prerequisites (longest path in a DAG)</td></tr>
+        <tr><td>2603</td><td><a href="#p-2603">Collect Coins in a Tree</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></td><td>Peel coin-less leaves (topological pruning), then peel two more leaf layers; answer = 2 × remaining edges</td></tr>
       </tbody>
     </table>
 
@@ -3561,6 +3564,85 @@ class Solution:
       </div>
     </details>
     <!-- gen:end 2050 -->
+
+    <!-- gen:start 2603 -->
+    <details class="problem" id="p-2603">
+      <summary><span class="tag hard">Hard</span> 2603. Collect Coins in a Tree <span class="ctag" title="On Cisco's all-time interview list">Cisco</span> <span class="ds-tags"><span class="ds">Graph</span><span class="ds">Queue</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> From any start, you collect coins within distance 2 and walk edges; return the fewest edges walked to collect all coins and return to the start.</p>
+        <!-- enrich-top:start 2603 -->
+        <p class="links"><a href="https://leetcode.com/problems/collect-coins-in-a-tree/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">coins = [1,0,0,0,0,1], edges = [[0,1],[1,2],[2,3],[3,4],[4,5]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Start at vertex 2, collect the coin at vertex 0, move to vertex 3, collect the coin at vertex 5 then move back to vertex 2.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">coins = [0,0,0,1,1,0,0,1], edges = [[0,1],[0,2],[1,3],[1,4],[2,5],[5,6],[5,7]]</code></div><div><strong>Output:</strong> <code class="ex">2</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">Start at vertex 0, collect the coins at vertices 4 and 3, move to vertex 2, collect the coin at vertex 7, then move back to vertex 0.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>n == coins.length</code> · <code>1 ≤ n ≤ 3 * 10⁴</code> · <code>0 ≤ coins[i] ≤ 1</code> · <code>edges.length == n - 1</code> · <code>edges[i].length == 2</code> · <code>0 ≤ ai, bi &lt; n</code> · <code>ai != bi</code> · <code>edges</code> represents a valid tree.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Which branches never need to be entered?</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>Coins can be collected from distance 2: how many layers of leaves can you skip?</p></details>
+          <details class="hint"><summary>Hint 3</summary><p>The answer is twice the number of edges left.</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Simulating from every start vertex is <code>O(n²)</code>; pruning leaves is <code>O(n)</code>.</p>
+        <!-- enrich-top:end 2603 -->
+        <p><strong>Spot it:</strong> Branches without coins are never worth entering: <strong>peel leaves without coins</strong> repeatedly (Kahn-style <strong>topological</strong> pruning on degrees). Then coins at distance ≤ 2 are collected from afar, so peel <strong>two more layers</strong> of leaves. Every remaining edge is walked exactly twice.</p>
+        <p><strong>Why not another pattern?</strong> Trying every start vertex with a search is <code>O(n²)</code>.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Degrees; queue all leaves without coins and delete them repeatedly (a parent may become a coin-less leaf).</li>
+          <li>Then remove the current leaves twice (two rounds, not repeatedly).</li>
+          <li>Answer: <code>2 · max(0, remaining nodes − 1)</code>.</li>
+        </ol>
+        <pre><code class="python">from collections import deque
+
+class Solution:
+    def collectTheCoins(self, coins: List[int], edges: List[List[int]]) -&gt; int:
+        n = len(coins)
+        adj = [set() for _ in range(n)]
+        for a, b in edges:
+            adj[a].add(b)
+            adj[b].add(a)
+        alive = n
+        queue = deque(i for i in range(n) if len(adj[i]) == 1 and not coins[i])
+        while queue:  # 1) prune branches with no coins
+            u = queue.popleft()
+            if len(adj[u]) != 1:
+                continue
+            v = adj[u].pop()
+            adj[v].discard(u)
+            alive -= 1
+            if len(adj[v]) == 1 and not coins[v]:
+                queue.append(v)
+        for _ in range(2):  # 2) coins within distance 2 are reachable from the parent's parent
+            leaves = [i for i in range(n) if len(adj[i]) == 1]
+            for u in leaves:
+                if adj[u]:
+                    v = adj[u].pop()
+                    adj[v].discard(u)
+                    alive -= 1
+        return 2 * max(0, alive - 1)  # walk every remaining edge there and back</code></pre>
+        <!-- trace:start 2603 -->
+        <div class="trace-viz" id="trace-p2603"></div>
+        <script type="application/json" id="trace-p2603-data">{"src":["from collections import deque","","class Solution:","    def collectTheCoins(self, coins: List[int], edges: List[List[int]]) -> int:","        n = len(coins)","        adj = [set() for _ in range(n)]","        for a, b in edges:","            adj[a].add(b)","            adj[b].add(a)","        alive = n","        queue = deque(i for i in range(n) if len(adj[i]) == 1 and not coins[i])","        while queue:  # 1) prune branches with no coins","            u = queue.popleft()","            if len(adj[u]) != 1:","                continue","            v = adj[u].pop()","            adj[v].discard(u)","            alive -= 1","            if len(adj[v]) == 1 and not coins[v]:","                queue.append(v)","        for _ in range(2):  # 2) coins within distance 2 are reachable from the parent's parent","            leaves = [i for i in range(n) if len(adj[i]) == 1]","            for u in leaves:","                if adj[u]:","                    v = adj[u].pop()","                    adj[v].discard(u)","                    alive -= 1","        return 2 * max(0, alive - 1)  # walk every remaining edge there and back"],"notes":{"12":"1) prune branches with no coins","21":"2) coins within distance 2 are reachable from the parent's parent","28":"walk every remaining edge there and back"},"input":"coins = [1,0,0,0,0,1], edges = [[0,1],[1,2],[2,3],[3,4],[4,5]]","output":"2","values":[{"~":"list","v":[1,0,0,0,0,1]},{"~":"list","v":[{"~":"list","v":[0,1]},{"~":"list","v":[1,2]},{"~":"list","v":[2,3]},{"~":"list","v":[3,4]},{"~":"list","v":[4,5]}]},6,0,1,2,3,4,5,{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[2]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3,5]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[1]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3,5]},{"~":"set","v":[4]}]},{"~":"obj","v":"range_iterator"},"collectTheCoins(coins=[6 items], edges=[5 items]) › <genexpr>(.0=range_iterator)",null,{"~":"deque","v":[]},{"~":"list","v":[0,5]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[0,2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3,5]},{"~":"set","v":[4]}]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3,5]},{"~":"set","v":[4]}]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3,5]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[2]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3]},{"~":"set","v":[]}]},{"~":"list","v":[1,4]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[1,3]},{"~":"set","v":[2,4]},{"~":"set","v":[3]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[3]},{"~":"set","v":[2,4]},{"~":"set","v":[3]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[3]},{"~":"set","v":[2,4]},{"~":"set","v":[]},{"~":"set","v":[]}]},{"~":"list","v":[{"~":"set","v":[]},{"~":"set","v":[]},{"~":"set","v":[3]},{"~":"set","v":[2]},{"~":"set","v":[]},{"~":"set","v":[]}]}],"steps":[[5,1,"collectTheCoins",{"coins":0,"edges":1},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"_":3},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"_":4},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"_":5},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"_":6},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"_":7},null],[6,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"_":8},null],[7,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":9},null],[8,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":9,"a":3,"b":4},null],[9,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":10,"a":3,"b":4},null],[7,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":11,"a":3,"b":4},null],[8,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":11,"a":4,"b":5},null],[9,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":12,"a":4,"b":5},null],[7,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":13,"a":4,"b":5},null],[8,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":13,"a":5,"b":6},null],[9,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":14,"a":5,"b":6},null],[7,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":15,"a":5,"b":6},null],[8,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":15,"a":6,"b":7},null],[9,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":16,"a":6,"b":7},null],[7,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":17,"a":6,"b":7},null],[8,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":17,"a":7,"b":8},null],[9,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":18,"a":7,"b":8},null],[7,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8},null],[10,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8},null],[11,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2},null],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":3},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":4},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":5},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":6},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":7},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":8},21],[11,2,"<genexpr>",{".0":20,"adj":19,"coins":0,"i":8},21,22],[12,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23},null],[21,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"i":3},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"i":4},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"i":5},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"i":6},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"i":7},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"i":8},null],[23,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"leaves":24},null],[24,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"leaves":24,"u":3},null],[25,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":19,"a":7,"b":8,"alive":2,"queue":23,"_":3,"leaves":24,"u":3},null],[26,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":25,"a":7,"b":8,"alive":2,"queue":23,"_":3,"leaves":24,"u":3,"v":4},null],[27,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":26,"a":7,"b":8,"alive":2,"queue":23,"_":3,"leaves":24,"u":3,"v":4},null],[23,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":26,"a":7,"b":8,"alive":8,"queue":23,"_":3,"leaves":24,"u":3,"v":4},null],[24,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":26,"a":7,"b":8,"alive":8,"queue":23,"_":3,"leaves":24,"u":8,"v":4},null],[25,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":26,"a":7,"b":8,"alive":8,"queue":23,"_":3,"leaves":24,"u":8,"v":4},null],[26,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":27,"a":7,"b":8,"alive":8,"queue":23,"_":3,"leaves":24,"u":8,"v":7},null],[27,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":8,"queue":23,"_":3,"leaves":24,"u":8,"v":7},null],[23,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":3,"leaves":24,"u":8,"v":7},null],[21,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":3,"leaves":24,"u":8,"v":7},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7,"i":3},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7,"i":4},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7,"i":5},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7,"i":6},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7,"i":7},null],[22,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":24,"u":8,"v":7,"i":8},null],[23,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":29,"u":8,"v":7},null],[24,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":29,"u":4,"v":7},null],[25,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":28,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":29,"u":4,"v":7},null],[26,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":30,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":29,"u":4,"v":5},null],[27,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":31,"a":7,"b":8,"alive":7,"queue":23,"_":4,"leaves":29,"u":4,"v":5},null],[23,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":31,"a":7,"b":8,"alive":6,"queue":23,"_":4,"leaves":29,"u":4,"v":5},null],[24,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":31,"a":7,"b":8,"alive":6,"queue":23,"_":4,"leaves":29,"u":7,"v":5},null],[25,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":31,"a":7,"b":8,"alive":6,"queue":23,"_":4,"leaves":29,"u":7,"v":5},null],[26,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":32,"a":7,"b":8,"alive":6,"queue":23,"_":4,"leaves":29,"u":7,"v":6},null],[27,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":33,"a":7,"b":8,"alive":6,"queue":23,"_":4,"leaves":29,"u":7,"v":6},null],[23,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":33,"a":7,"b":8,"alive":5,"queue":23,"_":4,"leaves":29,"u":7,"v":6},null],[21,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":33,"a":7,"b":8,"alive":5,"queue":23,"_":4,"leaves":29,"u":7,"v":6},null],[28,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":33,"a":7,"b":8,"alive":5,"queue":23,"_":4,"leaves":29,"u":7,"v":6},null],[28,1,"collectTheCoins",{"coins":0,"edges":1,"n":2,"adj":33,"a":7,"b":8,"alive":5,"queue":23,"_":4,"leaves":29,"u":7,"v":6},null,5]],"truncated":false}</script>
+        <!-- trace:end 2603 -->
+        <!-- explain:start 2603 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>After pruning, every leaf has a coin; standing two steps inside collects it, so two leaf layers never need to be visited.</li>
+          <li>The remaining nodes form a tree whose every edge must be walked out and back.</li>
+          <li>If at most one node remains, no walking is needed.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 2603 -->
+        <!-- enrich-edges:start 2603 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>No coins → 0.</li>
+          <li>All coins within distance 2 of one node → 0.</li>
+          <li>A long path with coins at both ends.</li>
+        </ul>
+        <!-- enrich-edges:end 2603 -->
+        <p><strong>Complexity:</strong> <code>O(n)</code> time and space.</p>
+      </div>
+    </details>
+    <!-- gen:end 2603 -->
 
     <nav class="pager">
       <a href="10-binary-tree-traversal.html"><small>Previous pattern</small>← 10 · Binary Tree Traversal</a>

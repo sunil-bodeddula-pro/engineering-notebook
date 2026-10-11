@@ -150,6 +150,8 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .ntag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--green-soft); color: var(--green); letter-spacing: .02em; vertical-align: 1px; }
 .atag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: var(--warm-soft); color: hsl(28 80% 36%); letter-spacing: .02em; vertical-align: 1px; }
 @media (prefers-color-scheme: dark) { .atag { color: var(--warm); } }
+.ctag { display: inline-block; font-size: .68rem; font-weight: 700; line-height: 1.5; padding: 0 7px; margin: 0 4px; border-radius: 999px; background: hsl(265 70% 94%); color: hsl(265 50% 45%); letter-spacing: .02em; vertical-align: 1px; }
+@media (prefers-color-scheme: dark) { .ctag { background: hsl(265 30% 22%); color: hsl(265 60% 78%); } }
 
 /* ---------- code blocks ---------- */
 pre {
@@ -677,7 +679,7 @@ footer.site { text-align: center; color: var(--ink-3); font-size: .85rem; paddin
 <header class="topbar">
   <a class="brand" href="../index.html">Coding Patterns Mastery</a>
   <span class="spacer"></span>
-  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../nvidia.html">Nvidia</a><a href="../amazon.html">Amazon</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../nvidia.html">Nvidia</a><a href="../amazon.html">Amazon</a><a href="../cisco.html">Cisco</a><a href="../cheatsheet.html">Cheat sheet</a></nav>
 </header>
 
 <div class="page">
@@ -1401,6 +1403,7 @@ class MedianFinder:
         <tr><td>2402</td><td><a href="#p-2402">Meeting Rooms III</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Two heaps: free rooms by number, busy rooms by (end time, number); delayed meetings keep their duration</td></tr>
         <tr><td>480</td><td><a href="#p-480">Sliding Window Median</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Two heaps (max-heap low half, min-heap high half) with lazy deletion of values that left the window</td></tr>
         <tr><td>857</td><td><a href="#p-857">Minimum Cost to Hire K Workers</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Sort by wage/quality ratio; the current ratio sets the pay rate, a max-heap keeps the k smallest qualities</td></tr>
+        <tr><td>1606</td><td><a href="#p-1606">Find Servers That Handled Most Number of Requests</a></td><td><span class="tag hard">Hard</span></td><td><span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></td><td>Busy servers in a heap by finish time; free servers in a heap keyed so the next one at or after i % k comes first</td></tr>
       </tbody>
     </table>
     <h3>Worked solutions for the practice list</h3>
@@ -3577,6 +3580,80 @@ class Solution:
       </div>
     </details>
     <!-- gen:end 857 -->
+
+    <!-- gen:start 1606 -->
+    <details class="problem" id="p-1606">
+      <summary><span class="tag hard">Hard</span> 1606. Find Servers That Handled Most Number of Requests <span class="ctag" title="On Cisco's all-time interview list">Cisco</span> <span class="ds-tags"><span class="ds">Array</span><span class="ds">Heap</span></span></summary>
+      <div class="body">
+        <p><strong>Problem:</strong> Request <code>i</code> goes to server <code>i % k</code> or the next free one cyclically (dropped if all are busy). Return the servers that handled the most requests.</p>
+        <!-- enrich-top:start 1606 -->
+        <p class="links"><a href="https://leetcode.com/problems/find-servers-that-handled-most-number-of-requests/" target="_blank" rel="noopener">Solve it on LeetCode ↗</a></p>
+        <div class="example"><div class="ex-title">Example 1</div><div><strong>Input:</strong> <code class="ex">k = 3, arrival = [1,2,3,4,5], load = [5,2,3,3,3]</code></div><div><strong>Output:</strong> <code class="ex">[1]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">All of the servers start out available.
+The first 3 requests are handled by the first 3 servers in order.
+Request 3 comes in. Server 0 is busy, so it's assigned to the next available server, which is 1.
+Request 4 comes in. It cannot be handled since all servers are busy, so it is dropped.
+Servers 0 and 2 handled one request each, while server 1 handled two requests. Hence server 1 is the busiest server.</span></div></div>
+        <div class="example"><div class="ex-title">Example 2</div><div><strong>Input:</strong> <code class="ex">k = 3, arrival = [1,2,3,4], load = [1,2,1,2]</code></div><div><strong>Output:</strong> <code class="ex">[0]</code></div><div class="ex-why"><strong>Explanation:</strong> <span class="pre">The first 3 requests are handled by first 3 servers.
+Request 3 comes in. It is handled by server 0 since the server is available.
+Server 0 handled two requests, while servers 1 and 2 handled one request each. Hence server 0 is the busiest server.</span></div></div>
+        <p class="constraints"><strong>Constraints:</strong> <code>1 ≤ k ≤ 10⁵</code> · <code>1 ≤ arrival.length, load.length ≤ 10⁵</code> · <code>arrival.length == load.length</code> · <code>1 ≤ arrival[i], load[i] ≤ 10⁹</code> · <code>arrival</code> is <strong>strictly increasing</strong>.</p>
+        <div class="hints">
+          <details class="hint"><summary>Hint 1</summary><p>Track busy servers by when they finish.</p></details>
+          <details class="hint"><summary>Hint 2</summary><p>For free servers you need "the first id ≥ i % k, wrapping around". Can a clever heap key give you that?</p></details>
+        </div>
+        <p class="bridge"><strong>From brute force to the pattern:</strong> Cyclic scanning per request is <code>O(nk)</code>; two heaps are <code>O(n log k)</code> (a sorted list of free ids also works).</p>
+        <!-- enrich-top:end 1606 -->
+        <p><strong>Spot it:</strong> Two <strong>heaps</strong>: busy servers by finish time (release those done by the arrival), and free servers. To find "the first free server at or after <code>i % k</code>, wrapping", store each free server <code>j</code> under the key <code>i + (j − i) mod k</code> when it's released: the smallest key is the right server.</p>
+        <p><strong>Why not another pattern?</strong> Scanning servers cyclically for each request is <code>O(k)</code> per request.</p>
+        <p><strong>Approach:</strong></p>
+        <ol class="steps-list">
+          <li>Initially free keys are <code>0..k−1</code>.</li>
+          <li>At request <code>i</code>: release every busy server with <code>end ≤ arrival[i]</code>, pushing it as <code>i + (j − i) % k</code>.</li>
+          <li>If none free, drop. Else pop the smallest key; the server is <code>key % k</code>; count it and mark it busy until <code>arrival + load</code>.</li>
+        </ol>
+        <pre><code class="python">import heapq
+
+class Solution:
+    def busiestServers(self, k: int, arrival: List[int], load: List[int]) -&gt; List[int]:
+        free = list(range(k))  # keys whose value mod k is the server id
+        busy = []  # (finish time, server)
+        handled = [0] * k
+        for i, (t, d) in enumerate(zip(arrival, load)):
+            while busy and busy[0][0] &lt;= t:
+                _, j = heapq.heappop(busy)
+                heapq.heappush(free, i + (j - i) % k)  # its position in the cyclic order starting at i % k
+            if not free:
+                continue  # every server is busy: drop the request
+            j = heapq.heappop(free) % k
+            handled[j] += 1
+            heapq.heappush(busy, (t + d, j))
+        top = max(handled)
+        return [j for j in range(k) if handled[j] == top]</code></pre>
+        <!-- trace:start 1606 -->
+        <div class="trace-viz" id="trace-p1606"></div>
+        <script type="application/json" id="trace-p1606-data">{"src":["import heapq","","class Solution:","    def busiestServers(self, k: int, arrival: List[int], load: List[int]) -> List[int]:","        free = list(range(k))  # keys whose value mod k is the server id","        busy = []  # (finish time, server)","        handled = [0] * k","        for i, (t, d) in enumerate(zip(arrival, load)):","            while busy and busy[0][0] <= t:","                _, j = heapq.heappop(busy)","                heapq.heappush(free, i + (j - i) % k)  # its position in the cyclic order starting at i % k","            if not free:","                continue  # every server is busy: drop the request","            j = heapq.heappop(free) % k","            handled[j] += 1","            heapq.heappush(busy, (t + d, j))","        top = max(handled)","        return [j for j in range(k) if handled[j] == top]"],"notes":{"5":"keys whose value mod k is the server id","6":"(finish time, server)","11":"its position in the cyclic order starting at i % k","13":"every server is busy: drop the request"},"input":"k = 3, arrival = [1,2,3], load = [10,12,11]","output":"[0,1,2]","values":[3,{"~":"list","v":[1,2,3]},{"~":"list","v":[10,12,11]},{"~":"list","v":[0,1,2]},{"~":"list","v":[]},{"~":"list","v":[0,0,0]},0,1,10,{"~":"list","v":[1,2]},{"~":"list","v":[1,0,0]},{"~":"list","v":[{"~":"tuple","v":[11,0]}]},2,12,{"~":"list","v":[2]},{"~":"list","v":[1,1,0]},{"~":"list","v":[{"~":"tuple","v":[11,0]},{"~":"tuple","v":[14,1]}]},11,{"~":"list","v":[1,1,1]},{"~":"list","v":[{"~":"tuple","v":[11,0]},{"~":"tuple","v":[14,1]},{"~":"tuple","v":[14,2]}]}],"steps":[[5,1,"busiestServers",{"k":0,"arrival":1,"load":2},null],[6,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":3},null],[7,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":3,"busy":4},null],[8,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":3,"busy":4,"handled":5},null],[9,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":3,"busy":4,"handled":5,"i":6,"t":7,"d":8},null],[12,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":3,"busy":4,"handled":5,"i":6,"t":7,"d":8},null],[14,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":3,"busy":4,"handled":5,"i":6,"t":7,"d":8},null],[15,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":9,"busy":4,"handled":5,"i":6,"t":7,"d":8,"j":6},null],[16,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":9,"busy":4,"handled":10,"i":6,"t":7,"d":8,"j":6},null],[8,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":9,"busy":11,"handled":10,"i":6,"t":7,"d":8,"j":6},null],[9,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":9,"busy":11,"handled":10,"i":7,"t":12,"d":13,"j":6},null],[12,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":9,"busy":11,"handled":10,"i":7,"t":12,"d":13,"j":6},null],[14,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":9,"busy":11,"handled":10,"i":7,"t":12,"d":13,"j":6},null],[15,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":14,"busy":11,"handled":10,"i":7,"t":12,"d":13,"j":7},null],[16,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":14,"busy":11,"handled":15,"i":7,"t":12,"d":13,"j":7},null],[8,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":14,"busy":16,"handled":15,"i":7,"t":12,"d":13,"j":7},null],[9,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":14,"busy":16,"handled":15,"i":12,"t":0,"d":17,"j":7},null],[12,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":14,"busy":16,"handled":15,"i":12,"t":0,"d":17,"j":7},null],[14,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":14,"busy":16,"handled":15,"i":12,"t":0,"d":17,"j":7},null],[15,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":16,"handled":15,"i":12,"t":0,"d":17,"j":12},null],[16,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":16,"handled":18,"i":12,"t":0,"d":17,"j":12},null],[8,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":12},null],[17,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":12},null],[18,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":12,"top":7},null],[18,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":6,"top":7},null],[18,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":7,"top":7},null],[18,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":12,"top":7},null],[18,1,"busiestServers",{"k":0,"arrival":1,"load":2,"free":4,"busy":19,"handled":18,"i":12,"t":0,"d":17,"j":12,"top":7},null,3]],"truncated":false}</script>
+        <!-- trace:end 1606 -->
+        <!-- explain:start 1606 -->
+        <p><strong>What the code is doing, line by line:</strong></p>
+        <ol>
+          <li>A released server's key <code>i + (j − i) mod k</code> ranks it by its cyclic distance from <code>i % k</code>.</li>
+          <li>Keys pushed at earlier requests are smaller but still in the right cyclic order (a known invariant of this trick), so the minimum key is the correct next server.</li>
+          <li>Each request does <code>O(log k)</code> heap work.</li>
+        </ol>
+        <p><strong>Dry run:</strong> use the <em>Step through the solution</em> player under the code. It runs this exact code on Example 1 and shows every line with the variables at that moment.</p>
+        <!-- explain:end 1606 -->
+        <!-- enrich-edges:start 1606 -->
+        <p><strong>Edge cases to test:</strong></p>
+        <ul class="edges">
+          <li>All servers busy (dropped requests).</li>
+          <li>k = 1.</li>
+          <li>Ties for the busiest.</li>
+        </ul>
+        <!-- enrich-edges:end 1606 -->
+        <p><strong>Complexity:</strong> <code>O(n log k)</code> time, <code>O(k)</code> space.</p>
+      </div>
+    </details>
+    <!-- gen:end 1606 -->
 
     <nav class="pager">
       <a href="06-monotonic-stack.html"><small>Previous pattern</small>← 06 · Monotonic Stack</a>
