@@ -13,7 +13,7 @@ Double-click **`index.html`**. It opens in any browser straight from disk. No se
 | `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 8-week study plan |
 | `patterns/01-…24-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
 | `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 24 |
-| `google.html` | **Google interview list**: all 785 problems from Google's six-month LeetCode list grouped by pattern, with frequency, search and difficulty filters, a per-browser "done" checklist and a 6-month study plan |
+| `google.html`, `meta.html`, `nvidia.html` | **Company interview lists**: all problems from Google's (785), Meta's (377) and Nvidia's (19) six-month LeetCode lists, grouped by pattern, with frequency, search and difficulty filters, a per-browser "done" checklist and a 6-month study plan |
 | `assets/` | Source CSS and the small visualizer engine (plain JS). Every page already contains a copy of both, so **any single HTML file works on its own** (email it, move it, open it offline) |
 | `tools/inline_assets.py` | If you edit `assets/`, run `python3 tools/inline_assets.py` to refresh the copy inside every page |
 
@@ -23,7 +23,7 @@ Every problem is also tagged with the **data structures** it is built on (Array,
 
 The practice lists cover every LeetCode problem from the YouTube playlist [Data Structures & Algorithms in Python – The Complete Pathway](https://www.youtube.com/playlist?list=PLKYEe2WisBTFEr6laH5bR2J19j7sl5O8R), each sorted into the pattern it belongs to.
 
-Every Medium and Hard Python problem on **Google's six-month interview list** is solved on its pattern page too, marked with a blue **Google** badge. Each one says which pattern to choose and why (and why not the obvious alternatives), gives hints, the brute-force-to-pattern bridge, edge cases, and the official LeetCode examples and constraints.
+Every Medium and Hard Python problem on **Google's, Meta's and Nvidia's six-month interview lists** is solved on its pattern page too, marked with a **Google**, **Meta** or **Nvidia** badge. Each one says which pattern to choose and why (and why not the obvious alternatives), gives hints, the brute-force-to-pattern bridge, edge cases, and the official LeetCode examples and constraints.
 
 Under every solution there is a **Step through the solution** player: it runs that exact Python code on a LeetCode example and lets you step line by line, watching the variables, arrays, grids and the call stack change.
 
