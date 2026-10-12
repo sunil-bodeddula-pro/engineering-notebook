@@ -324,8 +324,161 @@
     });
   }
 
+  /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
+  // [term, other spellings, definition]. The first spelling is the glossary heading.
+  const GLOSSARY = [
+    ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
+    ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
+    ["Anagram", [], "The same letters in a different order, like \"listen\" and \"silent\"."],
+    ["Backtracking", [], "Build an answer one choice at a time; when a choice leads nowhere, undo it and try the next one."],
+    ["Base case", [], "The smallest input a recursive function answers directly, without calling itself. It is what stops the recursion."],
+    ["BFS", ["breadth-first search"], "Breadth-first search: explore a graph level by level with a queue. Finds shortest paths when every step costs the same."],
+    ["Big-O", ["time complexity"], "How the running time grows with the input size n. O(n): double n, double the time. O(n²): double n, four times the time."],
+    ["Binary search", [], "Find a target in sorted data by checking the middle and throwing away half each step: O(log n)."],
+    ["Binary search tree", ["BST"], "A binary tree where everything left of a node is smaller and everything right is larger, so an in-order walk is sorted."],
+    ["Binary tree", [], "A tree where every node has at most two children, left and right. The top node is the root."],
+    ["Bitmask", [], "An integer whose bits record which items are chosen: 0b101 means items 0 and 2."],
+    ["Brute force", ["brute-force"], "The obvious solution that tries every possibility. Usually too slow, but the right place to start and then improve."],
+    ["Call stack", [], "The stack of function calls still waiting to finish. Each recursive call adds a frame on top."],
+    ["Combination", [], "A selection where order doesn't matter: {1, 2} and {2, 1} are the same combination."],
+    ["Connected component", ["component"], "A group of nodes that can all reach each other. A graph with no edges has one component per node."],
+    ["Contiguous", [], "Next to each other, with no gaps."],
+    ["Cycle", [], "A path in a graph or linked list that comes back to where it started."],
+    ["DAG", ["directed acyclic graph"], "Directed acyclic graph: one-way edges and no cycles, like course prerequisites."],
+    ["Deque", [], "Double-ended queue: O(1) adding and removing at both ends. collections.deque in Python."],
+    ["DFS", ["depth-first search"], "Depth-first search: follow one path as deep as it goes before backing up. Written with recursion or a stack."],
+    ["Dijkstra's algorithm", ["Dijkstra"], "Shortest paths when edge weights are never negative: always expand the closest unvisited node next, using a heap."],
+    ["Dummy node", ["dummy head", "sentinel"], "A fake extra node or value placed at the edge (like a dummy head before a list) so the first and last items need no special case."],
+    ["Edge", [], "A connection between two nodes. Directed edges go one way; weighted edges have a cost."],
+    ["Edge case", [], "An unusual input that often breaks code: empty input, one element, all values equal, negatives, huge numbers."],
+    ["Greedy", [], "Take the locally best choice at every step and never undo it. Only correct when you can argue it never hurts."],
+    ["Hash map", ["hash table"], "Stores key → value pairs with O(1) average lookup, insert and delete. Python's dict."],
+    ["Hash set", [], "Stores unique values with O(1) average membership tests. Python's set."],
+    ["Heap", ["min-heap", "max-heap", "priority queue"], "Gives the smallest item in O(1) and adds or removes in O(log n). Python's heapq is a min-heap; store negatives for a max-heap."],
+    ["Immutable", [], "Can't be changed after it's created. Python strings and tuples are immutable, so s += c builds a whole new string."],
+    ["In-degree", ["indegree"], "How many edges point into a node, e.g. how many prerequisites a course still has."],
+    ["In-place", [], "Changing the input itself instead of building a copy, so the extra memory is O(1)."],
+    ["Interval", [], "A range with a start and an end, like [2, 5]."],
+    ["Invariant", [], "A fact your loop keeps true at every step, e.g. \"everything left of i is already processed\". It's how you know the code is right."],
+    ["Leaf", ["leaf node"], "A tree node with no children."],
+    ["Lexicographic", ["lexicographically", "lexicographical"], "Dictionary order: compare character by character, the way words are sorted in a dictionary."],
+    ["Linked list", [], "Nodes that each hold a value and a pointer to the next node. Cheap to insert or remove, but no jumping straight to index i."],
+    ["Memoization", ["memoisation", "memoize", "memoise", "memoized", "memoised"], "Caching a function's answer for each input so repeated calls are instant (@cache in Python). Top-down dynamic programming."],
+    ["Minimum spanning tree", ["MST"], "The cheapest set of edges that connects every node without making a cycle."],
+    ["Modulo", [], "The remainder after division: 17 % 5 = 2. \"Return it modulo 10⁹+7\" just keeps huge answers small."],
+    ["Monotonic", [], "Only ever moving one way: always increasing, or always decreasing."],
+    ["Node", [], "One element of a linked list, tree or graph."],
+    ["Off-by-one", [], "A bug where a loop or index goes one step too far or stops one step short."],
+    ["Overlapping subproblems", ["subproblem"], "Smaller versions of the same problem that get solved again and again. That repetition is what dynamic programming removes."],
+    ["Palindrome", [], "Reads the same forwards and backwards, like \"racecar\"."],
+    ["Permutation", [], "An ordering of all the items. [1, 2, 3] has 6 permutations."],
+    ["Pointer", [], "A variable that marks a position, like an index i or a reference to a node. Moving pointers avoids restarting loops."],
+    ["Prefix sum", [], "A running total: prefix[i] is the sum of the first i values, so any range sum is prefix[r] − prefix[l]."],
+    ["Pruning", [], "Skipping parts of a search that can't lead to a valid or better answer."],
+    ["Queue", [], "First in, first out, like a line at a shop. Use collections.deque: append to join, popleft to leave."],
+    ["Recursion", ["recursive", "recursively"], "A function that calls itself on a smaller version of the same problem until it reaches a base case."],
+    ["Segment tree", ["Fenwick tree", "binary indexed tree"], "A tree built over an array that answers range questions (like range sums) and handles updates, both in O(log n)."],
+    ["Sliding window", [], "A range [left, right] that moves along an array: grow on the right, shrink on the left, never start over."],
+    ["Space complexity", [], "How much extra memory the solution needs as n grows, not counting the input itself."],
+    ["Stack", [], "Last in, first out, like a pile of plates. A Python list with append and pop."],
+    ["Subarray", ["substring"], "A contiguous slice: [2, 3] is a subarray of [1, 2, 3, 4], but [1, 3] is not."],
+    ["Subsequence", [], "Items kept in their original order, with gaps allowed: [1, 3] is a subsequence of [1, 2, 3, 4]."],
+    ["Subtree", [], "A node together with everything below it."],
+    ["Topological sort", ["topological order"], "An order of a directed graph's nodes in which every edge points forward, like taking courses after their prerequisites."],
+    ["Trie", ["prefix tree"], "A tree of characters where each path from the root spells a prefix. Fast for \"does any word start with…\" questions."],
+    ["Union-find", ["disjoint set", "DSU"], "Tracks groups that only ever merge: find(x) names x's group, union(a, b) merges two groups. Nearly O(1) each."],
+    ["XOR", [], "Bitwise \"exclusive or\": a bit is 1 when the two bits differ. x ^ x = 0 and x ^ 0 = x, so equal values cancel."],
+  ];
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, .no-gl";
+
+  function bootGlossary() {
+    const root = document.querySelector("main") || document.querySelector(".wrap");
+    if (!root) return;
+    const lookup = new Map();
+    GLOSSARY.forEach(([term, alts, def], id) => [term, ...alts].forEach((w) => lookup.set(w.toLowerCase(), id)));
+    const words = [...lookup.keys()].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const re = new RegExp(`(?<![\\w-])(${words.join("|")})(?:s|es)?(?![\\w-])`, "gi");
+    // Each problem is its own scope (people jump straight to one), and so is the rest of the page.
+    // Inside problems, skip the page's own topic ("DFS" on the DFS page): it's underlined once in the page text.
+    const scopes = [...root.querySelectorAll("details.problem")];
+    const h1 = (root.querySelector("h1") || {}).textContent || "";
+    const own = new Set();
+    h1.replace(re, (m, w) => { own.add(lookup.get(w.toLowerCase())); return m; });
+    const scan = (scope, isPage) => {
+      const seen = new Set(isPage ? [] : own);
+      const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
+        acceptNode: (t) => {
+          const p = t.parentElement;
+          if (!p || p.closest(SKIP) || !t.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          if (isPage && p.closest("details.problem")) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      const texts = [];
+      while (walker.nextNode()) texts.push(walker.currentNode);
+      texts.forEach((t) => {
+        let node = t;
+        re.lastIndex = 0;
+        let m;
+        while ((m = re.exec(node.nodeValue))) {
+          const id = lookup.get(m[1].toLowerCase());
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const hit = node.splitText(m.index);
+          node = hit.splitText(m[0].length);
+          const span = document.createElement("span");
+          span.className = "gl"; span.tabIndex = 0; span.dataset.gl = id;
+          span.textContent = hit.nodeValue;
+          hit.replaceWith(span);
+          re.lastIndex = 0;
+        }
+      });
+    };
+    scan(root, true);
+    scopes.forEach((s) => scan(s, false));
+
+    const tip = document.createElement("div");
+    tip.className = "gl-tip"; tip.id = "gl-tip"; tip.setAttribute("role", "tooltip");
+    document.body.appendChild(tip);
+    let current = null;
+    const hide = () => { tip.classList.remove("show"); current = null; };
+    const show = (el) => {
+      const [term, , def] = GLOSSARY[+el.dataset.gl];
+      tip.innerHTML = `<b>${esc(term)}</b>${esc(def)}`;
+      tip.classList.add("show");
+      current = el;
+      place();
+    };
+    // Keep the tip next to its term; hide it once the term scrolls out of view.
+    const place = () => {
+      if (!current) return;
+      const r = current.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+      if (r.bottom < 0 || r.top > window.innerHeight) return hide();
+      const left = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 16));
+      const top = r.bottom + 8 + h < window.innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8);
+      tip.style.left = left + "px"; tip.style.top = top + "px";
+    };
+    document.addEventListener("mouseover", (e) => { const g = e.target.closest && e.target.closest(".gl"); if (g) show(g); });
+    document.addEventListener("mouseout", (e) => { const g = e.target.closest && e.target.closest(".gl"); if (g && !g.contains(e.relatedTarget)) hide(); });
+    document.addEventListener("focusin", (e) => { if (e.target.classList && e.target.classList.contains("gl")) show(e.target); });
+    document.addEventListener("focusout", (e) => { if (e.target.classList && e.target.classList.contains("gl")) hide(); });
+    document.addEventListener("click", (e) => { const g = e.target.closest && e.target.closest(".gl"); if (g) { if (current === g) hide(); else show(g); } else if (current) hide(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+    window.addEventListener("scroll", place, { passive: true });
+    window.addEventListener("resize", place);
+  }
+
+  /** Fill <dl class="glossary-list"> with every term (used by start-here.html). */
+  function glossaryList(target) {
+    const el = typeof target === "string" ? document.querySelector(target) : target;
+    if (!el) return;
+    el.innerHTML = GLOSSARY.slice().sort((a, b) => a[0].localeCompare(b[0])).map(([term, alts, def]) =>
+      `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     bootTraces();
+    bootGlossary();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
@@ -369,7 +522,7 @@
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc, glossaryList };
 })();
 
 // Company-lists menu in the top bar: close it on an outside click or Escape.

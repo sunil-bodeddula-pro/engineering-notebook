@@ -6,11 +6,19 @@ An offline, interactive course that takes you from zero to pro at the 24 coding-
 
 Double-click **`index.html`**. It opens in any browser straight from disk. No server, no install, no internet needed.
 
+## New to coding interviews?
+
+1. Open **`start-here.html`** for the foundations the pattern pages assume: Big-O, data structures, recursion and the Python you'll type. Skip what you already know.
+2. Follow the **beginner path** on `index.html`: the 24 patterns in the order to learn them, each with its first problems.
+3. On each pattern page, solve the problems marked **★ Start here** first (the gentlest 2–3, also listed at the top of section 7).
+4. Hover or tap any **dotted word** (memoization, in-degree, amortised, …) for a one-line definition; they're all in the glossary on `start-here.html`.
+
 ## What's inside
 
 | Path | What it is |
 |---|---|
-| `index.html` | Start here: pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 8-week study plan |
+| `index.html` | Home page: **beginner path**, pattern map, memory palace, **interactive pattern finder**, 6-step problem-solving method, 8-week study plan |
+| `start-here.html` | **Foundations for beginners**: Big-O (with an interactive "is it fast enough?" slider), the core data structures and what they cost, recursion and the call stack, the Python toolkit, how to read a LeetCode problem, a first problem walked through, a quiz and the glossary |
 | `patterns/01-…24-*.html` | One page per pattern, all with the same 10 sections (below) and step-through visualizers |
 | `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 24 |
 | `google.html`, `meta.html`, `amazon.html`, `microsoft.html`, `apple.html`, `nvidia.html`, `cisco.html`, `netflix.html` | **Company interview lists**: all problems from Google's (785), Meta's (377), Amazon's (725), Microsoft's (411), Apple's (69) and Nvidia's (19) six-month LeetCode lists and Cisco's (88) and Netflix's (29) all-time lists, grouped by pattern, with frequency, search and difficulty filters, a per-browser "done" checklist and a 6-month study plan |
