@@ -13,6 +13,19 @@ design, algorithms and programming languages.
 | [`languages/`](languages/) | Idioms, internals and gotchas — Kotlin, TypeScript, Dart and more | [Languages](languages/README.md#languages) |
 | [`templates/`](templates/) | Ready-to-copy templates for every kind of note | [All templates](templates/README.md) |
 
+## Website: [interviewkata.com](https://interviewkata.com)
+
+The interview-prep material is published as a website. Every push to `main` that touches `site/` or
+`algorithms/` runs [`.github/workflows/pages.yml`](.github/workflows/pages.yml), which builds the site with
+[`site/assemble.sh`](site/assemble.sh) and deploys it to GitHub Pages. Only the website files are published:
+
+| URL | Source |
+| --- | --- |
+| `interviewkata.com/` | [`site/`](site/) (home page, 404 page) |
+| `interviewkata.com/coding/` | [`algorithms/`](algorithms/) pages, `patterns/` and `assets/` |
+
+To preview locally: `site/assemble.sh /tmp/site && python3 -m http.server -d /tmp/site 8000`.
+
 ## Current focus
 
 | Topic | Now | Next |
