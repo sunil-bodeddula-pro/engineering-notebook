@@ -1,4 +1,4 @@
-/* Coding Patterns Mastery — tiny, dependency-free visualizer engine.
+/* InterviewKata — tiny, dependency-free visualizer engine.
  * Works from file:// (no server, no modules, no fetch).
  *
  * Usage in a page:
@@ -389,7 +389,7 @@
     ["Union-find", ["disjoint set", "DSU"], "Tracks groups that only ever merge: find(x) names x's group, union(a, b) merges two groups. Nearly O(1) each."],
     ["XOR", [], "Bitwise \"exclusive or\": a bit is 1 when the two bits differ. x ^ x = 0 and x ^ 0 = x, so equal values cancel."],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, .no-gl";
 
   function bootGlossary() {
     const root = document.querySelector("main") || document.querySelector(".wrap");

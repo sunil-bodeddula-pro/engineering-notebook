@@ -1,6 +1,6 @@
-# Coding Patterns Mastery
+# InterviewKata: coding patterns
 
-An offline, interactive course that takes you from zero to pro at the 24 coding-interview patterns.
+Live at [interviewkata.com](https://interviewkata.com). An offline, interactive course that takes you from zero to pro at the 24 coding-interview patterns.
 
 ## Open it
 
