@@ -4,15 +4,15 @@
 #
 #   site/assemble.sh [OUT_DIR]     (default: _site; run from the repo root)
 #
-#   /                  site/index.html, site/404.html, the favicon
-#   /coding/           algorithms/ pages, patterns/ and assets/
+#   /                  algorithms/ pages, patterns/ and assets/
+#   /404.html          site/404.html, plus the favicon at /favicon.svg
 set -euo pipefail
 OUT="${1:-_site}"
 rm -rf "$OUT"
-mkdir -p "$OUT/coding"
-cp site/index.html site/404.html "$OUT/"
+mkdir -p "$OUT"
+cp algorithms/*.html "$OUT/"
+cp -r algorithms/patterns algorithms/assets "$OUT/"
+cp site/404.html "$OUT/"
 cp algorithms/assets/favicon.svg "$OUT/"
-cp algorithms/*.html "$OUT/coding/"
-cp -r algorithms/patterns algorithms/assets "$OUT/coding/"
 touch "$OUT/.nojekyll"
 echo "assembled $(find "$OUT" -name '*.html' | wc -l) pages into $OUT"

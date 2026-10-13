@@ -21,8 +21,8 @@ The interview-prep material is published as a website. Every push to `main` that
 
 | URL | Source |
 | --- | --- |
-| `interviewkata.com/` | [`site/`](site/) (home page, 404 page) |
-| `interviewkata.com/coding/` | [`algorithms/`](algorithms/) pages, `patterns/` and `assets/` |
+| `interviewkata.com/` | [`algorithms/`](algorithms/) pages, `patterns/` and `assets/` |
+| `interviewkata.com/404.html` | [`site/404.html`](site/404.html) |
 
 To preview locally: `site/assemble.sh /tmp/site && python3 -m http.server -d /tmp/site 8000`.
 
