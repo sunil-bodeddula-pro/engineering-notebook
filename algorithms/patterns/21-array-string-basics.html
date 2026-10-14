@@ -103,14 +103,28 @@ a:hover { text-decoration-thickness: 2px; }
 .topbar nav .navmenu-panel a { border-radius: 8px; }
 .topbar nav .navmenu-panel a[aria-current] { color: var(--ink); font-weight: 600; background: var(--surface-2); }
 @media (max-width: 640px) { .navmenu-panel { position: fixed; left: 16px; right: 16px; top: auto; min-width: 0; margin-top: 6px; } }
+/* Compact top bar: logo + "Menu" button, links open as a full-width list. viz.js adds the button and sets
+   .nav-compact when the links don't fit on one row; on phones the compact look also applies before that check. */
+.nav-toggle { display: none; }
+.js .topbar.nav-compact { flex-wrap: wrap; row-gap: 8px; }
+.nav-toggle-icon { position: relative; width: 16px; height: 2px; border-radius: 2px; background: currentColor; box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor; transition: transform .2s ease; }
+.nav-toggle-icon::after { content: ""; position: absolute; inset: 0; border-radius: 2px; background: currentColor; opacity: 0; transition: opacity .2s ease; }
+.nav-open .nav-toggle-icon { box-shadow: none; transform: rotate(45deg); }
+.nav-open .nav-toggle-icon::after { opacity: 1; transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .nav-toggle-icon, .nav-toggle-icon::after { transition: none; } }
+.js .topbar.nav-compact .nav-toggle { display: inline-flex; align-items: center; gap: 9px; margin-left: auto; padding: 8px 14px; font: 600 .9rem var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
+.js .topbar.nav-compact .nav-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.js .topbar.nav-compact nav { display: none; }
+.js .topbar.nav-compact.nav-open nav { display: flex; flex-direction: column; align-items: stretch; flex-basis: 100%; gap: 2px; padding: 6px 0 4px; max-height: calc(100vh - 72px); overflow-y: auto; }
+.js .topbar.nav-compact.nav-open nav a, .js .topbar.nav-compact.nav-open .navmenu summary { padding: 11px 12px; border-radius: 10px; font-size: 1rem; }
+.js .topbar.nav-compact.nav-open .navmenu-panel { position: static; min-width: 0; margin: 2px 0 6px; box-shadow: none; }
+@media (max-width: 640px) { .js .topbar:not(.nav-full) { flex-wrap: wrap; row-gap: 8px; } .js .topbar:not(.nav-full) nav { display: none; } }
 
 .page { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 40px) 96px; }
 @media (max-width: 960px) { .page { grid-template-columns: 1fr; } .toc { display: none; } }
-/* Phones: wide tables scroll inside their own box; problem headers wrap their tags and badges. */
-@media (max-width: 640px) {
-  main table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  details.problem > summary { flex-wrap: wrap; row-gap: 6px; }
-}
+/* Wide tables scroll inside their own box (viz.js wraps every table in .table-scroll). */
+.table-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 14px 0; }
+.table-scroll > table { margin: 0; }
 
 .toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; font-size: .9rem; }
 .toc h4 { margin: 0 0 8px; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
@@ -234,7 +248,7 @@ pre .copy:hover { opacity: 1; }
 
 /* ---------- problem block ---------- */
 details.problem { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin: 14px 0; box-shadow: var(--shadow); }
-details.problem > summary { cursor: pointer; list-style: none; padding: 16px 20px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+details.problem > summary { cursor: pointer; list-style: none; padding: 16px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; row-gap: 6px; font-weight: 600; }  /* badges wrap at any width */
 details.problem > summary::-webkit-details-marker { display: none; }
 details.problem > summary::after { content: "+"; margin-left: auto; font-size: 1.3rem; color: var(--ink-3); transition: transform .2s; }
 details.problem[open] > summary::after { transform: rotate(45deg); }
@@ -375,6 +389,8 @@ footer.site a { color: var(--ink-2); }
  */
 (function () {
   "use strict";
+  // Lets the CSS know JavaScript is running (set while <head> is parsed, so there's no flash on load).
+  document.documentElement.classList.add("js");
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -843,7 +859,65 @@ footer.site a { color: var(--ink-2); }
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
+  // Collapse the top-bar links behind a "Menu" button whenever they don't fit on one row
+  // (phones, and tablets on pages with many links). Without JavaScript the links simply wrap.
+  function bootMobileNav() {
+    const bar = document.querySelector(".topbar");
+    const nav = bar && bar.querySelector("nav");
+    if (!nav) return;
+    nav.id = nav.id || "site-nav";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-toggle";
+    btn.setAttribute("aria-controls", nav.id);
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = '<span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span>';
+    bar.insertBefore(btn, nav);
+    const label = btn.querySelector(".nav-toggle-label");
+    const set = (open) => {
+      bar.classList.toggle("nav-open", open);
+      btn.setAttribute("aria-expanded", String(open));
+      label.textContent = open ? "Close" : "Menu";
+    };
+    btn.addEventListener("click", () => set(!bar.classList.contains("nav-open")));
+    nav.addEventListener("click", (e) => { if (e.target.closest("a")) set(false); });
+    document.addEventListener("click", (e) => { if (!bar.contains(e.target)) set(false); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && bar.classList.contains("nav-open")) { set(false); btn.focus(); }
+    });
+    // Show the full row, see whether its links wrap onto a second line, then pick a mode.
+    const fit = () => {
+      bar.classList.remove("nav-compact");
+      bar.classList.add("nav-full");
+      const items = [...nav.children];
+      const wraps = items.length > 1 && items[items.length - 1].offsetTop > items[0].offsetTop + 4;
+      bar.classList.toggle("nav-compact", wraps);
+      bar.classList.toggle("nav-full", !wraps);
+      if (!wraps) set(false);
+    };
+    let queued = false;
+    window.addEventListener("resize", () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; fit(); });
+    });
+    fit();
+  }
+
+  // Wide tables scroll sideways inside their own box instead of widening the page.
+  function wrapTables() {
+    document.querySelectorAll("main table, .wrap table").forEach((t) => {
+      if (t.parentElement.classList.contains("table-scroll") || t.closest(".viz, .trace-viz")) return;  // players redraw themselves
+      const box = document.createElement("div");
+      box.className = "table-scroll";
+      t.parentNode.insertBefore(box, t);
+      box.appendChild(t);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootMobileNav();
+    wrapTables();
     bootTraces();
     bootGlossary();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.

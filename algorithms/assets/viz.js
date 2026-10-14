@@ -8,6 +8,8 @@
  */
 (function () {
   "use strict";
+  // Lets the CSS know JavaScript is running (set while <head> is parsed, so there's no flash on load).
+  document.documentElement.classList.add("js");
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -476,7 +478,65 @@
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
+  // Collapse the top-bar links behind a "Menu" button whenever they don't fit on one row
+  // (phones, and tablets on pages with many links). Without JavaScript the links simply wrap.
+  function bootMobileNav() {
+    const bar = document.querySelector(".topbar");
+    const nav = bar && bar.querySelector("nav");
+    if (!nav) return;
+    nav.id = nav.id || "site-nav";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-toggle";
+    btn.setAttribute("aria-controls", nav.id);
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = '<span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span>';
+    bar.insertBefore(btn, nav);
+    const label = btn.querySelector(".nav-toggle-label");
+    const set = (open) => {
+      bar.classList.toggle("nav-open", open);
+      btn.setAttribute("aria-expanded", String(open));
+      label.textContent = open ? "Close" : "Menu";
+    };
+    btn.addEventListener("click", () => set(!bar.classList.contains("nav-open")));
+    nav.addEventListener("click", (e) => { if (e.target.closest("a")) set(false); });
+    document.addEventListener("click", (e) => { if (!bar.contains(e.target)) set(false); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && bar.classList.contains("nav-open")) { set(false); btn.focus(); }
+    });
+    // Show the full row, see whether its links wrap onto a second line, then pick a mode.
+    const fit = () => {
+      bar.classList.remove("nav-compact");
+      bar.classList.add("nav-full");
+      const items = [...nav.children];
+      const wraps = items.length > 1 && items[items.length - 1].offsetTop > items[0].offsetTop + 4;
+      bar.classList.toggle("nav-compact", wraps);
+      bar.classList.toggle("nav-full", !wraps);
+      if (!wraps) set(false);
+    };
+    let queued = false;
+    window.addEventListener("resize", () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; fit(); });
+    });
+    fit();
+  }
+
+  // Wide tables scroll sideways inside their own box instead of widening the page.
+  function wrapTables() {
+    document.querySelectorAll("main table, .wrap table").forEach((t) => {
+      if (t.parentElement.classList.contains("table-scroll") || t.closest(".viz, .trace-viz")) return;  // players redraw themselves
+      const box = document.createElement("div");
+      box.className = "table-scroll";
+      t.parentNode.insertBefore(box, t);
+      box.appendChild(t);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootMobileNav();
+    wrapTables();
     bootTraces();
     bootGlossary();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
