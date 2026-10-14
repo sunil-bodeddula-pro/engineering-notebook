@@ -155,6 +155,7 @@ kbd { font-family: var(--mono); font-size: .8em; border: 1px solid var(--line); 
   margin: 18px 0;
 }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.grid-2.even { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
 
 .callout { border-radius: 12px; padding: 14px 18px; margin: 16px 0; background: var(--surface-2); }
@@ -345,6 +346,7 @@ svg.tree path.edge.active, svg.tree line.active { stroke: var(--blue); stroke-wi
 
 /* ---------- index ---------- */
 .hero { padding: 56px clamp(16px, 4vw, 40px) 24px; max-width: 1240px; margin: 0 auto; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 80px; }  /* index.html repeats this in its own style */
 .pattern-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .pattern-card { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); transition: transform .18s, box-shadow .18s; }
 .pattern-card:hover { transform: translateY(-3px); box-shadow: 0 2px 4px hsl(220 30% 20% / .06), 0 18px 36px -16px hsl(220 30% 20% / .3); }
@@ -376,6 +378,95 @@ footer.site a { color: var(--ink-2); }
 .foot-legal { order: 2; font-size: .8rem; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+/* Buttons (links and <button>s); index.html has the same rule for its hero */
+.btn { display: inline-block; font: 600 .95rem var(--sans); padding: 10px 18px; border-radius: 10px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+
+/* ---------- AI engineering track ---------- */
+/* Flow diagrams (Viz.flow) */
+svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: visible; }
+@media (max-width: 640px) { svg.flow { max-width: none; min-width: 460px; } }  /* keep labels readable; the box scrolls sideways */
+svg.flow .fn rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
+svg.flow .fn .fn-l { font-size: 13px; font-weight: 600; fill: var(--ink); }
+svg.flow .fn .fn-s { font-size: 10.5px; fill: var(--ink-2); }
+svg.flow .fn.active rect { fill: var(--blue-soft); stroke: var(--blue); stroke-width: 2.5; }
+svg.flow .fn.found rect { fill: var(--green-soft); stroke: var(--green); stroke-width: 2.5; }
+svg.flow .fn.warm rect { fill: var(--gold-soft); stroke: var(--gold); stroke-width: 2.5; }
+svg.flow .fn.bad rect { fill: var(--red-soft); stroke: var(--red); stroke-width: 2.5; }
+svg.flow .fn.dim { opacity: .4; }
+svg.flow .fe { fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
+svg.flow .fe.active { stroke: var(--accent); stroke-width: 2.6; stroke-dasharray: 7 5; animation: flow-dash .8s linear infinite; }
+svg.flow .fe.bad { stroke: var(--red); stroke-width: 2.4; }
+svg.flow .fe.dim { opacity: .3; }
+svg.flow .fl { font-size: 10.5px; fill: var(--ink-2); paint-order: stroke; stroke: var(--surface-2); stroke-width: 4px; stroke-linejoin: round; }
+svg.flow .fl.active { fill: var(--accent); font-weight: 600; }
+svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } svg.flow .fm-b { fill: var(--red); }
+@keyframes flow-dash { to { stroke-dashoffset: -24; } }
+@media (prefers-reduced-motion: reduce) { svg.flow .fe.active { animation: none; } }
+.figure { margin: 18px 0; padding: 16px; background: var(--surface-2); border-radius: 12px; text-align: center; overflow-x: auto; }
+.figure figcaption { margin-top: 8px; font-size: .88rem; color: var(--ink-2); text-align: left; }
+
+/* Token chips: each token gets its own colour band */
+.toks { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; font: 500 .95rem var(--mono); line-height: 1.5; }
+.tok { padding: 1px 3px; border-radius: 4px; white-space: pre; }
+.tok.t0 { background: hsl(172 50% 85%); } .tok.t1 { background: hsl(45 90% 82%); } .tok.t2 { background: hsl(212 80% 88%); }
+.tok.t3 { background: hsl(330 60% 88%); } .tok.t4 { background: hsl(120 40% 85%); }
+.tok.new { outline: 2px solid var(--accent); }
+.tok-id { display: block; font-size: .62rem; color: hsl(220 15% 35%); text-align: center; }
+.tok, .tok-id { color: hsl(220 25% 14%); }
+
+/* Probability bars (next-token prediction) */
+.probs { display: grid; grid-template-columns: max-content minmax(120px, 1fr) 5ch; gap: 5px 10px; align-items: center; width: min(460px, 100%); }
+.probs .w { font: 600 .9rem var(--mono); white-space: pre; text-align: right; }
+.probs .bar { height: 14px; border-radius: 999px; background: var(--surface); overflow: hidden; border: 1px solid var(--line); }
+.probs .bar > i { display: block; height: 100%; background: var(--blue); border-radius: 999px; transition: width .25s; }
+.probs .pick .bar > i { background: var(--accent); }
+.probs .pick .w { color: var(--accent); }
+.probs .p { font: .8rem var(--mono); color: var(--ink-2); }
+.probs > div { display: contents; }
+
+/* Context window: a stacked bar of what's inside */
+.ctxbar { display: flex; width: min(560px, 100%); height: 30px; border: 2px solid var(--ink-3); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.ctxbar > span { height: 100%; transition: width .3s; display: grid; place-items: center; font: 600 .68rem var(--sans); color: hsl(220 25% 14%); overflow: hidden; white-space: nowrap; }
+.ctx-sys { background: hsl(260 50% 85%); } .ctx-tools { background: hsl(212 80% 86%); } .ctx-inst { background: hsl(172 50% 82%); }
+.ctx-chat { background: hsl(45 90% 80%); } .ctx-files { background: hsl(28 85% 82%); } .ctx-res { background: hsl(330 60% 86%); } .ctx-sum { background: hsl(120 40% 80%); }
+.ctxlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; font-size: .8rem; color: var(--ink-2); }
+.ctxlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* Interactive widgets on AI pages */
+.widget { display: grid; gap: 12px; }
+.widget .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.widget label { font-weight: 600; font-size: .92rem; }
+.widget input[type=range] { flex: 1; min-width: 150px; accent-color: var(--accent); }
+.widget output, .widget .num { font: 700 .95rem var(--mono); }
+.widget textarea, .widget select, .widget input[type=number] { font: .95rem var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.widget textarea { width: 100%; min-height: 70px; resize: vertical; box-sizing: border-box; }
+.widget .stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.widget .stats span { font: .85rem var(--mono); background: var(--surface-2); padding: 4px 10px; border-radius: 6px; }
+.widget .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.widget .seg button { font: 600 .82rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.widget .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Five-tools table and module labels */
+.tools5 td:first-child { font-weight: 600; white-space: nowrap; }
+.tools5 code { white-space: nowrap; }
+.lvl { display: inline-block; font: 700 .7rem var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.soon { display: inline-block; font: 600 .7rem var(--sans); padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-3); }
+.lab { counter-reset: lab; list-style: none; padding: 0; }
+.lab > li { position: relative; padding: 10px 12px 10px 44px; margin: 8px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.lab > li::before { counter-increment: lab; content: counter(lab); position: absolute; left: 12px; top: 10px; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font: 700 .75rem var(--sans); background: var(--gold-soft); color: hsl(40 80% 30%); }
+.modmap { display: grid; gap: 18px; }
+.modmap .level h3 { margin: 0 0 8px; }
+.modmap .mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.modmap .mod { display: block; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-decoration: none; color: var(--ink); }
+.modmap a.mod:hover { border-color: var(--accent); }
+.modmap .mod .n { font: 700 .75rem var(--mono); color: var(--accent); }
+.modmap .mod strong { display: block; margin: 2px 0 4px; }
+.modmap .mod span.d { font-size: .86rem; color: var(--ink-2); }
+.modmap div.mod { opacity: .7; }
 
 </style>
 <script>
@@ -498,6 +589,46 @@ footer.site a { color: var(--ink-2); }
     });
     let ns = nodes.map((n) => `<g><circle class="${hl[n.id] || ""}" cx="${n.x}" cy="${n.y}" r="${R}"/><text x="${n.x}" y="${n.y + 4.5}" text-anchor="middle">${esc(n.label ?? n.id)}</text></g>`).join("");
     return `<svg class="tree" viewBox="0 0 ${W} ${H}" width="${Math.min(W, 560)}" role="img" aria-label="graph">${defs}${e}${ns}</svg>`;
+  }
+
+  /** Flow diagram: boxes and arrows.
+   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend}]]
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
+  let flowSeq = 0;
+  function flow(nodes, edges, opts = {}) {
+    const hl = opts.hl || {}, edgeHl = opts.edgeHl || {};
+    const W = opts.width || 560, H = opts.height || 260, uid = "f" + (++flowSeq);
+    const by = Object.fromEntries(nodes.map((n) => [n.id, { w: 128, h: n.sub ? 52 : 40, ...n }]));
+    // Where the line from a box's centre towards (tx, ty) leaves the box.
+    const exit = (n, tx, ty) => {
+      const dx = tx - n.x, dy = ty - n.y;
+      if (!dx && !dy) return [n.x, n.y];
+      const s = Math.min(Math.abs((n.w / 2 + 3) / (dx || 1e-9)), Math.abs((n.h / 2 + 3) / (dy || 1e-9)));
+      return [n.x + dx * s, n.y + dy * s];
+    };
+    let e = "";
+    edges.forEach(([a, b, label, o = {}]) => {
+      const p = by[a], q = by[b], cls = edgeHl[a + ">" + b] || "";
+      const bend = o.bend || 0;
+      const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+      const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
+      const [x1, y1] = exit(p, cx, cy), [x2, y2] = exit(q, cx, cy);
+      const mk = cls === "active" ? "a" : cls === "bad" ? "b" : "n";
+      e += `<path class="fe ${cls}" d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" marker-end="url(#${uid}-${mk})"/>`;
+      if (label) {
+        const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
+        e += `<text class="fl ${cls}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+      }
+    });
+    const ns = nodes.map((n0) => {
+      const n = by[n0.id], cls = hl[n.id] || "";
+      return `<g class="fn ${cls}"><rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}" rx="10"/>` +
+        `<text x="${n.x}" y="${n.y + (n.sub ? -3 : 5)}" text-anchor="middle" class="fn-l">${esc(n.label ?? n.id)}</text>` +
+        (n.sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
+    }).join("");
+    const marker = (k) => `<marker id="${uid}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="fm-${k}" d="M0,0 L10,5 L0,10 z"/></marker>`;
+    return `<svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg>`;
   }
 
   /** Horizontal interval bars. items [{s,e,label,cls}], range [lo,hi] */
@@ -708,7 +839,8 @@ footer.site a { color: var(--ink-2); }
   }
 
   /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
-  // [term, other spellings, definition]. The first spelling is the glossary heading.
+  // [term, other spellings, definition, track]. The first spelling is the glossary heading.
+  // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">).
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -771,14 +903,59 @@ footer.site a { color: var(--ink-2); }
     ["Trie", ["prefix tree"], "A tree of characters where each path from the root spells a prefix. Fast for \"does any word start with…\" questions."],
     ["Union-find", ["disjoint set", "DSU"], "Tracks groups that only ever merge: find(x) names x's group, union(a, b) merges two groups. Nearly O(1) each."],
     ["XOR", [], "Bitwise \"exclusive or\": a bit is 1 when the two bits differ. x ^ x = 0 and x ^ 0 = x, so equal values cancel."],
+    // ----- AI engineering track -----
+    ["Token", ["tokens"], "A chunk of text a model reads or writes: a word, part of a word, or punctuation. Prices, speed and limits are all counted in tokens.", "ai"],
+    ["Tokenizer", [], "The fixed lookup that splits text into tokens and back. Each model family has its own, so the same text can be a different number of tokens.", "ai"],
+    ["Large language model", ["LLM"], "A neural network trained on huge amounts of text to predict the next token. ChatGPT, Claude and Gemini are built on them.", "ai"],
+    ["Next-token prediction", [], "What an LLM does at every step: score every possible next token, pick one, append it, and repeat.", "ai"],
+    ["Temperature", [], "A setting that controls randomness when picking the next token: low = predictable, high = more varied.", "ai"],
+    ["Sampling", [], "Choosing the next token from the model's probabilities instead of always taking the top one. It's why answers vary between runs.", "ai"],
+    ["Context window", ["context windows"], "The maximum amount of text (in tokens) a model can see at once: instructions, conversation, files and tool results together.", "ai"],
+    ["Context rot", [], "The measured drop in a model's accuracy as its input gets longer, well before the context window is full.", "ai"],
+    ["Compaction", [], "Replacing a long conversation with a short summary so the work can continue with free context space.", "ai"],
+    ["Context engineering", [], "Deciding exactly what goes into the context window (instructions, files, tools, history) so the model has what it needs and nothing else.", "ai"],
+    ["System prompt", [], "Instructions placed before the conversation that set the model's role and rules for the whole session.", "ai"],
+    ["Prompt", ["prompts"], "The text you send to a model: your request plus any instructions and data that go with it.", "ai"],
+    ["Pretraining", ["pre-training"], "The first, biggest training stage: the model learns language and facts by predicting the next token across a huge text collection.", "ai"],
+    ["Post-training", ["fine-tuning"], "Training after pretraining that turns a text predictor into a helpful assistant: worked examples, human feedback and reinforcement learning.", "ai"],
+    ["RLHF", ["reinforcement learning from human feedback"], "Reinforcement learning from human feedback: people rank answers and the model is trained to prefer the higher-ranked ones.", "ai"],
+    ["Weights", ["parameters"], "The billions of numbers inside a model, set during training. They are its long-term 'memory'; your chat doesn't change them.", "ai"],
+    ["Knowledge cutoff", ["training cutoff"], "The date the model's training data ends. It knows nothing after it unless you give it that information.", "ai"],
+    ["Hallucination", ["hallucinate"], "A fluent, confident answer that is wrong or made up. It happens because the model produces what is plausible, not what is checked.", "ai"],
+    ["Grounding", ["grounded"], "Giving the model real sources (documents, search results, tool output) and asking it to answer from them, so answers can be checked.", "ai"],
+    ["Inference", [], "Running a trained model to get an answer. Every API call is inference; training is the expensive part done beforehand.", "ai"],
+    ["Reasoning tokens", ["thinking tokens"], "Tokens a model writes while 'thinking' before its final answer. You usually pay for them at the output price, even when you don't see them.", "ai"],
+    ["Effort", ["reasoning effort", "thinking level"], "A setting for how much a model may think before answering: more effort is slower and costs more, but helps on hard problems.", "ai"],
+    ["Model tier", ["model tiers"], "The size class of a model in a family: small and fast, balanced, or frontier. Picking the tier is mostly a cost and speed decision.", "ai"],
+    ["Frontier model", ["frontier models"], "A vendor's most capable (and most expensive) model at the time.", "ai"],
+    ["Latency", [], "How long you wait for a response. Longer prompts, longer answers and more thinking all add latency.", "ai"],
+    ["Prompt caching", ["cache read", "cached input"], "Reusing the processed start of a prompt that hasn't changed, billed at a fraction of the normal input price.", "ai"],
+    ["Batch API", ["batch mode"], "Sending many requests to be processed within hours instead of seconds, usually at half price.", "ai"],
+    ["Multimodal", [], "Able to take more than text as input, such as images, audio or PDFs.", "ai"],
+    ["Embedding", ["embeddings"], "A list of numbers that represents the meaning of a piece of text, so similar meanings end up close together.", "ai"],
+    ["RAG", ["retrieval-augmented generation"], "Retrieval-augmented generation: search your documents first, then give the best matches to the model to answer from.", "ai"],
+    ["Tool call", ["tool calls", "function calling", "tool use"], "The model asking the program around it to run something (read a file, search, call an API) and send back the result.", "ai"],
+    ["Agent", ["agents", "agentic"], "A model in a loop: plan, call a tool, read the result, decide the next step, until the task is done.", "ai"],
+    ["MCP", ["Model Context Protocol"], "Model Context Protocol: an open standard for plugging tools and data sources into any AI app or agent.", "ai"],
+    ["AGENTS.md", [], "An open-standard Markdown file in a repo that tells coding agents its commands, layout and rules.", "ai"],
+    ["Agent Skills", ["SKILL.md"], "An open standard for packaging task know-how as a folder with a SKILL.md file, loaded only when a task needs it.", "ai"],
+    ["Subagent", ["subagents"], "A helper agent with its own fresh context, given one sub-task, that reports back only a summary.", "ai"],
+    ["Eval", ["evals"], "A repeatable test set for an AI feature: inputs plus a way to judge the outputs, run whenever the prompt or model changes.", "ai"],
+    ["Benchmark", ["benchmarks"], "A public test set used to compare models. Useful for shortlisting, but your own evals decide.", "ai"],
+    ["Prompt injection", [], "Instructions hidden in content the model reads (a web page, file or email) that hijack it into doing something you didn't ask.", "ai"],
+    ["API", ["APIs"], "Application programming interface: how a program calls a service. Model APIs take your prompt and return the model's reply.", "ai"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+
+  const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
+  const inTrack = (g) => (g[3] || "coding") === pageTrack();
 
   function bootGlossary() {
     const root = document.querySelector("main") || document.querySelector(".wrap");
     if (!root) return;
     const lookup = new Map();
-    GLOSSARY.forEach(([term, alts, def], id) => [term, ...alts].forEach((w) => lookup.set(w.toLowerCase(), id)));
+    GLOSSARY.forEach((g, id) => { if (inTrack(g)) [g[0], ...g[1]].forEach((w) => lookup.set(w.toLowerCase(), id)); });
+    if (!lookup.size) return;
     const words = [...lookup.keys()].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     const re = new RegExp(`(?<![\\w-])(${words.join("|")})(?:s|es)?(?![\\w-])`, "gi");
     // Each problem is its own scope (people jump straight to one), and so is the rest of the page.
@@ -855,7 +1032,7 @@ footer.site a { color: var(--ink-2); }
   function glossaryList(target) {
     const el = typeof target === "string" ? document.querySelector(target) : target;
     if (!el) return;
-    el.innerHTML = GLOSSARY.slice().sort((a, b) => a[0].localeCompare(b[0])).map(([term, alts, def]) =>
+    el.innerHTML = GLOSSARY.filter(inTrack).sort((a, b) => a[0].localeCompare(b[0])).map(([term, alts, def]) =>
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
@@ -963,7 +1140,7 @@ footer.site a { color: var(--ink-2); }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc, glossaryList };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, trace, esc, glossaryList };
 })();
 
 // Company-lists menu in the top bar: close it on an outside click or Escape.
@@ -1004,7 +1181,7 @@ document.addEventListener("keydown", (e) => {
 <header class="topbar">
   <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Interview<b>Kata</b></span></a>
   <span class="spacer"></span>
-  <nav><a href="start-here.html">Start here</a><a href="index.html#map">Pattern map</a><a href="#plan">6-month plan</a><details class="navmenu"><summary>Company lists</summary><div class="navmenu-panel"><a href="google.html" aria-current="page">Google</a><a href="meta.html">Meta</a><a href="amazon.html">Amazon</a><a href="microsoft.html">Microsoft</a><a href="apple.html">Apple</a><a href="nvidia.html">Nvidia</a><a href="cisco.html">Cisco</a><a href="netflix.html">Netflix</a></div></details><a href="cheatsheet.html">Cheat sheet</a></nav>
+  <nav><a href="start-here.html">Start here</a><a href="index.html#map">Pattern map</a><a href="#plan">6-month plan</a><details class="navmenu"><summary>Company lists</summary><div class="navmenu-panel"><a href="google.html" aria-current="page">Google</a><a href="meta.html">Meta</a><a href="amazon.html">Amazon</a><a href="microsoft.html">Microsoft</a><a href="apple.html">Apple</a><a href="nvidia.html">Nvidia</a><a href="cisco.html">Cisco</a><a href="netflix.html">Netflix</a></div></details><a href="cheatsheet.html">Cheat sheet</a><a href="ai/index.html">AI engineering</a></nav>
 </header>
 <div class="wrap">
   <div class="eyebrow">Interview preparation</div>
@@ -2049,7 +2226,7 @@ document.addEventListener("keydown", (e) => {
 <footer class="site">
 <!-- site-footer:start (generated by tools/inline_assets.py from assets/footer.html) -->
 <div class="foot-brand"><a class="brand-word" href="index.html">Interview<b>Kata</b></a><span>Practise interviews until they're automatic.</span></div>
-<nav class="foot-links" aria-label="Footer"><a href="start-here.html">Start here</a><a href="index.html#beginner">Beginner path</a><a href="index.html#map">Pattern map</a><a href="cheatsheet.html">Cheat sheet</a></nav>
+<nav class="foot-links" aria-label="Footer"><a href="index.html">Coding patterns</a><a href="start-here.html">Coding: start here</a><a href="cheatsheet.html">Cheat sheet</a><a href="ai/index.html">AI engineering</a><a href="ai/start-here.html">AI: start here</a></nav>
 <p class="foot-legal">© 2026 InterviewKata · Free to use. Not affiliated with LeetCode or with any company named on this site. Company problem lists are adapted from <a href="https://github.com/liquidslr/leetcode-company-wise-problems" target="_blank" rel="noopener">liquidslr/leetcode-company-wise-problems</a>.</p>
 <!-- site-footer:end -->
 <p class="foot-note">Your “done” marks are saved in this browser only.</p>

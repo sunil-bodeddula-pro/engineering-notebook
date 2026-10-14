@@ -11,7 +11,8 @@ Each page keeps its copy between the markers
     <!-- inline-assets:start ... -->  and  <!-- inline-assets:end -->
 and its footer between
     <!-- site-footer:start ... -->  and  <!-- site-footer:end -->
-({root} in footer.html becomes "" for top-level pages and "../" for pattern pages.)
+({root} in footer.html becomes the relative path back to the site root: "" for top-level pages,
+"../" for patterns/ and ai/, "../../" for ai/modules/.)
 """
 import glob
 import os
@@ -28,7 +29,8 @@ FOOT_END = "<!-- site-footer:end -->"
 def footer(path):
     with open(os.path.join(ROOT, "assets", "footer.html"), encoding="utf-8") as f:
         tpl = f.read().strip()
-    root = "../" if os.path.basename(os.path.dirname(path)) == "patterns" else ""
+    depth = os.path.relpath(path, ROOT).count(os.sep)
+    root = "../" * depth
     return f"{FOOT_START}\n{tpl.replace('{root}', root)}\n{FOOT_END}"
 
 
@@ -45,7 +47,8 @@ def block():
 
 
 def pages():
-    names = ["index.html", "start-here.html", "cheatsheet.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html")))
+    names = ["index.html", "start-here.html", "cheatsheet.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
+    names += sorted(glob.glob(os.path.join("ai", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "modules", "*.html"), root_dir=ROOT))
     return [os.path.join(ROOT, n) for n in names]
 
 

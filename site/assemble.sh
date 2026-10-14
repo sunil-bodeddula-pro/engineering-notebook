@@ -5,13 +5,14 @@
 #   site/assemble.sh [OUT_DIR]     (default: _site; run from the repo root)
 #
 #   /                  algorithms/ pages, patterns/ and assets/
+#   /ai/               algorithms/ai/ (the AI engineering track)
 #   /404.html          site/404.html, plus the favicon at /favicon.svg
 set -euo pipefail
 OUT="${1:-_site}"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp algorithms/*.html "$OUT/"
-cp -r algorithms/patterns algorithms/assets "$OUT/"
+cp -r algorithms/patterns algorithms/assets algorithms/ai "$OUT/"
 cp site/404.html "$OUT/"
 cp algorithms/assets/favicon.svg "$OUT/"
 touch "$OUT/.nojekyll"

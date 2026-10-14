@@ -119,6 +119,46 @@
     return `<svg class="tree" viewBox="0 0 ${W} ${H}" width="${Math.min(W, 560)}" role="img" aria-label="graph">${defs}${e}${ns}</svg>`;
   }
 
+  /** Flow diagram: boxes and arrows.
+   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend}]]
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
+  let flowSeq = 0;
+  function flow(nodes, edges, opts = {}) {
+    const hl = opts.hl || {}, edgeHl = opts.edgeHl || {};
+    const W = opts.width || 560, H = opts.height || 260, uid = "f" + (++flowSeq);
+    const by = Object.fromEntries(nodes.map((n) => [n.id, { w: 128, h: n.sub ? 52 : 40, ...n }]));
+    // Where the line from a box's centre towards (tx, ty) leaves the box.
+    const exit = (n, tx, ty) => {
+      const dx = tx - n.x, dy = ty - n.y;
+      if (!dx && !dy) return [n.x, n.y];
+      const s = Math.min(Math.abs((n.w / 2 + 3) / (dx || 1e-9)), Math.abs((n.h / 2 + 3) / (dy || 1e-9)));
+      return [n.x + dx * s, n.y + dy * s];
+    };
+    let e = "";
+    edges.forEach(([a, b, label, o = {}]) => {
+      const p = by[a], q = by[b], cls = edgeHl[a + ">" + b] || "";
+      const bend = o.bend || 0;
+      const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+      const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
+      const [x1, y1] = exit(p, cx, cy), [x2, y2] = exit(q, cx, cy);
+      const mk = cls === "active" ? "a" : cls === "bad" ? "b" : "n";
+      e += `<path class="fe ${cls}" d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" marker-end="url(#${uid}-${mk})"/>`;
+      if (label) {
+        const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
+        e += `<text class="fl ${cls}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+      }
+    });
+    const ns = nodes.map((n0) => {
+      const n = by[n0.id], cls = hl[n.id] || "";
+      return `<g class="fn ${cls}"><rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}" rx="10"/>` +
+        `<text x="${n.x}" y="${n.y + (n.sub ? -3 : 5)}" text-anchor="middle" class="fn-l">${esc(n.label ?? n.id)}</text>` +
+        (n.sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
+    }).join("");
+    const marker = (k) => `<marker id="${uid}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="fm-${k}" d="M0,0 L10,5 L0,10 z"/></marker>`;
+    return `<svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg>`;
+  }
+
   /** Horizontal interval bars. items [{s,e,label,cls}], range [lo,hi] */
   function intervals(items, range, opts = {}) {
     const [lo, hi] = range, W = 520, rowH = 26;
@@ -327,7 +367,8 @@
   }
 
   /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
-  // [term, other spellings, definition]. The first spelling is the glossary heading.
+  // [term, other spellings, definition, track]. The first spelling is the glossary heading.
+  // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">).
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -390,14 +431,59 @@
     ["Trie", ["prefix tree"], "A tree of characters where each path from the root spells a prefix. Fast for \"does any word start with…\" questions."],
     ["Union-find", ["disjoint set", "DSU"], "Tracks groups that only ever merge: find(x) names x's group, union(a, b) merges two groups. Nearly O(1) each."],
     ["XOR", [], "Bitwise \"exclusive or\": a bit is 1 when the two bits differ. x ^ x = 0 and x ^ 0 = x, so equal values cancel."],
+    // ----- AI engineering track -----
+    ["Token", ["tokens"], "A chunk of text a model reads or writes: a word, part of a word, or punctuation. Prices, speed and limits are all counted in tokens.", "ai"],
+    ["Tokenizer", [], "The fixed lookup that splits text into tokens and back. Each model family has its own, so the same text can be a different number of tokens.", "ai"],
+    ["Large language model", ["LLM"], "A neural network trained on huge amounts of text to predict the next token. ChatGPT, Claude and Gemini are built on them.", "ai"],
+    ["Next-token prediction", [], "What an LLM does at every step: score every possible next token, pick one, append it, and repeat.", "ai"],
+    ["Temperature", [], "A setting that controls randomness when picking the next token: low = predictable, high = more varied.", "ai"],
+    ["Sampling", [], "Choosing the next token from the model's probabilities instead of always taking the top one. It's why answers vary between runs.", "ai"],
+    ["Context window", ["context windows"], "The maximum amount of text (in tokens) a model can see at once: instructions, conversation, files and tool results together.", "ai"],
+    ["Context rot", [], "The measured drop in a model's accuracy as its input gets longer, well before the context window is full.", "ai"],
+    ["Compaction", [], "Replacing a long conversation with a short summary so the work can continue with free context space.", "ai"],
+    ["Context engineering", [], "Deciding exactly what goes into the context window (instructions, files, tools, history) so the model has what it needs and nothing else.", "ai"],
+    ["System prompt", [], "Instructions placed before the conversation that set the model's role and rules for the whole session.", "ai"],
+    ["Prompt", ["prompts"], "The text you send to a model: your request plus any instructions and data that go with it.", "ai"],
+    ["Pretraining", ["pre-training"], "The first, biggest training stage: the model learns language and facts by predicting the next token across a huge text collection.", "ai"],
+    ["Post-training", ["fine-tuning"], "Training after pretraining that turns a text predictor into a helpful assistant: worked examples, human feedback and reinforcement learning.", "ai"],
+    ["RLHF", ["reinforcement learning from human feedback"], "Reinforcement learning from human feedback: people rank answers and the model is trained to prefer the higher-ranked ones.", "ai"],
+    ["Weights", ["parameters"], "The billions of numbers inside a model, set during training. They are its long-term 'memory'; your chat doesn't change them.", "ai"],
+    ["Knowledge cutoff", ["training cutoff"], "The date the model's training data ends. It knows nothing after it unless you give it that information.", "ai"],
+    ["Hallucination", ["hallucinate"], "A fluent, confident answer that is wrong or made up. It happens because the model produces what is plausible, not what is checked.", "ai"],
+    ["Grounding", ["grounded"], "Giving the model real sources (documents, search results, tool output) and asking it to answer from them, so answers can be checked.", "ai"],
+    ["Inference", [], "Running a trained model to get an answer. Every API call is inference; training is the expensive part done beforehand.", "ai"],
+    ["Reasoning tokens", ["thinking tokens"], "Tokens a model writes while 'thinking' before its final answer. You usually pay for them at the output price, even when you don't see them.", "ai"],
+    ["Effort", ["reasoning effort", "thinking level"], "A setting for how much a model may think before answering: more effort is slower and costs more, but helps on hard problems.", "ai"],
+    ["Model tier", ["model tiers"], "The size class of a model in a family: small and fast, balanced, or frontier. Picking the tier is mostly a cost and speed decision.", "ai"],
+    ["Frontier model", ["frontier models"], "A vendor's most capable (and most expensive) model at the time.", "ai"],
+    ["Latency", [], "How long you wait for a response. Longer prompts, longer answers and more thinking all add latency.", "ai"],
+    ["Prompt caching", ["cache read", "cached input"], "Reusing the processed start of a prompt that hasn't changed, billed at a fraction of the normal input price.", "ai"],
+    ["Batch API", ["batch mode"], "Sending many requests to be processed within hours instead of seconds, usually at half price.", "ai"],
+    ["Multimodal", [], "Able to take more than text as input, such as images, audio or PDFs.", "ai"],
+    ["Embedding", ["embeddings"], "A list of numbers that represents the meaning of a piece of text, so similar meanings end up close together.", "ai"],
+    ["RAG", ["retrieval-augmented generation"], "Retrieval-augmented generation: search your documents first, then give the best matches to the model to answer from.", "ai"],
+    ["Tool call", ["tool calls", "function calling", "tool use"], "The model asking the program around it to run something (read a file, search, call an API) and send back the result.", "ai"],
+    ["Agent", ["agents", "agentic"], "A model in a loop: plan, call a tool, read the result, decide the next step, until the task is done.", "ai"],
+    ["MCP", ["Model Context Protocol"], "Model Context Protocol: an open standard for plugging tools and data sources into any AI app or agent.", "ai"],
+    ["AGENTS.md", [], "An open-standard Markdown file in a repo that tells coding agents its commands, layout and rules.", "ai"],
+    ["Agent Skills", ["SKILL.md"], "An open standard for packaging task know-how as a folder with a SKILL.md file, loaded only when a task needs it.", "ai"],
+    ["Subagent", ["subagents"], "A helper agent with its own fresh context, given one sub-task, that reports back only a summary.", "ai"],
+    ["Eval", ["evals"], "A repeatable test set for an AI feature: inputs plus a way to judge the outputs, run whenever the prompt or model changes.", "ai"],
+    ["Benchmark", ["benchmarks"], "A public test set used to compare models. Useful for shortlisting, but your own evals decide.", "ai"],
+    ["Prompt injection", [], "Instructions hidden in content the model reads (a web page, file or email) that hijack it into doing something you didn't ask.", "ai"],
+    ["API", ["APIs"], "Application programming interface: how a program calls a service. Model APIs take your prompt and return the model's reply.", "ai"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+
+  const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
+  const inTrack = (g) => (g[3] || "coding") === pageTrack();
 
   function bootGlossary() {
     const root = document.querySelector("main") || document.querySelector(".wrap");
     if (!root) return;
     const lookup = new Map();
-    GLOSSARY.forEach(([term, alts, def], id) => [term, ...alts].forEach((w) => lookup.set(w.toLowerCase(), id)));
+    GLOSSARY.forEach((g, id) => { if (inTrack(g)) [g[0], ...g[1]].forEach((w) => lookup.set(w.toLowerCase(), id)); });
+    if (!lookup.size) return;
     const words = [...lookup.keys()].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     const re = new RegExp(`(?<![\\w-])(${words.join("|")})(?:s|es)?(?![\\w-])`, "gi");
     // Each problem is its own scope (people jump straight to one), and so is the rest of the page.
@@ -474,7 +560,7 @@
   function glossaryList(target) {
     const el = typeof target === "string" ? document.querySelector(target) : target;
     if (!el) return;
-    el.innerHTML = GLOSSARY.slice().sort((a, b) => a[0].localeCompare(b[0])).map(([term, alts, def]) =>
+    el.innerHTML = GLOSSARY.filter(inTrack).sort((a, b) => a[0].localeCompare(b[0])).map(([term, alts, def]) =>
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
@@ -582,7 +668,7 @@
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, intervals, stepper, trace, esc, glossaryList };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, trace, esc, glossaryList };
 })();
 
 // Company-lists menu in the top bar: close it on an outside click or Escape.

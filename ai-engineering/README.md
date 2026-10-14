@@ -4,6 +4,12 @@ Learning to **use AI tools well** — in product development, tool integrations,
 automation and security — and to lead a team's adoption of them. The theory of how models work is
 kept to the basics; the depth goes into practice.
 
+## Interactive course: [interviewkata.com/ai](https://interviewkata.com/ai/)
+
+The roadmap below is being rebuilt as a visual, zero-to-advanced course in the same style as the coding
+patterns: 20 modules with flow diagrams, step-through players, interactive widgets, memory hooks and labs in all
+five tools. Source: [`../algorithms/ai/`](../algorithms/ai/). Modules 01–04 are built (October 2026).
+
 ## Start here
 
 **[AI-Engineering-Leadership-Roadmap.md](AI-Engineering-Leadership-Roadmap.md)** — the main document, in two parts:

@@ -2,6 +2,8 @@
 
 Oct 4, 2026 · Your first version is kept unchanged in `AI-Engineering-Leadership-Roadmap.original.md`.
 
+> **Interactive version:** this roadmap is being rebuilt as a visual course at [interviewkata.com/ai](https://interviewkata.com/ai/) (source in `../algorithms/ai/`). Where the two differ, the course is newer: it was checked against vendor documentation on 13 October 2026. For example, Claude Code now reads `AGENTS.md` directly when a repository has no `CLAUDE.md` (v2.1.277 and later), and Claude's current tokenizer fits about 555,000 English words in 1M tokens, not 750,000.
+
 This document has two parts:
 
 - **Part A — The 26-week roadmap.** What to learn each week, 30 minutes a day. The theory of how models work is **kept to the basics** (two weeks); most of the time goes on **using AI tools well**.
