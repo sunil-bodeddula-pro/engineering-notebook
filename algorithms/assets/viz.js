@@ -475,6 +475,14 @@
     ["Benchmark", ["benchmarks"], "A public test set used to compare models. Useful for shortlisting, but your own evals decide.", "ai"],
     ["Prompt injection", [], "Instructions hidden in content the model reads (a web page, file or email) that hijack it into doing something you didn't ask.", "ai"],
     ["API", ["APIs"], "Application programming interface: how a program calls a service. Model APIs take your prompt and return the model's reply.", "ai"],
+    ["LLM-as-judge", ["LLM judge", "model-based grader"], "Using a model, with a precise pass/fail rubric, to grade another model's outputs. It must be checked against human labels first.", "ai"],
+    ["Error analysis", [], "Reading real outputs one by one, noting what went wrong, and grouping the notes into failure types. The first step of any eval.", "ai"],
+    ["Lethal trifecta", [], "Private data + untrusted content + a way to send data out. An agent with all three can be tricked into leaking; remove one.", "ai"],
+    ["Sandbox", ["sandboxed", "sandboxing"], "An operating-system boundary around the commands an agent runs, limiting which files and network hosts they can reach.", "ai"],
+    ["Trace", ["traces", "tracing"], "The recorded steps of one request or agent run: each model call and tool call, with inputs, outputs, tokens, cost and time.", "ai"],
+    ["OpenTelemetry", ["OTel"], "The open standard for traces, metrics and logs. Its GenAI conventions name fields such as the model and token counts.", "ai"],
+    ["Model routing", ["router"], "Sending each request to the cheapest model that handles it well, and only the hard ones to a stronger model.", "ai"],
+    ["Time to first token", ["TTFT"], "How long until the first words of a reply arrive. With streaming, it's the delay a user actually feels.", "ai"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 

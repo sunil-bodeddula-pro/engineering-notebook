@@ -182,8 +182,8 @@ kbd { font-family: var(--mono); font-size: .8em; border: 1px solid var(--line); 
   padding: 22px 24px;
   margin: 18px 0;
 }
-.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-.grid-2.even { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+.grid-2.even { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
 
 .callout { border-radius: 12px; padding: 14px 18px; margin: 16px 0; background: var(--surface-2); }
@@ -978,6 +978,14 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
     ["Benchmark", ["benchmarks"], "A public test set used to compare models. Useful for shortlisting, but your own evals decide.", "ai"],
     ["Prompt injection", [], "Instructions hidden in content the model reads (a web page, file or email) that hijack it into doing something you didn't ask.", "ai"],
     ["API", ["APIs"], "Application programming interface: how a program calls a service. Model APIs take your prompt and return the model's reply.", "ai"],
+    ["LLM-as-judge", ["LLM judge", "model-based grader"], "Using a model, with a precise pass/fail rubric, to grade another model's outputs. It must be checked against human labels first.", "ai"],
+    ["Error analysis", [], "Reading real outputs one by one, noting what went wrong, and grouping the notes into failure types. The first step of any eval.", "ai"],
+    ["Lethal trifecta", [], "Private data + untrusted content + a way to send data out. An agent with all three can be tricked into leaking; remove one.", "ai"],
+    ["Sandbox", ["sandboxed", "sandboxing"], "An operating-system boundary around the commands an agent runs, limiting which files and network hosts they can reach.", "ai"],
+    ["Trace", ["traces", "tracing"], "The recorded steps of one request or agent run: each model call and tool call, with inputs, outputs, tokens, cost and time.", "ai"],
+    ["OpenTelemetry", ["OTel"], "The open standard for traces, metrics and logs. Its GenAI conventions name fields such as the model and token counts.", "ai"],
+    ["Model routing", ["router"], "Sending each request to the cheapest model that handles it well, and only the hard ones to a stronger model.", "ai"],
+    ["Time to first token", ["TTFT"], "How long until the first words of a reply arrive. With streaming, it's the delay a user actually feels.", "ai"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
@@ -1174,7 +1182,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
 <nav class="sidenav" id="sidenav" aria-label="AI engineering">
   <div class="sn-tracks"><a href="../index.html">Coding patterns</a><a href="../ai/index.html" aria-current="true">AI engineering</a><span class="track-soon" title="Coming soon">System design <small>soon</small></span></div>
   <a class="sn-title" href="../ai/index.html">AI engineering</a>
-  <div class="sn-group"><div class="sn-h">Get started</div><a href="../ai/index.html" aria-current="page">Overview</a><a href="../ai/start-here.html">Start here</a><a href="../ai/index.html#modules">Module map</a><a href="../ai/index.html#roadmap">26-week roadmap</a></div><details class="sn-group"><summary>Level 1 · How AI works</summary><a href="../ai/modules/01-tokens-and-prediction.html">01 · Tokens and prediction</a><a href="../ai/modules/02-context-window.html">02 · The context window</a><a href="../ai/modules/03-training-and-hallucination.html">03 · Training and hallucination</a><a href="../ai/modules/04-reasoning-tiers-cost.html">04 · Reasoning, tiers and cost</a></details><details class="sn-group"><summary>Level 2 · Working with AI</summary><a href="../ai/modules/05-prompting-context-engineering.html">05 · Prompting and context</a><a href="../ai/modules/06-tools-function-calling.html">06 · Tools and function calling</a><a href="../ai/modules/07-agents-loop.html">07 · Agents: the loop</a><a href="../ai/modules/08-agentic-coding-workflow.html">08 · The agentic coding workflow</a></details><details class="sn-group"><summary>Level 3 · Configure your tools</summary><a href="../ai/modules/09-instructions-memory.html">09 · Instructions and memory</a><a href="../ai/modules/10-mcp.html">10 · MCP</a><a href="../ai/modules/11-agent-skills.html">11 · Agent Skills</a><a href="../ai/modules/12-subagents-hooks-plugins.html">12 · Subagents, hooks, plugins</a><a href="../ai/modules/13-automation-ci.html">13 · Automation and CI</a></details><details class="sn-group"><summary>Level 4 · Build AI features</summary><a href="../ai/modules/14-model-apis.html">14 · Model APIs and structured output</a><a href="../ai/modules/15-embeddings-rag.html">15 · Embeddings and RAG</a><a href="../ai/modules/16-building-agents.html">16 · Building agents and MCP servers</a></details><details class="sn-group"><summary>Level 5 · Production</summary><span class="sn-soon">17 · Evals <small>soon</small></span><span class="sn-soon">18 · Security <small>soon</small></span><span class="sn-soon">19 · Cost, latency, observability <small>soon</small></span><span class="sn-soon">20 · Choosing tools, staying current <small>soon</small></span></details>
+  <div class="sn-group"><div class="sn-h">Get started</div><a href="../ai/index.html" aria-current="page">Overview</a><a href="../ai/start-here.html">Start here</a><a href="../ai/index.html#modules">Module map</a><a href="../ai/index.html#roadmap">26-week roadmap</a></div><details class="sn-group"><summary>Level 1 · How AI works</summary><a href="../ai/modules/01-tokens-and-prediction.html">01 · Tokens and prediction</a><a href="../ai/modules/02-context-window.html">02 · The context window</a><a href="../ai/modules/03-training-and-hallucination.html">03 · Training and hallucination</a><a href="../ai/modules/04-reasoning-tiers-cost.html">04 · Reasoning, tiers and cost</a></details><details class="sn-group"><summary>Level 2 · Working with AI</summary><a href="../ai/modules/05-prompting-context-engineering.html">05 · Prompting and context</a><a href="../ai/modules/06-tools-function-calling.html">06 · Tools and function calling</a><a href="../ai/modules/07-agents-loop.html">07 · Agents: the loop</a><a href="../ai/modules/08-agentic-coding-workflow.html">08 · The agentic coding workflow</a></details><details class="sn-group"><summary>Level 3 · Configure your tools</summary><a href="../ai/modules/09-instructions-memory.html">09 · Instructions and memory</a><a href="../ai/modules/10-mcp.html">10 · MCP</a><a href="../ai/modules/11-agent-skills.html">11 · Agent Skills</a><a href="../ai/modules/12-subagents-hooks-plugins.html">12 · Subagents, hooks, plugins</a><a href="../ai/modules/13-automation-ci.html">13 · Automation and CI</a></details><details class="sn-group"><summary>Level 4 · Build AI features</summary><a href="../ai/modules/14-model-apis.html">14 · Model APIs and structured output</a><a href="../ai/modules/15-embeddings-rag.html">15 · Embeddings and RAG</a><a href="../ai/modules/16-building-agents.html">16 · Building agents and MCP servers</a></details><details class="sn-group"><summary>Level 5 · Production</summary><a href="../ai/modules/17-evals.html">17 · Evals</a><a href="../ai/modules/18-security.html">18 · Security</a><a href="../ai/modules/19-cost-latency-observability.html">19 · Cost, latency, observability</a><a href="../ai/modules/20-choosing-tools.html">20 · Choosing tools, staying current</a></details>
 </nav>
 <div class="sn-scrim" aria-hidden="true"></div>
 <!-- site-chrome:end -->
@@ -1192,7 +1200,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
 </section>
 
 <div class="wrap">
-  <div class="callout tip fresh"><strong>Up to date, and honest about it</strong>Tool commands, model names and prices were checked against each vendor's own documentation on 13 October 2026, and every module says so where it matters. Tools change monthly; the concepts here change slowly. Modules 01–16 are ready; the rest are being written in batches.</div>
+  <div class="callout tip fresh"><strong>Up to date, and honest about it</strong>Tool commands, model names and prices were checked against each vendor's own documentation in October 2026, and every module says so where it matters. Tools change monthly; the concepts here change slowly. All 20 modules are ready.</div>
 
   <h2 id="how">How each module teaches</h2>
   <p>Every module has the same ten sections, so you always know where to look:</p>
@@ -1258,10 +1266,10 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
       ["16", "building-agents", "Building agents and MCP servers", "Your own agent loop, agent SDKs and an MCP server."],
     ]],
     ["Level 5 · Production", [
-      ["17", "", "Evals", "Test sets, error analysis and LLM-as-judge: how you know it works."],
-      ["18", "", "Security", "Prompt injection, the lethal trifecta, permissions and sandboxes."],
-      ["19", "", "Cost, latency and observability", "Routing, caching, batching, tracing and budgets."],
-      ["20", "", "Choosing tools and staying current", "Compare tools on your own tasks, and keep up without the hype."],
+      ["17", "evals", "Evals", "Test sets, error analysis and LLM-as-judge: how you know it works."],
+      ["18", "security", "Security", "Prompt injection, the lethal trifecta, permissions and sandboxes."],
+      ["19", "cost-latency-observability", "Cost, latency and observability", "Routing, caching, batching, tracing and budgets."],
+      ["20", "choosing-tools", "Choosing tools and staying current", "Compare tools on your own tasks, and keep up without the hype."],
     ]],
   ];
   document.getElementById("modmap").innerHTML = LEVELS.map(([lvl, mods]) =>

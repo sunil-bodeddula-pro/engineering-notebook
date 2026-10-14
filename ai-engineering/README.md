@@ -8,7 +8,7 @@ kept to the basics; the depth goes into practice.
 
 The roadmap below is being rebuilt as a visual, zero-to-advanced course in the same style as the coding
 patterns: 20 modules with flow diagrams, step-through players, interactive widgets, memory hooks and labs in all
-five tools. Source: [`../algorithms/ai/`](../algorithms/ai/). Modules 01–04 are built (October 2026).
+five tools. Source: [`../algorithms/ai/`](../algorithms/ai/). All 20 modules are built (October 2026).
 
 ## Start here
 
