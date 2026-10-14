@@ -413,6 +413,8 @@ footer.site a { color: var(--ink-2); }
 .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.08); }
 
+[hidden] { display: none !important; }  /* the hidden attribute always wins over layout rules */
+
 /* ---------- AI engineering track ---------- */
 /* Flow diagrams (Viz.flow) */
 svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: visible; }
@@ -621,7 +623,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
   }
 
   /** Flow diagram: boxes and arrows.
-   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level}]]
+   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
    *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
@@ -639,7 +641,8 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
     let e = "";
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
-      const p = by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      // o.levelFrom: leave the source at the target's height (straight out of a tall box)
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1181,7 +1184,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
 <nav class="sidenav" id="sidenav" aria-label="AI engineering">
   <div class="sn-tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html" aria-current="true">AI engineering</a><span class="track-soon" title="Coming soon">System design <small>soon</small></span></div>
   <a class="sn-title" href="../../ai/index.html">AI engineering</a>
-  <div class="sn-group"><div class="sn-h">Get started</div><a href="../../ai/index.html">Overview</a><a href="../../ai/start-here.html">Start here</a><a href="../../ai/index.html#modules">Module map</a><a href="../../ai/index.html#roadmap">26-week roadmap</a><a href="../../ai/index.html#lead">Leading your team</a></div><details class="sn-group" open><summary>Level 1 · How AI works</summary><a href="../../ai/modules/01-tokens-and-prediction.html">01 · Tokens and prediction</a><a href="../../ai/modules/02-context-window.html">02 · The context window</a><a href="../../ai/modules/03-training-and-hallucination.html">03 · Training and hallucination</a><a href="../../ai/modules/04-reasoning-tiers-cost.html" aria-current="page">04 · Reasoning, tiers and cost</a></details><details class="sn-group"><summary>Level 2 · Working with AI</summary><a href="../../ai/modules/05-prompting-context-engineering.html">05 · Prompting and context</a><a href="../../ai/modules/06-tools-function-calling.html">06 · Tools and function calling</a><a href="../../ai/modules/07-agents-loop.html">07 · Agents: the loop</a><a href="../../ai/modules/08-agentic-coding-workflow.html">08 · The agentic coding workflow</a></details><details class="sn-group"><summary>Level 3 · Configure your tools</summary><span class="sn-soon">09 · Instructions and memory <small>soon</small></span><span class="sn-soon">10 · MCP <small>soon</small></span><span class="sn-soon">11 · Agent Skills <small>soon</small></span><span class="sn-soon">12 · Subagents, hooks, plugins <small>soon</small></span><span class="sn-soon">13 · Automation and CI <small>soon</small></span></details><details class="sn-group"><summary>Level 4 · Build AI features</summary><span class="sn-soon">14 · Model APIs and structured output <small>soon</small></span><span class="sn-soon">15 · Embeddings and RAG <small>soon</small></span><span class="sn-soon">16 · Building agents and MCP servers <small>soon</small></span></details><details class="sn-group"><summary>Level 5 · Production and leadership</summary><span class="sn-soon">17 · Evals <small>soon</small></span><span class="sn-soon">18 · Security <small>soon</small></span><span class="sn-soon">19 · Cost, latency, observability <small>soon</small></span><span class="sn-soon">20 · Leading AI adoption <small>soon</small></span></details>
+  <div class="sn-group"><div class="sn-h">Get started</div><a href="../../ai/index.html">Overview</a><a href="../../ai/start-here.html">Start here</a><a href="../../ai/index.html#modules">Module map</a><a href="../../ai/index.html#roadmap">26-week roadmap</a><a href="../../ai/index.html#lead">Leading your team</a></div><details class="sn-group" open><summary>Level 1 · How AI works</summary><a href="../../ai/modules/01-tokens-and-prediction.html">01 · Tokens and prediction</a><a href="../../ai/modules/02-context-window.html">02 · The context window</a><a href="../../ai/modules/03-training-and-hallucination.html">03 · Training and hallucination</a><a href="../../ai/modules/04-reasoning-tiers-cost.html" aria-current="page">04 · Reasoning, tiers and cost</a></details><details class="sn-group"><summary>Level 2 · Working with AI</summary><a href="../../ai/modules/05-prompting-context-engineering.html">05 · Prompting and context</a><a href="../../ai/modules/06-tools-function-calling.html">06 · Tools and function calling</a><a href="../../ai/modules/07-agents-loop.html">07 · Agents: the loop</a><a href="../../ai/modules/08-agentic-coding-workflow.html">08 · The agentic coding workflow</a></details><details class="sn-group"><summary>Level 3 · Configure your tools</summary><a href="../../ai/modules/09-instructions-memory.html">09 · Instructions and memory</a><a href="../../ai/modules/10-mcp.html">10 · MCP</a><a href="../../ai/modules/11-agent-skills.html">11 · Agent Skills</a><a href="../../ai/modules/12-subagents-hooks-plugins.html">12 · Subagents, hooks, plugins</a><a href="../../ai/modules/13-automation-ci.html">13 · Automation and CI</a></details><details class="sn-group"><summary>Level 4 · Build AI features</summary><span class="sn-soon">14 · Model APIs and structured output <small>soon</small></span><span class="sn-soon">15 · Embeddings and RAG <small>soon</small></span><span class="sn-soon">16 · Building agents and MCP servers <small>soon</small></span></details><details class="sn-group"><summary>Level 5 · Production and leadership</summary><span class="sn-soon">17 · Evals <small>soon</small></span><span class="sn-soon">18 · Security <small>soon</small></span><span class="sn-soon">19 · Cost, latency, observability <small>soon</small></span><span class="sn-soon">20 · Leading AI adoption <small>soon</small></span></details>
 </nav>
 <div class="sn-scrim" aria-hidden="true"></div>
 <!-- site-chrome:end -->

@@ -413,6 +413,8 @@ footer.site a { color: var(--ink-2); }
 .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.08); }
 
+[hidden] { display: none !important; }  /* the hidden attribute always wins over layout rules */
+
 /* ---------- AI engineering track ---------- */
 /* Flow diagrams (Viz.flow) */
 svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: visible; }
@@ -621,7 +623,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
   }
 
   /** Flow diagram: boxes and arrows.
-   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level}]]
+   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
    *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
@@ -639,7 +641,8 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
     let e = "";
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
-      const p = by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      // o.levelFrom: leave the source at the target's height (straight out of a tall box)
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
