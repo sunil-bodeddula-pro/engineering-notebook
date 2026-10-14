@@ -2,7 +2,7 @@
 
 Oct 4, 2026 · Your first version is kept unchanged in `AI-Engineering-Leadership-Roadmap.original.md`.
 
-> **Interactive version:** this roadmap is being rebuilt as a visual course at [interviewkata.com/ai](https://interviewkata.com/ai/) (source in `../algorithms/ai/`). Where the two differ, the course is newer: it was checked against vendor documentation on 13 October 2026. For example, Claude Code now reads `AGENTS.md` directly when a repository has no `CLAUDE.md` (v2.1.277 and later), and Claude's current tokenizer fits about 555,000 English words in 1M tokens, not 750,000.
+> **Interactive version:** this roadmap is being rebuilt as a visual course at [interviewkata.com/ai](https://interviewkata.com/ai/) (source in `../algorithms/ai/`). Where the two differ, the course is newer: it was checked against vendor documentation on 13 October 2026. For example, Claude Code now reads `AGENTS.md` directly when a repository has no `CLAUDE.md` (v2.1.277 and later), and Claude's current tokenizer fits about 555,000 English words in 1M tokens, not 750,000. Google also replaced Gemini CLI with **Antigravity CLI** (`agy`) for individual users on 18 June 2026; Gemini CLI remains for Gemini Code Assist Standard/Enterprise licences and paid API keys.
 
 This document has two parts:
 

@@ -120,7 +120,7 @@
   }
 
   /** Flow diagram: boxes and arrows.
-   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend}]]
+   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level}]]
    *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
@@ -137,7 +137,8 @@
     };
     let e = "";
     edges.forEach(([a, b, label, o = {}]) => {
-      const p = by[a], q = by[b], cls = edgeHl[a + ">" + b] || "";
+      // o.level: enter the target at the source's height (straight across into a tall box)
+      const p = by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -156,7 +157,8 @@
         (n.sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
     }).join("");
     const marker = (k) => `<marker id="${uid}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="fm-${k}" d="M0,0 L10,5 L0,10 z"/></marker>`;
-    return `<svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg>`;
+    // Wrapped so that on narrow screens only the diagram scrolls sideways, not the text around it.
+    return `<div class="flow-wrap"><svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg></div>`;
   }
 
   /** Horizontal interval bars. items [{s,e,label,cls}], range [lo,hi] */
@@ -473,7 +475,7 @@
     ["Prompt injection", [], "Instructions hidden in content the model reads (a web page, file or email) that hijack it into doing something you didn't ask.", "ai"],
     ["API", ["APIs"], "Application programming interface: how a program calls a service. Model APIs take your prompt and return the model's reply.", "ai"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
   const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
   const inTrack = (g) => (g[3] || "coding") === pageTrack();
@@ -564,49 +566,27 @@
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
-  // Collapse the top-bar links behind a "Menu" button whenever they don't fit on one row
-  // (phones, and tablets on pages with many links). Without JavaScript the links simply wrap.
-  function bootMobileNav() {
-    const bar = document.querySelector(".topbar");
-    const nav = bar && bar.querySelector("nav");
-    if (!nav) return;
-    nav.id = nav.id || "site-nav";
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "nav-toggle";
-    btn.setAttribute("aria-controls", nav.id);
-    btn.setAttribute("aria-expanded", "false");
-    btn.innerHTML = '<span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span>';
-    bar.insertBefore(btn, nav);
-    const label = btn.querySelector(".nav-toggle-label");
+  // Phones and tablets: the left sidebar (the track's menu) is a drawer opened by the top bar's Menu button.
+  function bootSideNav() {
+    const btn = document.querySelector(".topbar .nav-toggle"), nav = document.getElementById("sidenav");
+    if (!btn || !nav) return;
+    const root = document.documentElement, label = btn.querySelector(".nav-toggle-label");
     const set = (open) => {
-      bar.classList.toggle("nav-open", open);
+      root.classList.toggle("nav-open", open);
       btn.setAttribute("aria-expanded", String(open));
-      label.textContent = open ? "Close" : "Menu";
+      if (label) label.textContent = open ? "Close" : "Menu";
     };
-    btn.addEventListener("click", () => set(!bar.classList.contains("nav-open")));
+    btn.addEventListener("click", () => set(!root.classList.contains("nav-open")));
+    const scrim = document.querySelector(".sn-scrim");
+    if (scrim) scrim.addEventListener("click", () => set(false));
     nav.addEventListener("click", (e) => { if (e.target.closest("a")) set(false); });
-    document.addEventListener("click", (e) => { if (!bar.contains(e.target)) set(false); });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && bar.classList.contains("nav-open")) { set(false); btn.focus(); }
+      if (e.key === "Escape" && root.classList.contains("nav-open")) { set(false); btn.focus(); }
     });
-    // Show the full row, see whether its links wrap onto a second line, then pick a mode.
-    const fit = () => {
-      bar.classList.remove("nav-compact");
-      bar.classList.add("nav-full");
-      const items = [...nav.children];
-      const wraps = items.length > 1 && items[items.length - 1].offsetTop > items[0].offsetTop + 4;
-      bar.classList.toggle("nav-compact", wraps);
-      bar.classList.toggle("nav-full", !wraps);
-      if (!wraps) set(false);
-    };
-    let queued = false;
-    window.addEventListener("resize", () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => { queued = false; fit(); });
-    });
-    fit();
+    if (window.matchMedia) window.matchMedia("(min-width: 1000px)").addEventListener("change", (m) => { if (m.matches) set(false); });
+    // Keep the current page in view in a long sidebar.
+    const cur = nav.querySelector('[aria-current="page"]');
+    if (cur && cur.offsetTop > nav.clientHeight * 0.7) nav.scrollTop = cur.offsetTop - nav.clientHeight / 3;
   }
 
   // Wide tables scroll sideways inside their own box instead of widening the page.
@@ -621,7 +601,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    bootMobileNav();
+    bootSideNav();
     wrapTables();
     bootTraces();
     bootGlossary();
@@ -670,11 +650,3 @@
 
   window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, trace, esc, glossaryList };
 })();
-
-// Company-lists menu in the top bar: close it on an outside click or Escape.
-document.addEventListener("click", (e) => {
-  document.querySelectorAll("details.navmenu[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") document.querySelectorAll("details.navmenu[open]").forEach((d) => { d.open = false; d.querySelector("summary").focus(); });
-});

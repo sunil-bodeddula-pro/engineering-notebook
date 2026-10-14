@@ -24,7 +24,7 @@ five tools. Source: [`../algorithms/ai/`](../algorithms/ai/). Modules 01–04 ar
 ## What belongs here
 
 - Notes from each week of the roadmap (course lessons, articles, release notes)
-- Comparisons between tools on the same task (Claude Code vs Gemini CLI vs Copilot vs Cursor vs Codex)
+- Comparisons between tools on the same task (Claude Code vs Antigravity CLI vs Copilot vs Cursor vs Codex)
 - Working examples you build: `AGENTS.md`, `SKILL.md` skills, settings and permission files, hooks, MCP servers
 - Explainers written for the team ("LLM basics", AI coding rules, the security checklist)
 - Eval sets and results for AI features

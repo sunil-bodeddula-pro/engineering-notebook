@@ -91,37 +91,65 @@ a:hover { text-decoration-thickness: 2px; }
 .brand-word b { font-weight: 800; color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .brand-mark { transition: none; } }
 .topbar .spacer { flex: 1; }
-.topbar nav { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.topbar nav a { font-size: .88rem; padding: 6px 12px; border-radius: 999px; color: var(--ink-2); text-decoration: none; }
-.topbar nav a:hover { background: var(--surface-2); color: var(--ink); }
-.navmenu { position: relative; }
-.navmenu summary { list-style: none; cursor: pointer; font-size: .88rem; padding: 6px 12px; border-radius: 999px; color: var(--ink-2); user-select: none; }
-.navmenu summary::-webkit-details-marker { display: none; }
-.navmenu summary::after { content: "▾"; margin-left: 5px; font-size: .75em; }
-.navmenu summary:hover, .navmenu[open] summary { background: var(--surface-2); color: var(--ink); }
-.navmenu-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
-.topbar nav .navmenu-panel a { border-radius: 8px; }
-.topbar nav .navmenu-panel a[aria-current] { color: var(--ink); font-weight: 600; background: var(--surface-2); }
-@media (max-width: 640px) { .navmenu-panel { position: fixed; left: 16px; right: 16px; top: auto; min-width: 0; margin-top: 6px; } }
-/* Compact top bar: logo + "Menu" button, links open as a full-width list. viz.js adds the button and sets
-   .nav-compact when the links don't fit on one row; on phones the compact look also applies before that check. */
+/* Track tabs in the top bar: the site's main sections */
+.tracks { display: flex; gap: 4px; align-items: center; margin-left: 18px; }
+.tracks a, .tracks .track-soon { font-size: .92rem; padding: 7px 13px; border-radius: 999px; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.tracks a:hover { background: var(--surface-2); color: var(--ink); }
+.tracks a[aria-current] { color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+.tracks .track-soon, .sn-tracks .track-soon { color: var(--ink-3); cursor: default; }
+.track-soon small, .sn-soon small { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; margin-left: 2px; }
+
+/* Left sidebar: the current track's pages. Fixed on wide screens, a slide-in drawer below 1000px. */
+:root { --sidenav-w: 264px; }
+.sidenav { font-size: .9rem; background: var(--bg); }
+.sidenav a, .sidenav .sn-soon { display: block; padding: 6px 10px; border-radius: 8px; color: var(--ink-2); text-decoration: none; line-height: 1.35; }
+.sidenav a:hover { background: var(--surface-2); color: var(--ink); }
+.sidenav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.sidenav .sn-soon { color: var(--ink-3); }
+.sidenav .sn-title { font-weight: 700; color: var(--ink); font-size: 1rem; margin-bottom: 6px; }
+.sidenav .sn-h, .sidenav summary { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; padding: 6px 10px; }
+.sidenav .sn-group { margin: 6px 0 10px; }
+.sidenav summary { cursor: pointer; list-style: none; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+.sidenav summary::-webkit-details-marker { display: none; }
+.sidenav summary::after { content: "▸"; font-size: .9rem; transition: transform .15s; }
+.sidenav details[open] > summary::after { transform: rotate(90deg); }
+.sidenav summary:hover { background: var(--surface-2); color: var(--ink); }
+.sn-tracks { display: none; }
+.sn-scrim { display: none; }
 .nav-toggle { display: none; }
-.js .topbar.nav-compact { flex-wrap: wrap; row-gap: 8px; }
 .nav-toggle-icon { position: relative; width: 16px; height: 2px; border-radius: 2px; background: currentColor; box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor; transition: transform .2s ease; }
 .nav-toggle-icon::after { content: ""; position: absolute; inset: 0; border-radius: 2px; background: currentColor; opacity: 0; transition: opacity .2s ease; }
 .nav-open .nav-toggle-icon { box-shadow: none; transform: rotate(45deg); }
 .nav-open .nav-toggle-icon::after { opacity: 1; transform: rotate(90deg); }
-@media (prefers-reduced-motion: reduce) { .nav-toggle-icon, .nav-toggle-icon::after { transition: none; } }
-.js .topbar.nav-compact .nav-toggle { display: inline-flex; align-items: center; gap: 9px; margin-left: auto; padding: 8px 14px; font: 600 .9rem var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
-.js .topbar.nav-compact .nav-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.js .topbar.nav-compact nav { display: none; }
-.js .topbar.nav-compact.nav-open nav { display: flex; flex-direction: column; align-items: stretch; flex-basis: 100%; gap: 2px; padding: 6px 0 4px; max-height: calc(100vh - 72px); overflow-y: auto; }
-.js .topbar.nav-compact.nav-open nav a, .js .topbar.nav-compact.nav-open .navmenu summary { padding: 11px 12px; border-radius: 10px; font-size: 1rem; }
-.js .topbar.nav-compact.nav-open .navmenu-panel { position: static; min-width: 0; margin: 2px 0 6px; box-shadow: none; }
-@media (max-width: 640px) { .js .topbar:not(.nav-full) { flex-wrap: wrap; row-gap: 8px; } .js .topbar:not(.nav-full) nav { display: none; } }
+@media (prefers-reduced-motion: reduce) { .nav-toggle-icon, .nav-toggle-icon::after, .sidenav { transition: none !important; } }
 
-.page { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 40px) 96px; }
-@media (max-width: 960px) { .page { grid-template-columns: 1fr; } .toc { display: none; } }
+@media (min-width: 1000px) {
+  body:has(> .sidenav) { padding-left: var(--sidenav-w); }
+  body:has(> .sidenav) > .topbar { margin-left: calc(-1 * var(--sidenav-w)); }
+  .sidenav { position: fixed; top: 0; bottom: 0; left: 0; width: var(--sidenav-w); box-sizing: border-box; padding: 78px 14px 32px; overflow-y: auto; border-right: 1px solid var(--line); z-index: 15; }
+}
+@media (max-width: 999px) {
+  .nav-toggle { display: inline-flex; align-items: center; gap: 9px; padding: 8px 14px; font: 600 .9rem var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; flex: none; }
+  .nav-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sidenav { position: fixed; top: 0; bottom: 0; left: 0; width: min(330px, 86vw); box-sizing: border-box; padding: 76px 14px 32px; overflow-y: auto; z-index: 18; border-right: 1px solid var(--line); box-shadow: var(--shadow); transform: translateX(-105%); transition: transform .25s ease; visibility: hidden; }
+  .nav-open .sidenav { transform: none; visibility: visible; }
+  .nav-open .sn-scrim { display: block; position: fixed; inset: 0; z-index: 17; background: hsl(220 30% 10% / .35); }
+  .sidenav a, .sidenav summary { padding-top: 9px; padding-bottom: 9px; }
+  /* Without JavaScript the drawer can't open, so show the menu as a plain block instead. */
+  html:not(.js) .sidenav { position: static; transform: none; visibility: visible; width: auto; padding: 16px; box-shadow: none; border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 900px) {
+  .tracks { display: none; }
+  .sn-tracks { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .sn-tracks a, .sn-tracks .track-soon { flex: 1 1 auto; text-align: center; padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); text-decoration: none; font-size: .85rem; }
+  .sn-tracks a[aria-current] { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
+}
+
+.page { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 40px; max-width: 1240px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 40px) 96px; }
+.page > .toc { grid-column: 2; grid-row: 1; }
+.page > main { grid-column: 1; grid-row: 1; min-width: 0; }
+/* "On this page" sits on the right; it needs room next to the sidebar, so it hides on narrower screens. */
+@media (max-width: 1320px) { .page { grid-template-columns: minmax(0, 1fr); } .page > .toc { display: none; } }
 /* Wide tables scroll inside their own box (viz.js wraps every table in .table-scroll). */
 .table-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 14px 0; }
 .table-scroll > table { margin: 0; }
@@ -388,6 +416,7 @@ footer.site a { color: var(--ink-2); }
 /* ---------- AI engineering track ---------- */
 /* Flow diagrams (Viz.flow) */
 svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: visible; }
+.flow-wrap { max-width: 100%; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 @media (max-width: 640px) { svg.flow { max-width: none; min-width: 460px; } }  /* keep labels readable; the box scrolls sideways */
 svg.flow .fn rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
 svg.flow .fn .fn-l { font-size: 13px; font-weight: 600; fill: var(--ink); }
@@ -592,7 +621,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
   }
 
   /** Flow diagram: boxes and arrows.
-   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend}]]
+   *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level}]]
    *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
@@ -609,7 +638,8 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
     };
     let e = "";
     edges.forEach(([a, b, label, o = {}]) => {
-      const p = by[a], q = by[b], cls = edgeHl[a + ">" + b] || "";
+      // o.level: enter the target at the source's height (straight across into a tall box)
+      const p = by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -628,7 +658,8 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
         (n.sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
     }).join("");
     const marker = (k) => `<marker id="${uid}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="fm-${k}" d="M0,0 L10,5 L0,10 z"/></marker>`;
-    return `<svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg>`;
+    // Wrapped so that on narrow screens only the diagram scrolls sideways, not the text around it.
+    return `<div class="flow-wrap"><svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg></div>`;
   }
 
   /** Horizontal interval bars. items [{s,e,label,cls}], range [lo,hi] */
@@ -945,7 +976,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
     ["Prompt injection", [], "Instructions hidden in content the model reads (a web page, file or email) that hijack it into doing something you didn't ask.", "ai"],
     ["API", ["APIs"], "Application programming interface: how a program calls a service. Model APIs take your prompt and return the model's reply.", "ai"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .navmenu, .topbar, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
   const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
   const inTrack = (g) => (g[3] || "coding") === pageTrack();
@@ -1036,49 +1067,27 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
-  // Collapse the top-bar links behind a "Menu" button whenever they don't fit on one row
-  // (phones, and tablets on pages with many links). Without JavaScript the links simply wrap.
-  function bootMobileNav() {
-    const bar = document.querySelector(".topbar");
-    const nav = bar && bar.querySelector("nav");
-    if (!nav) return;
-    nav.id = nav.id || "site-nav";
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "nav-toggle";
-    btn.setAttribute("aria-controls", nav.id);
-    btn.setAttribute("aria-expanded", "false");
-    btn.innerHTML = '<span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span>';
-    bar.insertBefore(btn, nav);
-    const label = btn.querySelector(".nav-toggle-label");
+  // Phones and tablets: the left sidebar (the track's menu) is a drawer opened by the top bar's Menu button.
+  function bootSideNav() {
+    const btn = document.querySelector(".topbar .nav-toggle"), nav = document.getElementById("sidenav");
+    if (!btn || !nav) return;
+    const root = document.documentElement, label = btn.querySelector(".nav-toggle-label");
     const set = (open) => {
-      bar.classList.toggle("nav-open", open);
+      root.classList.toggle("nav-open", open);
       btn.setAttribute("aria-expanded", String(open));
-      label.textContent = open ? "Close" : "Menu";
+      if (label) label.textContent = open ? "Close" : "Menu";
     };
-    btn.addEventListener("click", () => set(!bar.classList.contains("nav-open")));
+    btn.addEventListener("click", () => set(!root.classList.contains("nav-open")));
+    const scrim = document.querySelector(".sn-scrim");
+    if (scrim) scrim.addEventListener("click", () => set(false));
     nav.addEventListener("click", (e) => { if (e.target.closest("a")) set(false); });
-    document.addEventListener("click", (e) => { if (!bar.contains(e.target)) set(false); });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && bar.classList.contains("nav-open")) { set(false); btn.focus(); }
+      if (e.key === "Escape" && root.classList.contains("nav-open")) { set(false); btn.focus(); }
     });
-    // Show the full row, see whether its links wrap onto a second line, then pick a mode.
-    const fit = () => {
-      bar.classList.remove("nav-compact");
-      bar.classList.add("nav-full");
-      const items = [...nav.children];
-      const wraps = items.length > 1 && items[items.length - 1].offsetTop > items[0].offsetTop + 4;
-      bar.classList.toggle("nav-compact", wraps);
-      bar.classList.toggle("nav-full", !wraps);
-      if (!wraps) set(false);
-    };
-    let queued = false;
-    window.addEventListener("resize", () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => { queued = false; fit(); });
-    });
-    fit();
+    if (window.matchMedia) window.matchMedia("(min-width: 1000px)").addEventListener("change", (m) => { if (m.matches) set(false); });
+    // Keep the current page in view in a long sidebar.
+    const cur = nav.querySelector('[aria-current="page"]');
+    if (cur && cur.offsetTop > nav.clientHeight * 0.7) nav.scrollTop = cur.offsetTop - nav.clientHeight / 3;
   }
 
   // Wide tables scroll sideways inside their own box instead of widening the page.
@@ -1093,7 +1102,7 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    bootMobileNav();
+    bootSideNav();
     wrapTables();
     bootTraces();
     bootGlossary();
@@ -1142,23 +1151,24 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
 
   window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, trace, esc, glossaryList };
 })();
-
-// Company-lists menu in the top bar: close it on an outside click or Escape.
-document.addEventListener("click", (e) => {
-  document.querySelectorAll("details.navmenu[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") document.querySelectorAll("details.navmenu[open]").forEach((d) => { d.open = false; d.querySelector("summary").focus(); });
-});
 </script>
 <!-- inline-assets:end -->
 </head>
 <body>
+<!-- site-chrome:start (generated by tools/inline_assets.py from assets/nav.json) -->
 <header class="topbar">
   <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Interview<b>Kata</b></span></a>
+  <nav class="tracks" aria-label="Tracks"><a href="../index.html" aria-current="true">Coding patterns</a><a href="../ai/index.html">AI engineering</a><span class="track-soon" title="Coming soon">System design <small>soon</small></span></nav>
   <span class="spacer"></span>
-  <nav><a href="../start-here.html">Start here</a><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><details class="navmenu"><summary>Company lists</summary><div class="navmenu-panel"><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../amazon.html">Amazon</a><a href="../microsoft.html">Microsoft</a><a href="../apple.html">Apple</a><a href="../nvidia.html">Nvidia</a><a href="../cisco.html">Cisco</a><a href="../netflix.html">Netflix</a></div></details><a href="../cheatsheet.html">Cheat sheet</a><a href="../ai/index.html">AI engineering</a></nav>
+  <button class="nav-toggle" type="button" aria-controls="sidenav" aria-expanded="false"><span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span></button>
 </header>
+<nav class="sidenav" id="sidenav" aria-label="Coding patterns">
+  <div class="sn-tracks"><a href="../index.html" aria-current="true">Coding patterns</a><a href="../ai/index.html">AI engineering</a><span class="track-soon" title="Coming soon">System design <small>soon</small></span></div>
+  <a class="sn-title" href="../index.html">Coding patterns</a>
+  <div class="sn-group"><div class="sn-h">Get started</div><a href="../index.html">Overview</a><a href="../start-here.html">Start here</a><a href="../index.html#beginner">Beginner path</a><a href="../index.html#map">Pattern map</a><a href="../index.html#identify">Identify a pattern</a><a href="../index.html#method">Problem-solving method</a><a href="../index.html#plan">8-week study plan</a><a href="../cheatsheet.html">Cheat sheet</a></div><details class="sn-group" open><summary>The 24 patterns</summary><a href="../patterns/01-prefix-sum.html">01 · Prefix Sum</a><a href="../patterns/02-two-pointers.html">02 · Two Pointers</a><a href="../patterns/03-sliding-window.html">03 · Sliding Window</a><a href="../patterns/04-fast-slow-pointers.html">04 · Fast &amp; Slow Pointers</a><a href="../patterns/05-linkedlist-reversal.html">05 · LinkedList In-place Reversal</a><a href="../patterns/06-monotonic-stack.html">06 · Monotonic Stack</a><a href="../patterns/07-top-k-elements.html">07 · Top 'K' Elements</a><a href="../patterns/08-overlapping-intervals.html">08 · Overlapping Intervals</a><a href="../patterns/09-modified-binary-search.html">09 · Modified Binary Search</a><a href="../patterns/10-binary-tree-traversal.html">10 · Binary Tree Traversal</a><a href="../patterns/11-dfs.html">11 · Depth-First Search (DFS) on Graphs</a><a href="../patterns/12-bfs.html">12 · Breadth-First Search (BFS)</a><a href="../patterns/13-matrix-traversal.html">13 · Matrix Traversal</a><a href="../patterns/14-backtracking.html">14 · Backtracking</a><a href="../patterns/15-dynamic-programming.html">15 · Dynamic Programming Patterns</a><a href="../patterns/16-hash-map-set.html">16 · Hash Map &amp; Set</a><a href="../patterns/17-stack.html">17 · Stack</a><a href="../patterns/18-greedy.html">18 · Greedy</a><a href="../patterns/19-trie-design.html">19 · Trie &amp; Design</a><a href="../patterns/20-shortest-path-mst.html" aria-current="page">20 · Shortest Path &amp; MST</a><a href="../patterns/21-array-string-basics.html">21 · Array &amp; String Basics</a><a href="../patterns/22-math-bit-manipulation.html">22 · Math &amp; Bit Manipulation</a><a href="../patterns/23-union-find.html">23 · Union-Find (Disjoint Set Union)</a><a href="../patterns/24-segment-tree-fenwick.html">24 · Segment Tree &amp; Fenwick Tree</a></details><details class="sn-group"><summary>Company lists</summary><a href="../google.html">Google</a><a href="../meta.html">Meta</a><a href="../amazon.html">Amazon</a><a href="../microsoft.html">Microsoft</a><a href="../apple.html">Apple</a><a href="../nvidia.html">Nvidia</a><a href="../cisco.html">Cisco</a><a href="../netflix.html">Netflix</a></details>
+</nav>
+<div class="sn-scrim" aria-hidden="true"></div>
+<!-- site-chrome:end -->
 
 <div class="page">
   <aside class="toc">
