@@ -261,40 +261,70 @@
     show(0);
   }
 
-  /* ---------- page helpers: python highlighting, copy buttons, TOC, quiz ---------- */
-  function highlightPython(code) {
-    const KW = /\b(def|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|class|import|from|as|with|lambda|yield|break|continue|pass|try|except|finally|raise|global|nonlocal|self)\b/g;
+  /* ---------- page helpers: code highlighting (Python, TypeScript, Java), copy buttons, TOC, quiz ---------- */
+  const SYNTAX = {
+    py: {
+      kw: /\b(def|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|class|import|from|as|with|lambda|yield|break|continue|pass|try|except|finally|raise|global|nonlocal|self)\b/g,
+      com: /(#[^\n]*)/g,
+      str: /("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\n]*"|'[^'\n]*')/g,
+    },
+    ts: {
+      kw: /\b(function|return|if|else|for|while|do|of|in|const|let|var|new|class|constructor|this|null|undefined|true|false|break|continue|private|public|readonly|static|typeof|instanceof|switch|case|default|throw|try|catch|finally|extends|implements|interface|type|as)\b/g,
+      com: /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g,
+      str: /("[^"\n]*"|'[^'\n]*'|`[^`]*`)/g,
+    },
+    java: {
+      kw: /\b(class|public|private|protected|static|final|void|int|long|double|float|boolean|char|byte|short|return|if|else|for|while|do|new|this|null|true|false|break|continue|switch|case|default|throw|throws|try|catch|finally|extends|implements|interface|var|import|instanceof|record)\b/g,
+      com: /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g,
+      str: /("[^"\n]*"|'(?:\\.|[^'\\\n])')/g,
+    },
+  };
+  function highlight(code, lang) {
+    const S = SYNTAX[lang] || SYNTAX.py;
     const tokens = [];
     // Placeholders use Private-Use-Area characters (no digits/letters), so later
     // regexes (numbers, identifiers) can never match inside an already-highlighted token.
     const stash = (cls, s) => { tokens.push(`<span class="${cls}">${s}</span>`); return "\uE000" + String.fromCharCode(0xE100 + tokens.length - 1) + "\uE001"; };
     let s = esc(code);
-    s = s.replace(/(#[^\n]*)/g, (m) => stash("com", m));
-    s = s.replace(/("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\n]*"|'[^'\n]*')/g, (m) => stash("str", m));
-    s = s.replace(KW, (m) => stash("kw", m));
+    s = s.replace(S.com, (m) => stash("com", m));
+    s = s.replace(S.str, (m) => stash("str", m));
+    s = s.replace(S.kw, (m) => stash("kw", m));
     s = s.replace(/\b([A-Za-z_]\w*)(?=\()/g, (m) => stash("fn", m));
-    s = s.replace(/\b(\d+)\b/g, (m) => stash("num", m));
+    s = s.replace(/\b(\d[\d_]*n?L?)\b/g, (m) => stash("num", m));
     return s.replace(/\uE000([\s\S])\uE001/g, (_, ch) => tokens[ch.charCodeAt(0) - 0xE100]);
   }
+  const highlightPython = (code) => highlight(code, "py");
 
   /* ---------- traced step-through: replays a recorded run of a problem's solution ---------- */
-  // data: {src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
-  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|^(left|right|start|end)_|_(i|j)$/;
-  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num";
-  const fmt = (v) => {
-    if (v === null) return "None";
-    if (typeof v === "boolean") return v ? "True" : "False";
+  // data: {lang?, src:[lines], notes:{line:text}, input, output, values:[...], steps:[[line, depth, fn, {var: valueIdx}, retIdx?]], truncated}
+  // lang is "py" (the default), "ts" or "java"; values are shown in that language's notation.
+  const PTR = /^(i|j|k|l|r|lo|hi|mid|left|right|start|end|read|write|slow|fast|low|high|pos|i1|i2|j1|j2)$|idx|index|ptr|Idx$|Index$|Ptr$|^(left|right|start|end)_|^(left|right|start|end)[A-Z]|_(i|j)$/;
+  const isScalar = (v) => v === null || typeof v !== "object" || v["~"] === "num" || v["~"] === "char";
+  const fmtIn = (v, L) => {
+    const py = L === "py";
+    if (v === null) return py ? "None" : "null";
+    if (typeof v === "boolean") return py ? (v ? "True" : "False") : String(v);
     if (typeof v === "string") return JSON.stringify(v);
     if (typeof v !== "object") return String(v);
-    const t = v["~"], items = v.v;
+    const t = v["~"], items = v.v, f = (x) => fmtIn(x, L);
     if (t === "num" || t === "obj") return String(items);
-    if (t === "node") return `Node(${fmt(items)})`;
-    if (t === "ll") return items.map(fmt).join(" → ") + (v.cycle ? " → …(cycle)" : " → None");
-    if (t === "dict") return "{" + items.map(([k, x]) => `${fmt(k)}: ${fmt(x)}`).join(", ") + "}";
-    const inner = items.map(fmt).join(", ") + (v.more ? `, …+${v.more}` : "");
-    return t === "set" ? (items.length ? "{" + inner + "}" : "set()") : t === "tuple" ? "(" + inner + ")" : t === "deque" ? "deque([" + inner + "])" : "[" + inner + "]";
+    if (t === "char") return `'${items}'`;
+    if (t === "node") return `Node(${f(items)})`;
+    if (t === "ll") return items.map(f).join(" → ") + (v.cycle ? " → …(cycle)" : py ? " → None" : " → null");
+    if (t === "dict") {
+      const arrow = L === "java" ? "=" : L === "ts" && v.t === "Map" ? " => " : ": ";
+      const body = items.map(([k, x]) => `${f(k)}${arrow}${f(x)}`).join(", ");
+      return (L === "ts" && v.t === "Map" ? "Map " : "") + "{" + body + "}";
+    }
+    const inner = items.map(f).join(", ") + (v.more ? `, …+${v.more}` : "");
+    if (t === "set") return py ? (items.length ? "{" + inner + "}" : "set()") : L === "ts" ? "Set {" + inner + "}" : "[" + inner + "]";
+    if (t === "tuple") return "(" + inner + ")";
+    if (t === "deque") return py ? "deque([" + inner + "])" : "[" + inner + "]";
+    return "[" + inner + "]";
   };
   function traceView(data, k) {
+    const L = data.lang || "py";
+    const fmt = (v) => fmtIn(v, L);
     const step = data.steps[k], prev = k > 0 ? data.steps[k - 1] : null;
     const [line, depth, fn, locals, stackIdx, ret] = step;
     const val = (name) => data.values[locals[name]];
@@ -304,7 +334,7 @@
     let code = `<div class="trace-code">`;
     for (let n = lo; n < lo + WIN; n++) {
       code += n <= data.src.length
-        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlightPython(data.src[n - 1] || " ")}</div>`
+        ? `<div class="tl${n === line ? " cur" : ""}"><span class="ln">${n}</span>${highlight(data.src[n - 1] || " ", L)}</div>`
         : `<div class="tl"><span class="ln"></span> </div>`;
     }
     code += `</div>`;
@@ -336,8 +366,10 @@
       } else if (v["~"] === "ll") {
         pic = list(v.v.map(fmt), { label: nm });
       } else if (["dict", "set", "list", "deque", "tuple"].includes(v["~"])) {
-        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}: ${fmt(b)}`) : v.v.map(fmt);
-        pic = chips(items.slice(0, 24), nm + (v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : ""), changed(nm) ? "warm" : "");
+        const arrow = L === "java" ? "=" : L === "ts" && v.t === "Map" ? " => " : ": ";
+        const items = v["~"] === "dict" ? v.v.map(([a, b]) => `${fmt(a)}${arrow}${fmt(b)}`) : v.v.map(fmt);
+        const kind = v.t ? ` (${v.t})` : v["~"] === "set" ? " (set)" : v["~"] === "dict" ? " (dict)" : "";
+        pic = chips(items.slice(0, 24), nm + kind, changed(nm) ? "warm" : "");
       } else continue;
       pics += `<div class="trace-pic${changed(nm) ? " changed" : ""}">${pic}</div>`;
       count++;
@@ -348,7 +380,9 @@
       ? `<span class="idx">call stack: <code>${esc(data.values[stackIdx])}</code></span>`
       : `<span class="idx">in <code>${esc(fn)}()</code></span>`;
     const view = code + (pics ? `<div class="trace-pics">${pics}</div>` : "") + `<div class="trace-vars">${where}${rows}</div>`;
-    let note = ret !== undefined ? `<b>${esc(fn)}()</b> returns <b>${esc(fmt(data.values[ret]))}</b>` : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
+    const rv = ret !== undefined ? data.values[ret] : undefined;
+    const isVoid = rv && rv["~"] === "obj" && rv.v === "void";
+    let note = ret !== undefined ? (isVoid ? `<b>${esc(fn)}()</b> finishes` : `<b>${esc(fn)}()</b> returns <b>${esc(fmt(rv))}</b>`) : `<b>Line ${line}:</b> <code>${esc((data.src[line - 1] || "").trim())}</code>`;
     if (ret === undefined && data.notes[line]) note += ` — ${esc(data.notes[line])}`;
     if (k === data.steps.length - 1 && data.truncated) note += ` <span class="idx">(trace stops here: the full run is longer)</span>`;
     return { view, note };
@@ -362,11 +396,81 @@
       const src = document.getElementById(el.id + "-data");
       if (!src) return;
       let built = false;
-      const build = () => { if (built) return; built = true; trace(el, JSON.parse(src.textContent)); };
+      // Built only once it can be seen: its problem is open and its language tab is selected.
       const det = el.closest("details");
-      if (!det || det.open) build();
-      else det.addEventListener("toggle", () => { if (det.open) build(); });
+      const build = () => {
+        if (built || el.closest(".code-pane[hidden]") || (det && !det.open)) return;
+        built = true;
+        trace(el, JSON.parse(src.textContent));
+      };
+      el._build = build;
+      if (det) det.addEventListener("toggle", build);
+      build();
     });
+  }
+
+  /* ---------- solution language tabs: Python / TypeScript / Java ---------- */
+  // Pages carry the other languages in a hidden <div class="lang-alts"> right after the Python solution
+  // (and its player). The tabs are built here; the choice applies to every problem and is remembered.
+  const LANG_NAME = { py: "Python", ts: "TypeScript", java: "Java" };
+  function bootCodeTabs() {
+    const groups = [];
+    document.querySelectorAll(".lang-alts").forEach((alts) => {
+      let el = alts.previousElementSibling, pyPre = null;
+      const pyParts = [];
+      while (el) {   // walk back over the Python player to the Python <pre>
+        if (el.matches("pre") && el.querySelector("code.python")) { pyPre = el; break; }
+        if (!el.matches(".trace-viz, script[type='application/json']")) break;
+        pyParts.unshift(el);
+        el = el.previousElementSibling;
+      }
+      if (!pyPre) return;
+      const wrap = document.createElement("div");
+      wrap.className = "code-tabs";
+      const bar = document.createElement("div");
+      bar.className = "code-tabbar";
+      bar.setAttribute("role", "tablist");
+      bar.setAttribute("aria-label", "Solution language");
+      wrap.appendChild(bar);
+      pyPre.parentNode.insertBefore(wrap, pyPre);
+      const py = document.createElement("div");
+      py.className = "code-pane";
+      py.dataset.lang = "py";
+      [pyPre, ...pyParts].forEach((n) => py.appendChild(n));
+      const panes = { py };
+      wrap.appendChild(py);
+      alts.querySelectorAll(":scope > .lang-alt").forEach((a) => { a.classList.add("code-pane"); panes[a.dataset.lang] = a; wrap.appendChild(a); });
+      alts.remove();
+      Object.keys(panes).forEach((l) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("role", "tab");
+        b.dataset.lang = l;
+        b.textContent = LANG_NAME[l] || l;
+        bar.appendChild(b);
+      });
+      groups.push({ bar, panes });
+    });
+    if (!groups.length) return;
+    const apply = (lang) => groups.forEach((g) => {
+      const l = g.panes[lang] ? lang : "py";
+      Object.entries(g.panes).forEach(([k, p]) => { p.hidden = k !== l; });
+      g.bar.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.lang === l)));
+      const tv = g.panes[l].querySelector(".trace-viz");
+      if (tv && tv._build) tv._build();
+    });
+    let saved = "py";
+    try { saved = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
+    groups.forEach((g) => g.bar.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      try { localStorage.setItem("ik-code-lang", b.dataset.lang); } catch (err) { /* storage unavailable */ }
+      // other problems change height too: keep the clicked tab bar still on screen
+      const before = g.bar.getBoundingClientRect().top;
+      apply(b.dataset.lang);
+      window.scrollBy(0, g.bar.getBoundingClientRect().top - before);
+    }));
+    apply(saved);
   }
 
   /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
@@ -612,6 +716,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     bootSideNav();
     wrapTables();
+    bootCodeTabs();
     bootTraces();
     bootGlossary();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
@@ -624,6 +729,9 @@
     openTarget();
     document.querySelectorAll("pre > code.python, pre > code.language-python").forEach((el) => {
       el.innerHTML = highlightPython(el.textContent);
+    });
+    document.querySelectorAll("pre > code.typescript, pre > code.java").forEach((el) => {
+      el.innerHTML = highlight(el.textContent, el.classList.contains("java") ? "java" : "ts");
     });
     document.querySelectorAll("pre").forEach((pre) => {
       const b = document.createElement("button");
