@@ -520,6 +520,18 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
 .widget .row2 small { color: var(--ink-3); }
 .bba td.bad { color: var(--red); } .bba td.ok { color: var(--warm); } .bba td.great { color: var(--green); }
 .bba td:first-child { font-weight: 700; white-space: nowrap; }
+/* Sorting exercise: each item gets option buttons; the choice locks and an explanation appears */
+.sorter { display: grid; gap: 8px; }
+.sorter .item { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.sorter .item p { margin: 0; font-weight: 600; }
+.sorter .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sorter .opts button { font: 500 .85rem var(--sans); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; border-radius: 9px; cursor: pointer; }
+.sorter .item.done .opts button { cursor: default; opacity: .7; }
+.sorter .item.done .opts button.picked { opacity: 1; border-color: var(--ink-2); font-weight: 700; }
+.sorter .item .why { display: none; font-size: .88rem; color: var(--ink-2); }
+.sorter .item.done .why { display: block; }
+.sorter .item.right { border-color: var(--green); background: var(--green-soft); }
+.sorter .item.wrong { border-color: var(--red); background: var(--red-soft); }
 
 /* ---------- solution language tabs (Python / TypeScript / Java) ---------- */
 .code-tabs { margin: 14px 0; }
@@ -1168,6 +1180,34 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
     ["Idempotent", ["idempotency"], "An operation you can safely repeat: doing it twice has the same effect as once. Essential for retries.", "system-design"],
     ["Strong consistency", ["eventual consistency", "eventually consistent", "strongly consistent"], "Strong: every read sees the latest write. Eventual: replicas may lag briefly, but they converge.", "system-design"],
     ["Trade-off", ["trade-offs"], "Gaining one property by giving up another, such as speed for freshness. Every design decision is one.", "system-design"],
+    ["UDP", [], "A bare transport protocol: sends independent packets with no handshake, ordering or retries. Fast; lost packets are simply gone.", "system-design"],
+    ["QUIC", [], "A transport built on UDP with TCP-like reliability, built-in TLS and independent streams. HTTP/3 runs on it.", "system-design"],
+    ["Head-of-line blocking", [], "When one delayed item holds up everything queued behind it, such as a lost TCP packet stalling all HTTP/2 streams.", "system-design"],
+    ["Multiplexing", ["multiplexed", "multiplexes"], "Sending many requests or streams over one connection at the same time, interleaved.", "system-design"],
+    ["Anycast", [], "Many servers share one IP address and the network routes each user to the nearest one. Used by CDNs and DNS resolvers.", "system-design"],
+    ["REST", ["RESTful"], "An API style built on HTTP: resources named by URLs, acted on with standard methods (GET, POST, PUT, PATCH, DELETE).", "system-design"],
+    ["gRPC", [], "A framework for calling functions on other services, using Protocol Buffers over HTTP/2, with generated typed clients.", "system-design"],
+    ["GraphQL", [], "An API query language where the client asks for exactly the fields it needs from one endpoint.", "system-design"],
+    ["Pagination", ["paginate", "paginated"], "Returning a long list in pages. Cursor pagination remembers where you stopped; offset pagination counts from the top.", "system-design"],
+    ["Webhook", ["webhooks"], "An HTTP request a service sends to your URL when something happens, instead of you polling for it.", "system-design"],
+    ["Round robin", [], "A load-balancing rule that sends each new request to the next server in turn.", "system-design"],
+    ["Least connections", ["least outstanding requests"], "A load-balancing rule that sends each request to the server with the fewest requests in progress.", "system-design"],
+    ["Health check", ["health checks"], "A regular probe (such as GET /healthz) a load balancer uses to decide whether a server should receive traffic.", "system-design"],
+    ["API gateway", ["API gateways"], "A proxy at the front of your services that handles cross-cutting work: authentication, rate limits, routing, logging.", "system-design"],
+    ["Autoscaling", ["autoscaler", "autoscale"], "Automatically adding or removing servers as a metric (CPU, queue depth, requests) rises or falls.", "system-design"],
+    ["Sticky session", ["sticky sessions"], "A load balancer keeping one user on the same server, usually by cookie. Convenient, but fragile when that server dies.", "system-design"],
+    ["Hit ratio", ["hit rate", "cache hit"], "The share of requests a cache answers itself. At 95%, the source sees only 5% of reads.", "system-design"],
+    ["TTL", ["time to live"], "How long a cached copy (or DNS answer) may be used before it must be fetched again.", "system-design"],
+    ["LRU", ["least recently used"], "An eviction rule that throws out whatever hasn't been used for the longest time.", "system-design"],
+    ["LFU", ["least frequently used"], "An eviction rule that throws out whatever has been used least often.", "system-design"],
+    ["Cache stampede", ["thundering herd"], "Many requests missing the cache at once (often when a hot key expires) and all hitting the database together.", "system-design"],
+    ["Hot key", ["hot keys"], "One key getting so much traffic that the single node holding it is overloaded.", "system-design"],
+    ["Cache invalidation", ["invalidation", "invalidate"], "Removing or updating cached copies when the source data changes, so readers don't see stale values.", "system-design"],
+    ["Object storage", ["blob storage", "object store"], "Storage for whole files (objects) under keys in buckets, such as Amazon S3: cheap, durable, effectively unlimited.", "system-design"],
+    ["Presigned URL", ["presigned URLs", "signed URL", "signed URLs"], "A short-lived URL that grants one specific action on one object, so clients can upload or download directly.", "system-design"],
+    ["Multipart upload", ["multipart"], "Uploading a big file in independent parts that can be sent in parallel and retried individually.", "system-design"],
+    ["Origin", ["origin server"], "The source a CDN fetches from on a miss: your storage bucket or servers.", "system-design"],
+    ["Origin shield", [], "An extra cache layer between CDN edges and the origin, so each object is fetched from the origin about once.", "system-design"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
