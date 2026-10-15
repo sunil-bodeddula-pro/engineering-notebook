@@ -475,7 +475,8 @@
 
   /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
   // [term, other spellings, definition, track]. The first spelling is the glossary heading.
-  // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">).
+  // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">);
+  // "system-design" = the System design pages (<body data-track="system-design">).
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -587,6 +588,50 @@
     ["OpenTelemetry", ["OTel"], "The open standard for traces, metrics and logs. Its GenAI conventions name fields such as the model and token counts.", "ai"],
     ["Model routing", ["router"], "Sending each request to the cheapest model that handles it well, and only the hard ones to a stronger model.", "ai"],
     ["Time to first token", ["TTFT"], "How long until the first words of a reply arrive. With streaming, it's the delay a user actually feels.", "ai"],
+    ["Client", ["clients"], "The program that starts a request: a browser, a phone app, or another service calling yours.", "system-design"],
+    ["Server", ["servers"], "A program (and the machine it runs on) that waits for requests and answers them.", "system-design"],
+    ["DNS", ["domain name system"], "The internet's phone book: turns a name like example.com into the IP address of a server.", "system-design"],
+    ["IP address", ["IP addresses"], "The number that identifies a machine on a network, like a postal address for packets.", "system-design"],
+    ["TCP", [], "The transport protocol that gives a reliable, ordered stream of bytes between two machines. Most web traffic runs on it.", "system-design"],
+    ["TLS", ["HTTPS"], "The encryption layer that keeps traffic private and proves the server's identity. HTTPS is HTTP over TLS.", "system-design"],
+    ["HTTP", [], "The request/response protocol of the web: a method (GET, POST…), a path, headers and an optional body; the server replies with a status code.", "system-design"],
+    ["Round-trip time", ["RTT", "round trip"], "The time for a message to reach the other side and a reply to come back. Every handshake costs at least one.", "system-design"],
+    ["Latency", ["latencies"], "How long one request takes, from sending it to getting the answer. Measured in milliseconds.", "system-design"],
+    ["Throughput", [], "How much work a system finishes per second: requests per second, messages per second, megabytes per second.", "system-design"],
+    ["Bandwidth", [], "The maximum data a link can carry per second, like the width of a pipe. Different from latency, which is how long the pipe is.", "system-design"],
+    ["Percentile", ["percentiles", "p50", "p95", "p99", "p999"], "p99 = 99% of requests are faster than this value. Percentiles show the slow tail that an average hides.", "system-design"],
+    ["Tail latency", [], "The latency of the slowest requests (p99 and beyond). It's what your unluckiest users feel, and fan-out makes it common.", "system-design"],
+    ["QPS", ["RPS", "requests per second", "queries per second"], "Requests (or queries) per second: the standard unit of load on a service.", "system-design"],
+    ["Load balancer", ["load balancers"], "A component that spreads incoming requests across several servers and stops sending to ones that fail health checks.", "system-design"],
+    ["CDN", ["content delivery network"], "A network of servers close to users that keeps copies of content (images, video, pages), so requests don't travel to your origin.", "system-design"],
+    ["Cache", ["caches", "caching"], "A fast store holding copies of data that is expensive to fetch or compute, so repeat reads are quick.", "system-design"],
+    ["Database", ["databases"], "The system that stores your data durably and answers queries about it. Usually the source of truth.", "system-design"],
+    ["Message queue", ["message queues"], "A buffer where producers drop work and consumers pick it up later, so the two don't have to run at the same speed.", "system-design"],
+    ["Stateless", [], "A server that keeps no per-user data between requests, so any copy can answer any request. The key to scaling out.", "system-design"],
+    ["Horizontal scaling", ["scale out", "scaling out"], "Adding more machines and spreading the load. Opposite of vertical scaling, which means a bigger machine.", "system-design"],
+    ["Vertical scaling", ["scale up", "scaling up"], "Moving to a bigger machine (more CPU, memory, disk). Simple, but there is a ceiling and one box is one failure.", "system-design"],
+    ["Replica", ["replicas", "replication"], "A copy of data kept on another machine, for surviving failures and for serving more reads.", "system-design"],
+    ["Shard", ["shards", "sharding"], "One piece of a dataset that has been split across machines, each holding part of the rows.", "system-design"],
+    ["Availability", [], "The fraction of time a system answers correctly, often written in nines: 99.9% allows about 8.8 hours of downtime a year.", "system-design"],
+    ["Durability", [], "The promise that data you were told is saved won't be lost, even when disks or machines fail.", "system-design"],
+    ["Single point of failure", ["SPOF"], "One component whose failure takes the whole system down, because nothing else can do its job.", "system-design"],
+    ["Redundancy", ["redundant"], "Running spare copies of a component so that one can fail without an outage.", "system-design"],
+    ["Failover", [], "Switching traffic from a failed component to its standby, automatically or by hand.", "system-design"],
+    ["SLI", ["service level indicator"], "A measured number that describes service health, such as the share of requests answered in under 300 ms.", "system-design"],
+    ["SLO", ["SLOs", "service level objective"], "Your target for an SLI over a period, such as 99.9% of requests succeed each 30 days.", "system-design"],
+    ["SLA", ["service level agreement"], "A contract with customers that promises a level of service and says what happens (usually credits) if you miss it.", "system-design"],
+    ["Error budget", ["error budgets"], "The failures your SLO still allows. A 99.9% SLO leaves a 0.1% budget to spend on deploys, experiments and bad luck.", "system-design"],
+    ["Availability zone", ["availability zones", "AZ", "AZs"], "One or more data centres in a cloud region with separate power and networking, so they rarely fail together.", "system-design"],
+    ["Daily active users", ["DAU", "monthly active users", "MAU"], "How many distinct people use a product in a day (DAU) or a month (MAU): the usual starting number for an estimate.", "system-design"],
+    ["Back-of-the-envelope estimate", ["back-of-the-envelope"], "A quick calculation with rounded numbers to see whether a design is in the right ballpark.", "system-design"],
+    ["Little's Law", [], "Items in a system = arrival rate × time each spends inside. Ties together concurrency, throughput and latency.", "system-design"],
+    ["Utilization", [], "The fraction of time a resource is busy. As it nears 100%, queues and waiting time grow very fast.", "system-design"],
+    ["Functional requirement", ["functional requirements"], "What the system must do for users, such as “users can shorten a link”.", "system-design"],
+    ["Non-functional requirement", ["non-functional requirements", "NFR", "NFRs"], "How well it must do it: latency, availability, scale, consistency, durability, security.", "system-design"],
+    ["API", ["APIs"], "The contract a service offers: which requests it accepts and what it returns.", "system-design"],
+    ["Idempotent", ["idempotency"], "An operation you can safely repeat: doing it twice has the same effect as once. Essential for retries.", "system-design"],
+    ["Strong consistency", ["eventual consistency", "eventually consistent", "strongly consistent"], "Strong: every read sees the latest write. Eventual: replicas may lag briefly, but they converge.", "system-design"],
+    ["Trade-off", ["trade-offs"], "Gaining one property by giving up another, such as speed for freshness. Every design decision is one.", "system-design"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
