@@ -1684,6 +1684,7 @@ svg.flow .fn { transition: opacity .35s ease; }
   .skills span { font: .78rem var(--mono); padding: 3px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
   .skills span.on { background: var(--green-soft); border-color: var(--green); font-weight: 700; }
   .skillfile { width: min(560px, 100%); font: .8rem/1.5 var(--mono); white-space: pre; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; text-align: left; overflow-x: auto; box-sizing: border-box; }
+  .skillfile code { display: block; background: none; padding: 0; border: 0; font: inherit; color: inherit; white-space: inherit; overflow-wrap: normal; }
   .checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
   .checks li { padding: 8px 12px; border-radius: 8px; background: var(--surface-2); font-size: .9rem; }
   .checks li.ok { background: var(--green-soft); } .checks li.no { background: var(--red-soft); } .checks li.warn { background: var(--gold-soft); }
@@ -1926,13 +1927,13 @@ svg.flow .fn { transition: opacity .35s ease; }
   const sk = (on) => `<div class="skills">${names.map((n) => `<span class="${n === on ? "on" : ""}">${n}</span>`).join("")}<span>+18 more</span></div>`;
   const view = (parts, on, extra, pct) => `<div class="pd">${sk(on)}${bar(parts)}<span class="pct">${pct}</span>${extra || ""}</div>`;
   const base = [[18000, "ctx-sys", "Fixed"], [3000, "ctx-inst", "Skills"]];
-  const file = `<div class="skillfile">---\nname: db-migration\ndescription: Writes a Flyway migration. Use whenever a table,\n  column or index changes. Never edits an applied migration.\n---\n1. Find the highest V{N} in db/migrations/.\n2. Create V{N+1}__short_name.sql. Never edit an existing file.\n3. Run: python3 scripts/check_migrations.py\n4. Done when the check passes and the tests are green.</div>`;
+  const file = `<div class="skillfile"><code>---\nname: db-migration\ndescription: Writes a Flyway migration. Use whenever a table,\n  column or index changes. Never edits an applied migration.\n---\n1. Find the highest V{N} in db/migrations/.\n2. Create V{N+1}__short_name.sql. Never edit an existing file.\n3. Run: python3 scripts/check_migrations.py\n4. Done when the check passes and the tests are green.</code></div>`;
   const f = [
     { view: view([[18000, "ctx-sys", "Fixed"]], "", "", "18K: the fixed part"), note: "A session with 30 skills installed starts." },
     { view: view(base, "", "", "21K: + 30 skill descriptions (about 100 tokens each)"), note: "<b>Level 1:</b> only names and descriptions load: about 3K tokens for all 30. Putting all 30 procedures in AGENTS.md would cost 60K+ on every request." },
     { view: view(base.concat([[1500, "ctx-chat", "Ask"]]), "", "", "22K"), note: "You ask: <b>add a discount_code column to orders</b>." },
     { view: view(base.concat([[1500, "ctx-chat", "Ask"], [2000, "ctx-files", "SKILL.md"]]), "db-migration", file, "24K: one SKILL.md loaded"), note: "<b>Level 2:</b> the request matches db-migration's description, so the agent reads that one SKILL.md. The other 29 stay in the drawer." },
-    { view: view(base.concat([[1500, "ctx-chat", "Ask"], [2000, "ctx-files", "SKILL.md"], [300, "ctx-res", "Output"]]), "db-migration", `<div class="skillfile">$ python3 scripts/check_migrations.py\n✓ V27__add_discount_code.sql: new file, sequential, no edits to applied files</div>`, "24K: the script ran; only its output entered the context"), note: "<b>Level 3:</b> the script runs; its 200 lines of code never enter the context, only its one-line result." },
+    { view: view(base.concat([[1500, "ctx-chat", "Ask"], [2000, "ctx-files", "SKILL.md"], [300, "ctx-res", "Output"]]), "db-migration", `<div class="skillfile"><code>$ python3 scripts/check_migrations.py\n✓ V27__add_discount_code.sql: new file, sequential, no edits to applied files</code></div>`, "24K: the script ran; only its output entered the context"), note: "<b>Level 3:</b> the script runs; its 200 lines of code never enter the context, only its one-line result." },
   ];
   Viz.stepper("#viz-pd", { title: "30 skills, one used", sub: "Green = the skill in use. Sizes are typical estimates.", frames: f, speed: 2200 });
 

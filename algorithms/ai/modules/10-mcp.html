@@ -1687,6 +1687,7 @@ svg.flow .fn { transition: opacity .35s ease; }
   .prims .card p { margin: 0; font-size: .92rem; color: var(--ink-2); }
   .gen-out { display: grid; gap: 10px; }
   .gen-out .msg { width: 100%; }
+  .msg code { display: block; background: none; padding: 0; border: 0; font: inherit; color: inherit; white-space: inherit; overflow-wrap: normal; }
   .widget input[type=text] { font: .95rem var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; flex: 1; min-width: 200px; }
   .jobs td:first-child { font-weight: 600; white-space: nowrap; }
 </style>
@@ -1932,7 +1933,7 @@ svg.flow .fn { transition: opacity .35s ease; }
   ];
   const FE = [["you", "host"], ["host", "srv", "", { bend: -16 }], ["srv", "host", "", { bend: -16 }], ["host", "model", "", { bend: -18 }], ["model", "host", "", { bend: -18 }], ["srv", "sentry", "", { bend: -16 }], ["sentry", "srv", "", { bend: -16 }]];
   const fl = (hl, eh) => Viz.flow(F, FE, { width: 560, height: 195, hl, edgeHl: eh });
-  const msg = (h, t) => `<div class="msg"><b>${h}</b>${Viz.esc(t)}</div>`;
+  const msg = (h, t) => `<div class="msg"><b>${h}</b><code>${Viz.esc(t)}</code></div>`;
   const f = [
     { view: `<div class="mcpv">${fl({ host: "active", srv: "active" }, { "host>srv": "active" })}${msg("Session start: host asks the server what it offers", "tools/list  →  get_issue, search_issues, get_stack_trace")}</div>`, note: "When the session starts, the host's MCP client asks each server for its <b>tools</b>, then hands their names and descriptions to the model." },
     { view: `<div class="mcpv">${fl({ you: "active" }, { "you>host": "active" })}${msg("You", "Find the cause of yesterday's top production error.")}</div>`, note: "You ask a question that needs data from outside the repository." },
@@ -1975,7 +1976,7 @@ svg.flow .fn { transition: opacity .35s ease; }
       out.push(["Cursor: .cursor/mcp.json", J({ mcpServers: { [name]: { url, ...(hdr ? { headers: hdr } : {}) } } })]);
       out.push(["Codex: ~/.codex/config.toml (or: codex mcp add " + name + " --url " + url + ")", `[mcp_servers.${name}]\nurl = "${url}"${envv ? `\nbearer_token_env_var = "${envv}"` : ""}`]);
     }
-    $("g-out").innerHTML = out.map(([h, t]) => `<div class="msg"><b>${Viz.esc(h)}</b>${Viz.esc(t)}</div>`).join("") +
+    $("g-out").innerHTML = out.map(([h, t]) => `<div class="msg"><b>${Viz.esc(h)}</b><code>${Viz.esc(t)}</code></div>`).join("") +
       `<p class="idx" style="margin:0">Generated from the tools' documented formats (October 2026). Check each tool's MCP docs for options such as sign-in (OAuth) and per-tool approval.</p>`;
   }
   ["g-name", "g-cmd", "g-url", "g-env"].forEach((id) => $(id).addEventListener("input", gen));
