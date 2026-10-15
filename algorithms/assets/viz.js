@@ -145,7 +145,10 @@
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
       const [x1, y1] = exit(p, cx, cy), [x2, y2] = exit(q, cx, cy);
       const mk = cls === "active" ? "a" : cls === "bad" ? "b" : "n";
-      e += `<path class="fe ${cls}" d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" marker-end="url(#${uid}-${mk})"/>`;
+      const d = `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+      e += `<path class="fe ${cls}" d="${d}" marker-end="url(#${uid}-${mk})"/>`;
+      // A "packet" travels along every active edge, so the eye follows the request (hidden for reduced motion).
+      if (cls === "active") e += `<circle class="pk" r="4.5"><animateMotion dur="${Math.min(2.2, Math.max(0.8, L / 140)).toFixed(2)}s" repeatCount="indefinite" path="${d}"/></circle>`;
       if (label) {
         const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
         e += `<text class="fl ${cls}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
@@ -179,6 +182,35 @@
     return svg + `</svg>`;
   }
 
+  const reduceMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  /** Update `el` to match `html` in place: unchanged nodes stay, changed attributes and text are patched.
+   *  Because boxes and arrows keep their identity between frames, CSS transitions animate the change
+   *  (a box fading from blue to green) instead of the whole picture jumping. Falls back to replacing
+   *  a subtree whenever its shape differs. */
+  function morph(el, html) {
+    const t = document.createElement(el.tagName === "svg" ? "svg" : "div");
+    t.innerHTML = html;
+    patchKids(el, t);
+  }
+  function patchKids(a, b) {
+    const ac = a.childNodes, bc = [...b.childNodes];
+    if (ac.length !== bc.length) { a.replaceChildren(...bc); return; }
+    for (let k = 0; k < bc.length; k++) patchNode(ac[k], bc[k]);
+  }
+  function patchNode(x, y) {
+    if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) { x.replaceWith(y); return; }
+    if (x.nodeType === 3) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; return; }
+    if (x.nodeType !== 1) return;
+    if (x.nodeName === "animateMotion" || x.nodeName === "circle" && x.classList.contains("pk")) {
+      // restart a packet only if its route changed
+      if (x.outerHTML !== y.outerHTML) x.replaceWith(y);
+      return;
+    }
+    for (const at of [...x.attributes]) if (!y.hasAttribute(at.name)) x.removeAttribute(at.name);
+    for (const at of [...y.attributes]) if (x.getAttribute(at.name) !== at.value) x.setAttribute(at.name, at.value);
+    patchKids(x, y);
+  }
+
   /** Step-through player. */
   function stepper(target, cfg) {
     const root = typeof target === "string" ? document.querySelector(target) : target;
@@ -205,10 +237,14 @@
     const playBtn = root.querySelector(`#${id}-play`);
     const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
     function show(k) {
+      const prev = i;
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
-      stage.innerHTML = f.view || "";
-      note.innerHTML = f.note || "";
+      morph(stage, f.view || "");
+      if (note.innerHTML !== (f.note || "")) {
+        note.innerHTML = f.note || "";
+        if (prev !== i && note.animate && !reduceMotion()) note.animate([{ opacity: 0.2 }, { opacity: 1 }], { duration: 260, easing: "ease-out" });
+      }
       vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
@@ -903,6 +939,78 @@
       `<div id="g-${term.toLowerCase().replace(/[^a-z0-9]+/g, "-")}"><dt>${esc(term)}${alts.length ? ` <span class="idx">(${alts.map(esc).join(", ")})</span>` : ""}</dt><dd>${esc(def)}</dd></div>`).join("");
   }
 
+  /* ---------- sketch mode: redraw diagram boxes in a hand-drawn whiteboard style ----------
+   * Optional and online-only: Rough.js (pinned, integrity-checked) and a handwriting font load from CDNs the
+   * first time it's switched on. If they can't load, diagrams simply stay as they are. */
+  const SKETCH_KEY = "ik-sketch-v1";
+  const ROUGH_SRC = "https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js";
+  const ROUGH_SRI = "sha384-1NLkwxMO2sOqcq7rQkFBhIAUJtbt8ziLxhVKVgKfFGMEU8pF+GEq5LVogviveup6";
+  let roughP = null, sketchObs = null, sketchQueued = false;
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } };
+  function loadRough() {
+    if (window.rough) return Promise.resolve(window.rough);
+    if (roughP) return roughP;
+    roughP = new Promise((res, rej) => {
+      const sc = document.createElement("script");
+      sc.src = ROUGH_SRC; sc.integrity = ROUGH_SRI; sc.crossOrigin = "anonymous";
+      sc.onload = () => (window.rough ? res(window.rough) : rej()); sc.onerror = rej;
+      document.head.appendChild(sc);
+      if (!document.getElementById("ik-sketch-font")) {
+        const l = document.createElement("link");
+        l.id = "ik-sketch-font"; l.rel = "stylesheet";
+        l.href = "https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap";
+        document.head.appendChild(l);
+      }
+    });
+    return roughP;
+  }
+  function roughenAll() {
+    sketchQueued = false;
+    if (!window.rough || !document.documentElement.classList.contains("sketch")) return;
+    if (sketchObs) sketchObs.disconnect();
+    document.querySelectorAll("svg.flow").forEach((svg) => {
+      const rc = window.rough.svg(svg);
+      svg.querySelectorAll("g.fn").forEach((g, n) => {
+        const r = g.querySelector("rect");
+        if (!r) return;
+        const cs = getComputedStyle(r), key = [r.getAttribute("x"), r.getAttribute("y"), r.getAttribute("width"), cs.fill, cs.stroke].join("|");
+        const old = g.querySelector(":scope > .rough");
+        if (old && old.dataset.key === key) return;
+        if (old) old.remove();
+        const x = +r.getAttribute("x"), y = +r.getAttribute("y"), w = +r.getAttribute("width"), h = +r.getAttribute("height");
+        const node = rc.rectangle(x + 1, y + 1, w - 2, h - 2, { seed: n + 7, roughness: 1.3, bowing: 1.5, stroke: cs.stroke, strokeWidth: Math.max(1.4, parseFloat(cs.strokeWidth) || 1.5), fill: cs.fill, fillStyle: "solid" });
+        node.classList.add("rough"); node.dataset.key = key;
+        g.insertBefore(node, g.firstChild);
+      });
+    });
+    if (sketchObs) sketchObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+  }
+  function queueRoughen() { if (!sketchQueued) { sketchQueued = true; requestAnimationFrame(roughenAll); } }
+  function setSketch(on, btn) {
+    document.documentElement.classList.toggle("sketch", on);
+    if (btn) btn.setAttribute("aria-pressed", String(on));
+    store.set(SKETCH_KEY, on ? "1" : "0");
+    if (!on) { document.querySelectorAll("svg.flow .rough").forEach((n) => n.remove()); if (sketchObs) sketchObs.disconnect(); return; }
+    loadRough().then(() => {
+      if (!sketchObs) sketchObs = new MutationObserver((ms) => { if (ms.some((m) => !(m.target.closest && m.target.closest(".rough")))) queueRoughen(); });
+      roughenAll();
+    }, () => {
+      document.documentElement.classList.remove("sketch");
+      if (btn) { btn.setAttribute("aria-pressed", "false"); btn.title = "Sketch mode needs an internet connection"; }
+    });
+  }
+  function bootSketch() {
+    const bar = document.querySelector(".topbar");
+    if (!bar || !document.querySelector("svg.flow")) return;   // only on pages with diagrams
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "sketch-toggle"; btn.setAttribute("aria-pressed", "false");
+    btn.title = "Draw diagrams in a hand-sketched whiteboard style";
+    btn.innerHTML = '<span aria-hidden="true">✎</span><span class="sketch-label">Sketch</span>';
+    bar.insertBefore(btn, bar.querySelector(".nav-toggle"));
+    btn.addEventListener("click", () => setSketch(btn.getAttribute("aria-pressed") !== "true", btn));
+    if (store.get(SKETCH_KEY) === "1") setSketch(true, btn);
+  }
+
   // Phones and tablets: the left sidebar (the track's menu) is a drawer opened by the top bar's Menu button.
   function bootSideNav() {
     const btn = document.querySelector(".topbar .nav-toggle"), nav = document.getElementById("sidenav");
@@ -939,6 +1047,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     bootSideNav();
+    bootSketch();
     wrapTables();
     bootCodeTabs();
     bootTraces();

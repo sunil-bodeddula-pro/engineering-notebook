@@ -426,7 +426,10 @@ svg.flow .fl { font-size: 10.5px; fill: var(--ink-2); paint-order: stroke; strok
 svg.flow .fl.active { fill: var(--accent); font-weight: 600; }
 svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } svg.flow .fm-b { fill: var(--red); }
 @keyframes flow-dash { to { stroke-dashoffset: -24; } }
-@media (prefers-reduced-motion: reduce) { svg.flow .fe.active { animation: none; } }
+svg.flow .pk { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; pointer-events: none; }
+svg.flow .fn rect, svg.flow .fe { transition: fill .35s ease, stroke .35s ease, opacity .35s ease; }
+svg.flow .fn { transition: opacity .35s ease; }
+@media (prefers-reduced-motion: reduce) { svg.flow .fe.active { animation: none; } svg.flow .pk { display: none; } }
 .figure { margin: 18px 0; padding: 16px; background: var(--surface-2); border-radius: 12px; text-align: center; overflow-x: auto; }
 .figure figcaption { margin-top: 8px; font-size: .88rem; color: var(--ink-2); text-align: left; }
 
@@ -534,3 +537,13 @@ svg.flow .fm-n { fill: var(--ink-3); } svg.flow .fm-a { fill: var(--accent); } s
 
 /* long inline code (outside code blocks) may break anywhere rather than widen the page on phones */
 :not(pre) > code { overflow-wrap: anywhere; }
+
+/* Sketch mode (optional, online): Rough.js redraws diagram boxes; the crisp rectangles are hidden underneath */
+.sketch-toggle { display: inline-flex; align-items: center; gap: 6px; font: 600 .82rem var(--sans); padding: 6px 12px; margin-right: 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.sketch-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: white; }
+.sketch svg.flow .fn > rect { opacity: 0; transition: none; }
+.sketch svg.flow text { font-family: "Patrick Hand", "Comic Sans MS", var(--sans); }
+.sketch svg.flow .fn .fn-l { font-size: 15px; }
+.sketch svg.flow .fn .fn-s { font-size: 12px; }
+.sketch .figure, .sketch .viz .stage { background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 18px 18px; }
+@media (max-width: 520px) { .sketch-label { display: none; } }
