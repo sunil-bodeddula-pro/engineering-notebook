@@ -1086,6 +1086,17 @@
       }), { rootMargin: "-20% 0px -70% 0px" });
       map.forEach((_, k) => { const t = document.getElementById(k); if (t) io.observe(t); });
     }
+    // Under the last quiz on a page, link to this track's review deck, filtered to this page's cards.
+    const quizzes = document.querySelectorAll(".quiz-q"), home = document.querySelector(".sidenav .sn-title");
+    if (quizzes.length && home && !/review\.html$/.test(location.pathname)) {
+      const rv = new URL(home.getAttribute("href").replace(/index\.html$/, "") + "review.html", location.href);
+      const topic = location.href.split(/[?#]/)[0].replace(rv.href.replace(/review\.html$/, ""), "");
+      const p = document.createElement("p");
+      p.className = "review-link";
+      p.innerHTML = `<a href="${rv.href}?topic=${encodeURIComponent(topic)}#review">Add these to your review deck →</a> Spaced repetition brings each question back just before you'd forget it.`;
+      const last = quizzes[quizzes.length - 1], box = last.closest(".card") || last;
+      box.insertAdjacentElement("afterend", p);
+    }
     // Quizzes: <div class="quiz-q" data-answer="Sliding Window"><p>..</p><div class="opts"><button>..</button></div><div class="why">..</div></div>
     document.querySelectorAll(".quiz-q").forEach((q) => {
       q.querySelectorAll(".opts button").forEach((b) => b.addEventListener("click", () => {

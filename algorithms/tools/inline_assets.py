@@ -116,7 +116,7 @@ def block():
 
 
 def pages():
-    names = ["index.html", "start-here.html", "cheatsheet.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
+    names = ["index.html", "start-here.html", "cheatsheet.html", "review.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
     names += sorted(glob.glob(os.path.join("ai", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "modules", "*.html"), root_dir=ROOT))
     for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs")):
         names += sorted(glob.glob(os.path.join(d, "*.html"), root_dir=ROOT))
