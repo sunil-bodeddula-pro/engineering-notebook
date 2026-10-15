@@ -33,7 +33,7 @@ To preview locally: `site/assemble.sh /tmp/site && python3 -m http.server -d /tm
 | Topic | Now | Next |
 | --- | --- | --- |
 | AI engineering | Phase 1 — the basics of how AI works (weeks 1–2) | Phase 2 — AI-assisted development |
-| System design | Website track: Levels 1–2 published | Level 3 — data |
+| System design | Website track: Levels 1–3 published | Level 4 — distributed and async |
 | Algorithms | — | Arrays and strings patterns |
 | Languages | — | Kotlin coroutines |
 
