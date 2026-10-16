@@ -2121,6 +2121,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 18 of 29 · Level 4: Distributed and async</div>
     <h1>Queues and event streams</h1>
     <p class="lede">Not every piece of work has to happen while the user waits. Put it on a queue and let another service do it when it can: the user gets a fast answer, a spike becomes a backlog instead of an outage, and services stop depending on each other being up at the same moment. This module covers the three shapes of messaging, what "delivered" really means, ordering, and how to handle messages that keep failing.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2143,6 +2144,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>What "delivered" means</h3>
     <p>Networks and consumers fail mid-message, so every system picks a delivery guarantee:</p>
     <ul>
@@ -2351,6 +2353,33 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["qd-base", "qd-burst", "qd-w", "qd-r"].forEach((id) => $(id).addEventListener("input", sim));
   sim();
+  Viz.scene("#sc-main", {
+    title: "A queue between two services", sub: "<b>Teal</b> = messages, <b>green</b> = done, <b>red</b> = a crash. Delivery is at-least-once.",
+    nodes: [{ id: "api", x: 75, y: 110, w: 110, label: "Order API" }, { id: "q", x: 255, y: 110, w: 110, label: "Queue" },
+      { id: "w", x: 435, y: 110, w: 110, label: "Email worker" }, { id: "db", x: 435, y: 205, w: 150, label: "Processed IDs" }],
+    edges: [["api", "q"], ["q", "w"], ["w", "db"]],
+    width: 540, height: 240,
+    steps: [
+      { hl: { api: "active", q: "active" }, moves: [{ e: "api>q", t: "order 881", k: "evt" }], pops: [{ n: "api", t: "user answered fast", k: "ok", at: 1.2 }],
+        note: "The API puts the work on a queue and answers the user straight away. The email can wait a second." },
+      { hl: { api: "active", q: "warm" }, moves: [0, 1, 2, 3].map((i) => ({ e: "api>q", t: "spike", k: "evt", delay: i * 0.3 })), pops: [{ n: "q", t: "a backlog, not an outage", k: "ok", at: 1.9 }], hold: 3.6,
+        note: "A traffic spike becomes a <b>backlog</b> the workers drain at their own pace, not an outage." },
+      { hl: { q: "active", w: "bad" }, moves: [{ e: "q>w", t: "msg 881", k: "evt" }], pops: [{ n: "w", t: "sent, then crashed before ack", k: "bad", at: 1.4 }],
+        note: "A worker takes message 881, sends the email, and crashes <b>before acknowledging</b> it." },
+      { hl: { q: "active", w: "active" }, moves: [{ e: "q>w", t: "msg 881 again", k: "evt" }], pops: [{ n: "q", t: "visible again after timeout", k: "evt", at: 0.3 }],
+        note: "No ack within the visibility timeout, so the queue delivers it again. Duplicates are normal; plan for them." },
+      { hl: { w: "found", db: "found", q: "found" }, moves: [{ e: "w>db", t: "seen 881?", k: "req" }, { e: "w>db", t: "yes: skip", k: "ok", back: true, delay: 1.1 }, { e: "q>w", t: "ack", k: "ok", back: true, delay: 2.2 }], hold: 3.8,
+        note: "The worker is <b>idempotent</b>: it records processed IDs, sees 881, skips the second email and acknowledges." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Work that doesn't need the user waiting goes on a queue." },
+    { el: "#sc-main", title: "2 · A queue at work", text: "Watch a spike become a backlog, a redelivery, and an idempotent worker." },
+    { el: "#viz-log", title: "3 · A partitioned log", text: "Partitions, keys and two consumer groups reading at their own pace." },
+    { el: "#qd", title: "4 · Drain the burst", text: "Find the worker count that clears a burst in time." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

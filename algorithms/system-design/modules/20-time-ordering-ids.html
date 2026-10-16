@@ -2117,6 +2117,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 20 of 29 · Level 4: Distributed and async</div>
     <h1>Time, ordering and IDs</h1>
     <p class="lede">On one machine, "which happened first?" and "give me a unique number" are trivial. Across many machines they aren't: every server's clock is slightly wrong in its own way, messages arrive late and out of order, and two servers can hand out the same ID. This module explains why, what logical clocks do instead of trusting time, and how to generate IDs that are unique, compact and sortable at any scale.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2130,6 +2131,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>When clocks decide, skew decides</h3>
     <p>Last-write-wins (Module 16) keeps the version with the latest timestamp. If the machine that wrote first has a clock that's ahead, its older write "wins" and the newer one vanishes. Try the skew in section 3.</p>
     <h3>Lamport clocks: order without trusting time</h3>
@@ -2366,6 +2368,33 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   $("id-go").addEventListener("click", go);
   go();
+  Viz.scene("#sc-main", {
+    title: "When clocks decide, skew decides", sub: "<b>Blue</b> = writes with timestamps, <b>red</b> = the wrong winner, <b>green</b> = the right one.",
+    nodes: [{ id: "u1", x: 70, y: 50, w: 100, label: "User 1" }, { id: "A", x: 255, y: 50, w: 130, label: "Server A", sub: "clock 50 ms fast" },
+      { id: "u2", x: 70, y: 185, w: 100, label: "User 2" }, { id: "B", x: 255, y: 185, w: 130, label: "Server B", sub: "clock correct" },
+      { id: "st", x: 480, y: 117, w: 140, label: "Store", sub: "last write wins" }],
+    edges: [["u1", "A"], ["u2", "B"], ["A", "st"], ["B", "st"]],
+    width: 560, height: 235,
+    steps: [
+      { hl: { u1: "active", A: "active", st: "active" }, moves: [{ e: "u1>A", t: "x = 1", k: "req" }, { e: "A>st", t: "x = 1 @ .050", k: "req", delay: 1.1 }], hold: 3.2,
+        note: "User 1 writes first. Server A's clock is 50 ms fast, so it stamps the write <b>.050</b>." },
+      { hl: { u2: "active", B: "active", st: "active" }, moves: [{ e: "u2>B", t: "x = 2", k: "req" }, { e: "B>st", t: "x = 2 @ .020", k: "req", delay: 1.1 }], hold: 3.2,
+        note: "20 ms later, user 2 writes through server B, whose clock is right: <b>.020</b>." },
+      { hl: { st: "bad", B: "bad" }, pops: [{ n: "st", t: "keeps x = 1: newer write lost", k: "bad", at: 0.3 }],
+        note: "Last-write-wins compares timestamps, so the <b>older</b> write wins and the newer one silently vanishes." },
+      { hl: { A: "active", B: "active", st: "found" }, moves: [{ e: "A>st", t: "x = 1, counter 5", k: "req" }, { e: "B>st", t: "x = 2, counter 6", k: "ok", delay: 0.8 }], pops: [{ n: "st", t: "keeps x = 2", k: "ok", at: 2.0 }], hold: 3.6,
+        note: "A <b>logical clock</b> orders by cause, not time: B had seen A's write, so its counter is higher, whatever the wall clocks say." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Across machines, \"which came first?\" and \"a unique number\" stop being trivial." },
+    { el: "#sc-main", title: "2 · Clock skew", text: "Watch a fast clock make an older write win, and a logical clock fix it." },
+    { el: "#viz-lam", title: "3 · Lamport clocks", text: "Counters that respect cause and effect, step by step." },
+    { el: "#skew", title: "4 · Skew vs last-write-wins", text: "Change the skew and the gap; see which write survives." },
+    { el: "#ids", title: "5 · Unique IDs", text: "Generate IDs and see which schemes keep their creation order." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

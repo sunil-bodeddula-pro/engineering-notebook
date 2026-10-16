@@ -2114,6 +2114,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 22 of 29 · Level 4: Distributed and async</div>
     <h1>Workflows, sagas and the outbox</h1>
     <p class="lede">Placing an order means reserving stock, charging a card, booking a courier and sending an email, often in four different services, some owned by other companies. There's no single transaction that spans them all, any step can fail, and the server running the process can crash halfway. This module shows how to make multi-step processes reliable: undo instead of rollback, never lose an event, and let a workflow engine remember where you were.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2137,6 +2138,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>An order saga that fails at step 3</h3>
     <div id="viz-saga"></div>
     <h3>The dual-write problem and the outbox</h3>
@@ -2378,6 +2380,34 @@ async function placeOrder(order) {
   }
   $("ob-c").addEventListener("input", ob);
   ob();
+  Viz.scene("#sc-main", {
+    title: "A saga that fails at step 3", sub: "<b>Blue</b> = steps, <b>gold</b> = money, <b>red</b> = the failure, <b>teal</b> = compensations.",
+    nodes: [{ id: "o", x: 100, y: 120, w: 130, label: "Orchestrator", sub: "order 881" },
+      { id: "inv", x: 410, y: 40, w: 130, label: "Stock" }, { id: "pay", x: 410, y: 120, w: 130, label: "Payments" }, { id: "cour", x: 410, y: 200, w: 130, label: "Courier" }],
+    edges: [["o", "inv"], ["o", "pay"], ["o", "cour"]],
+    width: 520, height: 240,
+    steps: [
+      { hl: { o: "active", inv: "found" }, moves: [{ e: "o>inv", t: "1 · reserve", k: "req" }, { e: "o>inv", t: "reserved", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
+        note: "Each step is a local transaction in its own service. Step 1 reserves the stock." },
+      { hl: { o: "active", pay: "found" }, moves: [{ e: "o>pay", t: "2 · charge $40", k: "money" }, { e: "o>pay", t: "charged", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
+        note: "Step 2 charges the card." },
+      { hl: { o: "active", cour: "bad" }, moves: [{ e: "o>cour", t: "3 · book courier", k: "req" }, { e: "o>cour", t: "none available", k: "bad", back: true, delay: 1.1 }], hold: 3.2,
+        note: "Step 3 fails. There's no transaction spanning all three services to roll back." },
+      { hl: { o: "warm", pay: "active", inv: "active" }, moves: [{ e: "o>pay", t: "refund $40", k: "money" }, { e: "o>inv", t: "release stock", k: "evt", delay: 0.9 }], pops: [{ n: "o", t: "undo in reverse order", k: "evt", at: 0.3 }], hold: 3.6,
+        note: "So the orchestrator runs <b>compensations</b>: undo each completed step, in reverse. Compensations are retried until they succeed." },
+      { hl: { o: "found" }, pops: [{ n: "o", t: "cancelled cleanly", k: "ok", at: 0.3 }],
+        note: "The order ends cancelled, with nothing charged or held. The orchestrator saves its progress after each step, so a crash resumes instead of starting over." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "A process across services: no global transaction, so every step needs an undo." },
+    { el: "#sc-main", title: "2 · A failing saga", text: "Watch step 3 fail and the earlier steps get compensated." },
+    { el: "#viz-saga", title: "3 · Step through it", text: "The order saga, frame by frame." },
+    { el: "#sg", title: "4 · Run the saga", text: "Choose which step fails, and whether a refund fails too." },
+    { el: "#ob", title: "5 · Dual write vs outbox", text: "Crash between the two writes and compare." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

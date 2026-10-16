@@ -2124,6 +2124,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 21 of 29 · Level 4: Distributed and async</div>
     <h1>Consensus and coordination</h1>
     <p class="lede">Some decisions must be made exactly once, by everyone, even while machines crash and messages get lost: who is the leader, which write came next, who holds the lock, which servers are in the cluster. That's the consensus problem. You'll rarely implement it, but nearly every system you design leans on it through etcd, ZooKeeper, a database's failover, or Kafka's controllers, and knowing how it behaves explains failover, split brain and why locks need fencing.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2137,6 +2138,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Raft in three ideas</h3>
     <ol class="steps-list">
       <li><strong>One leader per term.</strong> Time is divided into numbered <strong>terms</strong>. If followers stop hearing the leader's heartbeats for a randomised timeout (the Raft paper suggests 150–300 ms), one becomes a <strong>candidate</strong> and asks for votes; a majority makes it leader for the new term. Each node votes once per term, so a term has at most one leader.</li>
@@ -2353,6 +2355,34 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["fn-p", "fn-on"].forEach((id) => $(id).addEventListener("input", fence));
   fence();
+  Viz.scene("#sc-main", {
+    title: "Raft: commit, crash, elect", sub: "<b>Teal</b> = heartbeats and votes, <b>blue</b> = log entries, <b>green</b> = committed, <b>red</b> = a failure.",
+    nodes: [{ id: "c", x: 70, y: 120, w: 100, label: "Client" }, { id: "n1", x: 265, y: 120, w: 120, label: "Node 1", sub: "leader, term 1" },
+      { id: "n2", x: 475, y: 45, w: 120, label: "Node 2" }, { id: "n3", x: 475, y: 195, w: 120, label: "Node 3" }],
+    edges: [["c", "n1"], ["n1", "n2"], ["n1", "n3"], ["n2", "n3"], ["c", "n2", "", { bend: -40 }]],
+    width: 560, height: 240,
+    steps: [
+      { hl: { n1: "active", n2: "found", n3: "found" }, moves: [{ e: "n1>n2", t: "heartbeat", k: "evt" }, { e: "n1>n3", t: "heartbeat", k: "evt", delay: 0.2 }],
+        note: "The leader sends regular heartbeats. While followers hear them, nobody starts an election." },
+      { hl: { c: "active", n1: "active", n2: "active", n3: "active" }, moves: [{ e: "c>n1", t: "set x = 5", k: "req" }, { e: "n1>n2", t: "append", k: "req", delay: 1.0 }, { e: "n1>n3", t: "append", k: "req", delay: 1.1 }, { e: "n1>n2", t: "stored", k: "ok", back: true, delay: 2.2 }], pops: [{ n: "n1", t: "majority: committed", k: "ok", at: 3.4 }], hold: 4.6,
+        note: "A write goes to the leader's log and out to the followers. Once a <b>majority</b> (2 of 3) has stored it, it's committed and acknowledged." },
+      { hl: { n1: "bad", n2: "warm" }, pops: [{ n: "n1", t: "crashed", k: "bad", at: 0.3 }, { n: "n2", t: "no heartbeat: candidate", k: "evt", at: 1.4 }],
+        note: "The leader crashes. Node 2's randomised timeout (150–300 ms) runs out first, and it becomes a candidate for term 2." },
+      { hl: { n1: "bad", n2: "active", n3: "active" }, moves: [{ e: "n2>n3", t: "vote for me? term 2", k: "evt" }, { e: "n2>n3", t: "yes", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "n2", t: "leader, term 2", k: "ok", at: 2.4 }], hold: 3.8,
+        note: "Node 3 votes for it (its log is up to date, and it hasn't voted this term). Two votes of three: a new leader." },
+      { hl: { c: "active", n2: "found", n3: "active" }, moves: [{ e: "c>n2", t: "set y = 1", k: "req" }, { e: "n2>n3", t: "append", k: "req", delay: 1.2 }], hold: 3.6,
+        note: "Clients carry on with the new leader. If node 1 comes back, it sees the higher term and steps down." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Decisions made exactly once, by everyone, despite crashes." },
+    { el: "#sc-main", title: "2 · Raft in action", text: "Watch a majority commit, a leader crash and an election." },
+    { el: "#viz-raft", title: "3 · Step through Raft", text: "Election, replication and failure, frame by frame." },
+    { el: "#cs", title: "4 · Cluster size", text: "How many nodes, how many failures, how much latency." },
+    { el: "#fen", title: "5 · Fencing tokens", text: "A paused client wakes with an expired lease. What stops its write?" },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>
