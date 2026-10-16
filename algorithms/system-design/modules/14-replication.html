@@ -2193,6 +2193,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     <h3>Quorums in leaderless replication</h3>
     <p>With <strong>N</strong> copies, a write succeeds when <strong>W</strong> replicas confirm it, and a read asks <strong>R</strong> replicas and takes the newest answer. If <strong>W + R &gt; N</strong>, every read set overlaps every write set in at least one replica, so a read always includes the latest successful write. A common setting is N = 3, W = 2, R = 2 (Cassandra's QUORUM: a majority, n/2 + 1). Replicas that missed writes catch up through <strong>read repair</strong> (fix stale copies seen during a read), <strong>hinted handoff</strong> (another node holds writes for a down replica) and background <strong>anti-entropy</strong> comparisons.</p>
 
+    <h3>Scaling reads: the progression</h3>
+    <p>Reads usually grow far faster than writes (10:1, up to 100:1 or more for content apps). The goal is to take load off the database, in this order, without skipping steps:</p>
+    <ol class="steps-list">
+      <li><strong>Optimise inside the database:</strong> indexes on what you filter, join and sort by (Module 12); denormalised columns or summary tables to avoid joins; materialised views for expensive aggregates, refreshed in the background.</li>
+      <li><strong>Scale the database out:</strong> read replicas, roughly when indexed reads pass 50,000–100,000 a second, accepting replication lag; sharding is mainly a write technique (Module 15).</li>
+      <li><strong>Add caches:</strong> Redis cache-aside for hot objects (Module 09), and a CDN for data many users share (public posts, catalogues, search results), never for personal data.</li>
+    </ol>
+    <div id="sc-reads"></div>
+    <table><thead><tr><th>Prompt</th><th>Read-scaling plan</th></tr></thead><tbody>
+      <tr><td>URL shortener</td><td>Short → long URL in Redis with no expiry (it never changes), plus a CDN</td></tr>
+      <tr><td>Ticketmaster</td><td>Cache events, venues and seat maps; <strong>never cache live seat availability</strong>; replicas for browsing, the primary for purchases</td></tr>
+      <tr><td>News feed</td><td>Precompute feeds for active users, cache recent posts, paginate (people read only the top)</td></tr>
+      <tr><td>YouTube</td><td>Cache metadata; view counts eventually consistent (updated every few minutes); CDN for thumbnails and video</td></tr>
+    </tbody></table>
+    <p><strong>Don't lead with read scaling for</strong> write-heavy systems (Uber location updates), small ones ("1,000 users" → one indexed database), strongly consistent data, or real-time collaboration.</p>
+    <table><thead><tr><th>Deep-dive question</th><th>Answer</th></tr></thead><tbody>
+      <tr><td>Queries slow down as data grows</td><td>Missing indexes cause full scans: check with <code>EXPLAIN</code>, add composite indexes in the right column order</td></tr>
+      <tr><td>Millions of reads on one hot key</td><td><strong>Request coalescing</strong>: one in-flight fetch per key per server, so the backend sees one request per server; or <strong>key fan-out</strong> (<code>feed:celebrity:1…10</code>, clients pick one at random), at the cost of memory and harder invalidation</td></tr>
+      <tr><td>Stampede when a hot entry expires</td><td>One rebuilder behind a lock; <strong>probabilistic early refresh</strong> (the chance of refreshing rises near expiry); background refresh for the most critical keys</td></tr>
+      <tr><td>Updates must show immediately</td><td><strong>Versioned keys</strong> bumped in the same transaction; a small "recently deleted" cache to filter feeds while invalidation runs; CDN purge APIs or short edge TTLs</td></tr>
+    </tbody></table>
+
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
     <h3>Quorum calculator</h3>
@@ -2232,7 +2254,69 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Kafka</strong> replicates each partition to several brokers; with <code>acks=all</code> and a minimum number of in-sync replicas, a confirmed message survives a broker failure (Module 18).</li>
       <li><strong>Cross-region read replicas</strong> serve local reads with lag of tens of milliseconds to seconds; writes still travel to the primary region.</li>
     </ul>
-    <p><strong>In an interview</strong>, say it in two parts: "replicas for availability (a synchronous standby in another zone, automatic failover)" and "read replicas for read scaling, accepting some lag, with read-your-writes from the primary". Replication and sharding are separate decisions; you usually need both at scale.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Say it in two parts: <q>replicas for availability (a synchronous standby in another zone, automatic failover)</q> and <q>read replicas for read scaling, accepting some lag, with read-your-writes from the primary</q>. Replication and sharding are separate decisions; at scale you usually need both.</div>
+
+    <section class="tech" id="t-readrep">
+      <div class="tech-h"><h3>Read replicas (leader-follower)</h3><span class="tech-status s-default">The default · say both purposes</span></div>
+      <p>Copies of the database that replay the leader's change log. Writes go to the leader; reads can go to any copy.</p>
+      <h4>How it works</h4>
+      <p>Covered above. The trade-off is <strong>lag</strong>: asynchronous replicas may be milliseconds to seconds behind, so a user may not see their own write. Route a user's own recent reads to the leader (read-your-writes), and keep each user on one replica so data never goes backwards (monotonic reads).</p>
+      <h4>Status today</h4>
+      <p>Built into every relational database and managed service (RDS read replicas, Aurora replicas, Cloud SQL), and into MongoDB, Redis and Kafka.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Read-heavy workloads after indexing is done</li><li>Failover: a replica becomes the new leader</li><li>Local reads in other regions</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Write bottlenecks: every replica still applies every write</li><li>Reads that must see the latest write (go to the leader)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Two purposes, two sentences: <q>A synchronous standby in another zone with automatic failover for availability; async read replicas for read scaling, with a user's own reads served by the primary.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Replicas to fix a write bottleneck.</strong> They multiply reads, not writes.</li><li><strong>Ignoring lag:</strong> "where did my comment go?" is the follow-up.</li><li><strong>Reading from a replica to check a seat or balance</strong> before writing.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-syncstandby">
+      <div class="tech-h"><h3>Synchronous and semi-synchronous replication</h3><span class="tech-status s-default">The default for high availability</span></div>
+      <p>The leader waits for at least one follower to confirm each write before acknowledging it.</p>
+      <h4>How it works</h4>
+      <p>Fully synchronous: no committed write is lost on failover, but every write pays a round trip and a slow follower slows everything. Semi-synchronous: wait for one follower (usually in another zone), let the rest be async: the usual compromise.</p>
+      <h4>Status today</h4>
+      <p>Standard: PostgreSQL synchronous standbys, MySQL semi-sync, RDS Multi-AZ, Aurora's storage-level replication across three zones.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Data you can't lose: payments, orders, bookings</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Cross-region synchronous writes unless the requirement demands it: they add 50–150 ms to every write</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Commits wait for a standby in another zone, so failover loses nothing; read replicas stay async.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Synchronous replication across continents</strong> for an ordinary app, without mentioning the latency.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-multileader">
+      <div class="tech-h"><h3>Multi-leader replication</h3><span class="tech-status s-rare">Specialised · multi-region writes, offline apps</span></div>
+      <p>Several leaders (often one per region) accept writes and replicate to each other.</p>
+      <h4>How it works</h4>
+      <p>Each region writes locally and fast, but two regions can change the same record at once, so conflicts must be resolved: last write wins (loses data), merging, or CRDTs (Module 16). Many teams avoid conflicts by homing each user's data in one region.</p>
+      <h4>Status today</h4>
+      <p>Available (DynamoDB global tables, Cassandra across data centres, some PostgreSQL extensions), but conflict handling is the hard part.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Users in several regions who must write with low latency</li><li>Offline-first apps and collaborative editing</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Single-region products</li><li>Data that can't tolerate conflicts (money)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only with a conflict plan: <q>Each user is homed in one region, so concurrent writes to the same record don't happen.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Multi-region active-active writes with no conflict-resolution story.</strong></li></ul></div>
+    </section>
+
+    <section class="tech" id="t-leaderless">
+      <div class="tech-h"><h3>Leaderless quorums</h3><span class="tech-status s-situational">Situational · Dynamo-style stores</span></div>
+      <p>Clients (or a coordinator) write to several replicas and read from several; overlapping quorums decide what's current.</p>
+      <h4>How it works</h4>
+      <p>With N replicas, writing to W and reading from R where W + R > N guarantees overlap (Module 13's Cassandra scene). Missed writes are repaired by hinted handoff, read repair and anti-entropy.</p>
+      <h4>Status today</h4>
+      <p>Cassandra, ScyllaDB and Riak; DynamoDB keeps similar ideas internally.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Very high availability for writes, tunable per query</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Transactions and strict ordering</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>N = 3 with QUORUM reads and writes, so every read overlaps the latest write.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Claiming W + R > N makes it linearizable.</strong> Concurrent writes and failures can still produce surprises; it's a strong default, not a proof.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2311,6 +2395,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Best fix for "I edited my profile but still see the old version"?</p>
         <div class="opts"><button>Make all replication synchronous</button><button>Read their own data from the leader for a short time</button><button>Remove the read replicas</button></div>
         <div class="why">Read-your-writes only matters to the writer, so route just their reads to the leader briefly.</div>
+      </div>
+      <div class="quiz-q" data-answer="Missing indexes on the hot queries">
+        <p>Your database is at 90% CPU from reads. What's the first thing to check?</p>
+        <div class="opts"><button>Add read replicas</button><button>Missing indexes on the hot queries</button><button>Shard the database</button></div>
+        <div class="why">Optimise inside the database first: a missing index turns lookups into full scans. Replicas and caches come after.</div>
+      </div>
+      <div class="quiz-q" data-answer="Live seat availability at purchase">
+        <p>A Ticketmaster design caches seat maps. Which data must never come from the cache?</p>
+        <div class="opts"><button>Venue descriptions</button><button>Live seat availability at purchase</button><button>Event images</button></div>
+        <div class="why">Purchases check the primary database with a conditional write; a stale cached "free" would double-sell.</div>
       </div>
     </div>
 
@@ -2419,9 +2513,29 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-lag", title: "3 · Replication lag", text: "Step through posting and reloading with async followers." },
     { el: "#quorum", title: "4 · Quorum calculator", text: "Choose N, W and R, and take replicas down." },
     { el: "#loss", title: "5 · Async failover cost", text: "How many writes a failover can lose." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Read replicas, sync standbys, multi-leader and leaderless quorums, with red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-reads", {
+    title: "Scaling reads in order", sub: "<b>Red</b> = overload, <b>blue</b> = reads, <b>green</b> = served cheaply.",
+    nodes: [{ id: "app", x: 75, y: 140, w: 110, label: "App servers" }, { id: "cache", x: 300, y: 40, w: 120, label: "Redis cache" },
+      { id: "pri", x: 300, y: 245, w: 120, label: "Primary DB" }, { id: "r1", x: 530, y: 140, w: 120, label: "Replica 1" }, { id: "r2", x: 530, y: 245, w: 120, label: "Replica 2" }],
+    edges: [["app", "cache"], ["app", "pri"], ["app", "r1"], ["app", "r2"], ["pri", "r1"], ["pri", "r2"]],
+    width: 610, height: 285,
+    steps: [
+      { hl: { app: "active", pri: "bad" }, moves: [0, 1, 2, 3].map((i) => ({ e: "app>pri", t: "read", k: "bad", delay: i * 0.3 })), pops: [{ n: "pri", t: "CPU 90%", k: "bad", at: 1.4 }], hold: 3.4,
+        note: "All reads hit one database, and it's struggling." },
+      { hl: { pri: "found" }, pops: [{ n: "pri", t: "1. indexes, denormalise", k: "ok", at: 0.3 }],
+        note: "<b>Step 1:</b> fix it inside the database first. A missing index is the most common cause; a summary table avoids an expensive join." },
+      { hl: { app: "active", r1: "found", r2: "found", pri: "active" }, moves: [{ e: "pri>r1", t: "WAL", k: "evt" }, { e: "pri>r2", t: "WAL", k: "evt", delay: 0.2 }, { e: "app>r1", t: "read", k: "req", delay: 1.0 }, { e: "app>r2", t: "read", k: "req", delay: 1.2 }], pops: [{ n: "r1", t: "2. replicas share reads", k: "ok", at: 2.2 }], hold: 3.8,
+        note: "<b>Step 2:</b> read replicas share the load, a little behind the primary." },
+      { hl: { app: "active", cache: "found" }, moves: [0, 1, 2].map((i) => ({ e: "app>cache", t: "hit", k: "ok", delay: i * 0.35 })), pops: [{ n: "cache", t: "3. most reads stop here", k: "ok", at: 1.4 }], hold: 3.4,
+        note: "<b>Step 3:</b> a cache answers the hot reads in under a millisecond; skewed popularity means a small cache absorbs most traffic." },
+      { hl: { app: "active", pri: "found", r1: "bad" }, moves: [{ e: "app>pri", t: "post comment", k: "req" }, { e: "app>r1", t: "my comments?", k: "bad", delay: 1.1 }], pops: [{ n: "r1", t: "not replicated yet", k: "bad", at: 2.0 }, { n: "pri", t: "fix: own reads from primary", k: "ok", at: 2.6 }], hold: 4.2,
+        note: "The price is lag: a user's own write may be missing from a replica. Serve their recent reads from the primary." },
+    ],
+  });
 })();
 </script>
 </body>
