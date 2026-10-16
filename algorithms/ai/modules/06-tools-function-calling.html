@@ -2120,6 +2120,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 06 of 20 · Level 2: Working with AI</div>
     <h1>Tools and function calling: how a model gets things done</h1>
     <p class="lede">A model on its own can only write text. It can't read your files, query a database or send an email. Tools change that, and they're the foundation of every agent, MCP server and AI feature that does real work. The trick is simple once you see who does what.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2330,7 +2331,32 @@ print(final.content[0].text)                                           # "It shi
   ];
   const E = [["user", "app", "question"], ["app", "model", "tools + messages", { bend: -24 }], ["model", "app", "tool call", { bend: -24 }], ["app", "code", "run it", { bend: -30 }], ["code", "sys", "query", { bend: -18 }], ["sys", "code", "rows", { bend: -18 }], ["code", "app", "result", { bend: -30 }]];
   const fl = (hl, eh) => Viz.flow(N, E, { width: 560, height: 215, hl, edgeHl: eh, title: "tool call round trip" });
-  document.getElementById("fig-rt").innerHTML = fl({ code: "warm" }, {});
+  Viz.scene("#fig-rt", {
+    title: "The tool call round trip", sub: "<b>Blue</b> = messages, <b>teal</b> = the tool request, <b>green</b> = real data coming back.",
+    nodes: N, edges: E, width: 560, height: 215,
+    steps: [
+      { hl: { user: "active", app: "active" }, moves: [{ e: "user>app", t: "order 48213?", k: "req" }],
+        note: "The user asks: <b>Where is order 48213?</b>" },
+      { hl: { app: "active", model: "active" }, moves: [{ e: "app>model", t: "tools + messages", k: "req" }], pops: [{ n: "model", t: "needs get_order", k: "evt", at: 1.5 }],
+        note: "Your app sends the question <b>and the tool list</b>. The model can't run anything; it can only ask." },
+      { hl: { model: "active", app: "found" }, moves: [{ e: "model>app", t: "get_order(48213)", k: "evt" }], pops: [{ n: "app", t: "stop_reason: tool_use", k: "evt", at: 1.5 }],
+        note: "The model replies with a structured <b>tool call</b>, not an answer: which tool, with which arguments." },
+      { hl: { app: "active", code: "active", sys: "active" }, moves: [{ e: "app>code", t: "run it", k: "req" }, { e: "code>sys", t: "query", k: "req", delay: 1.1 }], pops: [{ n: "code", t: "permission ✓", k: "ok", at: 1.3 }], hold: 3.4,
+        note: "<b>Your code</b> checks the user may see this order, then runs the real query." },
+      { hl: { sys: "found", code: "found", app: "active" }, moves: [{ e: "sys>code", t: "shipped", k: "ok" }, { e: "code>app", t: "tool_result", k: "ok", delay: 1.1 }], hold: 3.4,
+        note: "The rows come back and become a <b>tool_result</b>, linked to the request's id." },
+      { hl: { app: "active", model: "active", user: "found" }, moves: [{ e: "app>model", t: "tool_result", k: "ok" }, { e: "model>app", t: "arrives 15 Oct", k: "ok", delay: 1.2 }], pops: [{ n: "user", t: "grounded answer", k: "ok", at: 2.4 }], hold: 3.8,
+        note: "The model answers in plain language, grounded in real data. An agent is just this round trip, repeated." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "The model asks; your code does. That split is the whole trick." },
+    { el: "#fig-rt", title: "2 · The round trip", text: "Watch a question become a tool call, a query and a grounded answer." },
+    { el: "#viz-rt", title: "3 · The real JSON", text: "Each message in the exchange, using the Claude API's field names." },
+    { el: "#pick", title: "4 · Be the model", text: "Pick the right tool, or none, for each request." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for tool calling." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   const J = (obj) => Viz.esc(JSON.stringify(obj, null, 2)).replace(/&quot;([^&]+?)&quot;(?=:)/g, '<span class="k">"$1"</span>').replace(/: &quot;(.*?)&quot;/g, ': <span class="s">"$1"</span>');
   const card = (h, obj) => `<div class="json"><div class="json-h">${h}</div>${J(obj)}</div>`;

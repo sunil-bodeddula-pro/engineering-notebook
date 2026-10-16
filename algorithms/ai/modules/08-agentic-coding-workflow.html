@@ -2120,6 +2120,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 08 of 20 · Level 2: Working with AI</div>
     <h1>The agentic coding workflow</h1>
     <p class="lede">Coding agents are fast, but speed in the wrong direction is expensive. Teams that get great results all use some version of the same workflow: understand first, agree a plan, change code in small reviewable steps, and prove every step. It works the same in all five tools.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2308,7 +2309,32 @@ svg.flow .fn { transition: opacity .35s ease; }
   const E = [["map", "g1"], ["g1", "plan"], ["plan", "g2"], ["g2", "slice"], ["slice", "g3"], ["g3", "slice", "next slice", { bend: 30 }], ["g3", "prove"], ["prove", "g4"]];
   const gates = { g1: "warm", g2: "warm", g3: "warm", g4: "warm" };
   const fl = (hl, eh) => Viz.flow(N, E, { width: 580, height: 195, hl: { ...gates, ...hl }, edgeHl: eh, title: "agentic coding workflow" });
-  document.getElementById("fig-wf").innerHTML = fl({}, {});
+  Viz.scene("#fig-wf", {
+    title: "The agentic coding workflow", sub: "<b>Blue</b> = the agent's work, <b>green</b> = you approve, <b>red</b> = you push back. Yellow boxes are your gates.",
+    nodes: N, edges: E, width: 580, height: 195,
+    steps: [
+      { hl: { ...gates, map: "active" }, moves: [{ e: "map>g1", t: "spec", k: "req", delay: 0.8 }], pops: [{ n: "map", t: "explores the code", k: "req", at: 0.3 }], hold: 3,
+        note: "<b>Map:</b> the agent reads the code and writes a short spec for \"split a stock batch into two lots\". You check it." },
+      { hl: { ...gates, g1: "found", plan: "active" }, moves: [{ e: "g1>plan", t: "spec OK", k: "ok" }, { e: "plan>g2", t: "plan", k: "req", delay: 1.1 }], hold: 3.4,
+        note: "<b>Plan:</b> with the spec agreed, it proposes the steps and the files it will touch. Gate two." },
+      { hl: { ...gates, g2: "found", slice: "active" }, moves: [{ e: "g2>slice", t: "plan OK", k: "ok" }, { e: "slice>g3", t: "diff 1 + tests", k: "req", delay: 1.1 }], hold: 3.4,
+        note: "<b>Slice:</b> one small change and one test run at a time, so each diff is easy to review." },
+      { hl: { ...gates, g3: "bad", slice: "active" }, moves: [{ e: "slice>g3", t: "diff 2: 14 files", k: "bad" }], pops: [{ n: "g3", t: "too big: split it", k: "bad", at: 1.5 }],
+        note: "A slice that wanders into unrelated files gets pushed back. Skipping this gate is where most of the saved time is lost." },
+      { hl: { ...gates, g3: "found", slice: "active" }, moves: [{ e: "g3>slice", t: "next slice", k: "ok" }, { e: "slice>g3", t: "diff 3", k: "req", delay: 1.2 }], hold: 3.6,
+        note: "Approved slices loop back for the next one until the feature is complete." },
+      { hl: { ...gates, prove: "active", g4: "found" }, moves: [{ e: "g3>prove", t: "all slices", k: "ok" }, { e: "prove>g4", t: "checks green", k: "ok", delay: 1.1 }], pops: [{ n: "g4", t: "merge ✓", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "<b>Prove:</b> the full checks and reviews pass, and only then do you merge." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Understand, plan, change in small steps, prove each one." },
+    { el: "#fig-wf", title: "2 · The workflow", text: "Watch one feature pass through four gates, including one push-back." },
+    { el: "#viz-wf", title: "3 · A real feature", text: "What you tell the agent at each stage, and what you check." },
+    { el: "#planrev", title: "4 · Review a plan", text: "Find the three steps you'd push back on." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for the workflow." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   const S = [
     ["map", {}, "Read how stock batches are received, end to end. Don't change anything. Summarise the flow and list the files.", "Is the summary right? It lists 4 files, but misses that expiry dates are copied to child lots. Tell it."],

@@ -2122,6 +2122,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 07 of 20 · Level 2: Working with AI</div>
     <h1>Agents: the loop that does the work</h1>
     <p class="lede">An agent is a model that keeps going on its own: it picks a tool, looks at the result, decides what to do next, and repeats until the job is done. Every coding agent is one. Understanding the loop tells you when to trust it, when to stop it, and when you don't need an agent at all.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2308,7 +2309,34 @@ svg.flow .fn { transition: opacity .35s ease; }
   ];
   const E = [["goal", "decide"], ["decide", "act", "next step"], ["act", "look", "run"], ["look", "decide", "observe"], ["decide", "done", "goal met"], ["leash", "act", "allowed?"]];
   const fl = (hl, eh) => Viz.flow(N, E, { width: 590, height: 230, hl, edgeHl: eh, title: "agent loop" });
-  document.getElementById("fig-loop").innerHTML = fl({ leash: "warm", done: "found" }, {});
+  Viz.scene("#fig-loop", {
+    title: "The agent loop", sub: "<b>Blue</b> = actions, <b>teal</b> = what it observes, <b>red</b> = a failure, <b>green</b> = progress.",
+    nodes: N, edges: E, width: 590, height: 230,
+    steps: [
+      { hl: { goal: "active", decide: "active" }, moves: [{ e: "goal>decide", t: "make the test pass", k: "req" }], pops: [{ n: "decide", t: "plan a step", k: "req", at: 1.5 }],
+        note: "The agent gets a <b>goal</b> and a definition of done: the failing test passes, and nothing else breaks." },
+      { hl: { decide: "active", act: "active", leash: "warm" }, moves: [{ e: "decide>act", t: "run tests", k: "req" }, { e: "leash>act", t: "allowed?", k: "evt", delay: 0.4 }], pops: [{ n: "act", t: "permitted", k: "ok", at: 1.6 }], hold: 3,
+        note: "It picks a step and calls a tool. The <b>leash</b> (permissions) decides whether that call may run." },
+      { hl: { act: "active", look: "bad", decide: "active" }, moves: [{ e: "act>look", t: "1 failed", k: "bad" }, { e: "look>decide", t: "read the error", k: "evt", delay: 1.1 }], hold: 3.4,
+        note: "The result goes back into its context. It <b>looks</b> before deciding what to do next." },
+      { hl: { decide: "active", act: "active", look: "bad" }, moves: [{ e: "decide>act", t: "edit code", k: "req" }, { e: "act>look", t: "still failing", k: "bad", delay: 1.1 }], pops: [{ n: "look", t: "wrong guess", k: "bad", at: 2.3 }], hold: 3.6,
+        note: "Its first fix is a wrong guess. That's normal; what matters is that it notices." },
+      { hl: { look: "active", decide: "active", act: "active" }, moves: [{ e: "look>decide", t: "new error", k: "evt" }, { e: "decide>act", t: "better fix", k: "req", delay: 1.1 }, { e: "act>look", t: "all pass", k: "ok", delay: 2.2 }], hold: 4.2,
+        note: "It reads the new error, tries a better fix, and re-runs the tests. Green." },
+      { hl: { decide: "active", done: "found" }, moves: [{ e: "decide>done", t: "evidence", k: "ok" }], pops: [{ n: "done", t: "tests pass ✓", k: "ok", at: 1.5 }],
+        note: "It stops when the goal is met, <b>with evidence</b>: the test output, not just \"fixed it\"." },
+      { hl: { leash: "bad", act: "bad" }, moves: [{ e: "leash>act", t: "budget used up", k: "bad" }], pops: [{ n: "leash", t: "stop and ask you", k: "bad", at: 1.5 }],
+        note: "If it isn't converging, the leash stops it: a step or cost budget, a permission it lacks, or you." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "An agent is a model calling tools in a loop until the job is done." },
+    { el: "#fig-loop", title: "2 · The loop", text: "Decide, act, look, repeat, with a leash on every action." },
+    { el: "#viz-agent", title: "3 · A real run", text: "Eight turns fixing a failing test, including a wrong guess and a recovery." },
+    { el: "#chooser", title: "4 · Workflow or agent?", text: "Pick the simplest design that would do each job well." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for the agent loop." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   const T = [
     ["decide", "Plan", "Run the failing test first to see the real error.", ""],
