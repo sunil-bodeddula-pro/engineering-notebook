@@ -1049,6 +1049,13 @@
     ["Overlap policy", ["concurrency policy"], "What happens when a job's next run is due while its previous run is still going: skip, queue or allow.", "system-design"],
     ["Shadow ban", ["shadow bans", "shadow-banned"], "Hiding a user's posts from everyone except the user, so they don't simply make a new account.", "system-design"],
     ["Connection draining", ["draining"], "Closing a server's long-lived connections gradually before a restart, so clients reconnect elsewhere without a stampede.", "system-design"],
+    ["Prefill", [], "The first phase of generating a reply: one pass over the whole prompt. It sets the time to the first token.", "system-design"],
+    ["Decode step", ["decode steps", "decode phase"], "The second phase of generating a reply: one new token per step, reusing the KV cache.", "system-design"],
+    ["Prefix caching", ["prefix cache", "prompt caching"], "Keeping the KV cache of a prompt's shared beginning so the next request with the same start skips most of its prefill.", "system-design"],
+    ["Admission control", [], "Refusing, downgrading or queueing new work when a system is full, instead of letting every request slow down.", "system-design"],
+    ["Speculative decoding", [], "A small model drafts several tokens and the big model checks them in one pass, producing the same output faster.", "system-design"],
+    ["Quantization", ["quantized", "quantize"], "Storing model weights (or caches) with fewer bits, such as 8-bit instead of 16-bit, to save memory and time at some quality cost.", "system-design"],
+    ["PagedAttention", [], "vLLM's way of storing the KV cache in small fixed-size blocks, like memory pages, so little memory is wasted.", "system-design"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
