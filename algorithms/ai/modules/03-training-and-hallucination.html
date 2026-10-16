@@ -822,6 +822,80 @@ svg.flow .fn { transition: opacity .35s ease; }
     patchKids(x, y);
   }
 
+  /* ---------- motion: GSAP animates what changed between two frames of any step-through player ----------
+   *  Pointer labels slide from their old box to the new one, boxes whose value changes pop, boxes that
+   *  change colour pulse, new chips and stack items spring in, and the trace's current line nudges.
+   *  Only for single steps (scrubbing far just swaps the picture). Without GSAP (offline) or with
+   *  reduced motion nothing changes: the CSS colour transitions still run. Transforms never change
+   *  layout, so the locked player heights stay exact. */
+  let gsapReady = false;
+  function wantGsap() { if (!gsapReady && !reduceMotion()) lib("gsap").then(() => { gsapReady = true; }).catch(() => {}); }
+  const BOXES = ".row, .grid-viz, .stack-viz, .chips";
+  function boxKey(c, k) {
+    const prevLab = c.previousElementSibling && c.previousElementSibling.classList.contains("row-label") ? c.previousElementSibling : null;
+    const lab = c.querySelector(":scope > .row-label") || prevLab || (c.parentElement && c.parentElement.querySelector(":scope > .row-label"));
+    return (lab ? lab.textContent.trim() : "#" + k) + "|" + (c.className.split(" ")[0] || "");
+  }
+  function snap(stage) {
+    const s = { ptr: new Map(), cell: new Map(), chip: new Set(), node: new Map(), tv: new Map(), line: null };
+    stage.querySelectorAll(BOXES).forEach((c, k) => {
+      const key = boxKey(c, k);
+      if (c.classList.contains("chips")) { c.querySelectorAll(".chip").forEach((x) => s.chip.add(key + "|" + x.textContent)); return; }
+      c.querySelectorAll(".cell").forEach((x, j) => s.cell.set(key + "|" + j, [x.textContent, x.className]));
+      const cr = c.getBoundingClientRect();
+      c.querySelectorAll(".ptr").forEach((p) => { const t = p.textContent.trim(), r = p.getBoundingClientRect(); if (t) s.ptr.set(key + "|" + t, [r.left - cr.left, r.top - cr.top]); });
+    });
+    stage.querySelectorAll("svg.tree g").forEach((g) => { const c = g.querySelector("circle"); if (c) s.node.set(c.getAttribute("cx") + "," + c.getAttribute("cy"), [g.textContent, c.getAttribute("class") || ""]); });
+    stage.querySelectorAll("svg.flow g.fn").forEach((g) => s.node.set("n:" + g.dataset.n, ["", g.getAttribute("class")]));
+    stage.querySelectorAll(".tv").forEach((x) => s.tv.set((x.querySelector("b") || x).textContent, x.textContent));
+    const cur = stage.querySelector(".tl.cur"); if (cur) s.line = cur.textContent;
+    return s;
+  }
+  function motion(stage, was, live) {
+    const g = window.gsap, out = [];
+    // Every effect stays inside the element's own box (shrink, then grow back to normal, never past it),
+    // so nothing ever spills over a scrolling picture and flashes a scrollbar.
+    const pop = (el, from = 0.72) => out.push(g.fromTo(el, { scale: from }, { scale: 1, duration: 0.42, ease: "power3.out", transformOrigin: "50% 50%", clearProps: "transform" }));
+    let budget = 60;   // never animate hundreds of boxes at once
+    stage.querySelectorAll(BOXES).forEach((c, k) => {
+      const key = boxKey(c, k);
+      if (c.classList.contains("chips")) {
+        c.querySelectorAll(".chip").forEach((x) => { if (was.chip.size && !was.chip.has(key + "|" + x.textContent) && budget-- > 0) out.push(g.from(x, { scale: 0.3, opacity: 0, duration: 0.38, ease: "power3.out", clearProps: "transform,opacity" })); });
+        return;
+      }
+      c.querySelectorAll(".cell").forEach((x, j) => {
+        const o = was.cell.get(key + "|" + j);
+        if (budget <= 0) return;
+        if (!o) { if (was.cell.size) { budget--; out.push(g.from(x, { scale: 0.4, opacity: 0, duration: 0.36, ease: "power3.out", clearProps: "transform,opacity" })); } }
+        else if (o[0] !== x.textContent) { budget--; pop(x); }
+        else if (o[1] !== x.className && /active|found|window|warm|bad|hit|cur|done/.test(x.className)) { budget--; pop(x, 0.86); }
+      });
+      const cr = c.getBoundingClientRect();
+      c.querySelectorAll(".ptr").forEach((p) => {
+        const t = p.textContent.trim(), o = t && was.ptr.get(key + "|" + t);
+        if (!o) return;
+        const r = p.getBoundingClientRect(), dx = o[0] - (r.left - cr.left), dy = o[1] - (r.top - cr.top);
+        // slide only within the row as it is now (an array that shrank could push the label past its end)
+        if (dy || o[0] < 0 || o[0] + r.width > cr.width + 1) return;
+        if (Math.abs(dx) > 1) out.push(g.from(p, { x: dx, duration: 0.4, ease: "power2.out", clearProps: "transform" }));
+      });
+    });
+    stage.querySelectorAll("svg.tree g").forEach((gr) => {
+      const c = gr.querySelector("circle"); if (!c) return;
+      const o = was.node.get(c.getAttribute("cx") + "," + c.getAttribute("cy"));
+      if (!o) { if (was.node.size) out.push(g.from(gr, { scale: 0, duration: 0.4, ease: "back.out(2)", transformOrigin: "50% 50%", clearProps: "transform" })); }
+      else if (o[0] !== gr.textContent || o[1] !== (c.getAttribute("class") || "")) out.push(g.fromTo(gr, { scale: 0.78 }, { scale: 1, duration: 0.42, ease: "back.out(2.5)", transformOrigin: "50% 50%", clearProps: "transform" }));
+    });
+    stage.querySelectorAll("svg.flow g.fn").forEach((gr) => {
+      const o = was.node.get("n:" + gr.dataset.n);
+      if (o && o[1] !== gr.getAttribute("class") && !/dim/.test(gr.getAttribute("class"))) out.push(g.fromTo(gr, { scale: 0.92 }, { scale: 1, duration: 0.4, ease: "back.out(2.5)", transformOrigin: "50% 50%", clearProps: "transform" }));
+    });
+    stage.querySelectorAll(".tv").forEach((x) => { const o = was.tv.get((x.querySelector("b") || x).textContent); if (o !== undefined && o !== x.textContent) pop(x, 0.8); });
+    const cur = stage.querySelector(".tl.cur");
+    if (cur && was.line !== null && was.line !== cur.textContent) out.push(g.from(cur, { x: -8, duration: 0.3, ease: "power2.out", clearProps: "transform" }));
+    live.push(...out);
+  }
+
   /** Step-through player. */
   function stepper(target, cfg) {
     const root = typeof target === "string" ? document.querySelector(target) : target;
@@ -829,6 +903,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     const frames = cfg.frames || [];
     let i = 0, timer = null;
     const id = root.id || "viz" + Math.random().toString(36).slice(2, 7);
+    if (frames.length > 1) wantGsap();
     root.classList.add("viz");
     if (cfg.className) root.classList.add(cfg.className);
     root.innerHTML =
@@ -847,11 +922,16 @@ svg.flow .fn { transition: opacity .35s ease; }
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
     const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
+    const live = [];
     function show(k) {
       const prev = i;
       i = Math.max(0, Math.min(frames.length - 1, k));
       const f = frames[i] || {};
+      live.splice(0).forEach((t) => t.progress(1).kill());   // finish the last step's motion before measuring
+      const animate = gsapReady && Math.abs(i - prev) === 1 && !reduceMotion();
+      const was = animate ? snap(stage) : null;
       morph(stage, f.view || "");
+      if (animate) { try { motion(stage, was, live); } catch (e) { /* motion is decoration only */ } }
       if (note.innerHTML !== (f.note || "")) {
         note.innerHTML = f.note || "";
         if (prev !== i && note.animate && !reduceMotion()) note.animate([{ opacity: 0.2 }, { opacity: 1 }], { duration: 260, easing: "ease-out" });
@@ -1870,7 +1950,54 @@ svg.flow .fn { transition: opacity .35s ease; }
     });
   }
 
+  /* ---------- guided tours for the coding pages (the other tracks write their own with Viz.tour) ---------- */
+  function bootPageTours() {
+    if (document.body.dataset.track || document.getElementById("tour")) return;
+    const $ = (s) => document.querySelector(s), h1 = $("main h1, .wrap h1, h1");
+    const after = (sel, anchor) => { const a = $(anchor); return a ? [...document.querySelectorAll(sel)].find((x) => a.compareDocumentPosition(x) & 4) : null; };
+    const mark = (el, id) => { if (el && !el.id) el.id = id; return el ? "#" + el.id : null; };
+    let steps = null;
+    if ($("h2#what") && $("h2#problems")) {
+      const name = h1 ? h1.textContent.trim() : "this pattern", n = document.querySelectorAll("details.problem").length;
+      steps = [
+        { el: "h2#what", title: "1 · The idea", text: `What ${name} is for, in plain words, before any code.` },
+        { el: mark(after(".viz, div[id^='viz-']", "h2#how"), "tour-demo") || "h2#how", title: "2 · Watch it move", text: "Press Play, or click the player and use the ← → keys. Pointers slide to their new box and changed values pop, so you can follow every move." },
+        { el: "h2#identify", title: "3 · Spot it", text: "The clues in a problem statement that say this pattern applies." },
+        { el: "h2#template", title: "4 · The template", text: "One short template to memorise. Most problems below are small changes to it." },
+        { el: "h2#remember", title: "5 · Make it stick", text: "A memory hook and a recap you can rebuild from memory." },
+        { el: mark(document.querySelector("details.problem"), "tour-problem") || "h2#problems", title: `6 · ${n || "The"} solved problems`, text: "Each one has hints, the idea, the solution in Python, TypeScript and Java, and a step-through of a real run of the code." },
+        { el: "h2#quiz", title: "7 · Check yourself", text: "A short quiz. The questions also go into your review deck." },
+        { el: "h2#practice", title: "8 · Practice in order", text: "The same problems from easiest to hardest, with the twist each one adds." },
+      ];
+    } else if ($("h2#beginner") && $("h2#map")) {
+      steps = [
+        { el: "h2#how-to-use", title: "1 · How to use this course", text: "Learn one pattern at a time: the idea, how it moves, how to spot it, then solved problems." },
+        { el: "h2#beginner", title: "2 · Start from zero", text: "New to coding interviews? Follow this path in order." },
+        { el: "h2#map", title: "3 · The 24 patterns", text: "Every pattern at a glance, each with its memory hook. Learn the hooks first." },
+        { el: "h2#identify", title: "4 · Pattern finder", text: "Answer a few questions about a problem until one or two patterns are left." },
+        { el: "h2#method", title: "5 · A method for any problem", text: "Six steps (UMPIRE) that keep you moving in an interview." },
+        { el: "h2#plan", title: "6 · An 8-week plan", text: "A study schedule if you want one." },
+      ];
+    } else if ($("h2#bigo") && $("h2#recursion")) {
+      steps = [
+        { el: "h2#bigo", title: "1 · Big-O", text: "How to tell whether a solution is fast enough, before you write it." },
+        { el: "h2#structures", title: "2 · Core data structures", text: "The structures interviews use, and what each operation costs." },
+        { el: "h2#recursion", title: "3 · Recursion", text: "How a recursive call goes down and comes back, one call at a time." },
+        { el: "h2#first", title: "4 · Your first problem", text: "Two Sum from reading the statement to a finished solution." },
+        { el: "h2#next", title: "5 · Where to go next", text: "Which pattern page to open first." },
+      ];
+    }
+    if (!steps) return;
+    const lede = $("p.lede") || h1;
+    if (!lede) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tour-btn"; b.id = "tour"; b.textContent = "▶ Take the 60-second tour of this page";
+    lede.insertAdjacentElement("afterend", b);
+    tour(b, steps.filter((s) => s.el));
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    bootPageTours();
     bootSideNav();
     bootSketch();
     wrapTables();
