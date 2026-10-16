@@ -2123,6 +2123,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 12 of 29 · Level 3: Data</div>
     <h1>Indexes and storage engines</h1>
     <p class="lede">A database without the right index reads every row to answer a question; with it, it reads three or four pages. That difference, milliseconds versus minutes, is the most common performance problem in real systems. Underneath, databases store data in one of two broad ways: B-trees that update in place, or LSM trees that only append. Knowing which one you're on tells you whether it's built for reads or for writes.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2149,6 +2150,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>A B-tree lookup</h3>
     <p>A B-tree is a shallow, wide tree of pages. Each internal page holds hundreds of sorted keys that point to child pages; leaf pages point to the rows. Press Play to find key 42.</p>
     <div id="viz-bt"></div>
@@ -2375,6 +2377,35 @@ svg.flow .fn { transition: opacity .35s ease; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ <b>${ans}</b>. `) + why;
     sc += ok; dn++; $("ix-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  Viz.scene("#sc-main", {
+    title: "Index lookup vs full scan", sub: "Finding id 42 among a billion rows. <b>Blue</b> = page reads, <b>green</b> = found, <b>red</b> = a scan.",
+    nodes: [{ id: "q", x: 70, y: 110, w: 110, label: "WHERE id = 42" }, { id: "root", x: 240, y: 45, w: 120, label: "Root page", sub: "in memory" },
+      { id: "inner", x: 405, y: 45, w: 120, label: "Inner pages", sub: "in memory" }, { id: "leaf", x: 570, y: 45, w: 120, label: "Leaf page", sub: "1 disk read" },
+      { id: "scan", x: 320, y: 180, w: 150, label: "Every page", sub: "no index" }, { id: "row", x: 570, y: 180, w: 120, label: "Row 42" }],
+    edges: [["q", "root"], ["root", "inner"], ["inner", "leaf"], ["leaf", "row"], ["q", "scan"], ["scan", "row"]],
+    width: 640, height: 225,
+    steps: [
+      { hl: { q: "active", root: "active" }, moves: [{ e: "q>root", t: "42?", k: "req" }], pops: [{ n: "root", t: "hundreds of keys per page", k: "req", at: 1.4 }],
+        note: "A B-tree is shallow and wide: each page holds hundreds of sorted keys, so the root narrows a billion rows straight away." },
+      { hl: { root: "active", inner: "active" }, moves: [{ e: "root>inner", t: "child page", k: "req" }], pops: [{ n: "inner", t: "cached", k: "ok", at: 1.4 }],
+        note: "The upper levels are read so often that they're almost always in memory." },
+      { hl: { inner: "active", leaf: "active" }, moves: [{ e: "inner>leaf", t: "leaf page", k: "req" }], pops: [{ n: "leaf", t: "~0.1 ms on SSD", k: "ok", at: 1.4 }],
+        note: "Usually just one real disk read, at the leaf. About four levels for a billion rows." },
+      { hl: { leaf: "found", row: "found" }, moves: [{ e: "leaf>row", t: "pointer", k: "ok" }], pops: [{ n: "row", t: "found in ~4 pages", k: "ok", at: 1.4 }],
+        note: "The leaf points to the row. Milliseconds." },
+      { hl: { q: "bad", scan: "bad", row: "warm" }, moves: [{ e: "q>scan", t: "no index", k: "bad" }, { e: "scan>row", t: "read everything", k: "bad", delay: 1.1, dur: 2.2 }], pops: [{ n: "scan", t: "minutes, not milliseconds", k: "bad", at: 1.6 }], hold: 4,
+        note: "Without the index, the database reads every page to find one row. That's the most common performance problem in real systems." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "The right index reads three or four pages; the wrong plan reads them all." },
+    { el: "#sc-main", title: "2 · Lookup vs scan", text: "Watch a B-tree find one row in four pages, then a scan read everything." },
+    { el: "#viz-bt", title: "3 · A B-tree lookup", text: "Step through finding key 42." },
+    { el: "#viz-lsm", title: "4 · LSM trees", text: "The write-optimised alternative: memtable, flushes and compaction." },
+    { el: "#depth", title: "5 · How deep is the index?", text: "Change rows and key size and see the levels and lookup cost." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

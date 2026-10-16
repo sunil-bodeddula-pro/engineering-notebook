@@ -2113,6 +2113,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 15 of 29 · Level 3: Data</div>
     <h1>Sharding and consistent hashing</h1>
     <p class="lede">Replication copies all the data to more machines; it doesn't help when the data, or the writes, are too much for one machine. Sharding splits the data so each machine holds and handles only part of it. It's the main way to scale writes and storage, and also the decision hardest to undo, because the way you split shapes every query afterwards.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2134,6 +2135,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Why <code>hash(key) % N</code> is a trap</h3>
     <p>The simplest hash sharding is "hash the key, take the remainder by the number of shards". It spreads keys evenly, until you add a shard. Press Play.</p>
     <div id="viz-mod"></div>
@@ -2382,6 +2384,32 @@ svg.flow .fn { transition: opacity .35s ease; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ <b>${ans}</b>. `) + why;
     sc += ok; dn++; $("sk-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  Viz.scene("#sc-main", {
+    title: "Adding a shard", sub: "<b>Blue</b> = keys placed, <b>red</b> = keys forced to move, <b>green</b> = a cheap change.",
+    nodes: [{ id: "k", x: 70, y: 125, w: 100, label: "Keys" }, { id: "r", x: 250, y: 125, w: 130, label: "Router", sub: "which shard?" },
+      { id: "a", x: 470, y: 35, w: 120, h: 36, label: "Shard A" }, { id: "b", x: 470, y: 95, w: 120, h: 36, label: "Shard B" },
+      { id: "c", x: 470, y: 155, w: 120, h: 36, label: "Shard C" }, { id: "d", x: 470, y: 215, w: 120, h: 36, label: "Shard D (new)" }],
+    edges: [["k", "r"], ["r", "a"], ["r", "b"], ["r", "c"], ["r", "d"]],
+    width: 560, height: 250,
+    steps: [
+      { hl: { k: "active", r: "active", a: "active", b: "active", c: "active" }, moves: [{ e: "k>r", t: "user:1…", k: "req" }, { e: "r>a", t: "⅓", k: "req", delay: 1.0 }, { e: "r>b", t: "⅓", k: "req", delay: 1.2 }, { e: "r>c", t: "⅓", k: "req", delay: 1.4 }], hold: 3.8,
+        note: "<code>hash(key) % 3</code> spreads keys evenly over three shards." },
+      { hl: { r: "bad", a: "bad", b: "bad", c: "bad", d: "active" }, moves: [{ e: "r>a", t: "moved", k: "bad" }, { e: "r>b", t: "moved", k: "bad", delay: 0.2 }, { e: "r>c", t: "moved", k: "bad", delay: 0.4 }, { e: "r>d", t: "moved", k: "bad", delay: 0.6 }], pops: [{ n: "r", t: "now % 4", k: "bad", at: 0.3 }], hold: 3.6,
+        note: "Add a fourth shard and the formula changes for almost every key: about <b>three quarters</b> of the data moves at once." },
+      { hl: { r: "found", d: "found" }, moves: [{ e: "r>d", t: "¼ of keys", k: "ok" }], pops: [{ n: "r", t: "consistent hashing", k: "ok", at: 0.3 }], hold: 3.2,
+        note: "With <b>consistent hashing</b>, the new shard takes over only the keys next to it on the ring: about 1/N of the data." },
+      { hl: { k: "bad", b: "bad" }, moves: [{ e: "k>r", t: "celebrity", k: "bad" }, { e: "r>b", t: "all traffic", k: "bad", delay: 1.0 }], pops: [{ n: "b", t: "hot spot", k: "bad", at: 2.1 }], hold: 3.4,
+        note: "Even shards can't save a hot key: one celebrity's traffic all lands on one shard. Choose the shard key with that in mind." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Split the data so each machine holds and handles only part of it." },
+    { el: "#sc-main", title: "2 · Adding a shard", text: "Watch % N move most keys, consistent hashing move a quarter, and a hot key." },
+    { el: "#viz-mod", title: "3 · Why % N is a trap", text: "Step through adding a shard key by key." },
+    { el: "#ring", title: "4 · Hash ring simulator", text: "Add nodes, raise virtual nodes, watch the load even out." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

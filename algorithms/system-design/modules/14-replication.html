@@ -2118,6 +2118,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 14 of 29 · Level 3: Data</div>
     <h1>Replication: the same data on several machines</h1>
     <p class="lede">A database on one machine is one disk failure away from losing everything and one crash away from an outage. Replication keeps copies on other machines, so the system survives failures and can serve more reads. The hard part is keeping those copies in step: every replication design is a choice about what happens to a write while the copies disagree.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2146,6 +2147,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Replication lag and "where did my comment go?"</h3>
     <p>Press Play: a user posts a comment, then reloads the page, with asynchronous followers.</p>
     <div id="viz-lag"></div>
@@ -2370,6 +2372,32 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["l-w", "l-lag", "l-rtt"].forEach((id) => $(id).addEventListener("input", loss));
   loss();
+  Viz.scene("#sc-main", {
+    title: "Where did my comment go?", sub: "<b>Blue</b> = requests, <b>teal</b> = replication, <b>red</b> = stale or lost, <b>green</b> = correct.",
+    nodes: [{ id: "u", x: 70, y: 115, w: 100, label: "User" }, { id: "ld", x: 270, y: 45, w: 120, label: "Leader" },
+      { id: "f1", x: 480, y: 115, w: 130, label: "Follower 1", sub: "async, lagging" }, { id: "f2", x: 480, y: 195, w: 130, label: "Follower 2", sub: "async" }],
+    edges: [["u", "ld"], ["ld", "f1"], ["ld", "f2"], ["u", "f1"]],
+    width: 560, height: 235,
+    steps: [
+      { hl: { u: "active", ld: "found" }, moves: [{ e: "u>ld", t: "post comment", k: "req" }, { e: "u>ld", t: "saved", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
+        note: "Writes go to the <b>leader</b>, which confirms straight away. Copying to followers happens afterwards (asynchronous)." },
+      { hl: { u: "bad", f1: "bad", ld: "active" }, moves: [{ e: "ld>f1", t: "comment", k: "evt", dur: 3.2 }, { e: "u>f1", t: "reload", k: "req", delay: 0.2 }, { e: "u>f1", t: "no comment", k: "bad", back: true, delay: 1.3 }], pops: [{ n: "u", t: "where did it go?", k: "bad", at: 2.4 }], hold: 4,
+        note: "The user reloads, and the read goes to a follower that hasn't caught up yet: <b>replication lag</b>." },
+      { hl: { u: "found", ld: "found" }, moves: [{ e: "u>ld", t: "my own data", k: "req" }, { e: "u>ld", t: "comment ✓", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "u", t: "read-your-writes", k: "ok", at: 2.2 }], hold: 3.4,
+        note: "Fix: read your own recent changes from the leader (or from a replica that has caught up to your write)." },
+      { hl: { ld: "bad", f2: "found" }, moves: [{ e: "ld>f2", t: "last writes", k: "bad" }], pops: [{ n: "ld", t: "crashed", k: "bad", at: 0.4 }, { n: "f2", t: "promoted", k: "ok", at: 1.5 }], hold: 3.4,
+        note: "If the leader dies, a follower is promoted. With async replication, writes it hadn't received yet are <b>lost</b>. That's the price of fast commits." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Copies survive failures and serve reads; keeping them in step is the hard part." },
+    { el: "#sc-main", title: "2 · Lag and failover", text: "Watch a comment vanish on reload, the fix, and a failover that loses writes." },
+    { el: "#viz-lag", title: "3 · Replication lag", text: "Step through posting and reloading with async followers." },
+    { el: "#quorum", title: "4 · Quorum calculator", text: "Choose N, W and R, and take replicas down." },
+    { el: "#loss", title: "5 · Async failover cost", text: "How many writes a failover can lose." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

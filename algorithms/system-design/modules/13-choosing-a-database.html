@@ -2111,6 +2111,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 13 of 29 · Level 3: Data</div>
     <h1>Choosing a database</h1>
     <p class="lede">There are dozens of database products, but only about ten families, and each is shaped by what it's good at. The skill isn't knowing every product; it's matching your access patterns, consistency needs and scale to the right family, starting from a relational default and moving away only for a reason you can say in one sentence.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2142,6 +2143,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>One product, several stores</h3>
     <p>Large systems use several databases, each for the job it's best at. This is <strong>polyglot persistence</strong>. Press Play to build an online shop's data layer one need at a time.</p>
     <div id="viz-shop"></div>
@@ -2361,6 +2363,32 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   Q.forEach(([k]) => $("q-" + k).addEventListener("input", choose));
   choose();
+  Viz.scene("#sc-main", {
+    title: "One source of truth, several stores", sub: "<b>Blue</b> = writes, <b>teal</b> = changes flowing out, <b>red</b> = copies that disagree.",
+    nodes: [{ id: "app", x: 70, y: 120, w: 100, label: "App" }, { id: "pg", x: 230, y: 120, w: 120, label: "PostgreSQL", sub: "source of truth" },
+      { id: "k", x: 405, y: 120, w: 130, label: "Change stream", sub: "CDC → Kafka" },
+      { id: "search", x: 590, y: 50, w: 120, label: "Search index" }, { id: "cache", x: 590, y: 120, w: 120, label: "Cache" }, { id: "wh", x: 590, y: 190, w: 120, label: "Warehouse" }],
+    edges: [["app", "pg"], ["pg", "k"], ["k", "search"], ["k", "cache"], ["k", "wh"], ["app", "search", "", { bend: -70 }]],
+    width: 660, height: 235,
+    steps: [
+      { hl: { app: "active", pg: "found" }, moves: [{ e: "app>pg", t: "new product", k: "req" }], pops: [{ n: "pg", t: "committed", k: "ok", at: 1.3 }],
+        note: "The app writes to <b>one</b> store: the source of truth." },
+      { hl: { pg: "active", k: "active" }, moves: [{ e: "pg>k", t: "WAL change", k: "evt" }], pops: [{ n: "k", t: "reads the database's log", k: "evt", at: 1.3 }],
+        note: "<b>Change data capture</b> reads the database's own change log and publishes every change to a stream." },
+      { hl: { k: "active", search: "found", cache: "found", wh: "found" }, moves: [{ e: "k>search", t: "change", k: "evt" }, { e: "k>cache", t: "change", k: "evt", delay: 0.25 }, { e: "k>wh", t: "change", k: "evt", delay: 0.5 }], hold: 3.2,
+        note: "Search, cache and warehouse are all <b>derived</b> from that stream, each the best store for its own job." },
+      { hl: { app: "active", pg: "found", search: "bad" }, moves: [{ e: "app>pg", t: "price change", k: "req" }, { e: "app>search", t: "dual write", k: "bad", delay: 0.6 }], pops: [{ n: "search", t: "failed: copies disagree", k: "bad", at: 2.1 }], hold: 3.6,
+        note: "The tempting shortcut, writing to both from app code, breaks when one write succeeds and the other fails. Derive copies; don't dual-write." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "About ten database families; start relational and move only for a reason." },
+    { el: "#sc-main", title: "2 · Keeping stores in step", text: "Watch CDC feed derived stores, and a dual write go wrong." },
+    { el: "#viz-shop", title: "3 · An online shop's data", text: "Build a polyglot data layer one need at a time." },
+    { el: "#chooser", title: "4 · Database chooser", text: "Tick what's true for your system and get a suggestion with reasons." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

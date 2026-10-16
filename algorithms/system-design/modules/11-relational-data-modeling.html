@@ -2113,6 +2113,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 11 of 29 · Level 3: Data</div>
     <h1>Relational data and modeling</h1>
     <p class="lede">The relational database is the default home for an application's data, and for good reason: it keeps data consistent, answers questions you didn't plan for, and one well-run instance carries most products a long way. This module covers modeling data as tables, the keys and relationships that connect them, when to normalise and when to copy, what a transaction guarantees, and how to change a schema without downtime.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2143,6 +2144,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Modeling a ticket booking app</h3>
     <p>Press Play to go from requirements to tables, one access pattern at a time.</p>
     <div id="viz-model"></div>
@@ -2371,6 +2373,31 @@ LIMIT 20;</code></pre>
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ It's <b>${ans}</b>. `) + why;
     sc += ok; dn++; $("rel-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  Viz.scene("#sc-main", {
+    title: "One query, three tables", sub: "\"My upcoming bookings\". <b>Blue</b> = the query, <b>green</b> = rows, <b>teal</b> = an update.",
+    nodes: [{ id: "app", x: 70, y: 115, w: 100, label: "App" }, { id: "bk", x: 265, y: 115, w: 150, label: "bookings", sub: "user_id · event_id · seat_id" },
+      { id: "ev", x: 485, y: 45, w: 130, label: "events", sub: "name · starts_at" }, { id: "st", x: 485, y: 185, w: 130, label: "seats", sub: "label" }],
+    edges: [["app", "bk"], ["bk", "ev", "join"], ["bk", "st", "join"], ["app", "ev", "", { bend: -45 }]],
+    width: 570, height: 230,
+    steps: [
+      { hl: { app: "active", bk: "active" }, moves: [{ e: "app>bk", t: "user_id = 7", k: "req" }], pops: [{ n: "bk", t: "index on user_id", k: "ok", at: 1.4 }],
+        note: "The query starts from this user's bookings, found through an index rather than a scan." },
+      { hl: { bk: "active", ev: "active", st: "active" }, moves: [{ e: "bk>ev", t: "event_id", k: "req" }, { e: "bk>st", t: "seat_id", k: "req", delay: 0.3 }], hold: 3,
+        note: "Each booking holds only <b>keys</b>. Joins look up the event's name and the seat's label." },
+      { hl: { ev: "found", st: "found", app: "found" }, moves: [{ e: "bk>ev", t: "name, time", k: "ok", back: true }, { e: "bk>st", t: "14C", k: "ok", back: true, delay: 0.3 }, { e: "app>bk", t: "3 rows", k: "ok", back: true, delay: 1.4 }], hold: 3.8,
+        note: "The rows come back, assembled from three tables, each fact stored in exactly one of them." },
+      { hl: { app: "active", ev: "found" }, moves: [{ e: "app>ev", t: "rename event", k: "evt" }], pops: [{ n: "ev", t: "1 row changes", k: "ok", at: 1.4 }],
+        note: "Renaming the event changes <b>one row</b>, and every booking sees it. That's what normalising buys: data that can't contradict itself." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Tables, keys and relationships: store each fact once." },
+    { el: "#sc-main", title: "2 · One query, three tables", text: "Watch a join assemble a booking list, and an update change one row." },
+    { el: "#viz-model", title: "3 · Modelling a booking app", text: "From requirements to tables, one access pattern at a time." },
+    { el: "#anom", title: "4 · Why store each fact once", text: "Change one email in two designs and compare." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

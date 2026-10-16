@@ -2116,6 +2116,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 17 of 29 · Level 3: Data</div>
     <h1>Transactions and contention: the last ticket problem</h1>
     <p class="lede">Ten thousand people want the last hundred tickets. Two bidders raise the same auction in the same millisecond. Two doctors both take themselves off call. Whenever many requests compete for the same data, a design that works perfectly one request at a time can oversell, double-book or lose updates. This module shows exactly how those bugs happen, and the toolbox that prevents them, from the simplest fix to the heaviest.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2141,6 +2142,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>A lost update, step by step</h3>
     <div id="viz-lost"></div>
     <h3>The toolbox, simplest first</h3>
@@ -2367,6 +2369,31 @@ svg.flow .fn { transition: opacity .35s ease; }
   ["rc-b", "rc-t", "rc-w"].forEach((id) => $(id).addEventListener("input", () => run()));
   $("rc-run").addEventListener("click", () => run(true));
   run();
+  Viz.scene("#sc-main", {
+    title: "The last ticket", sub: "<b>Blue</b> = reads and writes, <b>red</b> = a lost update, <b>green</b> = a safe outcome.",
+    nodes: [{ id: "b1", x: 80, y: 50, w: 110, label: "Buyer 1" }, { id: "b2", x: 80, y: 180, w: 110, label: "Buyer 2" },
+      { id: "db", x: 400, y: 115, w: 170, label: "Event 7", sub: "tickets left: 1" }],
+    edges: [["b1", "db"], ["b2", "db"]],
+    width: 520, height: 230,
+    steps: [
+      { hl: { b1: "active", b2: "active", db: "active" }, moves: [{ e: "b1>db", t: "read left", k: "req" }, { e: "b2>db", t: "read left", k: "req", delay: 0.15 }, { e: "b1>db", t: "1", k: "ok", back: true, delay: 1.1 }, { e: "b2>db", t: "1", k: "ok", back: true, delay: 1.25 }], hold: 3.6,
+        note: "Two buyers read the stock within a millisecond. Both see <b>1 ticket left</b>." },
+      { hl: { b1: "active", b2: "bad", db: "bad" }, moves: [{ e: "b1>db", t: "set left = 0", k: "req" }, { e: "b2>db", t: "set left = 0", k: "bad", delay: 0.3 }], pops: [{ n: "db", t: "2 sold, 1 existed", k: "bad", at: 1.6 }], hold: 3.4,
+        note: "Each decides in code and writes <code>left = 0</code>. Both succeed: one update is <b>lost</b>, and the ticket is sold twice." },
+      { hl: { b1: "found", b2: "active", db: "found" }, moves: [{ e: "b1>db", t: "left − 1 if left > 0", k: "ok" }, { e: "b2>db", t: "left − 1 if left > 0", k: "req", delay: 0.3 }, { e: "b1>db", t: "1 row ✓", k: "ok", back: true, delay: 1.3 }, { e: "b2>db", t: "0 rows: sold out", k: "bad", back: true, delay: 1.6 }], hold: 4.2,
+        note: "Fix: a <b>conditional write</b>. The database checks the rule as it changes the row; the second buyer changes 0 rows and is told it's sold out." },
+      { hl: { db: "found" }, pops: [{ n: "db", t: "never below zero", k: "ok", at: 0.3 }],
+        note: "Start with the simplest tool that states the rule on the row. Locks, versions and serializable isolation are for rules a condition can't express." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Many requests, the same data: one-at-a-time logic oversells." },
+    { el: "#sc-main", title: "2 · The last ticket", text: "Watch a lost update sell a ticket twice, then a conditional write prevent it." },
+    { el: "#viz-lost", title: "3 · A lost update", text: "The same race, step by step." },
+    { el: "#race", title: "4 · Ticket rush simulator", text: "200 buyers, 20 tickets: run each strategy." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

@@ -2116,6 +2116,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 16 of 29 · Level 3: Data</div>
     <h1>Consistency, CAP and PACELC</h1>
     <p class="lede">Once data lives on several machines, "what does a read return?" stops having an obvious answer. This module defines the consistency guarantees you can ask for, explains what the famous CAP theorem really says (and doesn't), adds the everyday latency trade-off that PACELC names, and shows how systems reconcile copies that disagreed. The practical outcome is a habit: choose consistency per feature, not per system.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2145,6 +2146,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <p>Press Play: a three-node cluster, a network partition, and the two ways to respond.</p>
     <div id="viz-cap"></div>
     <h3>Resolving conflicts after a partition</h3>
@@ -2391,6 +2393,33 @@ svg.flow .fn { transition: opacity .35s ease; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ Usually <b>${ans.toLowerCase()}</b>. `) + why;
     sc += ok; dn++; $("feat-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  Viz.scene("#sc-main", {
+    title: "A partition forces a choice", sub: "<b>Blue</b> = writes, <b>teal</b> = replication, <b>red</b> = cut off or refused, <b>green</b> = accepted.",
+    nodes: [{ id: "c1", x: 70, y: 55, w: 100, label: "Client 1" }, { id: "c2", x: 70, y: 185, w: 100, label: "Client 2" },
+      { id: "a", x: 260, y: 55, w: 100, label: "Node A" }, { id: "b", x: 450, y: 55, w: 100, label: "Node B" }, { id: "c", x: 355, y: 185, w: 100, label: "Node C" }],
+    edges: [["c1", "a"], ["a", "b"], ["a", "c"], ["b", "c"], ["c2", "c"]],
+    width: 530, height: 235,
+    steps: [
+      { hl: { c1: "active", a: "found", b: "found", c: "found" }, moves: [{ e: "c1>a", t: "x = 1", k: "req" }, { e: "a>b", t: "x = 1", k: "evt", delay: 1.0 }, { e: "a>c", t: "x = 1", k: "evt", delay: 1.0 }], hold: 3.4,
+        note: "Normally every write reaches all three nodes." },
+      { hl: { c: "bad" }, moves: [{ e: "a>c", t: "✂", k: "bad" }, { e: "b>c", t: "✂", k: "bad", delay: 0.2 }], pops: [{ n: "c", t: "cut off", k: "bad", at: 1.4 }],
+        note: "A network <b>partition</b>: node C can't reach A or B. It doesn't know whether they're down or just unreachable." },
+      { hl: { c2: "active", c: "bad" }, moves: [{ e: "c2>c", t: "x = 2", k: "req" }, { e: "c2>c", t: "refused", k: "bad", back: true, delay: 1.1 }], pops: [{ n: "c", t: "CP: no majority", k: "bad", at: 1.3 }], hold: 3.4,
+        note: "<b>Choose consistency:</b> C refuses writes it can't confirm with a majority. Correct, but unavailable to client 2." },
+      { hl: { c2: "active", c: "warm" }, moves: [{ e: "c2>c", t: "x = 2", k: "req" }, { e: "c2>c", t: "OK", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "c", t: "AP: may diverge", k: "bad", at: 1.3 }], hold: 3.4,
+        note: "<b>Choose availability:</b> C accepts the write. Client 2 is served, but now C says x = 2 while A and B say x = 1." },
+      { hl: { a: "active", b: "active", c: "active" }, moves: [{ e: "a>c", t: "heal", k: "evt" }, { e: "b>c", t: "heal", k: "evt", delay: 0.2 }], pops: [{ n: "c", t: "resolve the conflict", k: "evt", at: 1.4 }],
+        note: "When the network heals, the conflict must be resolved: last write wins (and loses data), merge, or a CRDT." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "With data on several machines, \"what does a read return?\" needs a stated answer." },
+    { el: "#sc-main", title: "2 · The partition choice", text: "Watch a node cut off, then refuse (CP) or accept (AP), then heal." },
+    { el: "#viz-cap", title: "3 · Step through it", text: "A three-node cluster, a partition, and both responses." },
+    { el: "#part", title: "4 · Partition a cart", text: "Cut the network, add items on both sides, heal under each strategy." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>
