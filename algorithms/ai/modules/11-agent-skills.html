@@ -1084,7 +1084,7 @@ svg.flow .fn { transition: opacity .35s ease; }
           const bb = box(o.n); if (!bb) return;
           const t = document.createElementNS(SVGNS, "text");
           t.setAttribute("class", "sc-pop k-" + (o.k || "ok")); t.setAttribute("text-anchor", "middle");
-          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y - 6); t.textContent = o.t;
+          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y >= 22 ? bb.y - 6 : bb.y + bb.height + 15); t.textContent = o.t;   // no room above a top-row box: show it below
           layer.appendChild(t); gsap.set(t, { opacity: 0 });
           const at = t0 + (o.at != null ? o.at : 1.3) + j * 0.15;
           tl.fromTo(t, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)", immediateRender: false }, at)
@@ -2118,6 +2118,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 11 of 20 · Level 3: Configure your tools</div>
     <h1>Agent Skills: know-how, loaded only when needed</h1>
     <p class="lede">AGENTS.md is for what every session needs. But your team also has procedures: how to add a migration, run a release, write tests the house way. Skills package each procedure as a folder the agent opens only when the task calls for it, so you can have dozens without filling the desk.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2306,7 +2307,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { id: "ctx", x: 520, y: 30, w: 90, h: 40, label: "Context" },
   ];
   const E = [["dir", "meta"], ["dir", "body"], ["dir", "scripts"], ["dir", "refs"], ["meta", "ctx", "always"]];
-  document.getElementById("fig-skill").innerHTML = Viz.flow(N, E, { width: 580, height: 245, hl: { meta: "found" }, title: "skill folder" });
+  Viz.scene("#fig-skill", {
+    title: "A skill opens in three levels", sub: "<b>Blue</b> = read from the folder, <b>green</b> = what reaches the context.",
+    nodes: N, edges: E, width: 580, height: 245,
+    steps: [
+      { hl: { dir: "active", meta: "active", ctx: "found" }, moves: [{ e: "dir>meta", t: "name + description", k: "req" }, { e: "meta>ctx", t: "always", k: "ok", delay: 1.1 }], pops: [{ n: "ctx", t: "~100 tokens", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "<b>Level 1:</b> at the start, only each skill's name and description load. 30 skills cost about 3K tokens." },
+      { hl: { dir: "active", body: "found" }, moves: [{ e: "dir>body", t: "task matches", k: "evt" }], pops: [{ n: "body", t: "loaded now", k: "ok", at: 1.4 }],
+        note: "<b>Level 2:</b> you ask for a database migration. It matches this skill's description, so the agent reads its SKILL.md. The other 29 stay in the drawer." },
+      { hl: { dir: "active", scripts: "found" }, moves: [{ e: "dir>scripts", t: "run it", k: "req" }], pops: [{ n: "scripts", t: "only the result enters", k: "ok", at: 1.4 }],
+        note: "<b>Level 3:</b> the script runs. Its code never enters the context; only its one-line result does." },
+      { hl: { dir: "active", refs: "warm" }, moves: [{ e: "dir>refs", t: "only if needed", k: "evt" }], pops: [{ n: "refs", t: "otherwise stays on disk", k: "evt", at: 1.4 }],
+        note: "Reference docs and assets are read only when the task needs them. That's how dozens of skills fit without filling the desk." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "A skill packages one procedure as a folder the agent opens only when needed." },
+    { el: "#fig-skill", title: "2 · Three levels", text: "Watch what loads always, on a match, and only when needed." },
+    { el: "#viz-pd", title: "3 · 30 skills, one session", text: "Watch the context window stay small." },
+    { el: "#sk", title: "4 · SKILL.md checker", text: "Edit the frontmatter and check it against the specification." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for skills." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- progressive disclosure ---------- */
   const names = ["db-migration", "angular-component", "release", "pr-review", "api-endpoint", "test-house-style", "changelog", "perf-report", "i18n-strings", "feature-flag", "rollback", "dep-upgrade"];

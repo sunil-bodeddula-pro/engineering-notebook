@@ -473,7 +473,7 @@
           const bb = box(o.n); if (!bb) return;
           const t = document.createElementNS(SVGNS, "text");
           t.setAttribute("class", "sc-pop k-" + (o.k || "ok")); t.setAttribute("text-anchor", "middle");
-          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y - 6); t.textContent = o.t;
+          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y >= 22 ? bb.y - 6 : bb.y + bb.height + 15); t.textContent = o.t;   // no room above a top-row box: show it below
           layer.appendChild(t); gsap.set(t, { opacity: 0 });
           const at = t0 + (o.at != null ? o.at : 1.3) + j * 0.15;
           tl.fromTo(t, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)", immediateRender: false }, at)

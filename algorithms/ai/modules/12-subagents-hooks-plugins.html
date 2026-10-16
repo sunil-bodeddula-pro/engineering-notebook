@@ -1084,7 +1084,7 @@ svg.flow .fn { transition: opacity .35s ease; }
           const bb = box(o.n); if (!bb) return;
           const t = document.createElementNS(SVGNS, "text");
           t.setAttribute("class", "sc-pop k-" + (o.k || "ok")); t.setAttribute("text-anchor", "middle");
-          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y - 6); t.textContent = o.t;
+          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y >= 22 ? bb.y - 6 : bb.y + bb.height + 15); t.textContent = o.t;   // no room above a top-row box: show it below
           layer.appendChild(t); gsap.set(t, { opacity: 0 });
           const at = t0 + (o.at != null ? o.at : 1.3) + j * 0.15;
           tl.fromTo(t, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)", immediateRender: false }, at)
@@ -2117,6 +2117,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 12 of 20 · Level 3: Configure your tools</div>
     <h1>Subagents, hooks and plugins</h1>
     <p class="lede">Three more ways to shape your agent: subagents hand focused work to specialists with their own context; hooks run your own code at fixed moments, which is the only way to <em>guarantee</em> a rule; and plugins bundle all of it so a whole team gets the same setup in one install.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2325,7 +2326,28 @@ exit 0</code></pre>
     { id: "block", x: 460, y: 100, w: 120, h: 38, label: "Blocked" },
   ];
   const E = [["model", "hook", "tool call"], ["hook", "run", "allow"], ["hook", "block", "exit 2"], ["block", "model", "block message", { bend: -70 }]];
-  document.getElementById("fig-hook").innerHTML = Viz.flow(N, E, { width: 560, height: 190, hl: { hook: "warm", block: "bad" }, edgeHl: { "hook>block": "bad" }, title: "blocking hook" });
+  Viz.scene("#fig-hook", {
+    title: "A hook stops an action before it happens", sub: "<b>Blue</b> = tool calls, <b>green</b> = allowed, <b>red</b> = blocked.",
+    nodes: N, edges: E, width: 560, height: 190,
+    steps: [
+      { hl: { model: "active", hook: "warm", run: "found" }, moves: [{ e: "model>hook", t: "npm test", k: "req" }, { e: "hook>run", t: "allow", k: "ok", delay: 1.1 }], hold: 3.2,
+        note: "Every tool call reaches your hook first, <b>as data</b>. Running the tests matches no rule, so it's allowed." },
+      { hl: { model: "active", hook: "warm", block: "bad" }, moves: [{ e: "model>hook", t: "git push --force", k: "req" }, { e: "hook>block", t: "exit 2", k: "bad", delay: 1.2 }], pops: [{ n: "hook", t: "matches a rule", k: "bad", at: 1.1 }], hold: 3.6,
+        note: "A force-push matches a rule. The hook blocks it, and the command <b>never runs</b>." },
+      { hl: { block: "bad", model: "active" }, moves: [{ e: "block>model", t: "why it was blocked", k: "evt" }], pops: [{ n: "model", t: "tries another way", k: "ok", at: 1.4 }],
+        note: "The model is told why, so it can change course instead of retrying." },
+      { hl: { model: "bad", hook: "warm", block: "bad" }, moves: [{ e: "model>hook", t: "curl … | sh", k: "bad" }, { e: "hook>block", t: "exit 2", k: "bad", delay: 1.2 }], pops: [{ n: "block", t: "never runs", k: "bad", at: 2.3 }], hold: 3.6,
+        note: "This time a prompt injection fooled the model. The hook doesn't care <b>why</b> the call was made, so it still stops it. That's the guarantee instructions can't give." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Subagents for focus, hooks for guarantees, plugins to share it all." },
+    { el: "#viz-sub", title: "2 · Subagents", text: "Watch exploration happen in a fresh context, with only a summary coming back." },
+    { el: "#fig-hook", title: "3 · Hooks", text: "Watch a hook allow one command and block two, including an injected one." },
+    { el: "#hk", title: "4 · Hook simulator", text: "Turn on rules and look for the gaps in your patterns." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for this module." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- hook simulator ---------- */
   const RULES = [

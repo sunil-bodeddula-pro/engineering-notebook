@@ -1084,7 +1084,7 @@ svg.flow .fn { transition: opacity .35s ease; }
           const bb = box(o.n); if (!bb) return;
           const t = document.createElementNS(SVGNS, "text");
           t.setAttribute("class", "sc-pop k-" + (o.k || "ok")); t.setAttribute("text-anchor", "middle");
-          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y - 6); t.textContent = o.t;
+          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y >= 22 ? bb.y - 6 : bb.y + bb.height + 15); t.textContent = o.t;   // no room above a top-row box: show it below
           layer.appendChild(t); gsap.set(t, { opacity: 0 });
           const at = t0 + (o.at != null ? o.at : 1.3) + j * 0.15;
           tl.fromTo(t, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)", immediateRender: false }, at)
@@ -2117,6 +2117,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 10 of 20 · Level 3: Configure your tools</div>
     <h1>MCP: connecting tools and data to any agent</h1>
     <p class="lede">Your agent can read files and run commands. But your work also lives in GitHub, Jira, Sentry, databases and internal APIs. The Model Context Protocol (MCP) is the open standard that plugs those systems into any AI tool, so one integration works in all five tools in this track.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2309,7 +2310,31 @@ svg.flow .fn { transition: opacity .35s ease; }
     .concat([{ id: "mcp", x: 290, y: 112, w: 90, h: 210, label: "MCP" }])
     .concat(servers.map((s, i) => ({ id: "s" + i, x: 480, y: 34 + i * 52, w: 120, h: 34, label: s })));
   const E = hosts.map((_, i) => ["h" + i, "mcp", "", { level: true }]).concat(servers.map((_, i) => ["mcp", "s" + i, "", { levelFrom: true }]));
-  document.getElementById("fig-mcp").innerHTML = Viz.flow(N, E, { width: 560, height: 230, hl: { mcp: "warm" }, title: "MCP hosts and servers" });
+  Viz.scene("#fig-mcp", {
+    title: "Many hosts, many servers, one protocol", sub: "<b>Blue</b> = requests, <b>teal</b> = tool lists, <b>green</b> = results.",
+    nodes: N, edges: E, width: 560, height: 230,
+    steps: [
+      { hl: { h0: "active", mcp: "active", s0: "active", s1: "active", s2: "active", s3: "active" },
+        moves: [0, 1, 2, 3].map((i) => ({ e: "mcp>s" + i, t: "list tools", k: "req", delay: i * 0.2 })), hold: 2.8,
+        note: "A session starts in Claude Code. Its MCP client asks every connected server which <b>tools</b> it offers." },
+      { hl: { h0: "active", mcp: "active" }, moves: [0, 1, 2, 3].map((i) => ({ e: "mcp>s" + i, t: "tools", k: "evt", back: true, delay: i * 0.2 })), hold: 3.4,
+        note: "Each server answers with names and descriptions, and the host hands them to the model like any other tool." },
+      { hl: { h0: "active", mcp: "active", s1: "active" }, moves: [{ e: "h0>mcp", t: "Sentry: get issue", k: "req" }, { e: "mcp>s1", t: "get issue", k: "req", delay: 1.1 }], pops: [{ n: "s1", t: "your scoped token", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "You ask about a production error. The model picks the Sentry tool, and the host forwards the call to the Sentry MCP server." },
+      { hl: { s1: "found", mcp: "active", h0: "found" }, moves: [{ e: "mcp>s1", t: "stack trace", k: "ok", back: true }, { e: "h0>mcp", t: "result", k: "ok", back: true, delay: 1.1 }], hold: 3.4,
+        note: "The result comes back to the model, grounded in real production data. No copy-pasting stack traces." },
+      { hl: { h3: "active", mcp: "active", s1: "found" }, moves: [{ e: "h3>mcp", t: "same call", k: "req" }, { e: "mcp>s1", t: "get issue", k: "req", delay: 1.1 }], pops: [{ n: "h3", t: "same server", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "Cursor connects to the <b>same server</b>. One integration works in all five tools; only the config file differs." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "One open standard plugs your systems into every AI tool." },
+    { el: "#fig-mcp", title: "2 · Hosts and servers", text: "Watch discovery, a tool call, and a second host reusing the same server." },
+    { el: "#viz-mcp", title: "3 · A real session", text: "Looking at a production error with a Sentry MCP server connected." },
+    { el: "#gen", title: "4 · Five config files", text: "Describe a server and get the setup for each tool." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for MCP." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- a call through MCP ---------- */
   const F = [

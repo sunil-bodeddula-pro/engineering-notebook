@@ -1084,7 +1084,7 @@ svg.flow .fn { transition: opacity .35s ease; }
           const bb = box(o.n); if (!bb) return;
           const t = document.createElementNS(SVGNS, "text");
           t.setAttribute("class", "sc-pop k-" + (o.k || "ok")); t.setAttribute("text-anchor", "middle");
-          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y - 6); t.textContent = o.t;
+          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y >= 22 ? bb.y - 6 : bb.y + bb.height + 15); t.textContent = o.t;   // no room above a top-row box: show it below
           layer.appendChild(t); gsap.set(t, { opacity: 0 });
           const at = t0 + (o.at != null ? o.at : 1.3) + j * 0.15;
           tl.fromTo(t, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)", immediateRender: false }, at)
@@ -2117,6 +2117,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 09 of 20 · Level 3: Configure your tools</div>
     <h1>Project instructions and memory</h1>
     <p class="lede">Every session starts with an empty desk (Module 02). Project instructions are the notes your tool puts on that desk automatically, so the agent knows your commands, layout and rules without being told each time. Written well, they're the highest-leverage file in your repository.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2313,7 +2314,31 @@ svg.flow .fn { transition: opacity .35s ease; }
     { id: "agent", x: 500, y: 126, w: 100, label: "Agent" },
   ];
   const E = ["org", "user", "repo", "mem", "nest"].map((id) => [id, "desk", "", { level: true }]).concat([["desk", "agent"]]);
-  document.getElementById("fig-load").innerHTML = Viz.flow(N, E, { width: 570, height: 255, hl: { nest: "warm" }, title: "instruction loading" });
+  Viz.scene("#fig-load", {
+    title: "What lands on the desk", sub: "<b>Blue</b> = loaded at the start, <b>teal</b> = loaded as the agent moves, <b>green</b> = the rule that wins.",
+    nodes: N, edges: E, width: 570, height: 255,
+    steps: [
+      { hl: { org: "active", user: "active", repo: "active", mem: "active", desk: "active" },
+        moves: [{ e: "org>desk", t: "policy", k: "req" }, { e: "user>desk", t: "your prefs", k: "req", delay: 0.3 }, { e: "repo>desk", t: "AGENTS.md", k: "req", delay: 0.6 }, { e: "mem>desk", t: "notes", k: "req", delay: 0.9 }], hold: 3.6,
+        note: "A session starts. Organisation policy, your personal file, the repo's <b>AGENTS.md</b> and memory notes land on the desk automatically." },
+      { hl: { desk: "found", agent: "active" }, moves: [{ e: "desk>agent", t: "context", k: "req" }], pops: [{ n: "agent", t: "knows the commands", k: "ok", at: 1.4 }],
+        note: "The agent starts work already knowing your build and test commands, your layout and your rules, without being told." },
+      { hl: { nest: "active", desk: "active" }, moves: [{ e: "nest>desk", t: "api/AGENTS.md", k: "evt" }], pops: [{ n: "nest", t: "on entry", k: "evt", at: 0.3 }],
+        note: "The agent opens a file under <code>api/</code>. That folder has its own AGENTS.md, so it loads too." },
+      { hl: { repo: "bad", nest: "found", desk: "active" }, moves: [{ e: "repo>desk", t: "test: make test", k: "bad" }, { e: "nest>desk", t: "test: gradle test", k: "ok", delay: 0.4 }], pops: [{ n: "agent", t: "nearest file wins", k: "ok", at: 1.8 }], hold: 3.4,
+        note: "The two files disagree about the test command. <b>The nearest file wins</b>, so each team keeps its own rules." },
+      { hl: { mem: "warm", desk: "active" }, moves: [{ e: "mem>desk", t: "\"needs Chrome\"", k: "evt" }], pops: [{ n: "mem", t: "review now and then", k: "bad", at: 1.4 }],
+        note: "<b>Memory</b> is a note the agent wrote itself. Handy, but it can go stale: review it now and then." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Instruction files are notes your tool puts on the desk every session." },
+    { el: "#fig-load", title: "2 · What gets loaded", text: "Watch each file land, and which rule wins when two disagree." },
+    { el: "#viz-nest", title: "3 · A monorepo session", text: "Folder rules switch on and off as the agent moves around." },
+    { el: "#am", title: "4 · AGENTS.md checker", text: "Paste yours: see what it costs every session and what to fix." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for instruction files." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- nested instructions in a monorepo ---------- */
   const tree = (here, on) => {
