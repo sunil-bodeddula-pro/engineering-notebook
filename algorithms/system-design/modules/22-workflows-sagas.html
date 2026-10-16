@@ -2225,7 +2225,99 @@ async function placeOrder(order) {
       <li><strong>Outbox relays:</strong> Debezium's outbox event router streams an outbox table to Kafka through change data capture; many frameworks include a polling outbox.</li>
       <li><strong>Versioning running workflows:</strong> changing code while thousands of workflows are mid-flight requires care. Engines let old runs keep the old logic (Temporal's patching, Step Functions' versions) while new runs use the new.</li>
     </ul>
-    <p><strong>In an interview</strong>, when a flow spans services or waits on people ("driver accepts", "user signs"), say: "an orchestrated saga on a workflow engine such as Temporal, each step idempotent with a compensation, events published through an outbox". Then name what happens on the most important failure: "if booking the courier fails, refund and release the stock".</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>When a flow spans services or waits on people (<q>driver accepts</q>, <q>user signs</q>): <q>an orchestrated saga on a workflow engine such as Temporal, each step idempotent with a compensation, events published through an outbox.</q> Then name the most important failure: <q>if booking the courier fails, refund and release the stock.</q> Progression: single server → saga → workflow engine; don't jump to the engine for a single async step.</div>
+    <p><strong>Why the naive version breaks:</strong> one server running the steps in order loses all memory of progress when it crashes (charged, but stock never reserved), and a payment webhook may land on a different server. Patching that with database checkpoints and pub/sub means hand-building a state machine, a poller for stalled orders, locks so two servers don't grab the same order, retries, and still no compensation. That's the signal to use a saga on a workflow engine.</p>
+    <table><thead><tr><th>Deep-dive question</th><th>Answer</th></tr></thead><tbody>
+      <tr><td>The coordinator crashes mid-way</td><td>Progress is stored durably; on restart it resumes forward or compensates; steps are idempotent. Workflow engines give you this.</td></tr>
+      <tr><td>Change a workflow with 10,000 runs in flight</td><td>Versioning (old runs keep old code) or a deterministic branch: Temporal's <code>patched()</code>; Step Functions runs stay pinned to their original definition</td></tr>
+      <tr><td>The history grows too big</td><td>Pass IDs, not payloads; <strong>Continue-as-New</strong> snapshots the state and starts a fresh run with an empty history</td></tr>
+      <tr><td>Wait 5 minutes or 5 days for a signature</td><td>A <strong>signal</strong> plus a durable timer: wait up to 30 days, remind, wait 7 more, then cancel. The webhook calls the engine, which wakes the workflow</td></tr>
+      <tr><td>A refund or email must happen exactly once</td><td>Delivery is at-least-once, so make the <em>effect</em> exactly-once with an idempotency key: mark IN_PROGRESS → do it → COMPLETED. COMPLETED → skip; IN_PROGRESS → reconcile with the provider rather than blindly retry</td></tr>
+    </tbody></table>
+
+    <section class="tech" id="t-temporal">
+      <div class="tech-h"><h3>Durable execution (Temporal)</h3><span class="tech-status s-situational">Situational · the preferred tool for complex flows</span></div>
+      <p>Write the workflow as ordinary code; the engine records every step's result, so after any crash the workflow continues exactly where it stopped.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Workflow</strong> = the flow and its decisions. It must be <strong>deterministic</strong>: no direct network calls, random numbers or clock reads.</li>
+        <li><strong>Activity</strong> = one step that touches the outside world (charge, reserve, email). It must be <strong>idempotent</strong>, because it may be retried.</li>
+        <li><strong>Recovery by replay:</strong> every activity result is saved in a history database. After a crash, a new worker reruns the workflow from the top; finished activities return their saved results instead of running again. The customer is charged once.</li>
+        <li><strong>Signals and timers:</strong> wait for external events (a driver accepts, a document is signed) or for days, without holding a thread.</li>
+        <li>Parts: the Temporal server (schedules tasks and timers, records progress, never runs your code), its history database, and your worker pools.</li>
+      </ul>
+      <div id="sc-replay"></div>
+      <h4>Status today</h4>
+      <p>Temporal (open source or Temporal Cloud) is the most widely used engine; it grew out of Uber's Cadence. Restate, DBOS and Azure Durable Functions use similar ideas. The tool matters less than knowing how it recovers and its limits.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Flowcharts with failure branches: "if X fails, undo Y"</li><li>Payments and e-commerce orders, onboarding</li><li>Human-in-the-loop steps and long waits; AI-agent pipelines; audit needs</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A single async step (resize an image, send an email): a queue is enough</li><li>Synchronous, latency-sensitive requests</li><li>Huge volumes of low-value operations (engine overhead per step)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Mid-level: recognise the need and name a tool. Senior: defend it: <q>An orchestrated saga on Temporal: activities are idempotent with compensations; if the worker crashes after charging, replay returns the saved charge result instead of charging again.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Naming Temporal without knowing how it recovers</strong> (history and replay) or its rules (deterministic workflows, idempotent activities).</li><li><strong>A workflow engine for one async step.</strong></li><li><strong>Non-deterministic workflow code</strong> (calling an API or reading the clock directly), which breaks replay.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-stepfn">
+      <div class="tech-h"><h3>Managed state machines (AWS Step Functions)</h3><span class="tech-status s-situational">Situational · managed, simpler flows</span></div>
+      <p>Workflows defined as state machines in JSON or YAML (or generated with AWS CDK), run by the cloud provider.</p>
+      <h4>How it works</h4>
+      <p>Each state calls a service (Lambda, an API, a queue), with retries, timeouts, branches and waits declared in the definition. You get a visual diagram of every run and nothing to operate; it's less expressive than code. Standard workflows run up to one year, with 256 KiB payloads, so pass IDs.</p>
+      <h4>Status today</h4>
+      <p>Mature; Google Cloud Workflows and Azure Logic Apps or Durable Functions are the equivalents.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>AWS-based stacks with moderate complexity</li><li>Teams that want visual, managed workflows</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Very complex logic that's easier as code</li><li>Large payloads between steps</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>On AWS, Step Functions orchestrates the saga: each state retries with backoff and has a catch that runs the compensation.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Passing whole documents between states</strong> and hitting payload limits.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-choreo">
+      <div class="tech-h"><h3>Event-driven choreography</h3><span class="tech-status s-situational">Situational · mid-complexity flows</span></div>
+      <p>No coordinator: each service listens for events in a durable log and emits its own.</p>
+      <h4>How it works</h4>
+      <p><code>OrderPlaced</code> → payment worker → <code>PaymentCharged</code> or <code>PaymentFailed</code> → inventory worker → … Compensation flows the same way (<code>InventoryFailed</code> → refund → <code>PaymentRefunded</code>). Consumer groups commit offsets, so workers must be idempotent; scale is up to the partition count.</p>
+      <h4>Status today</h4>
+      <p>Common on Kafka or Redis Streams, with an outbox in each service.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Independent teams owning each step</li><li>A handful of steps, and many listeners interested in the same events</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Complex flows: the logic exists nowhere in one place, and adding a step means changing event contracts</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A three-step flow owned by different teams: choreography over Kafka, each service with an outbox; beyond that I'd move to orchestration.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choreography for a long, branching flow</strong>: nobody can say where an order is stuck.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-outbox">
+      <div class="tech-h"><h3>Transactional outbox</h3><span class="tech-status s-default">The default · whenever a step publishes an event</span></div>
+      <p>Write the business change and the event to publish in the same local transaction; a relay publishes the event afterwards.</p>
+      <h4>How it works</h4>
+      <p>Covered in section 2: the outbox table commits with the change, and a poller or CDC (Debezium) publishes rows to the broker. Publishing is at-least-once, so consumers stay idempotent.</p>
+      <h4>Status today</h4>
+      <p>Standard practice; supported by many frameworks and by Debezium's outbox router.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any service that updates its database and must tell others</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Nothing else to notify</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Each step writes its change and an outbox row in one transaction, so a crash can't leave "charged" without the event.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Writing to the database and then publishing</strong> as two separate steps: the dual-write problem.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-airflow">
+      <div class="tech-h"><h3>Apache Airflow (and Dagster)</h3><span class="tech-status s-rare">Rare here · for data pipelines</span></div>
+      <p>Schedulers for batch data pipelines: DAGs of tasks run on a schedule.</p>
+      <h4>How it works</h4>
+      <p>Tasks run in dependency order on a schedule ("every night at 2:00"), with retries and backfills (Module 23).</p>
+      <h4>Status today</h4>
+      <p>The common choice for ETL and analytics pipelines.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Nightly ETL, reports, ML training pipelines</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>User-facing transactions and event-driven flows</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only for batch: <q>The nightly revenue report is an Airflow DAG; orders use the workflow engine.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Airflow for an order or payment flow.</strong> It's a batch scheduler, not a transaction coordinator.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2304,6 +2396,16 @@ async function placeOrder(order) {
         <p>A loan process with ten steps, a human approval and a 30-day deadline. Which coordination style?</p>
         <div class="opts"><button>Choreography</button><button>Orchestration</button><button>Two-phase commit</button></div>
         <div class="why">Complex, long-running, needs visibility and timers: an orchestrator (a workflow engine) fits.</div>
+      </div>
+      <div class="quiz-q" data-answer="It replays the workflow; the charge returns its saved result, so no second charge">
+        <p>A Temporal worker crashes right after the charge activity succeeded. What happens when another worker takes over?</p>
+        <div class="opts"><button>It charges again, then refunds</button><button>It replays the workflow; the charge returns its saved result, so no second charge</button><button>The workflow is lost</button></div>
+        <div class="why">Activity results are stored in the history; replay reuses them, then continues with the next step.</div>
+      </div>
+      <div class="quiz-q" data-answer="No: a queue and a worker are enough">
+        <p>Your only async work is resizing an uploaded image. Workflow engine?</p>
+        <div class="opts"><button>Yes, Temporal for reliability</button><button>No: a queue and a worker are enough</button><button>Yes, Step Functions</button></div>
+        <div class="why">Engines pay off for multi-step flows with compensations and waits. One step is a background job.</div>
       </div>
     </div>
 
@@ -2429,9 +2531,30 @@ async function placeOrder(order) {
     { el: "#viz-saga", title: "3 · Step through it", text: "The order saga, frame by frame." },
     { el: "#sg", title: "4 · Run the saga", text: "Choose which step fails, and whether a refund fails too." },
     { el: "#ob", title: "5 · Dual write vs outbox", text: "Crash between the two writes and compare." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Temporal, Step Functions, choreography, the outbox and Airflow: when each fits, and the red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-replay", {
+    title: "Durable execution: a crash after charging doesn't charge twice", sub: "<b>Gold</b> = money, <b>teal</b> = history, <b>red</b> = the crash, <b>green</b> = resumed.",
+    nodes: [{ id: "w1", x: 85, y: 55, w: 120, label: "Worker 1" }, { id: "w2", x: 85, y: 205, w: 120, label: "Worker 2" },
+      { id: "srv", x: 310, y: 130, w: 150, label: "Temporal server", sub: "+ history" },
+      { id: "pay", x: 530, y: 55, w: 120, label: "Payments" }, { id: "inv", x: 530, y: 205, w: 120, label: "Inventory" }],
+    edges: [["w1", "pay", "", { bend: -30 }], ["w1", "srv"], ["w2", "srv"], ["w2", "inv", "", { bend: 30 }]],
+    width: 610, height: 260,
+    steps: [
+      { hl: { w1: "active", pay: "found" }, moves: [{ e: "w1>pay", t: "charge $40", k: "money" }, { e: "w1>pay", t: "charged", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
+        note: "Worker 1 runs the order workflow. The <b>charge</b> activity succeeds." },
+      { hl: { w1: "active", srv: "found" }, moves: [{ e: "w1>srv", t: "result: charged", k: "evt" }], pops: [{ n: "srv", t: "saved in history", k: "evt", at: 1.3 }],
+        note: "The result is recorded in the workflow's <b>history</b>." },
+      { hl: { w1: "bad" }, pops: [{ n: "w1", t: "crashes", k: "bad", at: 0.3 }],
+        note: "Worker 1 crashes before reserving stock. With hand-rolled code, the order would be stuck: charged, nothing reserved." },
+      { hl: { w1: "bad", w2: "active", srv: "active" }, moves: [{ e: "w2>srv", t: "history", k: "evt", back: true }], pops: [{ n: "w2", t: "replay from the top", k: "evt", at: 1.3 }, { n: "pay", t: "not called again", k: "ok", at: 2.0 }], hold: 3.6,
+        note: "Worker 2 picks the workflow up and <b>replays</b> it. The charge step returns its saved result, so the payment API isn't called again." },
+      { hl: { w1: "bad", w2: "found", inv: "found", srv: "found" }, moves: [{ e: "w2>inv", t: "reserve stock", k: "req" }, { e: "w2>inv", t: "reserved", k: "ok", back: true, delay: 1.1 }, { e: "w2>srv", t: "result", k: "evt", delay: 2.1 }], hold: 3.8,
+        note: "It continues exactly where Worker 1 stopped. The customer was charged once." },
+    ],
+  });
 })();
 </script>
 </body>
