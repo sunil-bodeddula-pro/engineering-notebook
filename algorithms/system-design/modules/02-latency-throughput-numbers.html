@@ -2119,6 +2119,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 02 of 29 · Level 1: Foundations</div>
     <h1>Latency, throughput and the numbers to know</h1>
     <p class="lede">"Is it fast?" is two different questions: how long does one request take, and how many can we handle at once? This module separates them, shows why the average hides the users who suffer, explains why systems slow down sharply when they get busy, and gives you the hardware numbers that keep your designs grounded in 2026, not 2010.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2133,6 +2134,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Percentiles from real requests</h3>
     <p>Press Play: twenty requests to the same endpoint, then the average, then the percentiles.</p>
     <div id="viz-pct"></div>
@@ -2386,6 +2388,35 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["q-s", "q-u", "q-rps"].forEach((k) => $(k).addEventListener("input", queue));
   queue();
+  Viz.scene("#sc-main", {
+    title: "One slow server makes a slow page", sub: "<b>Blue</b> = requests, <b>green</b> = fast answers, <b>red</b> = the slow one.",
+    nodes: [{ id: "user", x: 70, y: 110, w: 100, label: "User" }, { id: "fe", x: 245, y: 110, w: 130, label: "Front end", sub: "waits for all" },
+      { id: "s1", x: 470, y: 30, w: 120, h: 34, label: "Shard 1" }, { id: "s2", x: 470, y: 83, w: 120, h: 34, label: "Shard 2" },
+      { id: "s3", x: 470, y: 136, w: 120, h: 34, label: "Shard 3" }, { id: "s4", x: 470, y: 189, w: 120, h: 34, label: "Shard 4" }],
+    edges: [["user", "fe"], ["fe", "s1"], ["fe", "s2"], ["fe", "s3"], ["fe", "s4"]],
+    width: 560, height: 220,
+    steps: [
+      { hl: { user: "active", fe: "active", s1: "active", s2: "active", s3: "active", s4: "active" },
+        moves: [{ e: "user>fe", t: "search", k: "req" }].concat([1, 2, 3, 4].map((i) => ({ e: "fe>s" + i, t: "query", k: "req", delay: 1.0 + i * 0.12 }))), hold: 3.4,
+        note: "A search <b>fans out</b> to every shard and must wait for all of them." },
+      { hl: { fe: "active", s1: "found", s2: "found", s4: "found", s3: "bad" },
+        moves: [1, 2, 4].map((i) => ({ e: "fe>s" + i, t: "10 ms", k: "ok", back: true, delay: i * 0.1 })).concat([{ e: "fe>s3", t: "1 s", k: "bad", back: true, delay: 1.6, dur: 1.8 }]), pops: [{ n: "s3", t: "slow 1% of the time", k: "bad", at: 0.6 }], hold: 4.2,
+        note: "Three shards answer in 10 ms. One hits its rare slow moment: its <b>p99</b>." },
+      { hl: { user: "bad", fe: "bad" }, moves: [{ e: "user>fe", t: "page: 1 s", k: "bad", back: true }], pops: [{ n: "user", t: "slow page", k: "bad", at: 1.3 }],
+        note: "The page is as slow as the slowest shard. With 100 shards, 63% of requests hit at least one slow server." },
+      { hl: { s1: "warm", s2: "warm", s3: "warm", s4: "warm" }, pops: [{ n: "fe", t: "target the p99", k: "ok", at: 0.4 }],
+        note: "So a server's rare tail becomes the user's typical experience. That's why large systems set targets on p99, not the average." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Latency is one trip; throughput is how many trips per second." },
+    { el: "#sc-main", title: "2 · Fan-out and the tail", text: "Watch one slow shard make the whole page slow." },
+    { el: "#viz-pct", title: "3 · Percentiles", text: "Twenty real requests: why the average hides the users who suffer." },
+    { el: "#fan-widget", title: "4 · Fan-out lab", text: "Change the shard count and the slow rate; watch the red dots." },
+    { el: "#q-widget", title: "5 · The queueing cliff", text: "Drag utilization up and watch response time explode." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

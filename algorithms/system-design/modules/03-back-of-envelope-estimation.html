@@ -2110,6 +2110,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 03 of 29 · Level 1: Foundations</div>
     <h1>Back-of-the-envelope estimation</h1>
     <p class="lede">Before choosing a database or adding a cache, you need to know roughly how much traffic and data you're dealing with. Not to the last request: to the nearest power of ten. Ten minutes of rounded arithmetic tells you whether one server is plenty or whether you need a fleet, and it stops you building machinery a problem doesn't need.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2136,6 +2137,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <p>The same recipe works for almost any system. Press Play to watch it on a photo-sharing app with <strong>50 million daily active users</strong>.</p>
     <div id="viz-est"></div>
     <div class="callout tip"><strong>Every line ended in a decision</strong>That's the point. "29,000 reads per second" is trivia; "so we need a cache in front of the database" is design. If a number wouldn't change what you build, you don't need to calculate it.</div>
@@ -2388,6 +2390,35 @@ svg.flow .fn { transition: opacity .35s ease; }
   $("drill-show").addEventListener("click", () => { $("drill-a").textContent = cur[1]; $("drill-a").hidden = false; });
   $("drill-next").addEventListener("click", next);
   next();
+  Viz.scene("#sc-main", {
+    title: "From users to a design", sub: "<b>Blue</b> = numbers worked out, <b>red</b> = too much for one machine, <b>green</b> = the decision it forces.",
+    nodes: [{ id: "users", x: 80, y: 120, w: 120, label: "50M daily users" },
+      { id: "reads", x: 265, y: 55, w: 140, label: "Reads", sub: "× 50 views a day" }, { id: "writes", x: 265, y: 185, w: 140, label: "Writes", sub: "× 0.2 uploads a day" },
+      { id: "cache", x: 480, y: 35, w: 140, label: "Cache + CDN" }, { id: "db", x: 480, y: 120, w: 140, label: "One database" }, { id: "blob", x: 480, y: 205, w: 140, label: "Blob storage" }],
+    edges: [["users", "reads"], ["users", "writes"], ["reads", "cache"], ["writes", "db"], ["writes", "blob"]],
+    width: 570, height: 235,
+    steps: [
+      { hl: { users: "active", reads: "active" }, moves: [{ e: "users>reads", t: "2.5 billion a day", k: "req" }], pops: [{ n: "reads", t: "÷ 10⁵ ≈ 25,000/s", k: "req", at: 1.4 }],
+        note: "50 million users × 50 photo views = 2.5 billion reads a day. Divide by 10⁵: about <b>25,000 a second</b>." },
+      { hl: { reads: "bad", cache: "found" }, moves: [{ e: "reads>cache", t: "75,000/s at peak", k: "bad" }], pops: [{ n: "cache", t: "so: a cache and a CDN", k: "ok", at: 1.4 }],
+        note: "×3 at the evening peak is beyond one database. <b>So:</b> a cache for hot reads, and a CDN for images." },
+      { hl: { users: "active", writes: "active", db: "found" }, moves: [{ e: "users>writes", t: "10M uploads", k: "req" }, { e: "writes>db", t: "~100/s", k: "ok", delay: 1.1 }], pops: [{ n: "db", t: "so: one database is plenty", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "10 million uploads a day is only ~100 writes a second. <b>So:</b> no write sharding needed." },
+      { hl: { writes: "bad", blob: "found" }, moves: [{ e: "writes>blob", t: "20 TB a day", k: "bad" }], pops: [{ n: "blob", t: "so: never in the DB", k: "ok", at: 1.4 }],
+        note: "But 10 million 2 MB photos is 20 TB a day. <b>So:</b> images go in blob storage." },
+      { hl: { cache: "found", db: "found", blob: "found" },
+        note: "Every number ended in a decision. That's an estimate doing its job: if a number wouldn't change the design, don't calculate it." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Rounded arithmetic, to the nearest power of ten, that ends in a decision." },
+    { el: "#sc-main", title: "2 · Numbers become a design", text: "Watch four numbers decide the cache, the database and blob storage." },
+    { el: "#viz-est", title: "3 · The full estimate", text: "Every line of the photo app's estimate, step by step." },
+    { el: "#est-widget", title: "4 · Estimation calculator", text: "Pick a preset or type your own numbers." },
+    { el: "#drill", title: "5 · Conversion drill", text: "Practise until the powers of ten are automatic." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

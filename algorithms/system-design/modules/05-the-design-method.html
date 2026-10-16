@@ -2111,6 +2111,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 05 of 29 · Level 1: Foundations</div>
     <h1>The design method: from a vague problem to a defended design</h1>
     <p class="lede">"Design a chat app" is deliberately vague. The skill isn't knowing the answer; it's turning vagueness into a working design in a fixed order, so you never stall and never forget a piece. The same steps structure a design document at work and a 45-minute interview. Every worked design on this site follows them.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2131,6 +2132,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <p>Press Play to watch the method produce a complete design for <strong>Pastebin</strong>: a service where users paste text and get a short link to share it. Each frame adds one section to the whiteboard.</p>
     <div id="viz-method"></div>
     <h3>What good looks like, step by step</h3>
@@ -2370,6 +2372,37 @@ svg.flow .fn { transition: opacity .35s ease; }
     $("plan-list").innerHTML = PH.map(([n, f]) => { const a = t; t += f * len; return `<span>${Math.round(a)}–${Math.round(t)} min · ${n}</span>`; }).join("");
   }
   plan();
+  Viz.scene("#sc-main", {
+    title: "The method, in order", sub: "Designing Pastebin. <b>Blue</b> = what each step hands to the next, <b>green</b> = a decision.",
+    nodes: [{ id: "frame", x: 75, y: 50, w: 120, label: "Frame it", sub: "ask, don't assume" }, { id: "must", x: 225, y: 50, w: 120, label: "What it must do" },
+      { id: "well", x: 375, y: 50, w: 120, label: "How well" }, { id: "nums", x: 525, y: 50, w: 120, label: "Numbers" },
+      { id: "nouns", x: 525, y: 165, w: 120, label: "The nouns" }, { id: "api", x: 375, y: 165, w: 120, label: "The contract" },
+      { id: "first", x: 225, y: 165, w: 120, label: "First version" }, { id: "hold", x: 75, y: 165, w: 120, label: "Make it hold up" }],
+    edges: [["frame", "must"], ["must", "well"], ["well", "nums"], ["nums", "nouns"], ["nouns", "api"], ["api", "first"], ["first", "hold"]],
+    width: 600, height: 210,
+    steps: [
+      { hl: { frame: "active", must: "active" }, moves: [{ e: "frame>must", t: "who? how big?", k: "req" }], pops: [{ n: "must", t: "3 features, rest out", k: "ok", at: 1.4 }],
+        note: "<b>Frame it</b> with the few questions that change the design, then settle on the top three features." },
+      { hl: { must: "active", well: "active" }, moves: [{ e: "must>well", t: "p99 < 200 ms", k: "req" }], pops: [{ n: "well", t: "never lose a paste", k: "ok", at: 1.4 }],
+        note: "<b>How well</b>: measurable targets for this system, not \"scalable and fast\"." },
+      { hl: { well: "active", nums: "active" }, moves: [{ e: "well>nums", t: "1,000 reads/s", k: "req" }], pops: [{ n: "nums", t: "so: a cache", k: "ok", at: 1.4 }],
+        note: "<b>Numbers</b>, only to decide something: 1,000 reads a second suggests a cache; 20 TB of text stays out of the database." },
+      { hl: { nums: "active", nouns: "active", api: "active" }, moves: [{ e: "nums>nouns", t: "Paste", k: "req" }, { e: "nouns>api", t: "POST /pastes", k: "req", delay: 1.1 }], hold: 3.6,
+        note: "<b>The nouns</b> (here, just Paste), then <b>the contract</b>: one endpoint per main feature." },
+      { hl: { api: "active", first: "found" }, moves: [{ e: "api>first", t: "a path per endpoint", k: "ok" }],
+        note: "<b>First version:</b> a working path for each endpoint, with the main tables' key fields." },
+      { hl: { first: "found", hold: "active" }, moves: [{ e: "first>hold", t: "hardest 2–3", k: "ok" }], pops: [{ n: "hold", t: "options → a choice", k: "ok", at: 1.4 }],
+        note: "<b>Make it hold up:</b> spend the remaining time on the hardest problems, each with options and a choice." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Move from what to how, and from broad to deep, in a fixed order." },
+    { el: "#sc-main", title: "2 · The method", text: "Watch each step hand its result to the next, on Pastebin." },
+    { el: "#viz-method", title: "3 · The whiteboard", text: "The complete Pastebin design, one section per frame." },
+    { el: "#try", title: "4 · Try it yourself", text: "Sort requirements, and plan your interview time." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>
