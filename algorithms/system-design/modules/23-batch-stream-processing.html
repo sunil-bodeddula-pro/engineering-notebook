@@ -2214,7 +2214,79 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Exactly-once end to end</strong> needs the sink to cooperate: transactional writes (Kafka transactions, Flink's two-phase commit sinks) or idempotent upserts keyed by event ID.</li>
       <li><strong>Back-pressure:</strong> stream processors slow their sources when a downstream stage can't keep up, rather than dropping data or running out of memory. Monitor consumer lag.</li>
     </ul>
-    <p><strong>In an interview</strong>, move anything slower than a second or two out of the request: "return a job ID, process on a worker pool, notify when done". For metrics and counters at scale, say whether results must be live (stream, with windows and watermarks) or can be hours old (batch), and how late events are handled.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Move anything slower than a second or two out of the request: <q>return a job ID, process on a worker pool, notify when done.</q> For metrics and counters, say whether results must be live (stream, with windows and watermarks) or can be hours old (batch), and how late events are handled.</div>
+    <p><strong>When the math says so:</strong> 1 million images a day × 10 seconds each ≈ 12 a second ≈ 120 seconds of work every second. That can't run on the web servers; it needs a worker pool on compute-optimised (or GPU) machines. Load balancers time out requests after 30–60 seconds anyway.</p>
+    <table><thead><tr><th>Deep-dive question</th><th>Answer</th></tr></thead><tbody>
+      <tr><td>A worker crashes mid-job</td><td>Heartbeats or a visibility timeout (10–30 s): the job returns to the queue for another worker. Too long delays recovery; too short marks slow jobs (a GC pause) as dead</td></tr>
+      <tr><td>A job keeps failing (poison message)</td><td>After 3–5 attempts move it to a dead-letter queue, alert, fix, re-queue</td></tr>
+      <tr><td>The user clicks "Export" three times</td><td>An idempotency key (user + action + input hash) returns the existing job ID; make the work itself idempotent too</td></tr>
+      <tr><td>Black Friday: 10× load</td><td>Back-pressure (cap queue depth, reply "busy"); <strong>autoscale workers on queue depth, not CPU</strong></td></tr>
+      <tr><td>5-second and 5-hour jobs share a queue</td><td>Separate fast and slow queues with their own workers, or split big jobs into chunks (scene below)</td></tr>
+      <tr><td>Jobs depend on each other (fetch → PDF → email)</td><td>Simple chains: each worker queues the next step with full context. Complex branching: a workflow engine (Module 22)</td></tr>
+    </tbody></table>
+
+    <section class="tech" id="t-jobqueue">
+      <div class="tech-h"><h3>Job queue + worker pool</h3><span class="tech-status s-default">The default for anything slower than a second or two</span></div>
+      <p>Accept quickly, queue, process asynchronously, notify when done. The web tier only validates and returns a job ID.</p>
+      <h4>How it works</h4>
+      <p>Covered in section 2: a job row (<code>pending</code>), the job <strong>ID</strong> (not the payload) on the queue, workers that load the job, set <code>processing</code>, store results (files in S3, metadata in the database), set <code>completed</code> or <code>failed</code>, and notify (push, email, WebSocket) or let the client poll. Each part can fail independently: queue down → jobs wait as pending; workers down → jobs wait in the queue.</p>
+      <div id="sc-jobs"></div>
+      <h4>Status today</h4>
+      <p>Standard everywhere: SQS, BullMQ, Celery, Sidekiq, RabbitMQ, or Kafka at scale. Interview default: <q>Kafka or SQS plus regular worker processes.</q></p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Video transcoding, PDFs, reports, bulk email, CSV imports, AI tasks</li><li>Work needing different hardware (GPU) from the web tier</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Short jobs (tens of milliseconds): synchronous is simpler and gives clearer back-pressure</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Transcoding takes minutes, so the API returns a job ID in milliseconds; GPU workers pull from the queue and we notify the user when it's done.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Doing slow work inside the request.</strong></li><li><strong>Putting the payload on the queue</strong> instead of an ID (size limits, stale data).</li><li><strong>Queueing tiny jobs</strong> for no reason.</li><li><strong>Debating queue brands.</strong> Focus on separating concerns, retries and status.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-serverless">
+      <div class="tech-h"><h3>Serverless workers (AWS Lambda and similar)</h3><span class="tech-status s-situational">Situational · spiky loads</span></div>
+      <p>Functions that run per event, scale out automatically and to zero, billed per use.</p>
+      <h4>How it works</h4>
+      <p>A queue or storage event triggers a function invocation per message or batch. Great for bursts; limits apply: AWS Lambda runs at most 15 minutes, has cold starts and little local disk.</p>
+      <h4>Status today</h4>
+      <p>Mature: AWS Lambda, Google Cloud Run functions, Azure Functions.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Spiky, short jobs: thumbnails, webhooks, small transforms</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Jobs longer than the time limit (video transcoding of long files)</li><li>Steady heavy load, where regular servers are cheaper</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Thumbnails run on Lambda triggered by the upload event; long transcodes run on container workers.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Lambda for a two-hour job.</strong></li></ul></div>
+    </section>
+
+    <section class="tech" id="t-spark">
+      <div class="tech-h"><h3>Apache Spark (batch)</h3><span class="tech-status s-situational">Situational · big bounded datasets</span></div>
+      <p>The standard engine for processing large, bounded datasets in parallel across a cluster.</p>
+      <h4>How it works</h4>
+      <p>Data is split into partitions processed in parallel; shuffles regroup data by key (the MapReduce idea, section 2). Jobs are easy to rerun from scratch, which makes batch simple to debug.</p>
+      <h4>Status today</h4>
+      <p>Spark 4.2 is current (October 2026). SQL warehouses (BigQuery, Snowflake) increasingly run batch transforms directly, managed with dbt; Airflow or Dagster schedules them.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Nightly reports, billing runs, rebuilding indexes, ML training data</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Results needed within seconds (streaming)</li><li>Small datasets a SQL query handles</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Daily revenue is a nightly Spark (or warehouse SQL) job scheduled by Airflow; nobody needs it within seconds.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Streaming everything</strong> when hours-old results are fine: batch is cheaper and simpler.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-flink">
+      <div class="tech-h"><h3>Apache Flink (stream)</h3><span class="tech-status s-situational">Situational · results in seconds</span></div>
+      <p>A stateful stream processor: windows over event time, watermarks for late data, and checkpointed exactly-once state.</p>
+      <h4>How it works</h4>
+      <p>Reads an unbounded stream (usually Kafka), keeps state per key (counts per ad per minute), emits results as windows close, and checkpoints state so it recovers without double counting. Exactly-once end to end needs the sink to cooperate (transactional or idempotent writes).</p>
+      <h4>Status today</h4>
+      <p>Flink 2.3 is current (October 2026). Kafka Streams (a library inside your service), Spark Structured Streaming and Google Dataflow are the common alternatives.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Fraud detection, alerting, live dashboards, ad click counting</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Most designs: a queue and workers, or batch, is enough</li><li>Interviews where freshness of seconds isn't a requirement</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only when freshness is the point: <q>Clicks are aggregated per ad per minute in Flink with a 30-second watermark; late events update the result.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Reaching for Flink first.</strong> Start with polling alerts or batch; add streaming for the cases that need seconds.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2294,6 +2366,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Monthly invoices computed from all of last month's usage records. Which shape?</p>
         <div class="opts"><button>Stream</button><button>Batch</button><button>Background job per record</button></div>
         <div class="why">A bounded dataset, a periodic complete result, easy to rerun: classic batch.</div>
+      </div>
+      <div class="quiz-q" data-answer="Queue depth">
+        <p>Your workers' CPU is low but users wait minutes for thumbnails. What should autoscaling watch?</p>
+        <div class="opts"><button>CPU</button><button>Queue depth</button><button>Memory</button></div>
+        <div class="why">Waiting work shows up as queue depth (or age of the oldest message), even when workers look idle per CPU.</div>
+      </div>
+      <div class="quiz-q" data-answer="An idempotency key that returns the existing job ID">
+        <p>A user clicks "Export" three times. What stops three identical jobs?</p>
+        <div class="opts"><button>A bigger queue</button><button>An idempotency key that returns the existing job ID</button><button>A longer visibility timeout</button></div>
+        <div class="why">Derive a key from user, action and input; a repeat returns the job already in progress.</div>
       </div>
     </div>
 
@@ -2416,9 +2498,27 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · A background job", text: "Watch a job go from 202 Accepted to done, and a bad one reach the dead-letter queue." },
     { el: "#viz-mr", title: "3 · MapReduce", text: "Word count with map, shuffle and reduce, step by step." },
     { el: "#win", title: "4 · Windows and watermarks", text: "Which late events count, update a result, or get dropped." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "Job queues and workers, serverless, Spark and Flink: when each fits, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-jobs", {
+    title: "Fast and slow queues", sub: "<b>Red</b> = stuck, <b>blue</b> = quick jobs, <b>teal</b> = long jobs, <b>green</b> = done.",
+    nodes: [{ id: "api", x: 75, y: 130, w: 100, label: "API" }, { id: "qf", x: 265, y: 55, w: 130, label: "Fast queue" }, { id: "qs", x: 265, y: 205, w: 130, label: "Slow queue" },
+      { id: "wf", x: 475, y: 55, w: 130, label: "Fast workers" }, { id: "ws", x: 475, y: 205, w: 130, label: "Slow workers", sub: "GPU" }],
+    edges: [["api", "qf"], ["api", "qs"], ["qf", "wf"], ["qs", "ws"]],
+    width: 580, height: 250,
+    steps: [
+      { hl: { api: "active", qf: "bad", wf: "bad" }, moves: [{ e: "api>qf", t: "5-hour export", k: "evt" }, { e: "qf>wf", t: "5-hour export", k: "evt", delay: 1.0 }].concat([0, 1, 2].map((i) => ({ e: "api>qf", t: "thumbnail", k: "req", delay: 1.6 + i * 0.3 }))), pops: [{ n: "qf", t: "thumbnails stuck behind it", k: "bad", at: 2.8 }], hold: 4.2,
+        note: "In one shared queue, a few huge exports occupy the workers and quick thumbnails wait behind them: <b>head-of-line blocking</b>." },
+      { hl: { api: "active", qf: "active", qs: "active", wf: "found", ws: "active" }, moves: [{ e: "api>qs", t: "export", k: "evt" }, { e: "qs>ws", t: "export", k: "evt", delay: 1.0 }].concat([0, 1, 2].map((i) => ({ e: "api>qf", t: "thumbnail", k: "req", delay: 0.4 + i * 0.3 })), [{ e: "qf>wf", t: "done in 3 s", k: "ok", delay: 1.8 }]), hold: 4,
+        note: "Separate queues with their own workers and machine types: exports on GPU workers, thumbnails flow freely." },
+      { hl: { qf: "warm", wf: "found" }, moves: [0, 1, 2, 3].map((i) => ({ e: "api>qf", t: "spike", k: "req", delay: i * 0.25 })), pops: [{ n: "qf", t: "depth 10k → add workers", k: "evt", at: 1.4 }], hold: 3.4,
+        note: "Autoscale each pool on <b>queue depth</b>, not CPU: depth is the signal that work is waiting." },
+      { hl: { qs: "active", ws: "bad" }, moves: [{ e: "qs>ws", t: "corrupt file", k: "bad" }], pops: [{ n: "ws", t: "failed 5× → dead-letter queue", k: "bad", at: 1.3 }],
+        note: "A job that always fails goes to a <b>dead-letter queue</b> after a few attempts, with an alert, instead of blocking workers forever." },
+    ],
+  });
 })();
 </script>
 </body>
