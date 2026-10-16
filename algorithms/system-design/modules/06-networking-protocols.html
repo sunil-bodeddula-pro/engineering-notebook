@@ -502,6 +502,30 @@ svg.flow .fn { transition: opacity .35s ease; }
 .modmap .mod span.d { font-size: .86rem; color: var(--ink-2); }
 .modmap div.mod { opacity: .7; }
 
+/* System design "technology up close" blocks: how it works, status, when to use, interview red flags */
+.tech { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 18px 20px 8px; margin: 24px 0; }
+.tech-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.tech-h h3 { margin: 0; }
+.tech-status { font: 600 .74rem var(--sans); letter-spacing: .03em; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.tech-status.s-default { background: var(--green-soft); color: var(--green); }
+.tech-status.s-situational { background: var(--blue-soft); color: var(--blue); }
+.tech-status.s-rare { background: var(--warm-soft); color: var(--warm); }
+.tech h4 { font: 700 .76rem var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 18px 0 6px; }
+.tech-when { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 6px 0; }
+.tech-when > div { border-radius: 12px; padding: 2px 14px 4px; }
+.tech-when .use { background: var(--green-soft); }
+.tech-when .skip { background: var(--surface-2); }
+.tech-when h4 { margin-top: 12px; }
+.tech-when ul { padding-left: 18px; margin: 6px 0 10px; }
+.tech-say { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin: 12px 0; }
+.tech-say q { font-style: italic; }
+.callout.redflag { background: var(--red-soft); border-left: 4px solid var(--red); }
+.callout.redflag > strong:first-child { color: var(--red); }
+.callout.redflag ul { margin: 6px 0 2px; padding-left: 18px; }
+.callout li > strong:first-child { display: inline; margin: 0; }
+.tech h4 .idx { text-transform: none; letter-spacing: 0; font-weight: 500; }
+@media (max-width: 700px) { .tech { padding: 14px 14px 6px; } .tech-when { grid-template-columns: 1fr; } }
+
 /* System design widgets: stacked time bars, legends, result tiles, verdicts */
 .sbar { display: flex; height: 28px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
 .sbar > i { display: block; height: 100%; min-width: 2px; transition: width .25s; }
@@ -2195,7 +2219,108 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Databases and caches</strong> speak their own binary protocols over TCP (PostgreSQL's wire protocol, RESP for Redis and Valkey). Each connection costs server memory, which is why connection poolers like PgBouncer exist (Module 11).</li>
       <li><strong>Specifications:</strong> TCP is <a href="https://www.rfc-editor.org/rfc/rfc9293" target="_blank" rel="noopener">RFC 9293</a>, QUIC is <a href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">RFC 9000</a>, HTTP/3 is <a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114</a> and TLS 1.3 is <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a>.</li>
     </ul>
-    <p><strong>In an interview</strong> the default is "TCP, HTTPS, REST, behind an L7 load balancer". Say UDP only for real-time media or games, and mention HTTP/3 or QUIC when the question involves mobile users or lossy networks.</p>
+
+    <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>"TCP and HTTPS, REST APIs, behind an L7 load balancer, with timeouts and retries using exponential backoff." Say that, and move on. Change any part of it only when the question gives you a reason, and say the reason out loud. Each block below tells you what that reason looks like, and what <em>not</em> to say.</div>
+
+    <section class="tech" id="t-tcp">
+      <div class="tech-h"><h3>TCP</h3><span class="tech-status s-default">The default · assume it</span></div>
+      <p>A reliable, ordered byte stream between two programs. Nearly everything you design runs on it: HTTP/1.1 and HTTP/2, gRPC, database and cache connections, Kafka.</p>
+      <h4>How it works</h4>
+      <ol class="steps-list">
+        <li><strong>Open:</strong> a three-way handshake (SYN → SYN-ACK → ACK) costs one round trip before any data.</li>
+        <li><strong>Send:</strong> bytes are numbered; the receiver acknowledges them; anything unacknowledged in time is sent again. The application sees bytes in the order they were sent.</li>
+        <li><strong>Pace:</strong> slow start and congestion control speed up while the network copes and back off on loss.</li>
+        <li><strong>Close:</strong> each side sends FIN and acknowledges the other's. Opening and closing cost time and state on both machines, which is why connections are reused (keep-alive, pools, HTTP/2 multiplexing).</li>
+      </ol>
+      <h4>Status today</h4>
+      <p>Universal. Every load balancer, firewall, proxy and library supports it. It isn't going anywhere; HTTP/3 replaces it only for some browser traffic.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Data must arrive complete and in order: APIs, payments, chat messages, file transfers</li><li>Service-to-service calls and database connections</li><li>Basically always, unless one of the cases on the right applies</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Late data is useless: live audio and video, game positions</li><li>One tiny request-response where a handshake would dominate (DNS)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Don't announce it; it's assumed. Mention it only when you justify UDP somewhere else, or when connection cost matters: <q>Each client keeps one long-lived connection, so we pay the handshake once.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul>
+        <li>Calling TCP "slow" and choosing UDP for data that must arrive. You'd have to rebuild retries, ordering and congestion control yourself.</li>
+        <li>Treating a TCP acknowledgement as proof the request was <em>processed</em>. It only means the bytes reached the other machine; the app can still crash. That's why APIs need idempotency keys and application-level acks.</li>
+        <li>Opening a new connection per request in a high-traffic design without noticing the handshake cost.</li>
+      </ul></div>
+    </section>
+
+    <section class="tech" id="t-udp">
+      <div class="tech-h"><h3>UDP</h3><span class="tech-status s-situational">Situational · real-time media and games</span></div>
+      <p>Send a datagram; it arrives or it doesn't. No handshake, no retries, no ordering, no congestion control. Applications add only the reliability they need.</p>
+      <h4>How it works</h4>
+      <p>Each datagram is independent and fits in one packet. Loss, duplicates and reordering are the application's problem. Real-time apps handle loss by <strong>sending the latest state</strong> instead of re-sending old state (a game sends positions 30 times a second), or by hiding gaps (audio codecs conceal a missing 20 ms frame).</p>
+      <h4>Status today</h4>
+      <p>Mature and everywhere, but <strong>browsers can't open raw UDP sockets</strong>. Web clients reach UDP only through WebRTC (calls, Module 19) or HTTP/3. Some corporate networks block or throttle UDP.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Live voice and video, cloud gaming, multiplayer game state</li><li>DNS lookups</li><li>High-volume telemetry where losing a few points is fine (StatsD-style metrics)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Anything that must arrive: messages, orders, uploads</li><li>Web clients, unless you go through WebRTC, with a TCP fallback</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Raise it only for real-time media or games, and say what you do about loss: <q>Positions go over UDP 30 times a second; a lost update is replaced by the next one, so we never re-send.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul>
+        <li>"UDP because it's faster" for a chat app or a feed. The interviewer will ask what happens to a lost message.</li>
+        <li>Forgetting that browsers can't speak raw UDP.</li>
+        <li>Choosing UDP but not explaining how the app copes with loss, duplicates and reordering.</li>
+      </ul></div>
+    </section>
+
+    <section class="tech" id="t-quic">
+      <div class="tech-h"><h3>QUIC and HTTP/3</h3><span class="tech-status s-rare">Mature · rarely needed in interviews</span></div>
+      <p><strong>QUIC</strong> is a transport protocol that runs on top of UDP and rebuilds what TCP gives you (reliability, ordering, congestion control) with three changes: TLS 1.3 encryption is built in, each stream is ordered separately, and a connection has its own ID rather than being tied to an IP address. <strong>HTTP/3</strong> is HTTP running over QUIC.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Faster setup:</strong> the transport and TLS handshakes are combined, so a new connection needs <strong>one round trip</strong> instead of TCP + TLS 1.3's two. To a server it has seen before, a client can send a request in its very first packet (<strong>0-RTT</strong>), but only for requests that are safe to repeat, because an attacker could replay that packet.</li>
+        <li><strong>No head-of-line blocking between streams:</strong> a lost packet delays only its own stream (the scene at the top of section 2).</li>
+        <li><strong>Connection migration:</strong> when a phone moves from Wi-Fi to mobile data its IP address changes. A TCP connection dies and must reconnect; a QUIC connection carries on, because it's identified by its connection ID.</li>
+        <li><strong>Runs in user space:</strong> QUIC is implemented in libraries, not the operating system kernel, so it evolves quickly, but it typically costs more CPU per byte than TCP.</li>
+      </ul>
+      <div id="sc-quic"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <ul>
+        <li>Standardised in 2021–2022: QUIC is <a href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">RFC 9000</a>, HTTP/3 is <a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114</a>.</li>
+        <li>Supported by default in Chrome and Edge (since 87), Firefox (88) and Safari (16): about 95% of browsers in use, per <a href="https://caniuse.com/http3" target="_blank" rel="noopener">caniuse</a>.</li>
+        <li>About 41% of websites offer HTTP/3 (<a href="https://w3techs.com/technologies/details/ce-http3" target="_blank" rel="noopener">W3Techs</a>), and about 21% of the requests Cloudflare saw in 2025 used it, against 50% for HTTP/2 (<a href="https://blog.cloudflare.com/radar-2025-year-in-review/" target="_blank" rel="noopener">Cloudflare Radar</a>).</li>
+        <li>You usually <strong>switch it on at the CDN or load balancer</strong>; browsers discover it through the <code>Alt-Svc</code> header or a DNS <code>HTTPS</code> record and fall back to HTTP/2 when UDP is blocked. Inside data centres, TCP still dominates.</li>
+      </ul>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Mobile users on lossy or changing networks (a feed with many images, video start-up)</li><li>Users far from your servers, where saved round trips matter</li><li>You already have a CDN: enabling HTTP/3 there is usually a setting</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Service-to-service traffic inside a data centre: round trips are tiny and tooling assumes TCP</li><li>Networks that block UDP (you'll need the HTTP/2 fallback anyway)</li><li>The question is about anything other than the client's network</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Default to <q>HTTPS</q> and don't name a version. If the interviewer asks about mobile performance or poor networks, one sentence is enough: <q>We'd enable HTTP/3 at the CDN: QUIC avoids TCP's head-of-line blocking and survives network switches, and clients fall back to HTTP/2.</q> Then return to the design.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags: why not to bring it up unprompted</strong><ul>
+        <li><strong>It rarely changes the design.</strong> QUIC is a setting on the CDN, not a box on your diagram. Time spent on it is time not spent on the data model or the deep dives that are actually scored.</li>
+        <li><strong>Mentioning it invites follow-ups.</strong> Raise it only if you can answer these confidently: How does it avoid head-of-line blocking? Why is 0-RTT only for idempotent requests? What happens when UDP is blocked? Why does a connection survive a network change? If you can't, it costs you more than it earns.</li>
+        <li><strong>Using it for the wrong hop.</strong> "Our microservices talk over QUIC" signals chasing novelty: inside a data centre it buys almost nothing.</li>
+        <li><strong>Getting the layers wrong.</strong> QUIC is a transport running on UDP; it's not "UDP with no reliability", and HTTP/3 isn't a different API style from REST.</li>
+      </ul></div>
+    </section>
+
+    <section class="tech" id="t-http">
+      <div class="tech-h"><h3>HTTP and HTTPS</h3><span class="tech-status s-default">The default · always HTTPS</span></div>
+      <p>HTTP is the request-response protocol your APIs speak: a method, a path, headers and a body; a status code, headers and a body back. HTTPS is HTTP inside TLS.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Stateless:</strong> each request carries everything needed (including the auth token), so any server can handle it. Keep as much of your system stateless as you can.</li>
+        <li><strong>Methods:</strong> GET reads and never changes anything; POST creates; PUT replaces; PATCH partly updates; DELETE removes. GET, PUT and DELETE are idempotent; POST isn't unless you add an idempotency key (Module 07).</li>
+        <li><strong>Status codes:</strong> 2xx worked (200, 201) · 3xx go elsewhere (301, 302, 304) · 4xx the caller must change something (400, 401 not signed in, 403 not allowed, 404, 429 rate-limited) · 5xx our fault (500, 502 bad gateway, 503).</li>
+        <li><strong>HTTPS (TLS):</strong> encrypts traffic and proves the server's identity. It's usually terminated at the load balancer or CDN, and internal traffic is re-encrypted where policy requires it.</li>
+        <li><strong>Versions:</strong> HTTP/1.1 (one request at a time per connection), HTTP/2 (many requests multiplexed on one TCP connection), HTTP/3 (over QUIC). The semantics are identical across all three.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>HTTPS is the norm: browsers warn on plain HTTP, and HTTP/2 or HTTP/3 carry most browser traffic. Plain HTTP survives only inside private networks, and even there it's increasingly encrypted.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every client-facing API (REST over HTTPS is the default)</li><li>Most internal APIs, including gRPC, which runs on HTTP/2</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>The server must push often (consider SSE or WebSockets, Module 19)</li><li>Real-time media (WebRTC over UDP)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Say <q>REST over HTTPS</q> once, then use methods and status codes correctly in your API. Take identity from the token: <q>The user ID comes from the auth token, never from the request body.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul>
+        <li><strong>Trusting a user ID in the request body.</strong> HTTPS stops eavesdroppers, not the client: anyone can send any body they like. Identity comes from the authenticated token, and every input is validated.</li>
+        <li>A GET that changes data, or an error hidden inside a 200 response.</li>
+        <li>Mixing up 401 (who are you?) and 403 (you're not allowed).</li>
+      </ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2273,6 +2398,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>You need to send <code>/api/*</code> to one service and <code>/images/*</code> to another. What do you need?</p>
         <div class="opts"><button>An L4 load balancer</button><button>An L7 load balancer</button><button>A DNS CNAME</button></div>
         <div class="why">Only a layer-7 balancer reads the HTTP request and can route by path.</div>
+      </div>
+      <div class="quiz-q" data-answer="Say HTTPS, and mention HTTP/3 at the CDN only if mobile or lossy networks come up">
+        <p>You're designing a photo feed. When should you bring up QUIC?</p>
+        <div class="opts"><button>Early, to show you know the latest protocols</button><button>Say HTTPS, and mention HTTP/3 at the CDN only if mobile or lossy networks come up</button><button>Use QUIC between the backend services for speed</button></div>
+        <div class="why">QUIC rarely changes the design: it's a CDN setting. Raise it only when the question is about the client's network, and only if you can answer the follow-ups (head-of-line blocking, 0-RTT replay, UDP blocked).</div>
+      </div>
+      <div class="quiz-q" data-answer="From the authenticated token">
+        <p>Where should the API take the caller's user ID from?</p>
+        <div class="opts"><button>A field in the JSON body, since HTTPS encrypts it</button><button>From the authenticated token</button><button>A query parameter</button></div>
+        <div class="why">HTTPS protects against eavesdroppers, not against the client itself: anyone can put any ID in a body. Identity comes from the verified token.</div>
       </div>
     </div>
 
@@ -2383,9 +2518,27 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · TCP vs QUIC", text: "Watch one lost packet stall everything on TCP, and only one file on QUIC." },
     { el: "#viz-hol", title: "3 · Three HTTP versions", text: "The same loss, compared across HTTP/1.1, HTTP/2 and HTTP/3." },
     { el: "#loss-widget", title: "4 · Packet loss lab", text: "Raise the loss rate and compare page load times." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "TCP, UDP, QUIC and HTTPS: status, when to use each, and the red flags to avoid in an interview." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-quic", {
+    title: "QUIC: faster setup, and a connection that survives a network change", sub: "<b>Blue</b> = handshake and requests, <b>green</b> = ready, <b>red</b> = waiting or lost.",
+    nodes: [{ id: "wifi", x: 85, y: 55, w: 130, label: "Phone", sub: "on Wi-Fi" }, { id: "cell", x: 85, y: 185, w: 130, label: "Same phone", sub: "now on 5G" },
+      { id: "srv", x: 450, y: 120, w: 130, label: "Server" }],
+    edges: [["wifi", "srv"], ["cell", "srv"]],
+    width: 540, height: 235,
+    steps: [
+      { hl: { wifi: "active", srv: "active" }, moves: [{ e: "wifi>srv", t: "SYN", k: "req" }, { e: "wifi>srv", t: "SYN-ACK", k: "ok", back: true, delay: 1.0 }, { e: "wifi>srv", t: "TLS hello", k: "req", delay: 2.0 }, { e: "wifi>srv", t: "TLS done", k: "ok", back: true, delay: 3.0 }], pops: [{ n: "wifi", t: "2 round trips before asking", k: "bad", at: 4.0 }], hold: 5.4,
+        note: "<b>TCP + TLS 1.3:</b> one round trip to open the connection, a second to agree keys. Only then can the request go." },
+      { hl: { wifi: "active", srv: "found" }, moves: [{ e: "wifi>srv", t: "QUIC + TLS hello", k: "req" }, { e: "wifi>srv", t: "ready", k: "ok", back: true, delay: 1.0 }, { e: "wifi>srv", t: "GET /feed", k: "req", delay: 2.0 }], pops: [{ n: "wifi", t: "1 round trip", k: "ok", at: 2.2 }], hold: 3.8,
+        note: "<b>QUIC:</b> transport and encryption are agreed together, in one round trip." },
+      { hl: { wifi: "found", srv: "active" }, moves: [{ e: "wifi>srv", t: "GET /feed (0-RTT)", k: "ok" }], pops: [{ n: "srv", t: "safe-to-repeat requests only", k: "evt", at: 1.3 }],
+        note: "Returning to a server it knows, the client can send the request in its first packet: <b>0-RTT</b>. A captured packet could be replayed, so it's only for idempotent requests." },
+      { hl: { wifi: "bad", cell: "active", srv: "found" }, moves: [{ e: "cell>srv", t: "same connection ID", k: "ok", delay: 0.6 }], pops: [{ n: "wifi", t: "Wi-Fi lost", k: "bad", at: 0.2 }, { n: "srv", t: "connection survives", k: "ok", at: 2.0 }], hold: 3.6,
+        note: "The user walks out of Wi-Fi range and the IP address changes. A TCP connection would die; QUIC recognises the <b>connection ID</b> and carries on." },
+    ],
+  });
 })();
 </script>
 </body>
