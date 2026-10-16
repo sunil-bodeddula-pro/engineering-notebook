@@ -2198,6 +2198,20 @@ Content-Type: application/problem+json
       <li><strong>Versioning:</strong> breaking changes go in a new version, usually in the path (<code>/v2/</code>), sometimes in a header or a dated version (<code>Stripe-Version: 2026-09-30</code>). Keep the old version running with a published end date.</li>
     </ul>
 
+    <h3>Nine principles to apply out loud</h3>
+    <p>Don't recite these; show them in the endpoints you write. <q>I'll add an idempotency key here so a retry can't double-book the seat</q> scores; a memorised list doesn't.</p>
+    <ol class="steps-list">
+      <li><strong>Resources, not actions:</strong> <code>GET /users/7/bookings</code>, not <code>/getUserBookings</code>.</li>
+      <li><strong>Consistency:</strong> the same names, parameters and response shapes on every endpoint.</li>
+      <li><strong>Least surprise:</strong> GET never changes data; errors are never hidden inside a 200.</li>
+      <li><strong>Stateless:</strong> every request carries its token and inputs, so any server can answer.</li>
+      <li><strong>Safe retries:</strong> idempotency keys on payments, bookings and orders.</li>
+      <li><strong>Paginate every growing list</strong>, with a maximum page size.</li>
+      <li><strong>Secure by default:</strong> authentication unless marked public, a per-resource permission check, rate limits.</li>
+      <li><strong>Evolve without breaking:</strong> add fields freely; rename or remove only in a new version.</li>
+      <li><strong>Actionable errors:</strong> the right status class, a machine-readable code and a human message.</li>
+    </ol>
+
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
     <h3>Retry a payment over a flaky network</h3>
@@ -2234,7 +2248,85 @@ Content-Type: application/problem+json
       <li><strong>Optimistic concurrency over HTTP</strong>: <code>GET</code> returns an <code>ETag</code>; the client sends <code>If-Match: "v7"</code> on its <code>PUT</code>; the server answers <code>412 Precondition Failed</code> if someone changed it meanwhile (Module 17).</li>
       <li><strong>Style guides worth borrowing</strong>: <a href="https://cloud.google.com/apis/design" target="_blank" rel="noopener">Google's API design guide</a>, <a href="https://github.com/microsoft/api-guidelines" target="_blank" rel="noopener">Microsoft's REST guidelines</a> and <a href="https://opensource.zalando.com/restful-api-guidelines/" target="_blank" rel="noopener">Zalando's RESTful guidelines</a>.</li>
     </ul>
-    <p><strong>In an interview</strong>, spend about five minutes here: list the endpoints for the core requirements with their main inputs and outputs, mention pagination on any list and an idempotency key on any payment or booking, and move on.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong><q>REST over HTTPS, JSON, plural resource names, the user from the auth token.</q> List the endpoints for the core requirements, add pagination to every list and an idempotency key to any payment or booking, and move on: about five minutes. Mention gRPC only for internal calls and GraphQL only if the prompt hints at varied clients.</div>
+
+    <section class="tech" id="t-rest">
+      <div class="tech-h"><h3>REST over HTTPS</h3><span class="tech-status s-default">The default · about 90% of answers</span></div>
+      <p>Resources named by URLs, acted on with HTTP methods, usually exchanging JSON.</p>
+      <h4>How it works</h4>
+      <p>Plural nouns for resources (<code>/events</code>, <code>/events/42/bookings</code>); path for identity, query string for optional filters, sorting and paging, body for the data. Status codes say what happened; caching headers let browsers and CDNs reuse responses.</p>
+      <h4>Status today</h4>
+      <p>The default for public and product APIs. Described with OpenAPI, which generates docs, clients and validation.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every client-facing API unless the prompt pushes elsewhere</li><li>Most internal APIs too: simple, debuggable with curl</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Server push (SSE or WebSockets, Module 19)</li><li>Hot internal paths where a binary, typed protocol pays off (gRPC)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'll use REST.</q> Then list only the endpoints for the core requirements, with their main inputs and outputs. About five minutes, then move on.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Verbs in paths</strong> (<code>/createBooking</code>, <code>/startGame</code>): model the resource, e.g. <code>PATCH /games/7 {status: started}</code>.</li><li><strong>Taking the user ID from the body or path</strong> for the caller's own data: it comes from the token.</li><li><strong>Designing every endpoint, header and status code</strong> on the whiteboard. The API step is meant to be short.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-grpc">
+      <div class="tech-h"><h3>gRPC</h3><span class="tech-status s-situational">Situational · internal service calls</span></div>
+      <p>Remote procedure calls with typed contracts: you define services and messages in a <code>.proto</code> file, and gRPC generates clients and servers in many languages.</p>
+      <h4>How it works</h4>
+      <ul><li>Messages are Protocol Buffers: compact binary, with fields numbered so old and new versions interoperate.</li><li>Runs over HTTP/2: many calls multiplexed on one connection, plus streaming in either or both directions.</li><li>Deadlines travel with each call through every downstream service, so work stops when the caller has given up.</li></ul>
+      <h4>Status today</h4>
+      <p>A mature CNCF project, widely used between microservices. Browsers can't call it directly: they need gRPC-Web or a gateway that translates from REST or JSON.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>High-volume service-to-service calls where latency and payload size matter</li><li>Many languages that must share one strict contract</li><li>Streaming between services</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Public APIs and browser clients</li><li>Small systems where JSON's overhead never shows up</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>One line: <q>Externally REST; internally the services talk gRPC for typed contracts and lower overhead.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Offering gRPC to browsers or third-party developers</strong> without mentioning gRPC-Web or a gateway.</li><li><strong>Using it to sound sophisticated</strong> in a design with three services. Say why: payload size, latency, typed contracts or streaming.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-graphql">
+      <div class="tech-h"><h3>GraphQL</h3><span class="tech-status s-rare">Situational · rarely needed in interviews</span></div>
+      <p>One endpoint and a typed schema; each client sends a query naming exactly the fields it wants, across related objects, and gets that shape back.</p>
+      <h4>How it works</h4>
+      <ul><li>The server maps each field to a <strong>resolver</strong> that fetches it.</li><li>One request replaces several REST calls, and mobile clients don't download fields they don't use.</li><li>Naive resolvers cause the <strong>N+1 problem</strong>: one query for a list, then one per item. A <strong>dataloader</strong> batches those into one query.</li></ul>
+      <div id="sc-gql"></div>
+      <h4>Status today</h4>
+      <p>Mature, with a foundation-run specification, and used by large public APIs such as GitHub and Shopify. Many companies use it as a layer in front of their REST or gRPC services (a "backend for frontend").</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>The prompt stresses many different clients needing different data</li><li>Front-end teams iterating fast on screens that combine many objects</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple CRUD APIs</li><li>Public data you want CDNs to cache (one POST endpoint defeats HTTP caching)</li><li>Interviews where it isn't hinted at</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only if the interviewer hints at varied clients or over-fetching: <q>A GraphQL layer lets each client fetch exactly its fields; we'd use dataloaders to avoid N+1 queries and limit query cost.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choosing it by default.</strong> It adds complexity the interviewer will ask you to justify.</li><li><strong>Not knowing its costs:</strong> N+1 queries, harder HTTP caching, field-level authorization, and expensive queries that need depth or cost limits.</li><li><strong>Claiming it's faster.</strong> It can save round trips, but each request does more work on the server.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-authn">
+      <div class="tech-h"><h3>Tokens (JWT) and API keys</h3><span class="tech-status s-default">The default · one sentence</span></div>
+      <p>How a request proves who it's from. Authentication says who you are; authorization says what you may do with this resource.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>End users:</strong> after login (often OAuth 2.0 / OpenID Connect, Module 26), the client sends a short-lived signed token, usually a JWT carrying the user ID, roles and expiry. Any service can verify the signature without a database call.</li><li><strong>Server-to-server and third-party developers:</strong> API keys (or the service's own credentials), never for end users.</li><li><strong>Authorization:</strong> after verifying the token, check permission on <em>this</em> resource; roles (RBAC) decide which endpoints each kind of user may call.</li></ul>
+      <h4>Status today</h4>
+      <p>Universal. A server-side session in a database is equally fine for web apps; JWTs win when many services must verify identity independently.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every non-public endpoint</li><li>JWT when several services verify identity</li><li>API keys for partner integrations</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Long-lived JWTs for end users: hard to revoke, so keep them to minutes and use refresh tokens</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Requests carry a JWT; the gateway verifies it, and each endpoint checks the caller owns the resource.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Authentication without authorization:</strong> checking the token but not that booking 9 belongs to this user is the most common real API breach.</li><li><strong>API keys for end users</strong>, or secrets inside a JWT (its payload is readable by anyone).</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-ratelimit">
+      <div class="tech-h"><h3>Rate limiting</h3><span class="tech-status s-default">The default · one sentence unless asked</span></div>
+      <p>Capping how many requests a user, API key or IP may make in a period, to protect the system and share it fairly.</p>
+      <h4>How it works</h4>
+      <p>Usually enforced at the API gateway with a token bucket or sliding window kept in a shared store such as Redis (Module 24, Design D02). Over the limit, return <strong>429 Too Many Requests</strong> with <code>Retry-After</code>.</p>
+      <h4>Status today</h4>
+      <p>Built into every API gateway and most CDNs; Design D02 builds one from scratch.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Public APIs, login endpoints, expensive operations</li><li>Per-tenant fairness in multi-tenant systems</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Going deep unless the question is about rate limiting itself</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>One sentence: <q>The gateway rate-limits per user and per IP and returns 429.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Designing a rate limiter in detail</strong> when the question is about something else; it eats the time for the real deep dives.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2314,6 +2406,16 @@ Content-Type: application/problem+json
         <p>Two internal services exchange thousands of small typed messages per second. Which fits best?</p>
         <div class="opts"><button>GraphQL</button><button>gRPC</button><button>REST with XML</button></div>
         <div class="why">Compact binary encoding, generated typed clients, HTTP/2 multiplexing and deadlines make gRPC the usual internal choice.</div>
+      </div>
+      <div class="quiz-q" data-answer="REST">
+        <p>The prompt is a simple booking app with web and mobile clients. Which API style do you pick?</p>
+        <div class="opts"><button>GraphQL, to show range</button><button>REST</button><button>gRPC for everything</button></div>
+        <div class="why">REST is the default for client-facing APIs. GraphQL needs a reason (varied clients, over-fetching) and brings costs you'd have to defend.</div>
+      </div>
+      <div class="quiz-q" data-answer="The N+1 problem; batch with a dataloader">
+        <p>Your GraphQL server lists 50 posts and their authors, and the database receives 51 queries. What's this, and the fix?</p>
+        <div class="opts"><button>A cache stampede; add a TTL</button><button>The N+1 problem; batch with a dataloader</button><button>Normal behaviour; add replicas</button></div>
+        <div class="why">Each author resolver runs its own query. A dataloader collects them into one batched lookup.</div>
       </div>
     </div>
 
@@ -2438,9 +2540,29 @@ Content-Type: application/problem+json
     { el: "#sc-main", title: "2 · Safe retries", text: "Watch an idempotency key stop a retry from charging twice." },
     { el: "#viz-page", title: "3 · Pagination", text: "Offset vs cursor while new posts keep arriving." },
     { el: "#idem", title: "4 · Retry a payment", text: "Lose the response, retry, with and without a key." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "REST, gRPC, GraphQL, tokens and rate limits: when each fits, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-gql", {
+    title: "REST round trips, GraphQL's one query, and the N+1 trap", sub: "<b>Blue</b> = requests, <b>red</b> = waste, <b>green</b> = the fix.",
+    nodes: [{ id: "c", x: 70, y: 120, w: 100, label: "Mobile app" }, { id: "rest", x: 280, y: 50, w: 130, label: "REST API" },
+      { id: "gql", x: 280, y: 190, w: 130, label: "GraphQL server", sub: "resolvers" }, { id: "db", x: 490, y: 120, w: 110, label: "Database" }],
+    edges: [["c", "rest"], ["c", "gql"], ["rest", "db"], ["gql", "db"]],
+    width: 560, height: 235,
+    steps: [
+      { hl: { c: "bad", rest: "active" }, moves: [{ e: "c>rest", t: "/users/7", k: "req" }, { e: "c>rest", t: "full user", k: "ok", back: true, delay: 0.9 }, { e: "c>rest", t: "/users/7/posts", k: "req", delay: 1.8 }, { e: "c>rest", t: "all fields", k: "ok", back: true, delay: 2.7 }], pops: [{ n: "c", t: "2 round trips, unused fields", k: "bad", at: 3.8 }], hold: 5,
+        note: "With REST, a screen that needs a user's name and post titles takes several calls, and each returns fields the screen doesn't use." },
+      { hl: { c: "active", gql: "active" }, moves: [{ e: "c>gql", t: "{ name, posts { title } }", k: "req" }], pops: [{ n: "gql", t: "exactly these fields", k: "ok", at: 1.3 }],
+        note: "With GraphQL, one query names exactly the fields across related objects." },
+      { hl: { gql: "bad", db: "bad" }, moves: [{ e: "gql>db", t: "posts of user 7", k: "req" }].concat([1, 2, 3].map((i) => ({ e: "gql>db", t: "author of post " + i, k: "bad", delay: 0.5 + i * 0.4 }))), pops: [{ n: "db", t: "N+1 queries", k: "bad", at: 2.4 }], hold: 4,
+        note: "But naive resolvers fetch the list, then make one more query per item: the <b>N+1 problem</b>." },
+      { hl: { gql: "found", db: "found" }, moves: [{ e: "gql>db", t: "one batched query", k: "ok" }, { e: "gql>db", t: "rows", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "gql", t: "dataloader batches", k: "ok", at: 0.6 }], hold: 3.4,
+        note: "A <b>dataloader</b> collects those lookups and makes one batched query instead." },
+      { hl: { c: "found", gql: "active" }, moves: [{ e: "c>gql", t: "exact shape", k: "ok", back: true }],
+        note: "One round trip, no wasted fields. The price: harder HTTP caching, field-level authorization, and limits on expensive queries." },
+    ],
+  });
 })();
 </script>
 </body>

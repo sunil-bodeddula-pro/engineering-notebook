@@ -2211,7 +2211,85 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Kubernetes</strong> gives every service a stable name and spreads traffic across its pods; an <strong>Ingress</strong> or <strong>Gateway API</strong> controller (often NGINX- or Envoy-based) is the L7 front door; the HPA scales pods, and a cluster autoscaler adds nodes.</li>
       <li><strong>Stateful connection servers</strong> (WebSockets for chat, game servers) are balanced at L4 or by consistent hashing, with least-connections to spread long-lived connections (Module 19).</li>
     </ul>
-    <p><strong>In an interview</strong>, draw an L7 load balancer in front of stateless app servers by default, say "horizontally scaled, autoscaled on CPU" and move on. Spend time here only if the design has long-lived connections, stateful servers or extreme traffic.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>An L7 load balancer in front of stateless app servers, autoscaled on CPU. Say it in one sentence and spend your time elsewhere, unless the design has long-lived connections, stateful servers or extreme traffic. That's when the blocks below matter.</div>
+
+    <section class="tech" id="t-l7">
+      <div class="tech-h"><h3>L7 (application) load balancer</h3><span class="tech-status s-default">The default · draw it</span></div>
+      <p>A proxy that ends the client's connection, reads each HTTP request, and forwards it to a healthy server chosen per request.</p>
+      <h4>How it works</h4>
+      <ul><li>Terminates TLS, so it can read the path, host, headers and cookies.</li><li>Routes each <strong>request</strong> (not each connection): <code>/api/*</code> to the API, <code>/images/*</code> to the image service, a header to the canary.</li><li>Runs health checks, retries idempotent requests on another server, and drains servers during deploys.</li></ul>
+      <h4>Status today</h4>
+      <p>Standard everywhere: AWS Application Load Balancer, Google Cloud's application load balancer, Azure Application Gateway; NGINX, Envoy and HAProxy when you run your own. Managed ones are redundant across zones for you.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any HTTP or gRPC API</li><li>Routing by path or host to different services</li><li>Canary releases by header or weight</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Non-HTTP protocols (raw TCP, UDP game traffic, database connections)</li><li>Millions of long-lived connections where per-request work adds nothing</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Clients hit an L7 load balancer that terminates TLS and spreads requests across stateless app servers, autoscaled on CPU.</q> One sentence, then move on.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Not saying the servers are stateless.</strong> A load balancer only helps if any server can handle any request; otherwise you need stickiness, and the interviewer will ask what happens when that server dies.</li><li><strong>Sticky sessions as the way to keep user state.</strong> Use shared session storage or tokens; stickiness is only an optimisation.</li><li><strong>Spending minutes on algorithms</strong> for a stateless HTTP service. Round robin or least-requests is fine; the interesting parts are elsewhere.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-l4">
+      <div class="tech-h"><h3>L4 (transport) load balancer</h3><span class="tech-status s-situational">Situational · long-lived connections</span></div>
+      <p>Forwards whole TCP or UDP connections by IP address and port, without reading what's inside them.</p>
+      <h4>How it works</h4>
+      <ul><li>Picks a backend when a connection opens; every byte of that connection then goes to the same server.</li><li>No TLS termination needed (it can pass encrypted traffic straight through), so it's very fast and handles any protocol.</li><li>At huge scale, L4 balancers often sit in front of a fleet of L7 proxies.</li></ul>
+      <div id="sc-lb"></div>
+      <h4>Status today</h4>
+      <p>Managed everywhere: AWS Network Load Balancer (TCP, UDP, TLS), Google Cloud's passthrough network load balancer, Azure Load Balancer; HAProxy or Envoy in TCP mode. Google's Maglev is a well-known software L4 balancer.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>WebSocket servers and other long-lived connections (use least connections)</li><li>Non-HTTP protocols: game servers over UDP, database or MQTT traffic</li><li>TLS passthrough, when the backend must see the client's certificate</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Normal REST APIs: you lose path routing, retries and per-request balancing</li><li>HTTP/2 or gRPC traffic, where one connection carries many requests (one busy connection lands on one server)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only where connections are long-lived: <q>Chat connections go through an L4 load balancer using least connections, because each socket stays open for hours.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Expecting an L4 balancer to route by URL path or cookie.</strong> It never reads the request.</li><li><strong>Assuming it spreads requests evenly.</strong> It spreads <em>connections</em>; a few heavy connections can overload one server.</li><li><strong>Choosing L4 for an ordinary API</strong> without a reason. L7 is the expected default.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-client-lb">
+      <div class="tech-h"><h3>Client-side load balancing</h3><span class="tech-status s-situational">Situational · internal services</span></div>
+      <p>No balancer in the middle: the caller gets the list of healthy servers and picks one itself.</p>
+      <h4>How it works</h4>
+      <ul><li>The client reads the server list from a registry or DNS (Kubernetes endpoints, Consul, a service mesh's control plane) and keeps it up to date.</li><li>It chooses per request (round robin, least requests) and retries elsewhere on failure.</li><li>Smart database and cache clients do the same: a Redis Cluster client caches which node owns which keys; Cassandra drivers send each query straight to a replica.</li></ul>
+      <h4>Status today</h4>
+      <p>Common inside companies: gRPC's built-in balancing, service meshes (an Envoy sidecar beside each service balances on its behalf), and most distributed-database drivers. Plain DNS round robin is the simplest form, but caching makes it slow to react.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>High-volume internal service-to-service calls (saves a network hop)</li><li>Long-lived HTTP/2 or gRPC connections that an L4 balancer would pin to one server</li><li>Clients of distributed databases and caches</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Browsers and mobile apps you don't control</li><li>Small systems: a managed load balancer is simpler to run</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Mention it only for internal traffic: <q>Services call each other through gRPC with client-side balancing from the service registry, so there's no extra hop.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Suggesting it for public clients.</strong> You can't push server lists to every phone, or trust them to balance fairly.</li><li><strong>Ignoring stale lists.</strong> If clients cache a dead server (or a DNS answer with a long TTL), failover is slow; say how lists are refreshed.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-gateway">
+      <div class="tech-h"><h3>API gateway</h3><span class="tech-status s-situational">Situational · many services behind one front door</span></div>
+      <p>An L7 proxy at the edge that adds API features: authentication, rate limits, request validation, and routing to many backend services.</p>
+      <h4>How it works</h4>
+      <ul><li>Checks the token once at the edge and passes the verified identity on.</li><li>Applies rate limits and quotas per user or API key (returning 429).</li><li>Routes <code>/orders</code>, <code>/payments</code>… to different services, and can transform or version requests.</li></ul>
+      <h4>Status today</h4>
+      <p>Managed: AWS API Gateway, Google Apigee and API Gateway, Azure API Management. Self-run: Kong and Envoy-based gateways. Modern L7 load balancers and Kubernetes Gateway API controllers cover part of the same ground.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>A public API, or many microservices behind one domain</li><li>When auth and rate limiting must be enforced consistently in one place</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>One or two services: the load balancer plus middleware in the service is enough</li><li>Putting business rules in it: it should stay thin</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Draw it as one box at the edge when there are several services: <q>An API gateway handles auth and rate limits, then routes to the services.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Stacking a gateway, a load balancer and a service mesh</strong> in front of a single service.</li><li><strong>Business logic in the gateway.</strong> It becomes a bottleneck every team must change.</li><li><strong>Forgetting it's on every request's path:</strong> it must be replicated, and its latency counts.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-hw-lb">
+      <div class="tech-h"><h3>Hardware load balancers</h3><span class="tech-status s-rare">Legacy · rarely the answer</span></div>
+      <p>Dedicated appliances (such as F5 BIG-IP) that balance traffic in specialised hardware.</p>
+      <h4>How it works</h4>
+      <p>Physical boxes in a data centre, usually deployed in pairs, doing L4 and L7 balancing, TLS offload and firewall features at very high throughput.</p>
+      <h4>Status today</h4>
+      <p>Still common in on-premises data centres, banks and telecoms. Cloud designs use managed or software balancers, which scale out instead of up.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>On-premises designs where the company already runs them</li><li>The interviewer explicitly asks about extreme throughput in your own data centre</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Any cloud-based design (which is nearly every interview)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>At most a one-liner if asked about raw throughput: <q>On-prem you might use hardware balancers; in the cloud we'd use the managed L4/L7 balancers, which scale horizontally.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing hardware in a cloud design.</strong> It suggests outdated assumptions, one of the failure signs interviewers look for.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2290,6 +2368,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>What does connection draining do during a deploy?</p>
         <div class="opts"><button>Closes all connections immediately</button><button>Finish in-flight requests before the server is removed</button><button>Moves sessions to another server</button></div>
         <div class="why">New requests go elsewhere while existing ones complete, so rolling deploys drop nothing.</div>
+      </div>
+      <div class="quiz-q" data-answer="An L4 load balancer using least connections">
+        <p>Your chat servers hold WebSocket connections open for hours. What's the usual choice?</p>
+        <div class="opts"><button>An L7 load balancer using round robin</button><button>An L4 load balancer using least connections</button><button>DNS round robin</button></div>
+        <div class="why">Long-lived sockets are balanced per connection. Least connections sends each new socket to the emptiest server.</div>
+      </div>
+      <div class="quiz-q" data-answer="Almost never in a cloud design">
+        <p>When should a hardware load balancer appear in your design?</p>
+        <div class="opts"><button>Whenever traffic is high</button><button>Almost never in a cloud design</button><button>In front of every database</button></div>
+        <div class="why">Cloud designs use managed or software balancers that scale out. Hardware appliances suggest outdated assumptions unless the interviewer sets up an on-premises scenario.</div>
       </div>
     </div>
 
@@ -2399,9 +2487,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · Choosing a server", text: "Watch round robin queue behind a slow request, and a better rule avoid it." },
     { el: "#viz-lb", title: "3 · Round robin vs varied costs", text: "Step through why equal shares aren't equal work." },
     { el: "#sim", title: "4 · Simulator", text: "Run 4,000 requests through each algorithm, with a slow server." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "L7, L4, client-side balancing, API gateways: when each fits, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-lb", {
+    title: "L7 reads requests; L4 forwards connections", sub: "<b>Blue</b> = HTTP requests, <b>teal</b> = a long-lived WebSocket, <b>green</b> = routed.",
+    nodes: [{ id: "c", x: 70, y: 120, w: 100, label: "Clients" }, { id: "l7", x: 260, y: 55, w: 140, label: "L7 load balancer", sub: "reads each request" },
+      { id: "l4", x: 260, y: 190, w: 140, label: "L4 load balancer", sub: "forwards connections" },
+      { id: "api", x: 480, y: 25, w: 120, h: 36, label: "API servers" }, { id: "img", x: 480, y: 90, w: 120, h: 36, label: "Image service" }, { id: "ws", x: 480, y: 190, w: 120, label: "Chat servers" }],
+    edges: [["c", "l7"], ["c", "l4"], ["l7", "api"], ["l7", "img"], ["l4", "ws"]],
+    width: 560, height: 235,
+    steps: [
+      { hl: { c: "active", l7: "active", api: "found" }, moves: [{ e: "c>l7", t: "GET /api/orders", k: "req" }, { e: "l7>api", t: "/api/*", k: "ok", delay: 1.1 }], pops: [{ n: "l7", t: "ends TLS, reads the path", k: "req", at: 1.0 }], hold: 3.4,
+        note: "An <b>L7</b> balancer terminates TLS and reads each request, so it can route <code>/api/*</code> to the API servers." },
+      { hl: { c: "active", l7: "active", img: "found" }, moves: [{ e: "c>l7", t: "GET /images/42", k: "req" }, { e: "l7>img", t: "/images/*", k: "ok", delay: 1.1 }], hold: 3.2,
+        note: "The next request on the <b>same connection</b> can go somewhere else entirely: it balances per request." },
+      { hl: { c: "active", l4: "active", ws: "found" }, moves: [{ e: "c>l4", t: "WebSocket", k: "evt" }, { e: "l4>ws", t: "whole connection", k: "evt", delay: 1.1 }], pops: [{ n: "l4", t: "never reads the bytes", k: "evt", at: 1.0 }], hold: 3.4,
+        note: "An <b>L4</b> balancer picks a server when the connection opens and forwards every byte of it there." },
+      { hl: { l4: "active", ws: "warm" }, moves: [0, 1, 2].map((i) => ({ e: "l4>ws", t: "message", k: "evt", delay: i * 0.5 })), pops: [{ n: "ws", t: "pinned for hours", k: "evt", at: 1.6 }], hold: 3.4,
+        note: "Ideal for long-lived sockets: use <b>least connections</b> so new sockets go to the emptiest server." },
+    ],
+  });
 })();
 </script>
 </body>
