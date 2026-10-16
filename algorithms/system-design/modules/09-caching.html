@@ -2240,7 +2240,85 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Rough capacity:</strong> one node handles 100k+ simple operations a second at sub-millisecond latency; a cluster spreads keys across many nodes (Module 15).</li>
       <li><strong>Large-scale practice:</strong> Facebook's <a href="https://research.facebook.com/publications/scaling-memcache-at-facebook/" target="_blank" rel="noopener">Scaling Memcache</a> paper describes leases to prevent stampedes and stale sets, and invalidation driven by the database's change log, the same ideas as this page at billions of requests per second.</li>
     </ul>
-    <p><strong>In an interview</strong>, add a cache when you can name the bottleneck ("profile reads are 100× writes and hit the same few profiles"), say "Redis, cache-aside, LRU with a TTL of N, delete on write", and pick one or two failure modes to address: stampede for hot keys, staleness for correctness.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Name the bottleneck with rough numbers first (<q>profile reads are 100× writes and hit the same few profiles</q>), then in five steps:
+      <ol class="steps-list"><li><strong>Bottleneck:</strong> read-heavy load, an expensive query, a tight latency target.</li><li><strong>What to cache:</strong> read often, changes rarely, costly to compute; name the keys (<code>user:123:profile</code>).</li><li><strong>Pattern:</strong> <q>Redis, cache-aside</q>, plus the CDN for media and in-process for very hot keys.</li><li><strong>Eviction and freshness:</strong> LRU with a TTL set from the staleness requirement, delete on write.</li><li><strong>One or two failure modes</strong> that fit this system: stampede on hot keys, staleness for correctness, the cache going down.</li></ol></div>
+
+    <section class="tech" id="t-redis">
+      <div class="tech-h"><h3>Redis (and Valkey)</h3><span class="tech-status s-default">The default cache · know it well</span></div>
+      <p>An in-memory data-structure server: commands run one at a time on a single thread (so no locks), about 100,000+ operations a second per node at sub-millisecond latency. The most versatile tool to know well, and <strong>not a system of record</strong>.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Data structures:</strong> strings, hashes, lists, sets, <strong>sorted sets</strong>, <strong>streams</strong>, geospatial indexes, plus Bloom filters, JSON and time series in Redis 8.</li>
+        <li><strong>Durability gaps:</strong> RDB snapshots lose everything since the last snapshot; the append-only file (AOF) fsyncs every second by default, so up to about a second can be lost. Replication is asynchronous, so a failover can lose acknowledged writes. Need a durable Redis? AWS MemoryDB.</li>
+        <li><strong>Cluster:</strong> keys hash to <strong>16,384 slots</strong> spread over nodes. Clients cache the slot map; a node that doesn't own a key answers <code>MOVED</code>. There's no query router, so <strong>a multi-key command must touch keys in one slot</strong>; <strong>hash tags</strong> (<code>{user:123}:posts</code>, <code>{user:123}:likes</code>) force related keys together.</li>
+        <li><strong>Batching:</strong> pipelining and <code>MGET</code> make many small lookups cheap.</li>
+      </ul>
+      <table><thead><tr><th>Use</th><th>How</th><th>The catch</th></tr></thead><tbody>
+        <tr><td>Cache</td><td><code>product:123</code> → JSON or a hash, TTL per key</td><td>TTL handles freshness, not memory: set <code>maxmemory</code> and an eviction policy, or writes fail when full</td></tr>
+        <tr><td>Leaderboard</td><td>Sorted set: <code>ZADD</code> a score; <code>ZREVRANGE</code> for the top N</td><td>Trim unbounded sets (<code>ZREMRANGEBYRANK</code>)</td></tr>
+        <tr><td>Rate limiting</td><td><code>INCR</code> + <code>EXPIRE</code> in one Lua script (fixed window), or a sorted set of timestamps (sliding window)</td><td>Setting EXPIRE on every call means the window never resets</td></tr>
+        <tr><td>Nearby search</td><td><code>GEOADD</code>, <code>GEOSEARCH … BYRADIUS</code> (Module 12)</td><td>Post-filter by exact distance</td></tr>
+        <tr><td>Work queue</td><td><strong>Streams</strong>: <code>XADD</code>, consumer groups, acks; reclaim a dead worker's items</td><td>Items can run twice: make processing idempotent. Long retention and replay → Kafka</td></tr>
+        <tr><td>Pub/sub</td><td><code>PUBLISH</code>/<code>SUBSCRIBE</code>; sharded pub/sub in Cluster</td><td>At-most-once: offline subscribers miss messages (Module 19)</td></tr>
+        <tr><td>Distributed lock</td><td><code>SET lock:seat:14C &lt;token&gt; NX EX 30</code>; release only if the token matches</td><td>An efficiency tool, not a correctness guarantee: failover or a paused holder can let two clients in (Module 21)</td></tr>
+      </tbody></table>
+      <div id="sc-redis"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Redis 8 is available under three licences, including the open-source AGPLv3; Valkey, the Linux Foundation's BSD-licensed fork, is client-compatible and reached version 9 in September 2026. Managed: ElastiCache, Memorystore, Azure Managed Redis, plus MemoryDB for durability.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Caching hot reads in front of a database</li><li>Counters, rate limits, leaderboards, sessions, geo lookups</li><li>Light queues and fan-out when Redis is already there</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>The only copy of important data (it's not a system of record)</li><li>Working sets that don't fit in memory affordably</li><li>Joins or queries across keys on different nodes</li><li>Durable, replayable streams for many consumers (Kafka)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Redis, cache-aside, LRU with a 10-minute TTL, delete on write.</q> For a leaderboard: <q>a Redis sorted set per board, <code>ZADD</code> on each score, top 10 with <code>ZREVRANGE</code>.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Redis as the database of record</strong> for payments or orders.</li><li><strong>A Redis lock guarding correctness</strong> (no double-booking) without fencing tokens or a database check. Use a row lock or conditional write for correctness.</li><li><strong>Multi-key operations across a cluster</strong> without hash tags: they fail with a CROSSSLOT error.</li><li><strong>No eviction policy:</strong> TTLs alone don't stop memory filling up.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-memcached">
+      <div class="tech-h"><h3>Memcached</h3><span class="tech-status s-rare">Situational · plain, huge caches</span></div>
+      <p>A simple, multi-threaded key-value cache: strings only, no persistence, no replication, very fast.</p>
+      <h4>How it works</h4>
+      <p>Clients spread keys over servers with consistent hashing; a lost server just means misses. Facebook's "Scaling Memcache" paper describes running it at billions of requests a second, with leases against stampedes and invalidations from the database's change log.</p>
+      <h4>Status today</h4>
+      <p>Mature and still used at very large scale; managed in ElastiCache and Memorystore. Redis has largely replaced it for new designs because of its data structures.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Very large, simple key → blob caches where multi-threaded throughput per node matters</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Anything needing data structures, persistence or replication</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Fine to say <q>Redis or Memcached</q>; pick Redis if you need sorted sets, counters or streams.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choosing Memcached, then needing leaderboards or atomic counters</strong> it doesn't provide.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-inproc">
+      <div class="tech-h"><h3>In-process (local) caches</h3><span class="tech-status s-situational">Situational · an add-on for the hottest keys</span></div>
+      <p>A small cache in each app server's own memory (Caffeine, Guava, an LRU map). The fastest possible read, but not shared.</p>
+      <h4>How it works</h4>
+      <p>Each server keeps its own copy with a short TTL. A hot key served locally never reaches Redis, so one celebrity profile can't overload one cache node. The price: each server may hold a slightly different version for a few seconds.</p>
+      <h4>Status today</h4>
+      <p>Common in every language; often a two-level setup: in-process (seconds) in front of Redis (minutes).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Small, hot, rarely changing data: configuration, feature flags</li><li>Hot keys that would overload one Redis node</li><li>A fallback when the shared cache is down</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Data that must be identical on every server immediately</li><li>Large datasets (memory per server × number of servers)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>For the few hottest keys, a 5-second in-process cache on each server, so they never hit a single Redis node.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>In-process caches as the main cache</strong>: every server warms separately and invalidation becomes per-server.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-edgecache">
+      <div class="tech-h"><h3>Browser and CDN caching</h3><span class="tech-status s-default">The default for static and shared content</span></div>
+      <p>Responses reused by the user's browser or by CDN edge servers near users, controlled with HTTP headers.</p>
+      <h4>How it works</h4>
+      <p><code>Cache-Control</code> says who may store a response and for how long; <code>ETag</code> lets clients revalidate cheaply (304 Not Modified). A CDN turns a 250 ms cross-world fetch into roughly 20–40 ms, and absorbs most traffic for popular objects (Module 10).</p>
+      <h4>Status today</h4>
+      <p>Universal: Cloudflare, Fastly, Akamai, CloudFront and the clouds' own CDNs.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Images, video, scripts</li><li>Public responses many users share (catalogue pages, public posts)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Personal or permission-checked data at the CDN (unless the CDN validates signed URLs)</li><li>Live values like seat availability</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Media and public pages are served through the CDN with long TTLs; per-user data goes through Redis.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Caching personal data at the CDN</strong> under a shared key: users see each other's data.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2319,6 +2397,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Which should <em>not</em> be served from a cache?</p>
         <div class="opts"><button>An event's description</button><button>Live seat availability at checkout</button><button>The venue map image</button></div>
         <div class="why">Checkout must see the truth, or seats get double-sold. Cache the slow-changing parts around it.</div>
+      </div>
+      <div class="quiz-q" data-answer="The keys are in different slots; use a hash tag like {user:1}">
+        <p>In Redis Cluster, MGET user:1 user:2 fails. Why, and how do you make related keys work together?</p>
+        <div class="opts"><button>The cluster is overloaded; add replicas</button><button>The keys are in different slots; use a hash tag like {user:1}</button><button>MGET isn't supported; loop over GET</button></div>
+        <div class="why">Multi-key commands must stay within one slot. Hash tags hash only the braced part, so related keys share a slot.</div>
+      </div>
+      <div class="quiz-q" data-answer="No: use it to reduce contention, and enforce correctness in the database">
+        <p>Is a Redis SET NX lock enough to guarantee a seat is never double-booked?</p>
+        <div class="opts"><button>Yes, NX makes it atomic</button><button>No: use it to reduce contention, and enforce correctness in the database</button><button>Yes, if the TTL is long</button></div>
+        <div class="why">Failover or a paused holder can let two clients hold the "lock". A conditional write or row lock on the seat is the real guarantee.</div>
       </div>
     </div>
 
@@ -2453,9 +2541,27 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-cache", title: "3 · Step through it", text: "Cache-aside frame by frame, with the race at the end." },
     { el: "#zipf", title: "4 · How big a cache?", text: "See how much traffic a small cache absorbs on a Zipf curve." },
     { el: "#evict", title: "5 · Eviction", text: "LRU vs LFU on a 3-slot cache, request by request." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Redis in depth, Memcached, in-process and CDN caches: when each fits, and the red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-redis", {
+    title: "Redis Cluster: slots, MOVED and hash tags", sub: "<b>Blue</b> = commands, <b>green</b> = answered, <b>red</b> = redirected or refused.",
+    nodes: [{ id: "app", x: 85, y: 125, w: 130, label: "App server", sub: "client caches slot map" },
+      { id: "a", x: 450, y: 45, w: 150, label: "Node A", sub: "slots 0–5460" }, { id: "b", x: 450, y: 125, w: 150, label: "Node B", sub: "slots 5461–10922" }, { id: "c", x: 450, y: 205, w: 150, label: "Node C", sub: "slots 10923–16383" }],
+    edges: [["app", "a"], ["app", "b"], ["app", "c"]],
+    width: 560, height: 250,
+    steps: [
+      { hl: { app: "active", b: "found" }, moves: [{ e: "app>b", t: "GET user:123", k: "req" }, { e: "app>b", t: "value", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "app", t: "CRC16 mod 16384 → slot 7,000", k: "req", at: 0.2 }], hold: 3.4,
+        note: "The client hashes the key to one of <b>16,384 slots</b>, looks up which node owns that slot, and goes straight there." },
+      { hl: { app: "active", a: "bad", c: "found" }, moves: [{ e: "app>a", t: "GET user:9", k: "req" }, { e: "app>a", t: "MOVED → C", k: "bad", back: true, delay: 1.0 }, { e: "app>c", t: "GET user:9", k: "ok", delay: 2.0 }], pops: [{ n: "app", t: "refresh slot map", k: "evt", at: 2.0 }], hold: 4,
+        note: "After a slot moves, the old owner answers <b>MOVED</b>; the client retries at the right node and refreshes its map." },
+      { hl: { app: "active", b: "found" }, moves: [{ e: "app>b", t: "MGET {user:123}:posts {user:123}:likes", k: "ok" }], pops: [{ n: "b", t: "same slot: one node", k: "ok", at: 1.3 }],
+        note: "A <b>hash tag</b> hashes only the part in braces, so related keys land in the same slot and multi-key commands work." },
+      { hl: { app: "bad" }, moves: [{ e: "app>a", t: "MGET user:1 user:2", k: "bad" }], pops: [{ n: "app", t: "CROSSSLOT error", k: "bad", at: 1.3 }],
+        note: "Keys in different slots can't be combined in one command: there's no router to gather them. Key design is scaling design." },
+    ],
+  });
 })();
 </script>
 </body>
