@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRACKS = {
     "coding": {"out": "review.html", "label": "Coding patterns", "pages": ["start-here.html", "cheatsheet.html", "patterns/*.html"]},
     "ai": {"out": "ai/review.html", "label": "AI engineering", "pages": ["ai/start-here.html", "ai/modules/*.html"]},
-    "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
+    "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
 }
 
 QUIZ = re.compile(r'<div class="quiz-q" data-answer="([^"]*)">\s*<p>(.*?)</p>\s*<div class="opts">(.*?)</div>\s*<div class="why">(.*?)</div>', re.S)
