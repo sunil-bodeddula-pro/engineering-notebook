@@ -2111,6 +2111,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 06 of 29 · Level 2: Building blocks</div>
     <h1>Networking and protocols: TCP, UDP, QUIC and the HTTP versions</h1>
     <p class="lede">Module 01 followed one request. This module opens the boxes it passed through: what each network layer promises, why TCP's guarantees sometimes hurt, how HTTP/2 and HTTP/3 fix different problems, and what DNS can do beyond turning names into addresses. You'll use these ideas whenever you choose a protocol for real-time updates, place a load balancer, or wonder why mobile users see slow pages.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2136,6 +2137,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Head-of-line blocking, three ways</h3>
     <p>A browser loads three files (A, B, C), each three packets long, from a server 50 ms away. Packet A2 gets lost. Press Play to compare what each HTTP version does.</p>
     <div id="viz-hol"></div>
@@ -2358,6 +2360,32 @@ svg.flow .fn { transition: opacity .35s ease; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ Best fit: <b>${ans}</b>. `) + why;
     sc += ok; dn++; $("proto-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  Viz.scene("#sc-main", {
+    title: "One lost packet: TCP vs QUIC", sub: "Three files (A, B, C) on one connection. <b>Blue</b> = packets, <b>red</b> = lost or waiting, <b>green</b> = delivered.",
+    nodes: [{ id: "srv", x: 70, y: 110, w: 100, label: "Server" },
+      { id: "tcp", x: 280, y: 50, w: 150, label: "HTTP/2 on TCP", sub: "one ordered stream" }, { id: "quic", x: 280, y: 175, w: 150, label: "HTTP/3 on QUIC", sub: "a stream per file" },
+      { id: "b1", x: 490, y: 50, w: 110, label: "Browser" }, { id: "b2", x: 490, y: 175, w: 110, label: "Browser" }],
+    edges: [["srv", "tcp"], ["tcp", "b1"], ["srv", "quic"], ["quic", "b2"]],
+    width: 560, height: 225,
+    steps: [
+      { hl: { srv: "active", tcp: "active", b1: "found" }, moves: [{ e: "srv>tcp", t: "A1 B1 C1", k: "req" }, { e: "tcp>b1", t: "A1 B1 C1", k: "ok", delay: 1.1 }], hold: 3.4,
+        note: "HTTP/2 sends all three files over one TCP connection. The first packets arrive fine." },
+      { hl: { srv: "active", tcp: "bad", b1: "bad" }, moves: [{ e: "srv>tcp", t: "A2", k: "bad" }, { e: "srv>tcp", t: "B2 C2", k: "req", delay: 0.6 }], pops: [{ n: "b1", t: "B and C wait for A2", k: "bad", at: 1.9 }], hold: 3.6,
+        note: "Packet A2 is lost. TCP hands data over strictly in order, so B2 and C2 sit waiting even though they arrived: <b>head-of-line blocking</b>." },
+      { hl: { srv: "active", tcp: "active", b1: "found" }, moves: [{ e: "srv>tcp", t: "A2 resent", k: "req" }, { e: "tcp>b1", t: "A2 B2 C2", k: "ok", delay: 1.1 }], pops: [{ n: "b1", t: "every file a round trip late", k: "bad", at: 2.2 }], hold: 3.6,
+        note: "Only after the resend does everything move, so all three files paid for one lost packet." },
+      { hl: { srv: "active", quic: "active", b2: "found" }, moves: [{ e: "srv>quic", t: "A2", k: "bad" }, { e: "srv>quic", t: "B2 C2", k: "req", delay: 0.5 }, { e: "quic>b2", t: "B2 C2", k: "ok", delay: 1.6 }], pops: [{ n: "b2", t: "only A waits", k: "ok", at: 2.7 }], hold: 4,
+        note: "QUIC tracks each stream separately. The same loss delays only file A; B and C are delivered at once." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Each network layer adds one promise, and some promises cost you." },
+    { el: "#sc-main", title: "2 · TCP vs QUIC", text: "Watch one lost packet stall everything on TCP, and only one file on QUIC." },
+    { el: "#viz-hol", title: "3 · Three HTTP versions", text: "The same loss, compared across HTTP/1.1, HTTP/2 and HTTP/3." },
+    { el: "#loss-widget", title: "4 · Packet loss lab", text: "Raise the loss rate and compare page load times." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

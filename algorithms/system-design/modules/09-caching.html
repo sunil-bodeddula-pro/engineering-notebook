@@ -2117,6 +2117,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 09 of 29 · Level 2: Building blocks</div>
     <h1>Caching: fast answers, and the price of keeping them fresh</h1>
     <p class="lede">A cache keeps a copy of data somewhere faster to reach than its source. Done well, it turns a 20 ms database query into a sub-millisecond lookup and lets one database serve ten times the traffic. Done carelessly, it serves stale data, falls over all at once, or melts on one popular key. This module covers where to cache, the standard patterns, eviction, invalidation and the failure modes interviewers love to ask about.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2143,6 +2144,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Cache-aside, and its classic race</h3>
     <p>Cache-aside (also called lazy loading) is the default: the application checks the cache, and on a miss reads the database and fills the cache. On a write, it updates the database and <strong>deletes</strong> the cached key. Press Play, including the race at the end.</p>
     <div id="viz-cache"></div>
@@ -2400,6 +2402,36 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   $("ev-in").addEventListener("input", ev);
   $("ev-in").value = PRE["Popular + one-offs"]; ev();
+  Viz.scene("#sc-main", {
+    title: "Cache-aside, and its race", sub: "<b>Blue</b> = reads, <b>teal</b> = writes, <b>green</b> = hits, <b>red</b> = misses and stale data.",
+    nodes: [{ id: "r", x: 75, y: 50, w: 110, label: "Reader" }, { id: "w", x: 75, y: 175, w: 110, label: "Writer" },
+      { id: "cache", x: 300, y: 110, w: 120, label: "Cache", sub: "< 1 ms" }, { id: "db", x: 500, y: 110, w: 120, label: "Database", sub: "~20 ms" }],
+    edges: [["r", "cache"], ["r", "db", "", { bend: -40 }], ["w", "db", "", { bend: 40 }], ["w", "cache"]],
+    width: 580, height: 225,
+    steps: [
+      { hl: { r: "active", cache: "bad", db: "active" }, moves: [{ e: "r>cache", t: "get user:7", k: "req" }, { e: "r>cache", t: "miss", k: "bad", back: true, delay: 1.0 }, { e: "r>db", t: "SELECT", k: "req", delay: 2.0 }, { e: "r>db", t: "v1", k: "ok", back: true, delay: 3.1 }], hold: 4.6,
+        note: "The app checks the cache first. A <b>miss</b>, so it reads the database." },
+      { hl: { r: "active", cache: "found" }, moves: [{ e: "r>cache", t: "set v1", k: "ok" }, { e: "r>cache", t: "get", k: "req", delay: 1.3 }, { e: "r>cache", t: "hit: v1", k: "ok", back: true, delay: 2.3 }], hold: 3.8,
+        note: "It fills the cache. Every read after that is a <b>hit</b>, served from memory." },
+      { hl: { w: "active", db: "active", cache: "active" }, moves: [{ e: "w>db", t: "update → v2", k: "evt" }, { e: "w>cache", t: "delete key", k: "evt", delay: 1.1 }], hold: 3.4,
+        note: "A write updates the database, then <b>deletes</b> the cached key, so the next read fetches v2." },
+      { hl: { r: "active", cache: "bad", db: "active" }, moves: [{ e: "r>cache", t: "miss", k: "bad", back: true }, { e: "r>db", t: "reads v1…", k: "ok", back: true, delay: 1.0 }], pops: [{ n: "r", t: "pauses", k: "bad", at: 2.2 }], hold: 3.4,
+        note: "Now the race. A reader misses, reads <b>v1</b> from the database, and pauses (a GC, a slow network)…" },
+      { hl: { w: "active", db: "found" }, moves: [{ e: "w>db", t: "update → v2", k: "evt" }, { e: "w>cache", t: "delete key", k: "evt", delay: 1.1 }], hold: 3.2,
+        note: "…meanwhile a writer saves <b>v2</b> and deletes the key, which isn't there anyway." },
+      { hl: { r: "bad", cache: "bad" }, moves: [{ e: "r>cache", t: "set v1", k: "bad" }], pops: [{ n: "cache", t: "stale until it expires", k: "bad", at: 1.3 }],
+        note: "The reader wakes up and caches its old <b>v1</b>. The database says v2; the cache serves v1 until the TTL runs out. That's why every cached key gets a TTL." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Keep a copy of the popular few close by; skewed access makes it work." },
+    { el: "#sc-main", title: "2 · Cache-aside", text: "Watch a miss, a hit, an invalidation, and the race that leaves stale data." },
+    { el: "#viz-cache", title: "3 · Step through it", text: "Cache-aside frame by frame, with the race at the end." },
+    { el: "#zipf", title: "4 · How big a cache?", text: "See how much traffic a small cache absorbs on a Zipf curve." },
+    { el: "#evict", title: "5 · Eviction", text: "LRU vs LFU on a 3-slot cache, request by request." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

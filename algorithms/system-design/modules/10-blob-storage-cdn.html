@@ -2108,6 +2108,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 10 of 29 · Level 2: Building blocks</div>
     <h1>Blob storage and CDNs: big files, stored cheaply, served from nearby</h1>
     <p class="lede">Photos, videos, documents, backups and model weights are too big and too numerous for a database. They go in <strong>object storage</strong>, which is cheap, nearly impossible to lose data from, and effectively unlimited. Users then download them through a <strong>CDN</strong>, a network of servers close to them. The design skill is keeping your servers out of the way: clients upload straight to storage, and downloads come from the edge.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2122,6 +2123,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Uploading a video, end to end</h3>
     <p>Press Play to follow a 2 GB video from a phone to viewers around the world, without its bytes ever passing through your app servers.</p>
     <div id="viz-up"></div>
@@ -2384,6 +2386,35 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   OPTS.forEach(([k]) => $("cc-" + k).addEventListener("input", cc));
   set("Versioned JS/CSS"); cc();
+  Viz.scene("#sc-main", {
+    title: "A big file never touches your servers", sub: "<b>Blue</b> = requests and bytes, <b>teal</b> = events, <b>green</b> = approvals and deliveries.",
+    nodes: [{ id: "phone", x: 70, y: 110, w: 100, label: "Phone" }, { id: "api", x: 250, y: 40, w: 120, label: "Your API", sub: "approves, records" },
+      { id: "s3", x: 250, y: 180, w: 130, label: "Object storage" }, { id: "proc", x: 460, y: 180, w: 120, label: "Processing", sub: "transcode" },
+      { id: "cdn", x: 460, y: 40, w: 120, label: "CDN edge" }, { id: "viewer", x: 630, y: 40, w: 100, label: "Viewers" }],
+    edges: [["phone", "api"], ["phone", "s3"], ["s3", "proc"], ["cdn", "s3"], ["viewer", "cdn"]],
+    width: 690, height: 225,
+    steps: [
+      { hl: { phone: "active", api: "active" }, moves: [{ e: "phone>api", t: "upload 2 GB?", k: "req" }, { e: "phone>api", t: "presigned URL", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "api", t: "signed locally", k: "ok", at: 1.0 }], hold: 3.6,
+        note: "The app asks your API for permission. The API records the upload and returns a <b>presigned URL</b>: permission to PUT one key, for a few minutes." },
+      { hl: { phone: "active", s3: "active" }, moves: [{ e: "phone>s3", t: "part 1", k: "req" }, { e: "phone>s3", t: "part 2", k: "req", delay: 0.35 }, { e: "phone>s3", t: "part 3", k: "req", delay: 0.7 }], pops: [{ n: "s3", t: "multipart, retried per part", k: "ok", at: 2.0 }], hold: 3.6,
+        note: "The phone uploads the video <b>straight to storage</b> in parallel parts. Your servers never carry the bytes." },
+      { hl: { s3: "active", proc: "active" }, moves: [{ e: "s3>proc", t: "object created", k: "evt" }, { e: "s3>proc", t: "renditions", k: "ok", back: true, delay: 1.4 }], hold: 3.6,
+        note: "Storage announces the new object. That <b>event</b>, not the client saying \"done\", triggers processing into smaller formats." },
+      { hl: { viewer: "active", cdn: "active", s3: "active" }, moves: [{ e: "viewer>cdn", t: "play", k: "req" }, { e: "cdn>s3", t: "fetch once", k: "req", delay: 1.0 }, { e: "cdn>s3", t: "video", k: "ok", back: true, delay: 2.0 }, { e: "viewer>cdn", t: "stream", k: "ok", back: true, delay: 3.0 }], hold: 4.6,
+        note: "The first viewer near this edge causes one fetch from storage." },
+      { hl: { viewer: "active", cdn: "found" }, moves: [{ e: "viewer>cdn", t: "play", k: "req" }, { e: "viewer>cdn", t: "hit", k: "ok", back: true, delay: 1.0 }], pops: [{ n: "cdn", t: "served from the edge", k: "ok", at: 1.9 }], hold: 3.4,
+        note: "Everyone after that is served from the edge, close to them. Storage, and your servers, never see those requests." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Your servers approve and record; the heavy bytes travel another way." },
+    { el: "#sc-main", title: "2 · Upload and delivery", text: "Watch a 2 GB video go phone → storage → CDN without touching your servers." },
+    { el: "#viz-up", title: "3 · Step through it", text: "The same upload, frame by frame." },
+    { el: "#cdn", title: "4 · CDN savings", text: "How many requests reach the origin, with and without a shield." },
+    { el: "#cc", title: "5 · Cache-Control", text: "Build the right header for each kind of file." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

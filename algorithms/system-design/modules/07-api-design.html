@@ -2114,6 +2114,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 07 of 29 · Level 2: Building blocks</div>
     <h1>API design: contracts that are safe to call, retry and change</h1>
     <p class="lede">An API is a promise to everyone who calls it. Once apps depend on it, it's hard to change, so the decisions you make on day one last for years. This module covers how to shape resources and errors, page through long lists without losing items, make retries safe, evolve without breaking clients, and when gRPC or GraphQL fit better than REST.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2141,6 +2142,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Paging through a list that keeps changing</h3>
     <p>Every list that grows (posts, orders, messages) needs pagination. There are two common ways. Press Play to see what happens when new posts arrive while a user scrolls.</p>
     <div id="viz-page"></div>
@@ -2388,6 +2390,33 @@ Content-Type: application/problem+json
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ It's <b>${ans.toLowerCase()}</b>. `) + why;
     sc += ok; dn++; $("smell-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  Viz.scene("#sc-main", {
+    title: "A retry that doesn't charge twice", sub: "<b>Blue</b> = requests, <b>gold</b> = money, <b>red</b> = a lost response, <b>green</b> = a safe answer.",
+    nodes: [{ id: "app", x: 70, y: 110, w: 110, label: "Mobile app" }, { id: "api", x: 270, y: 110, w: 130, label: "Payments API" },
+      { id: "keys", x: 480, y: 45, w: 150, label: "Idempotency keys", sub: "key → stored response" }, { id: "card", x: 480, y: 180, w: 150, label: "Card network" }],
+    edges: [["app", "api"], ["api", "keys"], ["api", "card"]],
+    width: 560, height: 225,
+    steps: [
+      { hl: { app: "active", api: "active", keys: "found" }, moves: [{ e: "app>api", t: "POST, key k1", k: "req" }, { e: "api>keys", t: "k1 new?", k: "req", delay: 1.1 }], pops: [{ n: "keys", t: "new: record it", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "The app makes up a unique <b>idempotency key</b> and sends it with the payment. The API hasn't seen it before." },
+      { hl: { api: "active", card: "found" }, moves: [{ e: "api>card", t: "charge $50", k: "money" }], pops: [{ n: "card", t: "charged", k: "ok", at: 1.4 }],
+        note: "The card is charged, and the response is stored under k1." },
+      { hl: { app: "bad", api: "active" }, moves: [{ e: "app>api", t: "201 lost", k: "bad", back: true }], pops: [{ n: "app", t: "timeout", k: "bad", at: 1.3 }],
+        note: "The reply is lost on a flaky network. The app can't tell whether the payment happened, so it retries." },
+      { hl: { app: "active", api: "active", keys: "found" }, moves: [{ e: "app>api", t: "retry, key k1", k: "req" }, { e: "api>keys", t: "k1?", k: "req", delay: 1.1 }, { e: "api>keys", t: "seen: 201", k: "ok", back: true, delay: 2.2 }], pops: [{ n: "card", t: "not charged again", k: "ok", at: 2.6 }], hold: 4.2,
+        note: "Same key: the API finds the stored result and doesn't touch the card. Without a key, this retry would charge $100." },
+      { hl: { app: "found", api: "active" }, moves: [{ e: "app>api", t: "201 Created", k: "ok", back: true }],
+        note: "The app gets the original answer. Asked twice, the waiter brings one meal." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "An API is a promise; resources, errors and retries have to be designed." },
+    { el: "#sc-main", title: "2 · Safe retries", text: "Watch an idempotency key stop a retry from charging twice." },
+    { el: "#viz-page", title: "3 · Pagination", text: "Offset vs cursor while new posts keep arriving." },
+    { el: "#idem", title: "4 · Retry a payment", text: "Lose the response, retry, with and without a key." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

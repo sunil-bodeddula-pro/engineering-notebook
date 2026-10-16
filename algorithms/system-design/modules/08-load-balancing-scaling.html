@@ -2111,6 +2111,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 08 of 29 · Level 2: Building blocks</div>
     <h1>Load balancing and scaling out</h1>
     <p class="lede">When one server isn't enough, you can buy a bigger one or run many. Running many is how almost every large system grows, and it needs two things: servers that don't care which requests they get, and something in front that spreads the work wisely and routes around failures. This module covers both, plus the gateways and autoscalers that sit around them.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2134,6 +2135,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Choosing a server</h3>
     <ul>
       <li><strong>Round robin:</strong> next server in turn. Simple and fair when every request costs about the same.</li>
@@ -2349,6 +2351,33 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["sim-u", "sim-slow"].forEach((k) => $(k).addEventListener("input", run));
   run();
+  Viz.scene("#sc-main", {
+    title: "Spreading the load", sub: "<b>Blue</b> = quick requests, <b>red</b> = slow or failing, <b>green</b> = a good choice.",
+    nodes: [{ id: "c", x: 70, y: 115, w: 100, label: "Requests" }, { id: "lb", x: 250, y: 115, w: 130, label: "Load balancer" },
+      { id: "s1", x: 470, y: 40, w: 120, label: "Server 1" }, { id: "s2", x: 470, y: 115, w: 120, label: "Server 2" }, { id: "s3", x: 470, y: 190, w: 120, label: "Server 3" }],
+    edges: [["c", "lb"], ["lb", "s1"], ["lb", "s2"], ["lb", "s3"]],
+    width: 560, height: 230,
+    steps: [
+      { hl: { lb: "active", s1: "active", s2: "active", s3: "active" }, moves: [{ e: "c>lb", t: "3 requests", k: "req" }, { e: "lb>s1", t: "quick", k: "req", delay: 1.0 }, { e: "lb>s2", t: "slow report", k: "bad", delay: 1.2 }, { e: "lb>s3", t: "quick", k: "req", delay: 1.4 }], hold: 3.8,
+        note: "<b>Round robin</b> takes turns: 1, 2, 3. Server 2 happens to get a slow report." },
+      { hl: { lb: "active", s2: "bad" }, moves: [{ e: "lb>s1", t: "quick", k: "req" }, { e: "lb>s2", t: "quick", k: "bad", delay: 0.3 }, { e: "lb>s3", t: "quick", k: "req", delay: 0.6 }], pops: [{ n: "s2", t: "queued behind the slow one", k: "bad", at: 1.6 }], hold: 3.4,
+        note: "Round robin keeps sending server 2 its share, so its quick requests queue behind the slow one." },
+      { hl: { lb: "found", s1: "found", s3: "found", s2: "warm" }, moves: [{ e: "lb>s1", t: "quick", k: "ok" }, { e: "lb>s3", t: "quick", k: "ok", delay: 0.3 }, { e: "lb>s1", t: "quick", k: "ok", delay: 0.6 }], pops: [{ n: "lb", t: "fewest in progress", k: "ok", at: 0.3 }], hold: 3.4,
+        note: "<b>Least outstanding requests</b> sends work to whoever has the least in progress, so it steers around the busy server." },
+      { hl: { lb: "active", s3: "bad" }, moves: [{ e: "lb>s3", t: "/healthz", k: "req" }, { e: "lb>s3", t: "fail ×3", k: "bad", back: true, delay: 1.1 }], pops: [{ n: "s3", t: "removed", k: "bad", at: 2.3 }], hold: 3.6,
+        note: "<b>Health checks:</b> server 3 fails its check a few times in a row and stops getting traffic." },
+      { hl: { lb: "found", s1: "found", s2: "found", s3: "bad" }, moves: [{ e: "lb>s1", t: "quick", k: "ok" }, { e: "lb>s2", t: "quick", k: "ok", delay: 0.4 }],
+        note: "Traffic flows round the failure. This only works because the servers are <b>stateless</b>: any of them can serve any request." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Open more tills, and have someone point each shopper to an open one." },
+    { el: "#sc-main", title: "2 · Choosing a server", text: "Watch round robin queue behind a slow request, and a better rule avoid it." },
+    { el: "#viz-lb", title: "3 · Round robin vs varied costs", text: "Step through why equal shares aren't equal work." },
+    { el: "#sim", title: "4 · Simulator", text: "Run 4,000 requests through each algorithm, with a slow server." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>
