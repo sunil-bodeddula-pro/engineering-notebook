@@ -847,6 +847,20 @@
     ["Multipart upload", ["multipart"], "Uploading a big file in independent parts that can be sent in parallel and retried individually.", "system-design"],
     ["Origin", ["origin server"], "The source a CDN fetches from on a miss: your storage bucket or servers.", "system-design"],
     ["Origin shield", [], "An extra cache layer between CDN edges and the origin, so each object is fetched from the origin about once.", "system-design"],
+    ["Transcoding", ["transcode", "transcoded"], "Converting a video into other formats, resolutions and bitrates so every device can play it.", "system-design"],
+    ["Bitrate ladder", [], "The set of versions a video is encoded into, from low resolution and bitrate to high.", "system-design"],
+    ["Adaptive bitrate", ["ABR", "adaptive streaming"], "Streaming where the player picks the quality of each next segment from measured bandwidth and its buffer.", "system-design"],
+    ["HLS", ["HTTP Live Streaming"], "Apple's streaming format: playlists listing short video segments, fetched over plain HTTPS. MPEG-DASH works the same way.", "system-design"],
+    ["Rebuffering", [], "Playback stopping because the player's buffer ran empty: the stall viewers hate most.", "system-design"],
+    ["Deduplication", ["dedup", "deduplicate", "deduplicated"], "Storing identical data once, usually by naming chunks by the hash of their contents.", "system-design"],
+    ["Content-defined chunking", [], "Cutting a file where a rolling hash of the bytes hits a pattern, so an insert shifts only nearby chunk boundaries.", "system-design"],
+    ["Erasure coding", ["erasure-coded", "erasure coded"], "Storing data as fragments plus parity so it survives lost disks with less overhead than full copies.", "system-design"],
+    ["Geohash", ["geohashes"], "A string made by interleaving latitude and longitude bits; a shared prefix means the same map cell.", "system-design"],
+    ["Quadtree", ["quadtrees"], "A tree that splits a map area into four quarters, recursively, only where it holds many points.", "system-design"],
+    ["Geospatial index", ["spatial index", "geo index"], "An index that finds points near a location quickly, using cells or bounding boxes instead of one sort order.", "system-design"],
+    ["H3", [], "Uber's open-source grid of hexagonal cells at many resolutions, used for location lookups and per-area statistics.", "system-design"],
+    ["Virtual waiting room", ["waiting room"], "A queue in front of a busy site that admits users at the rate the system can serve.", "system-design"],
+    ["Conditional update", ["conditional write", "conditional writes"], "A write that applies only if the row still matches a condition, making check-and-set one atomic step.", "system-design"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
