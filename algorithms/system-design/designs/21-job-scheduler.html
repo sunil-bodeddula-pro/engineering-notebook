@@ -2532,8 +2532,8 @@ COMMIT;</code></pre>
     svg.select(".wait").transition().duration(dur).attr("d", area(pts));
     svg.select(".wait-l").transition().duration(dur).attr("d", line(pts));
     const bw = Math.max(1, x(1) - x(0) - 1);
-    svg.select(".bars").selectAll("rect").data(R.started.slice(0, SHOW)).join("rect").attr("class", "st").attr("x", (d, i) => x(i)).attr("width", bw)
-      .transition().duration(dur).attr("y", (d) => y(d)).attr("height", (d) => y(0) - y(d));
+    svg.select(".bars").selectAll("rect").data(R.started.slice(0, SHOW)).join((en) => en.append("rect").attr("y", y(0)).attr("height", 0)).attr("class", "st").attr("x", (d, i) => x(i)).attr("width", bw)
+      .transition().duration(dur).attr("y", (d) => y(d)).attr("height", (d) => Math.max(0, Math.round((y(0) - y(d)) * 10) / 10));
     svg.select(".tgt5").attr("x1", x(5)).attr("x2", x(5)).attr("y1", M.t).attr("y2", H - M.b);
     svg.select(".tgt5-l").attr("x", x(5) + 4).attr("y", M.t + 10).text("5 s target");
   }
