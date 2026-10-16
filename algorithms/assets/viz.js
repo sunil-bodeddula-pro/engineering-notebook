@@ -146,7 +146,7 @@
       const [x1, y1] = exit(p, cx, cy), [x2, y2] = exit(q, cx, cy);
       const mk = cls === "active" ? "a" : cls === "bad" ? "b" : "n";
       const d = `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
-      e += `<path class="fe ${cls}" d="${d}" marker-end="url(#${uid}-${mk})"/>`;
+      e += `<path class="fe ${cls}" data-e="${esc(a + ">" + b)}" d="${d}" marker-end="url(#${uid}-${mk})"/>`;
       // A "packet" travels along every active edge, so the eye follows the request (hidden for reduced motion).
       if (cls === "active") e += `<circle class="pk" r="4.5"><animateMotion dur="${Math.min(2.2, Math.max(0.8, L / 140)).toFixed(2)}s" repeatCount="indefinite" path="${d}"/></circle>`;
       if (label) {
@@ -156,7 +156,7 @@
     });
     const ns = nodes.map((n0) => {
       const n = by[n0.id], cls = hl[n.id] || "";
-      return `<g class="fn ${cls}"><rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}" rx="10"/>` +
+      return `<g class="fn ${cls}" data-n="${esc(n.id)}"><rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}" rx="10"/>` +
         `<text x="${n.x}" y="${n.y + (n.sub ? -3 : 5)}" text-anchor="middle" class="fn-l">${esc(n.label ?? n.id)}</text>` +
         (n.sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
     }).join("");
@@ -295,6 +295,177 @@
       if (e.key === " ") { play(); e.preventDefault(); }
     });
     show(0);
+  }
+
+  /* ---------- online libraries: progressive enhancement; every page still works when they can't load ---------- */
+  const NPM = "https://cdn.jsdelivr.net/npm/";
+  const LIBS = {
+    gsap: { js: [["gsap@3.15.0/dist/gsap.min.js", "sha384-XmJ9SoHtVOHoQUcKvFAzVXwdkKo1Ie3bhmSoIAkcdsHGaIrVJIkmozyq0FJeb/Ly"],
+                 ["gsap@3.15.0/dist/MotionPathPlugin.min.js", "sha384-YAP0gHFFPxr8wOSUhn4e+TuP5bfNLSK+i4tU3G9qh+IDMZRxsjxzPkb+sg037k23"]],
+            ready: () => window.gsap && window.MotionPathPlugin },
+    d3: { js: [["d3@7.9.0/dist/d3.min.js", "sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"]], ready: () => window.d3 },
+    driver: { js: [["driver.js@1.10.1/dist/driver.js.iife.js", "sha384-52k6hQjXJM2BO3z9J90FAKIb/IZRexp4K/ChwnaZXuE3OQrHqBwdE3AVQdn96hyB"]],
+              css: [["driver.js@1.10.1/dist/driver.css", "sha384-CBfObJy7KddzWsB25XFAHIx1WbS78XH0N76YngonLNVeXQPSP3hrE3hvmNBQXpvF"]],
+              ready: () => window.driver && window.driver.js },
+  };
+  const libP = {};
+  const addScript = (src, sri) => new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = NPM + src; sc.integrity = sri; sc.crossOrigin = "anonymous"; sc.onload = res; sc.onerror = rej;
+    document.head.appendChild(sc);
+  });
+  /** Load a library from jsDelivr (pinned version + SRI). Resolves when ready; rejects offline. */
+  function lib(name) {
+    const L = LIBS[name];
+    if (L.ready()) return Promise.resolve();
+    if (!libP[name]) {
+      (L.css || []).forEach(([h, sri]) => { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = NPM + h; l.integrity = sri; l.crossOrigin = "anonymous"; document.head.appendChild(l); });
+      libP[name] = L.js.reduce((pr, [src, sri]) => pr.then(() => addScript(src, sri)), Promise.resolve())
+        .then(() => { if (!L.ready()) throw new Error(name + " did not load"); });
+    }
+    return libP[name];
+  }
+
+  /** Animated scene: a flow diagram where labelled tokens (a request, money, an event) travel along the
+   *  arrows, boxes pulse when something arrives and small notes pop out of them. Built on GSAP.
+   *  cfg {title, sub, nodes, edges, width, height,
+   *       steps: [{note, hl: {id: cls}, moves: [{e: "a>b", t: "label", k: "req|money|ok|bad|evt", back, delay}],
+   *                pops: [{n: id, t: "text", k}], hold}]}
+   *  It starts as an ordinary step-through player and upgrades once GSAP is ready, so it still works
+   *  offline; with reduced motion it stays a step-through player. */
+  const SVGNS = "http://www.w3.org/2000/svg";
+  function scene(target, cfg) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const steps = cfg.steps || [];
+    const edgeCls = (s) => Object.fromEntries((s.moves || []).map((m) => [m.e, m.k === "bad" ? "bad" : "active"]));
+    const fig = (s) => flow(cfg.nodes, cfg.edges, { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
+    stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s) => ({ view: fig(s), note: s.note })), speed: cfg.speed || 3200 });
+    if (reduceMotion()) return;
+    lib("gsap").then(() => upgrade()).catch(() => {});
+
+    function upgrade() {
+      const gsap = window.gsap; gsap.registerPlugin(window.MotionPathPlugin);
+      const id = root.id || "sc" + Math.random().toString(36).slice(2, 7);
+      root.classList.add("scene");
+      const n = steps.length;
+      root.innerHTML =
+        (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") +
+        (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
+        `<div class="stage">${flow(cfg.nodes, cfg.edges, { width: cfg.width, height: cfg.height, title: cfg.title })}</div>` +
+        `<div class="note" aria-live="polite"></div><div class="sc-dots" role="tablist" aria-label="steps">${steps.map((_, k) => `<button type="button" data-k="${k}" aria-label="step ${k + 1}"></button>`).join("")}</div>` +
+        `<div class="controls">
+           <button id="${id}-reset" title="Back to the start">⟲ Reset</button>
+           <button id="${id}-prev" title="Previous step (←)">◀ Prev</button>
+           <button id="${id}-play" class="primary" title="Play / pause (space)">▶ Play</button>
+           <button id="${id}-next" title="Next step (→)">Next ▶</button>
+           <input id="${id}-range" type="range" min="0" max="${Math.max(0, n - 1)}" step="0.01" value="0" aria-label="timeline">
+           <button id="${id}-speed" class="sc-speed" title="Speed">1×</button>
+         </div>`;
+      const svg = root.querySelector("svg.flow"), note = root.querySelector(".note"), range = root.querySelector(`#${id}-range`);
+      const playBtn = root.querySelector(`#${id}-play`), speedBtn = root.querySelector(`#${id}-speed`), dots = [...root.querySelectorAll(".sc-dots button")];
+      const uid = (svg.querySelector("marker") || { id: "" }).id.replace(/-n$/, "");
+      const layer = document.createElementNS(SVGNS, "g"); layer.setAttribute("class", "sc-layer"); svg.appendChild(layer);
+      const pathOf = (e) => svg.querySelector(`path[data-e="${CSS.escape(e)}"]`), nodeOf = (k) => svg.querySelector(`g[data-n="${CSS.escape(k)}"]`);
+      const box = (k) => { const g = nodeOf(k); return g ? g.querySelector("rect").getBBox() : null; };
+      function pill(text, kind) {
+        const g = document.createElementNS(SVGNS, "g"); g.setAttribute("class", "sc-tok k-" + (kind || "req"));
+        const w = Math.max(18, 12 + String(text || "").length * 6.4);
+        g.innerHTML = `<rect x="${-w / 2}" y="-10" width="${w}" height="20" rx="10"/><text x="0" y="4" text-anchor="middle">${esc(text || "")}</text>`;
+        gsap.set(g, { opacity: 0 }); layer.appendChild(g); return g;
+      }
+      const tl = gsap.timeline({ paused: true, onUpdate: sync, onComplete: () => { playBtn.textContent = "↻ Replay"; } });
+      const starts = [];
+      steps.forEach((s, k) => {
+        const t0 = tl.duration(); starts.push(t0);
+        let end = t0 + (s.hold || 2.6);
+        (s.moves || []).forEach((m) => {
+          const p = pathOf(m.e); if (!p) return;
+          const g = pill(m.t, m.k), at = t0 + 0.3 + (m.delay || 0), dur = m.dur || 1.15;
+          tl.set(g, { opacity: 1 }, at)
+            .to(g, { motionPath: { path: p, align: p, alignOrigin: [0.5, 0.5], start: m.back ? 1 : 0, end: m.back ? 0 : 1 }, duration: dur, ease: "power1.inOut", immediateRender: false }, at)
+            .to(g, { opacity: 0, duration: 0.25 }, at + dur + 0.2);
+          const [a, b] = m.e.split(">"), tgt = nodeOf(m.back ? a : b);
+          if (tgt) tl.to(tgt, { scale: 1.07, duration: 0.14, yoyo: true, repeat: 1, svgOrigin: (() => { const bb = box(m.back ? a : b); return bb ? `${bb.x + bb.width / 2} ${bb.y + bb.height / 2}` : "0 0"; })() }, at + dur - 0.05);
+          end = Math.max(end, at + dur + 0.6);
+        });
+        (s.pops || []).forEach((o, j) => {
+          const bb = box(o.n); if (!bb) return;
+          const t = document.createElementNS(SVGNS, "text");
+          t.setAttribute("class", "sc-pop k-" + (o.k || "ok")); t.setAttribute("text-anchor", "middle");
+          t.setAttribute("x", bb.x + bb.width / 2); t.setAttribute("y", bb.y - 6); t.textContent = o.t;
+          layer.appendChild(t); gsap.set(t, { opacity: 0 });
+          const at = t0 + (o.at != null ? o.at : 1.3) + j * 0.15;
+          tl.fromTo(t, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(2)", immediateRender: false }, at)
+            .to(t, { opacity: 0, y: -10, duration: 0.4 }, Math.max(at + 1.4, end - 0.4));
+          end = Math.max(end, at + 1.2);
+        });
+        tl.to({}, { duration: end - t0 }, t0);   // the step's length
+      });
+      const total = tl.duration();
+      starts.push(total);
+      const stepAt = (t) => { let k = 0; while (k < n - 1 && starts[k + 1] <= t + 1e-6) k++; return k; };
+      let cur = -1;
+      function apply(k) {
+        if (k === cur) return;
+        cur = k;
+        const s = steps[k] || {}, ec = edgeCls(s);
+        svg.querySelectorAll("g.fn").forEach((g) => g.setAttribute("class", "fn " + ((s.hl || {})[g.dataset.n] || "")));
+        svg.querySelectorAll("path.fe").forEach((p) => {
+          const c = ec[p.dataset.e] || ""; p.setAttribute("class", "fe " + c);
+          p.setAttribute("marker-end", `url(#${uid}-${c === "active" ? "a" : c === "bad" ? "b" : "n"})`);
+        });
+        note.innerHTML = s.note || "";
+        if (note.animate) note.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
+        dots.forEach((d, j) => d.setAttribute("aria-current", String(j === k)));
+      }
+      function sync() {
+        const t = tl.time(), k = stepAt(t);
+        apply(k);
+        range.value = (k + Math.min(1, (t - starts[k]) / ((starts[k + 1] - starts[k]) || 1))).toFixed(2);
+        if (tl.isActive()) playBtn.textContent = "❚❚ Pause";
+        else if (t < total - 1e-3) playBtn.textContent = "▶ Play";
+      }
+      const go = (k) => { k = Math.max(0, Math.min(n - 1, k)); tl.pause(); tl.tweenFromTo(starts[k], starts[k + 1] - 0.01, { ease: "none", onComplete: sync }); apply(k); sync(); };
+      root.querySelector(`#${id}-next`).onclick = () => go(stepAt(tl.time()) + (tl.time() > starts[0] || cur > 0 ? 1 : 0));
+      root.querySelector(`#${id}-prev`).onclick = () => go(stepAt(tl.time()) - 1);
+      root.querySelector(`#${id}-reset`).onclick = () => { tl.pause(0); sync(); };
+      playBtn.onclick = () => { if (tl.isActive()) { tl.pause(); sync(); } else if (tl.time() >= total - 0.02) tl.restart(); else tl.play(); sync(); };
+      range.oninput = () => { const v = +range.value, k = Math.min(n - 1, Math.floor(v)); tl.pause(starts[k] + (v - k) * (starts[k + 1] - starts[k])); sync(); };
+      dots.forEach((d) => (d.onclick = () => go(+d.dataset.k)));
+      const SPEEDS = [1, 1.5, 0.6];
+      speedBtn.onclick = () => { const i = (SPEEDS.indexOf(tl.timeScale()) + 1) % SPEEDS.length; tl.timeScale(SPEEDS[i]); speedBtn.textContent = SPEEDS[i] + "×"; };
+      root.tabIndex = 0;
+      root.onkeydown = (e) => {
+        if (e.key === "ArrowRight") { root.querySelector(`#${id}-next`).click(); e.preventDefault(); }
+        if (e.key === "ArrowLeft") { root.querySelector(`#${id}-prev`).click(); e.preventDefault(); }
+        if (e.key === " ") { playBtn.click(); e.preventDefault(); }
+      };
+      // fixed caption height, so nothing below moves while it plays
+      const lockNote = () => { if (!root.clientWidth) return; note.style.minHeight = ""; let h = 0; steps.forEach((s) => { note.innerHTML = s.note || ""; h = Math.max(h, note.getBoundingClientRect().height); }); note.style.minHeight = Math.ceil(h) + "px"; cur = -1; sync(); };
+      tl.pause(0); sync(); lockNote();
+      if (typeof ResizeObserver !== "undefined") { let w = root.clientWidth, t = null; new ResizeObserver(() => { if (root.clientWidth === w) return; w = root.clientWidth; clearTimeout(t); t = setTimeout(lockNote, 150); }).observe(root); }
+      // play once by itself the first time it scrolls into view
+      if (typeof IntersectionObserver !== "undefined") {
+        const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting && e.intersectionRatio > 0.55)) { io.disconnect(); lockNote(); if (tl.time() === 0) tl.play(); } }, { threshold: [0.55] });
+        io.observe(root);
+      }
+      if (typeof queueRoughen === "function") queueRoughen();
+    }
+  }
+
+  /** Guided tour of a page (Driver.js). steps [{el, title, text}]; attach to a button. */
+  function tour(btn, steps) {
+    const b = typeof btn === "string" ? document.querySelector(btn) : btn;
+    if (!b) return;
+    b.addEventListener("click", () => {
+      b.disabled = true;
+      lib("driver").then(() => {
+        const d = window.driver.js.driver({ showProgress: true, smoothScroll: !reduceMotion(), popoverClass: "ik-tour", nextBtnText: "Next →", prevBtnText: "← Back", doneBtnText: "Done",
+          steps: steps.filter((s) => !s.el || document.querySelector(s.el)).map((s) => ({ element: s.el, popover: { title: s.title, description: s.text } })) });
+        d.drive();
+      }).catch(() => { b.textContent = "The tour needs an internet connection"; }).finally(() => { b.disabled = false; });
+    });
   }
 
   /* ---------- page helpers: code highlighting (Python, TypeScript, Java), copy buttons, TOC, quiz ---------- */
@@ -861,6 +1032,10 @@
     ["H3", [], "Uber's open-source grid of hexagonal cells at many resolutions, used for location lookups and per-area statistics.", "system-design"],
     ["Virtual waiting room", ["waiting room"], "A queue in front of a busy site that admits users at the rate the system can serve.", "system-design"],
     ["Conditional update", ["conditional write", "conditional writes"], "A write that applies only if the row still matches a condition, making check-and-set one atomic step.", "system-design"],
+    ["Payment service provider", ["PSP", "PSPs", "payment provider"], "A company such as Stripe or Adyen that talks to card networks and banks and moves the money for you.", "system-design"],
+    ["Double-entry ledger", ["double-entry", "ledger entry", "ledger entries"], "Accounting records where every transaction moves money between accounts and its entries sum to zero.", "system-design"],
+    ["Reconciliation", ["reconcile", "reconciled"], "Matching your own records against an outside source (a PSP or bank report) and flagging differences.", "system-design"],
+    ["Settlement", ["settlement report", "settlement file"], "The provider's record of what was actually charged and paid out, usually daily.", "system-design"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
@@ -1126,5 +1301,5 @@
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, trace, esc, glossaryList };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList };
 })();
