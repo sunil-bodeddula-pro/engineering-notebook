@@ -2220,7 +2220,91 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Range requests</strong> (<code>Range: bytes=…</code>) let clients resume downloads and let video players seek; object storage and CDNs support them.</li>
       <li><strong>Specifications:</strong> HTTP caching is <a href="https://www.rfc-editor.org/rfc/rfc9111" target="_blank" rel="noopener">RFC 9111</a>; <code>stale-while-revalidate</code> is <a href="https://www.rfc-editor.org/rfc/rfc5861" target="_blank" rel="noopener">RFC 5861</a>; <code>immutable</code> is <a href="https://www.rfc-editor.org/rfc/rfc8246" target="_blank" rel="noopener">RFC 8246</a>.</li>
     </ul>
-    <p><strong>In an interview</strong>, the moment files appear, say: "metadata in the database, bytes in S3, upload with presigned URLs (multipart for large files), mark complete from the storage event, serve through a CDN with signed URLs if private."</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>The moment files appear: <q>metadata in the database, bytes in S3, upload with presigned URLs (multipart for large files), mark complete from the storage event, serve through a CDN with signed URLs if private.</q> Servers handle permissions and metadata; bytes never pass through them.</div>
+    <table><thead><tr><th>Prompt</th><th>Flow</th></tr></thead><tbody>
+      <tr><td>YouTube</td><td>Presigned multipart upload → storage event triggers transcoding → CDN with signed URLs for adaptive streaming</td></tr>
+      <tr><td>Instagram</td><td>Direct upload of originals → event → workers make thumbnails and filters → CDN with signed URLs (stops hotlinking)</td></tr>
+      <tr><td>Dropbox</td><td>Chunked presigned uploads feeding sync; shared links are time-limited signed URLs</td></tr>
+      <tr><td>WhatsApp</td><td>Media uploaded directly; the chat message carries only the file reference; recipients get expiring download URLs</td></tr>
+    </tbody></table>
+
+    <section class="tech" id="t-s3">
+      <div class="tech-h"><h3>Object storage (S3 and equivalents)</h3><span class="tech-status s-default">The default for files · bytes here, metadata in the DB</span></div>
+      <p>Effectively unlimited storage for whole objects (bytes plus a little metadata) under keys in buckets, designed for 11 nines of durability.</p>
+      <h4>How it works</h4>
+      <p>PUT, GET, DELETE and LIST whole objects; no partial updates and no queries. S3 gives strong read-after-write consistency. The rich metadata (owner, status, size, permissions) belongs in your database, not in object tags: S3 allows only 10 tags per object and you can't query them.</p>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Amazon S3, Google Cloud Storage, Azure Blob Storage, and S3-compatible services (Cloudflare R2, MinIO). The standard home for media, documents, backups and model weights.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any file over about 10 MB, and any file you'd never query with SQL</li><li>Media, documents, backups, logs, data-lake files</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small values that are part of a record (a 2 KB JSON blob can live in the database)</li><li>Data that needs partial updates or queries</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>The moment files appear: <q>Metadata in the database, bytes in S3.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Storing images or videos as blobs in the database.</strong></li><li><strong>Rich metadata only in object tags</strong>, which you can't query.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-presigned">
+      <div class="tech-h"><h3>Presigned URLs</h3><span class="tech-status s-default">The default for uploads and private downloads</span></div>
+      <p>A URL your server signs, granting one action (PUT or GET) on one key for a short time, so clients talk to storage directly.</p>
+      <h4>How it works</h4>
+      <ul><li>The server checks the user and their quota, picks the key (<code>uploads/{user}/{date}/{uuid}</code>, never the client's file name), and signs the URL locally: no call to storage.</li><li><strong>Sign in limits:</strong> content length range and content type, so the URL can't be used to upload a 50 GB file. Anyone holding the URL can use it until it expires (minutes, not days).</li><li>At the same moment, create the database row with <code>status = 'pending'</code> and the key.</li></ul>
+      <h4>Status today</h4>
+      <p>Presigned URLs on S3, signed URLs on Google Cloud Storage, SAS tokens on Azure.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any upload or download larger than a normal API payload</li><li>Private files that shouldn't be public</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Uploads that must be validated synchronously before accepting (a CSV whose header must be right)</li><li>Compliance scanning before storage: proxy those, streaming in chunks</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The API returns a presigned PUT URL valid for 15 minutes with a size limit; the client uploads straight to S3.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proxying uploads through app servers</strong> without a reason: they become slow, expensive pipes.</li><li><strong>Client-chosen keys</strong>, or URLs without size limits.</li><li><strong>Trusting a client "upload done" call</strong> to mark the file ready: races, fake completions, orphaned files. Use the storage event plus a reconciliation job.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-multipart">
+      <div class="tech-h"><h3>Multipart and resumable uploads</h3><span class="tech-status s-situational">Situational · big files, flaky networks</span></div>
+      <p>Split a big upload into parts that go in parallel and can be retried individually, then stitch them together.</p>
+      <h4>How it works</h4>
+      <p>S3 multipart: parts of at least 5 MiB, each with its own presigned URL, up to 10,000 parts. On failure, list the parts already uploaded and send only the missing ones; finish with a <em>complete</em> call carrying the part list and checksums. Progress = parts done. A lifecycle rule deletes abandoned uploads after a day or two, because unfinished parts cost money. Google Cloud Storage and Azure use a single session URL with chunks instead.</p>
+      <div id="sc-mpu"></div>
+      <h4>Status today</h4>
+      <p>Standard on every object store; most SDKs do it automatically above a size threshold.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Files larger than about 100 MB</li><li>Mobile uploads that may be interrupted</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small files: one PUT is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Videos upload in 10 MB parts; if the phone loses signal at 60%, the app lists the finished parts and resumes from part 4.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Restarting a 2 GB upload from zero</strong> after a failure at 99%.</li><li><strong>No lifecycle rule for abandoned uploads.</strong></li></ul></div>
+    </section>
+
+    <section class="tech" id="t-signedcdn">
+      <div class="tech-h"><h3>CDN delivery with signed URLs</h3><span class="tech-status s-default">The default for downloads at scale</span></div>
+      <p>Serve files from CDN edges near users; protect private ones with signed URLs or signed cookies the edge verifies itself.</p>
+      <h4>How it works</h4>
+      <p>The CDN checks the signature with a public key at the edge, so private videos are protected without every request reaching your servers. Popular files go from roughly 200 ms to a few milliseconds after the first request, and the CDN absorbs most traffic. HTTP range requests let downloads resume and players seek.</p>
+      <h4>Status today</h4>
+      <p>CloudFront signed URLs and cookies, Google Cloud CDN and Media CDN, Azure Front Door, Cloudflare and Fastly.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Media and downloads at any real scale</li><li>Paid or private content (signed URLs stop hotlinking)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Rarely accessed private files, where a presigned storage URL is simpler and cheaper</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Downloads go through CloudFront with signed URLs that expire in an hour.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Serving large files from app servers</strong>, or straight from one region's bucket to the whole world.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-storageclass">
+      <div class="tech-h"><h3>Storage classes and lifecycle rules</h3><span class="tech-status s-situational">Situational · cost at scale</span></div>
+      <p>Cheaper tiers for data that's rarely read, and rules that move or delete objects as they age.</p>
+      <h4>How it works</h4>
+      <p>Standard for hot data; infrequent-access and archive classes cost far less to store but more, and more slowly, to read. Lifecycle rules move objects between classes after N days and delete expired ones (including abandoned multipart uploads).</p>
+      <h4>Status today</h4>
+      <p>Every provider offers several classes and lifecycle policies; check current pricing pages, which change.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Petabytes of media where most items are rarely watched after a month</li><li>Backups and compliance archives</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small datasets: the savings don't matter</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Originals move to an infrequent-access class after 30 days and to archive after a year.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Ignoring egress cost:</strong> sending data out often costs far more than storing it.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2299,6 +2383,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>A multipart upload fails at 90%. What happens?</p>
         <div class="opts"><button>It restarts from zero</button><button>It resumes from the missing parts</button><button>The file is saved incomplete</button></div>
         <div class="why">Parts are stored independently; the client uploads only the missing ones and then completes the upload.</div>
+      </div>
+      <div class="quiz-q" data-answer="The storage event, plus a periodic reconciliation job">
+        <p>What should mark an uploaded file as ready in your database?</p>
+        <div class="opts"><button>The client calling POST /uploads/done</button><button>The storage event, plus a periodic reconciliation job</button><button>A timer after 10 minutes</button></div>
+        <div class="why">Client "done" calls can be faked, lost or early. The storage event carries the key; reconciliation catches lost events.</div>
+      </div>
+      <div class="quiz-q" data-answer="Multipart upload: list finished parts and resume">
+        <p>A 2 GB upload fails at 99%. What's the right design?</p>
+        <div class="opts"><button>Retry the whole file</button><button>Multipart upload: list finished parts and resume</button><button>Upload through the API servers instead</button></div>
+        <div class="why">Parts are retried individually; the client keeps the upload ID and sends only the missing parts.</div>
       </div>
     </div>
 
@@ -2436,9 +2530,27 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-up", title: "3 · Step through it", text: "The same upload, frame by frame." },
     { el: "#cdn", title: "4 · CDN savings", text: "How many requests reach the origin, with and without a shield." },
     { el: "#cc", title: "5 · Cache-Control", text: "Build the right header for each kind of file." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Object storage, presigned URLs, multipart uploads, signed CDN delivery and storage classes, with red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-mpu", {
+    title: "A resumable upload that survives a dropped connection", sub: "<b>Blue</b> = parts, <b>red</b> = failed, <b>teal</b> = events, <b>green</b> = done.",
+    nodes: [{ id: "ph", x: 80, y: 135, w: 110, label: "Phone" }, { id: "api", x: 300, y: 45, w: 120, label: "Your API" },
+      { id: "s3", x: 300, y: 225, w: 140, label: "Object storage" }, { id: "db", x: 530, y: 135, w: 130, label: "Videos table" }],
+    edges: [["ph", "api"], ["api", "db"], ["ph", "s3"], ["s3", "db", "event"]],
+    width: 610, height: 270,
+    steps: [
+      { hl: { ph: "active", api: "active", db: "warm" }, moves: [{ e: "ph>api", t: "upload 2 GB?", k: "req" }, { e: "api>db", t: "row: pending", k: "evt", delay: 1.0 }, { e: "ph>api", t: "upload ID + part URLs", k: "ok", back: true, delay: 2.0 }], hold: 3.8,
+        note: "The API creates a <b>pending</b> row with the server-chosen key, starts a multipart upload, and returns presigned URLs for the parts." },
+      { hl: { ph: "bad", s3: "active" }, moves: [{ e: "ph>s3", t: "part 1", k: "req" }, { e: "ph>s3", t: "part 2", k: "req", delay: 0.4 }, { e: "ph>s3", t: "part 3", k: "bad", delay: 0.8 }], pops: [{ n: "ph", t: "signal lost at 60%", k: "bad", at: 2.0 }], hold: 3.6,
+        note: "Parts go up in parallel. Then the train enters a tunnel and part 3 fails." },
+      { hl: { ph: "active", s3: "found" }, moves: [{ e: "ph>s3", t: "which parts?", k: "req" }, { e: "ph>s3", t: "1, 2 done", k: "ok", back: true, delay: 1.0 }, { e: "ph>s3", t: "part 3", k: "req", delay: 2.0 }, { e: "ph>s3", t: "part 4", k: "req", delay: 2.4 }], pops: [{ n: "s3", t: "resume, not restart", k: "ok", at: 3.2 }], hold: 4.4,
+        note: "Back online, the app lists the finished parts and uploads only the missing ones." },
+      { hl: { ph: "found", s3: "found", db: "found" }, moves: [{ e: "ph>s3", t: "complete + checksums", k: "ok" }, { e: "s3>db", t: "object created", k: "evt", delay: 1.1 }], pops: [{ n: "db", t: "pending → ready", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "The <b>complete</b> call stitches the parts. Storage's event, not the client, flips the row to ready; a reconciliation job catches any lost events." },
+    ],
+  });
 })();
 </script>
 </body>
