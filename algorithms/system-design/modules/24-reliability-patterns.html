@@ -2234,7 +2234,100 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Practice:</strong> AWS's Builders' Library describes timeouts, backoff with jitter and load shedding as used inside Amazon; Google's SRE book covers cascading failures and overload in depth.</li>
       <li><strong>Chaos engineering:</strong> deliberately inject failures (kill instances, add latency, break a dependency) in a controlled way, ideally in production with a small blast radius, to prove these patterns actually work. Netflix's Chaos Monkey started the practice.</li>
     </ul>
-    <p><strong>In an interview</strong>, when you draw a call to another service (especially a third party), say: "timeout at about 2× its p99, at most 2 retries with exponential backoff and jitter, a circuit breaker, and a fallback of X". For public APIs, add per-user rate limits returning 429.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>When you draw a call to another service (especially a third party), say: <q>timeout at about 2× its p99, at most 2 retries with exponential backoff and jitter, a circuit breaker, and a fallback of X.</q> For public APIs, add per-user rate limits returning 429.</div>
+
+    <section class="tech" id="t-retry">
+      <div class="tech-h"><h3>Timeouts, retries, backoff and jitter</h3><span class="tech-status s-default">The default · on every network call</span></div>
+      <p>Every call gets a deadline; only safe failures are retried, with growing, randomised waits.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Timeout</strong> a little above the dependency's normal p99, and shorter than the caller's own deadline; propagate deadlines down the chain so work stops when the user has given up.</li><li><strong>Retry only what's safe and useful:</strong> idempotent requests, on transient errors (timeouts, 503, 429), never on 400 or 404.</li><li><strong>Exponential backoff</strong> (100, 200, 400, 800 ms…) thins retries out; <strong>jitter</strong> (a random wait up to the backoff) stops thousands of clients retrying in synchronised waves.</li><li><strong>Retry at one layer.</strong> Three retries at each of five layers is 3⁵ = 243 attempts at the bottom for one click. Add a retry budget (retries may add at most ~10% to normal traffic).</li></ul>
+      <div id="sc-jitter"></div>
+      <h4>Status today</h4>
+      <p>Built into AWS SDKs, gRPC, Envoy and service meshes, Resilience4j and Polly; AWS's Builders' Library documents the approach.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every call to another service, database or third-party API</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Retrying non-idempotent writes without an idempotency key</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Timeout at about 2× its p99, at most 2 retries with exponential backoff and jitter, only on timeouts and 5xx.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Retries without jitter</strong>: synchronised waves hammer a recovering service (a thundering herd).</li><li><strong>Retries at every layer</strong>, multiplying load during an outage.</li><li><strong>No timeout at all</strong>: threads pile up waiting on a dead dependency.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-cb">
+      <div class="tech-h"><h3>Circuit breakers</h3><span class="tech-status s-situational">Situational · around flaky dependencies</span></div>
+      <p>After repeated failures, stop calling the dependency for a while and fail fast; then test with one request before resuming.</p>
+      <h4>How it works</h4>
+      <p>Closed (calls pass) → too many failures → <strong>open</strong> (calls fail immediately, often to a fallback) → after a cool-down, <strong>half-open</strong> (one trial request) → close on success. Prevents cascades and stops retry storms against a struggling service.</p>
+      <h4>Status today</h4>
+      <p>Resilience4j, Polly, Envoy and service meshes; Netflix's Hystrix popularised it but is in maintenance mode.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Third-party APIs, databases and service-to-service calls whose failure could pile up threads</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Calls with no sensible fallback where failing fast doesn't help anyone</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A circuit breaker around the payment provider; while open, orders queue for retry and the user sees "processing".</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A breaker with no fallback</strong> or user-facing behaviour defined.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-bulkhead">
+      <div class="tech-h"><h3>Bulkheads</h3><span class="tech-status s-situational">Situational · isolate failures</span></div>
+      <p>Separate pools (threads, connections, even clusters) per dependency or customer, so one slow part can't consume everything.</p>
+      <h4>How it works</h4>
+      <p>Covered in section 2: the recommendation client gets at most 20 threads, so when it hangs, checkout still has its own. At larger scale: cells per customer group (Module 28).</p>
+      <h4>Status today</h4>
+      <p>Standard in resilience libraries and in cell-based architectures at large companies.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Several dependencies of very different importance in one service</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple services with one dependency</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Recommendations get their own small connection pool, so if they hang, checkout is unaffected.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>One shared pool for everything</strong>: one slow dependency starves the rest.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-shed">
+      <div class="tech-h"><h3>Load shedding and graceful degradation</h3><span class="tech-status s-situational">Situational · past capacity</span></div>
+      <p>Reject the least valuable work early when overloaded, and serve something useful when a dependency is down.</p>
+      <h4>How it works</h4>
+      <p>Shed cheaply and early (at the load balancer or the first line of the handler): background syncs before checkouts, impressions before clicks, a stale location ping (a fresher one arrives in seconds). Degrade: cached recommendations, a page without reviews. Overload becomes reduced service instead of an outage.</p>
+      <h4>Status today</h4>
+      <p>Common at large companies (described in AWS's Builders' Library and Google's SRE book); proxies and gateways support priority-based limits.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Traffic spikes beyond capacity</li><li>Optional features that can disappear temporarily</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Critical writes that must never be dropped (use a queue)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Under overload we drop analytics events and prefetches first, and show cached recommendations if that service is down.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Accepting everything when overloaded</strong>: every request slows down and most time out.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-mesh">
+      <div class="tech-h"><h3>Service mesh resilience (Envoy, Istio, Linkerd)</h3><span class="tech-status s-rare">Situational · many services, one policy</span></div>
+      <p>Sidecar proxies beside each service apply timeouts, retries, circuit breaking and outlier ejection without code changes.</p>
+      <h4>How it works</h4>
+      <p>Policies are configured centrally and enforced by the proxies on every call, along with mutual TLS and telemetry.</p>
+      <h4>Status today</h4>
+      <p>Common in large Kubernetes deployments; adds operational complexity and some latency per hop.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Dozens of services in several languages needing consistent policies</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A handful of services: a library is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>At this many services, timeouts and retry budgets are set once in the mesh.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Adding a mesh to a three-service design</strong> to sound modern.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-chaos">
+      <div class="tech-h"><h3>Chaos engineering</h3><span class="tech-status s-rare">Rare in interviews · a practice</span></div>
+      <p>Deliberately inject failures (kill instances, add latency, break a dependency) in a controlled way to prove the defences work.</p>
+      <h4>How it works</h4>
+      <p>Start small (one instance, a short window), measure against SLOs, and widen the blast radius as confidence grows. Netflix's Chaos Monkey started the practice.</p>
+      <h4>Status today</h4>
+      <p>Tooling exists on every cloud (AWS Fault Injection Service, Azure Chaos Studio) and in open source (Chaos Mesh, LitmusChaos).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Mature systems with good monitoring and on-call</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Systems without observability: you won't learn anything</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only if asked how you'd verify resilience: <q>Game days and fault injection in production with a small blast radius.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing chaos testing before basic timeouts and monitoring exist.</strong></li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2314,6 +2407,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Which pattern stops a slow recommendations service from using up all of checkout's threads?</p>
         <div class="opts"><button>A bulkhead</button><button>A retry</button><button>A cache</button></div>
         <div class="why">A separate, limited pool for each dependency contains the damage.</div>
+      </div>
+      <div class="quiz-q" data-answer="243">
+        <p>Five layers each retry 3 times. How many attempts can one user click cause at the bottom layer?</p>
+        <div class="opts"><button>15</button><button>243</button><button>3</button></div>
+        <div class="why">3⁵ = 243. Retry at one layer, with a retry budget.</div>
+      </div>
+      <div class="quiz-q" data-answer="So clients don't retry in synchronised waves">
+        <p>Why add jitter to exponential backoff?</p>
+        <div class="opts"><button>To make retries faster</button><button>So clients don't retry in synchronised waves</button><button>To reduce the number of retries</button></div>
+        <div class="why">Identical schedules make every client hit the recovering service at the same moments.</div>
       </div>
     </div>
 
@@ -2447,9 +2550,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-cb", title: "3 · Step through it", text: "A breaker around a payment provider, frame by frame." },
     { el: "#storm", title: "4 · Retry storm", text: "Compare retry policies during and after an outage." },
     { el: "#tb", title: "5 · Token bucket", text: "Send requests and bursts against a rate limit." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Timeouts and retries, circuit breakers, bulkheads, load shedding, meshes and chaos, with red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-jitter", {
+    title: "Why retries need jitter", sub: "<b>Red</b> = synchronised retries, <b>blue</b> = spread-out retries, <b>green</b> = recovered.",
+    nodes: [{ id: "c1", x: 80, y: 45, w: 100, h: 40, label: "Client 1" }, { id: "c2", x: 80, y: 105, w: 100, h: 40, label: "Client 2" },
+      { id: "c3", x: 80, y: 165, w: 100, h: 40, label: "Client 3" }, { id: "c4", x: 80, y: 225, w: 100, h: 40, label: "Client 4" },
+      { id: "svc", x: 450, y: 135, w: 140, label: "Recovering service" }],
+    edges: [["c1", "svc"], ["c2", "svc"], ["c3", "svc"], ["c4", "svc"]],
+    width: 560, height: 265,
+    steps: [
+      { hl: { svc: "bad" }, moves: [1, 2, 3, 4].map((i) => ({ e: "c" + i + ">svc", t: "fail", k: "bad", back: true, dur: 0.9 })), pops: [{ n: "svc", t: "outage", k: "bad", at: 0.3 }], hold: 2.8,
+        note: "A brief outage: every client's request fails at the same moment." },
+      { hl: { svc: "bad", c1: "bad", c2: "bad", c3: "bad", c4: "bad" }, moves: [1, 2, 3, 4].map((i) => ({ e: "c" + i + ">svc", t: "retry @100 ms", k: "bad", dur: 1.0 })).concat([1, 2, 3, 4].map((i) => ({ e: "c" + i + ">svc", t: "retry @200 ms", k: "bad", delay: 1.4, dur: 1.0 }))), pops: [{ n: "svc", t: "waves knock it over again", k: "bad", at: 2.2 }], hold: 3.8,
+        note: "With plain backoff, everyone retries at exactly the same times: synchronised waves hit the service just as it tries to recover." },
+      { hl: { svc: "found", c1: "active", c2: "active", c3: "active", c4: "active" }, moves: [{ e: "c3>svc", t: "retry", k: "req", delay: 0.1 }, { e: "c1>svc", t: "retry", k: "req", delay: 0.7 }, { e: "c4>svc", t: "retry", k: "req", delay: 1.5 }, { e: "c2>svc", t: "retry", k: "req", delay: 2.2 }], pops: [{ n: "svc", t: "a trickle it can handle", k: "ok", at: 2.8 }], hold: 4.2,
+        note: "<b>Jitter</b> randomises each wait, so retries arrive as a trickle and the service recovers." },
+      { hl: { svc: "found" }, pops: [{ n: "svc", t: "retry at one layer only", k: "ok", at: 0.3 }],
+        note: "And retry at one layer: three retries at each of five layers is 243 attempts at the bottom for one click." },
+    ],
+  });
 })();
 </script>
 </body>
