@@ -2115,6 +2115,7 @@ POST /places            → create   ·   PATCH /places/{id} → edit</code></pr
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
+  /* ---------- final picture player ---------- */
   const N = [
     { id: "u", x: 70, y: 60, w: 100, label: "App" },
     { id: "api", x: 260, y: 60, w: 120, label: "Search API" },
@@ -2135,7 +2136,7 @@ POST /places            → create   ·   PATCH /places/{id} → edit</code></pr
     [{ own: "active", pl: "found" }, { "own>pl": "active" }, "Meanwhile an owner adds a new café. It is written to the places database, the source of truth."],
     [{ pl: "found", cdc: "active", geo: "found" }, { "pl>cdc": "active", "cdc>geo": "active" }, "A change stream (or a rebuild every few minutes) updates every geo index replica. The new café appears in searches within minutes, which the requirements allow."],
   ];
-  Viz.stepper("#viz-hld", { title: "Searching nearby", sub: "Blue = working now, green = data found or stored, yellow = cache miss.", frames: F.map(([hl, eh, n]) => ({ view: fig(hl, eh), note: n })), speed: 3000 });
+  Viz.stepper("#viz-final", { title: "Searching nearby", sub: "Blue = working now, green = data found or stored, yellow = cache miss.", frames: F.map(([hl, eh, n]) => ({ view: fig(hl, eh), note: n })), speed: 3000 });
 
   /* ---------- geo index lab ---------- */
   const rng = (seed) => { let s = seed >>> 0; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; };

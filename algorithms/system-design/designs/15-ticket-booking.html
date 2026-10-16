@@ -2116,6 +2116,7 @@ POST /bookings/{id}/pay {payment_token, idempotency_key} → confirmed</code></p
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
+  /* ---------- final picture player ---------- */
   const N = [
     { id: "u", x: 60, y: 60, w: 90, label: "Fans" },
     { id: "wr", x: 250, y: 60, w: 130, label: "Waiting room", sub: "at the edge" },
@@ -2135,7 +2136,7 @@ POST /bookings/{id}/pay {payment_token, idempotency_key} → confirmed</code></p
     [{ api: "active", pay: "active" }, { "api>pay": "active" }, "The winner pays within the 10-minute hold. The payment call carries an idempotency key, so a retry never charges twice."],
     [{ api: "found", db: "found" }, { "api>db": "active" }, "Payment succeeds: one transaction marks the booking <b>confirmed</b> and the seats <b>sold</b>, if the hold is still theirs. Had they walked away, the hold would simply have expired."],
   ];
-  Viz.stepper("#viz-hld", { title: "Booking during an on-sale", sub: "Blue = working now, green = saved, yellow = waiting in line, red = rejected.", frames: F.map(([hl, eh, n]) => ({ view: fig(hl, eh), note: n })), speed: 3000 });
+  Viz.stepper("#viz-final", { title: "Booking during an on-sale", sub: "Blue = working now, green = saved, yellow = waiting in line, red = rejected.", frames: F.map(([hl, eh, n]) => ({ view: fig(hl, eh), note: n })), speed: 3000 });
 
   /* ---------- seat race simulator ---------- */
   const FANS = { "300": 300, "2,000": 2000, "10,000": 10000 }, MODES = ["Read, then write", "Conditional update"], ROOM = ["Off", "On"];
