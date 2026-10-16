@@ -2120,6 +2120,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 16 of 20 · Level 4: Build AI features</div>
     <h1>Building agents and MCP servers</h1>
     <p class="lede">In Module 07 you watched the agent loop from the outside. Now you write it: about twenty lines of code, a few well-described tools, and the limits that keep it safe. Then you turn your own system into an MCP server, so every agent from Module 10 can use it.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2350,7 +2351,22 @@ def run_agent(task, max_turns=10):
   ];
   const E = [["task", "model"], ["model", "check"], ["check", "run", "yes"], ["run", "budget", "result"], ["budget", "model", "next turn"], ["check", "done", "no"]];
   const fl = (hl, eh) => Viz.flow(N, E, { width: 680, height: 210, hl, edgeHl: eh, title: "Agent loop" });
-  $("fig-loop").innerHTML = fl({ budget: "warm", done: "found" }, {});
+  Viz.scene("#fig-loop", {
+    title: "The loop you write", sub: "<b>Blue</b> = messages, <b>teal</b> = tool requests, <b>green</b> = results, <b>red</b> = the leash stepping in.",
+    nodes: N, edges: E, width: 680, height: 210,
+    steps: [
+      { hl: { task: "active", model: "active" }, moves: [{ e: "task>model", t: "task", k: "req" }, { e: "model>check", t: "tool_use", k: "evt", delay: 1.1 }], hold: 3.4,
+        note: "The task becomes the first message, sent with the system prompt and the tool list. The model asks for a tool." },
+      { hl: { check: "active", run: "active" }, moves: [{ e: "check>run", t: "get_order", k: "evt" }], pops: [{ n: "run", t: "allowed? then run", k: "ok", at: 1.4 }],
+        note: "A tool was requested, so <b>your code</b> checks the request is allowed and runs it. The model never touches the system itself." },
+      { hl: { run: "found", budget: "active", model: "active" }, moves: [{ e: "run>budget", t: "tool_result", k: "ok" }, { e: "budget>model", t: "turn 1 of 10", k: "req", delay: 1.1 }], pops: [{ n: "budget", t: "budget OK", k: "ok", at: 1.3 }], hold: 3.4,
+        note: "The result goes back as a <b>tool_result</b>. One turn of ten used, so the loop continues." },
+      { hl: { model: "active", check: "active", done: "found" }, moves: [{ e: "model>check", t: "text", k: "ok" }, { e: "check>done", t: "no tool", k: "ok", delay: 1.1 }], pops: [{ n: "done", t: "return it", k: "ok", at: 2.2 }], hold: 3.4,
+        note: "No tool requested this time: the loop returns the text. Two turns, one tool call, every step logged." },
+      { hl: { check: "active", run: "bad", budget: "bad" }, moves: [{ e: "check>run", t: "same call again", k: "bad" }, { e: "run>budget", t: "result", k: "bad", delay: 1.1 }], pops: [{ n: "budget", t: "10 of 10: stop", k: "bad", at: 2.3 }], hold: 3.6,
+        note: "A stuck run repeats itself. The <b>leash</b> ends it at the turn budget instead of letting it spend forever." },
+    ],
+  });
 
   const card = (cls, h, t) => `<div class="msg ${cls}"><b>${h}</b>${Viz.esc(t)}</div>`;
   const f = [
@@ -2480,7 +2496,29 @@ print(result.final_output)`,
     { id: "other", x: 470, y: 165, w: 140, label: "Another agent", sub: "any vendor, via A2A" },
   ];
   const E2 = [["user", "agent"], ["agent", "db", "MCP: tools + data"], ["agent", "other", "A2A: delegate a task"]];
-  $("fig-a2a").innerHTML = Viz.flow(N2, E2, { width: 560, height: 210, hl: { db: "active", other: "warm" }, title: "MCP vs A2A" });
+  Viz.scene("#fig-a2a", {
+    title: "MCP vs A2A", sub: "<b>Blue</b> = requests, <b>teal</b> = a delegated task, <b>green</b> = results.",
+    nodes: N2, edges: E2, width: 560, height: 210,
+    steps: [
+      { hl: { user: "active", agent: "active" }, moves: [{ e: "user>agent", t: "restock order", k: "req" }],
+        note: "A user gives your agent a job." },
+      { hl: { agent: "active", db: "found" }, moves: [{ e: "agent>db", t: "query stock", k: "req" }, { e: "agent>db", t: "levels", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "db", t: "MCP: tools + data", k: "req", at: 0.3 }], hold: 3.6,
+        note: "<b>MCP</b> connects your agent to tools and data: it calls a tool and gets the result back." },
+      { hl: { agent: "active", other: "found" }, moves: [{ e: "agent>other", t: "get quotes", k: "evt" }, { e: "agent>other", t: "3 quotes", k: "ok", back: true, delay: 1.4 }], pops: [{ n: "other", t: "A2A: another agent", k: "evt", at: 0.3 }], hold: 3.8,
+        note: "<b>A2A</b> hands a whole task to another agent, possibly from another vendor, which does its own work and reports back." },
+      { hl: { user: "found", agent: "found" }, moves: [{ e: "user>agent", t: "order ready", k: "ok", back: true }],
+        note: "MCP for tools, A2A for other agents: the two fit together." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "About twenty lines of loop, a few good tools, and a leash." },
+    { el: "#fig-loop", title: "2 · The loop you write", text: "Watch tool calls, results, a clean finish and a stuck run hitting the budget." },
+    { el: "#viz-loop", title: "3 · Step through it", text: "One run of the loop, turn by turn." },
+    { el: "#try", title: "4 · Turn budgets", text: "See what the budget does to easy, hard and stuck tasks; then write an MCP server." },
+    { el: "#fig-a2a", title: "5 · MCP vs A2A", text: "Tools and data on one side, other agents on the other." },
+    { el: "#remember", title: "6 · Remember it", text: "Brain, hands, loop, leash." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

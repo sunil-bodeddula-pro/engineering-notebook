@@ -2115,6 +2115,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 14 of 20 · Level 4: Build AI features</div>
     <h1>Model APIs and structured output</h1>
     <p class="lede">So far you've used AI through tools. Now you'll call models from your own code, to build AI features into a product. The API itself is simple. The skill is getting back data your program can trust, every time, which is what structured output is for.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2301,7 +2302,30 @@ svg.flow .fn { transition: opacity .35s ease; }
     { id: "val", x: 70, y: 190, w: 110, label: "Validate", sub: "then store" },
   ];
   const E = [["app", "req"], ["req", "api"], ["api", "res"], ["res", "val"]];
-  document.getElementById("fig-api").innerHTML = Viz.flow(N, E, { width: 560, height: 225, hl: { val: "warm" }, title: "API request and response" });
+  Viz.scene("#fig-api", {
+    title: "A request and a response", sub: "<b>Blue</b> = what you send, <b>green</b> = data you can trust, <b>red</b> = a response you must reject.",
+    nodes: N, edges: E, width: 560, height: 225,
+    steps: [
+      { hl: { app: "active", req: "active" }, moves: [{ e: "app>req", t: "invoice email", k: "req" }], pops: [{ n: "req", t: "+ a JSON schema", k: "req", at: 1.4 }],
+        note: "Your server builds a request: the model, a system prompt, the messages, and a <b>schema</b> for the four fields you need." },
+      { hl: { req: "active", api: "active" }, moves: [{ e: "req>api", t: "request", k: "req" }], pops: [{ n: "api", t: "output fits the schema", k: "ok", at: 1.4 }],
+        note: "With structured output, the model's answer is constrained to fit the schema: the right fields, the right types." },
+      { hl: { api: "active", res: "found" }, moves: [{ e: "api>res", t: "supplier, total…", k: "ok" }], pops: [{ n: "res", t: "stop reason ✓ · usage logged", k: "ok", at: 1.4 }],
+        note: "Check the <b>stop reason</b> (did it finish normally?) and log the <b>usage</b> for cost, on every call." },
+      { hl: { res: "found", val: "found" }, moves: [{ e: "res>val", t: "JSON", k: "ok" }], pops: [{ n: "val", t: "rules pass → store", k: "ok", at: 1.4 }],
+        note: "Your code checks the business rules a schema can't express (total above zero, date not in the future), then stores it." },
+      { hl: { api: "active", res: "bad", val: "bad" }, moves: [{ e: "api>res", t: "stop: max tokens", k: "bad" }, { e: "res>val", t: "cut off", k: "bad", delay: 1.1 }], pops: [{ n: "val", t: "reject, don't store", k: "bad", at: 2.3 }], hold: 3.6,
+        note: "If the response was cut off, the data may be incomplete. Reject it. <b>The model suggests; your code decides.</b>" },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Calling a model is simple; getting data you can trust is the skill." },
+    { el: "#fig-api", title: "2 · Request and response", text: "Watch a schema shape the output, and a cut-off response get rejected." },
+    { el: "#viz-api", title: "3 · Prose vs schema", text: "The same invoice extracted twice: as a letter, then as a form." },
+    { el: "#try", title: "4 · Three APIs", text: "The same request in Claude, OpenAI and Gemini code." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for model APIs." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   const card = (cls, h, t) => `<div class="msg ${cls}"><b>${h}</b>${Viz.esc(t)}</div>`;
   const EMAIL = "Hi, attached is invoice INV-7731 from Acme Supplies, dated 3 October 2026. The total is £1,240.50, due in 30 days. Thanks, Priya";

@@ -2122,6 +2122,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 15 of 20 · Level 4: Build AI features</div>
     <h1>Embeddings and RAG: answering from your own documents</h1>
     <p class="lede">Models don't know your handbook, your tickets or your product docs, and those are too big to paste into every request. Retrieval-augmented generation (RAG) finds the few passages that matter and gives only those to the model. It's Module 03's "open book", automated, and the most common pattern in AI products.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2310,7 +2311,31 @@ svg.flow .fn { transition: opacity .35s ease; }
   ];
   const E = [["docs", "chunk"], ["chunk", "emb"], ["emb", "idx"], ["q", "ret"], ["idx", "ret", "", { bend: 30 }], ["ret", "rr"], ["rr", "gen"]];
   const fl = (hl, eh) => Viz.flow(N, E, { width: 580, height: 195, hl, edgeHl: eh, title: "RAG pipeline" });
-  document.getElementById("fig-rag").innerHTML = fl({ idx: "warm", gen: "found" }, {});
+  Viz.scene("#fig-rag", {
+    title: "The RAG pipeline", sub: "<b>Teal</b> = indexing, <b>blue</b> = a question, <b>green</b> = what reaches the model.",
+    nodes: N, edges: E, width: 580, height: 195,
+    steps: [
+      { hl: { docs: "active", chunk: "active", emb: "active", idx: "found" },
+        moves: [{ e: "docs>chunk", t: "handbook", k: "evt" }, { e: "chunk>emb", t: "chunks", k: "evt", delay: 1.0 }, { e: "emb>idx", t: "vectors", k: "evt", delay: 2.0 }], hold: 4,
+        note: "<b>Index</b>, once and whenever documents change: split into chunks, label each with where it came from, embed, and store vectors plus keywords." },
+      { hl: { q: "active", ret: "active", idx: "found" }, moves: [{ e: "q>ret", t: "refund window?", k: "req" }, { e: "idx>ret", t: "search", k: "evt", delay: 0.6 }], pops: [{ n: "ret", t: "top 50", k: "req", at: 2 }], hold: 3.4,
+        note: "<b>Fetch:</b> the question is embedded and searched by meaning <b>and</b> by keywords, filtered to what this user may see." },
+      { hl: { ret: "active", rr: "found" }, moves: [{ e: "ret>rr", t: "50 candidates", k: "req" }], pops: [{ n: "rr", t: "best 5", k: "ok", at: 1.4 }],
+        note: "A <b>reranker</b> reads each candidate next to the question and keeps the most relevant few." },
+      { hl: { rr: "found", gen: "found" }, moves: [{ e: "rr>gen", t: "5 chunks", k: "ok" }], pops: [{ n: "gen", t: "answer + citations", k: "ok", at: 1.4 }],
+        note: "<b>Cite:</b> the model answers only from those chunks, and cites each claim so a reader can check it." },
+      { hl: { rr: "bad", gen: "found" }, moves: [{ e: "rr>gen", t: "nothing relevant", k: "bad" }], pops: [{ n: "gen", t: "\"I couldn't find that\"", k: "ok", at: 1.4 }],
+        note: "When nothing relevant comes back, a good system says so instead of guessing." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Find the few passages that matter and give only those to the model." },
+    { el: "#fig-rag", title: "2 · The pipeline", text: "Watch documents get indexed once, then a question fetch, rerank and cite." },
+    { el: "#viz-rag", title: "3 · Step through it", text: "Every stage, from chunking to a cited answer." },
+    { el: "#try", title: "4 · The meaning map", text: "Pick a question and see which chunks are closest by meaning." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for RAG." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   const card = (cls, h, t) => `<div class="msg ${cls}"><b>${h}</b>${t}</div>`;
   const f = [
