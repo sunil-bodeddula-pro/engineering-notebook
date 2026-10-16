@@ -988,7 +988,7 @@
   function queueRoughen() { if (!sketchQueued) { sketchQueued = true; requestAnimationFrame(roughenAll); } }
   function setSketch(on, btn) {
     document.documentElement.classList.toggle("sketch", on);
-    if (btn) btn.setAttribute("aria-pressed", String(on));
+    document.querySelectorAll(".sketch-toggle").forEach((b) => b.setAttribute("aria-pressed", String(on)));
     store.set(SKETCH_KEY, on ? "1" : "0");
     if (!on) { document.querySelectorAll("svg.flow .rough").forEach((n) => n.remove()); if (sketchObs) sketchObs.disconnect(); return; }
     loadRough().then(() => {
@@ -996,7 +996,7 @@
       roughenAll();
     }, () => {
       document.documentElement.classList.remove("sketch");
-      if (btn) { btn.setAttribute("aria-pressed", "false"); btn.title = "Sketch mode needs an internet connection"; }
+      document.querySelectorAll(".sketch-toggle").forEach((b) => { b.setAttribute("aria-pressed", "false"); b.title = "Sketch mode needs an internet connection"; });
     });
   }
   function bootSketch() {
@@ -1007,7 +1007,10 @@
     btn.title = "Draw diagrams in a hand-sketched whiteboard style";
     btn.innerHTML = '<span aria-hidden="true">✎</span><span class="sketch-label">Sketch</span>';
     bar.insertBefore(btn, bar.querySelector(".nav-toggle"));
-    btn.addEventListener("click", () => setSketch(btn.getAttribute("aria-pressed") !== "true", btn));
+    // On phones the top bar has no room: the same toggle lives in the menu drawer instead.
+    const nav = document.getElementById("sidenav"), inNav = btn.cloneNode(true);
+    if (nav) { inNav.classList.add("in-nav"); nav.insertBefore(inNav, nav.querySelector(".sn-title")); }
+    [btn, inNav].forEach((b) => b.addEventListener("click", () => setSketch(b.getAttribute("aria-pressed") !== "true", b)));
     if (store.get(SKETCH_KEY) === "1") setSketch(true, btn);
   }
 
