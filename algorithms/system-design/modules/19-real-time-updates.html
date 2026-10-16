@@ -2202,7 +2202,100 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>WebTransport</strong>, built on HTTP/3 and QUIC, offers multiplexed streams and unreliable datagrams to browsers. It's newer and support varies by browser, so check before relying on it.</li>
       <li><strong>Scale numbers:</strong> one well-tuned server can hold hundreds of thousands of mostly idle WebSocket connections; memory per connection and the message rate are the limits, not the count alone.</li>
     </ul>
-    <p><strong>In an interview</strong>, name both hops: "clients connect over WebSockets to a stateless gateway tier behind an L4 load balancer; gateways subscribe to per-user channels in a sharded Redis pub/sub; messages are stored first, so reconnecting clients fetch what they missed by sequence number."</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Name both hops. Hop 1: <q>polling, unless real-time is core; SSE for one-way push; WebSockets only for frequent two-way messages.</q> Hop 2: <q>a stateless gateway tier subscribed to per-user channels in a sharded pub/sub, with messages stored first so reconnecting clients catch up by sequence number.</q></div>
+
+    <section class="tech" id="t-poll">
+      <div class="tech-h"><h3>Polling and long polling</h3><span class="tech-status s-default">The default start · simplest</span></div>
+      <p>The client keeps asking. Plain polling asks every few seconds; long polling asks once and the server holds the request open until there's news.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Polling:</strong> <code>GET /messages?since=917</code> every N seconds. Every server stays stateless, but delay is up to N, and most requests return nothing: 1 million clients polling every 10 s is 100,000 requests per second.</li><li><strong>Long polling:</strong> the server answers when data arrives (or after 20–30 s), and the client immediately asks again. Lower delay with plain HTTP; align load balancer timeouts with the hold time.</li></ul>
+      <div id="sc-push"></div>
+      <h4>Status today</h4>
+      <p>Works everywhere, through every proxy and firewall. Still the right answer for many "live" screens refreshed every few seconds.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Real-time isn't the core of the problem</li><li>Infrequent updates, or waiting for one async result (payment status)</li><li>You want to spend the interview time on something else</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Chat, games and anything needing sub-second, frequent updates</li><li>Huge numbers of clients polling often (wasted load)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'll start with polling every few seconds so we can focus on the matching logic; if latency matters we can move to SSE.</q> Senior interviews reward the simpler choice when it's enough.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Jumping to WebSockets</strong> for updates nobody needs within a second.</li><li><strong>Not doing the load math:</strong> clients ÷ interval = requests per second, mostly empty.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-sse">
+      <div class="tech-h"><h3>Server-sent events (SSE)</h3><span class="tech-status s-situational">Situational · one-way push</span></div>
+      <p>One long HTTP response that the server keeps writing events into. The browser's <code>EventSource</code> reconnects automatically and resumes from the last event ID.</p>
+      <h4>How it works</h4>
+      <p>Plain HTTP, server to client only; the client sends its own actions as normal POSTs. Serve it over HTTP/2, because HTTP/1.1 browsers allow only six connections per domain. Some proxies buffer streamed responses, so disable buffering on that path.</p>
+      <h4>Status today</h4>
+      <p>Part of the HTML standard and supported by all modern browsers. Most AI chat products stream tokens this way (or with a similar streamed response).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Live feeds, dashboards, notifications, auction prices</li><li>Streaming AI answers token by token</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Frequent messages from the client too (chat, games)</li><li>Binary data</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Prices only flow to the client, so SSE: plain HTTP, automatic reconnect with the last event ID. Bids go over normal POSTs.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Using WebSockets for one-way push</strong> without a reason; SSE is simpler to run.</li><li><strong>Forgetting writes still need a normal endpoint</strong>, since SSE can't carry client messages.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-ws">
+      <div class="tech-h"><h3>WebSockets</h3><span class="tech-status s-situational">Situational · frequent two-way traffic</span></div>
+      <p>An HTTP request upgraded into a persistent, two-way connection with small message frames.</p>
+      <h4>How it works</h4>
+      <ul><li>Low overhead per message once open, in both directions.</li><li><strong>Stateful:</strong> each user is pinned to one server. Deploys drop connections, load gets uneven, and you build heartbeats, reconnects and replay of missed messages yourself.</li><li>Run them in a dedicated connection-gateway tier that only holds sockets, behind an L4 (or long-timeout L7) balancer using least connections.</li></ul>
+      <h4>Status today</h4>
+      <p>Standardised (RFC 6455) and universal. Managed options include AWS API Gateway WebSocket APIs, Azure Web PubSub, Ably and Pusher.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Chat, multiplayer games, collaborative editing</li><li>High-frequency messages in both directions</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>One-way updates (SSE)</li><li>Updates every few seconds or slower (polling)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Clients hold WebSockets to a thin gateway tier behind an L4 load balancer; business logic stays in stateless services.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choosing it too eagerly.</strong> The interviewer will ask about reconnects, deploys and uneven load.</li><li><strong>Business logic inside the socket servers</strong>, so every deploy disconnects everyone.</li><li><strong>No plan for missed messages:</strong> store first, then let reconnecting clients fetch by sequence number.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-webrtc">
+      <div class="tech-h"><h3>WebRTC</h3><span class="tech-status s-rare">Specialised · audio and video only</span></div>
+      <p>Peer-to-peer media and data between browsers or apps, over UDP.</p>
+      <h4>How it works</h4>
+      <ul><li>Peers exchange connection details through a <strong>signalling</strong> server (often a WebSocket).</li><li><strong>STUN</strong> lets each peer discover its public address so they can connect through NAT; when that fails, a <strong>TURN</strong> server relays the traffic.</li><li>Group calls usually send media through an <strong>SFU</strong> (selective forwarding unit) instead of every peer connecting to every other.</li></ul>
+      <h4>Status today</h4>
+      <p>Built into all major browsers and mobile platforms; it powers browser video calling. Running TURN and SFU servers at scale is real infrastructure work.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Voice and video calls, screen sharing</li><li>Very low-latency peer data (some games, cursors in collaborative tools)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Chat, notifications or any server-to-client update</li><li>Anything that must be stored or moderated centrally</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only for calls: <q>Media goes peer-to-peer over WebRTC with TURN as fallback; signalling over our WebSocket gateway.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing WebRTC for chat messages or feeds.</strong></li><li><strong>Naming it without signalling, STUN and TURN:</strong> peers can't simply connect through NAT.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-pubsub">
+      <div class="tech-h"><h3>Pub/sub fan-out (hop 2)</h3><span class="tech-status s-default">The default for hop 2</span></div>
+      <p>How an update reaches the server holding the recipient's connection: connection servers subscribe to channels (per user or per room) and publishers post to them.</p>
+      <h4>How it works</h4>
+      <ul><li>Gateways subscribe to <code>user:42</code> when 42 connects; any service publishes to <code>user:42</code> without knowing where 42 is.</li><li><strong>Redis pub/sub is at-most-once:</strong> a subscriber that's offline misses the message. So store messages first, and use pub/sub only as the "wake up" signal.</li><li>At scale, shard the bus (sharded pub/sub in Redis 7+ Cluster) or use Kafka or NATS.</li></ul>
+      <h4>Status today</h4>
+      <p>The common production pattern (Redis or Valkey pub/sub, NATS, Kafka-backed buses, or a managed service).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Chat, notifications, broadcasting small messages to many clients</li><li>Whenever connection servers are interchangeable</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Heavy per-session state that must live on one server (next block)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Gateways subscribe to per-user channels in a sharded Redis pub/sub; messages are written to the database first, so reconnecting clients catch up by sequence number.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Treating Redis pub/sub as durable.</strong> It forgets messages for anyone not connected.</li><li><strong>Building your own subscriber registry in a key:</strong> extra hops and stale entries; let the pub/sub layer do it.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-ringowner">
+      <div class="tech-h"><h3>Stateful servers on a hash ring</h3><span class="tech-status s-rare">Specialised · heavy per-session state</span></div>
+      <p>Each document or session is owned by one server, chosen by consistent hashing; every client for that document connects to its owner.</p>
+      <h4>How it works</h4>
+      <p>A coordinator (ZooKeeper or etcd) tracks which servers are alive; clients and senders hash the document ID to find the owner. Scaling means moving ownership carefully: announce the change, move clients gradually, send to both owners meanwhile.</p>
+      <h4>Status today</h4>
+      <p>Used where one server must hold heavy in-memory state, such as collaborative editors (Design D19).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Collaborative documents, game rooms, anything with large per-session state</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Chat and notifications: pub/sub is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only for heavy state: <q>Each document is owned by one server on a consistent-hash ring, so all edits for it meet in one place.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Reaching for it in a chat design.</strong> It adds a coordinator and rebalancing for no gain.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2279,6 +2372,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>A dashboard updated once a minute, viewed by 50 people. Simplest good option?</p>
         <div class="opts"><button>WebSockets with pub/sub</button><button>Polling every few seconds</button><button>WebRTC</button></div>
         <div class="why">Tiny load, no persistent connections, nothing new to operate.</div>
+      </div>
+      <div class="quiz-q" data-answer="SSE for prices, POST for bids">
+        <p>An auction page shows live prices; bids are rare and go through a button. Which delivery fits best?</p>
+        <div class="opts"><button>WebSockets for everything</button><button>SSE for prices, POST for bids</button><button>WebRTC</button></div>
+        <div class="why">Prices only flow server → client, so SSE is enough and simpler to run; bids are ordinary requests.</div>
+      </div>
+      <div class="quiz-q" data-answer="Pub/sub forgets messages for anyone not connected">
+        <p>Why store a chat message before publishing it to Redis pub/sub?</p>
+        <div class="opts"><button>Pub/sub is slower than the database</button><button>Pub/sub forgets messages for anyone not connected</button><button>To keep the order of messages</button></div>
+        <div class="why">Redis pub/sub is at-most-once. Storing first means a reconnecting client can fetch what it missed by sequence number.</div>
       </div>
     </div>
 
@@ -2402,9 +2505,26 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · Routing a message", text: "Watch pub/sub find the server holding the recipient's connection." },
     { el: "#viz-rt", title: "3 · Step through it", text: "Hop 2 frame by frame." },
     { el: "#cost", title: "4 · What each option costs", text: "Polling, long polling, SSE and WebSockets for your numbers." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "Polling, SSE, WebSockets, WebRTC and pub/sub: when each fits, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-push", {
+    title: "Four ways to get an update to the browser", sub: "<b>Blue</b> = client requests, <b>teal</b> = server pushes, <b>red</b> = wasted or waiting.",
+    nodes: [{ id: "c", x: 80, y: 105, w: 120, label: "Browser" }, { id: "s", x: 600, y: 105, w: 120, label: "Server" }],
+    edges: [["c", "s"]],
+    width: 680, height: 190,
+    steps: [
+      { hl: { c: "active", s: "active" }, moves: [0, 1, 2].map((i) => ({ e: "c>s", t: "anything new?", k: "req", delay: i * 1.1 })).concat([0, 1].map((i) => ({ e: "c>s", t: "no", k: "bad", back: true, delay: 0.7 + i * 1.1 })), [{ e: "c>s", t: "yes: 1 message", k: "ok", back: true, delay: 2.9 }]), pops: [{ n: "c", t: "polling: mostly empty", k: "bad", at: 1.0 }], hold: 4.6,
+        note: "<b>Polling:</b> ask every few seconds. Simple and stateless, but most answers are empty and the delay is up to one interval." },
+      { hl: { c: "active", s: "warm" }, moves: [{ e: "c>s", t: "wait for news", k: "req" }, { e: "c>s", t: "message", k: "ok", back: true, delay: 2.0 }, { e: "c>s", t: "wait again", k: "req", delay: 3.0 }], pops: [{ n: "s", t: "holds the request", k: "evt", at: 1.0 }], hold: 4.4,
+        note: "<b>Long polling:</b> the server holds the request until there's news, answers, and the client asks again." },
+      { hl: { c: "found", s: "active" }, moves: [{ e: "c>s", t: "open stream", k: "req" }].concat([0, 1, 2].map((i) => ({ e: "c>s", t: "event " + (i + 1), k: "evt", back: true, delay: 1.0 + i * 0.8 }))), pops: [{ n: "s", t: "SSE: one-way", k: "evt", at: 0.9 }], hold: 4.2,
+        note: "<b>Server-sent events:</b> one long response the server keeps writing into. Server → client only." },
+      { hl: { c: "found", s: "found" }, moves: [{ e: "c>s", t: "upgrade", k: "req" }, { e: "c>s", t: "typing…", k: "evt", back: true, delay: 1.0 }, { e: "c>s", t: "message", k: "req", delay: 1.6 }, { e: "c>s", t: "delivered", k: "evt", back: true, delay: 2.3 }], pops: [{ n: "c", t: "WebSocket: both ways", k: "ok", at: 1.0 }], hold: 4.2,
+        note: "<b>WebSocket:</b> one persistent connection, messages both ways. Powerful, but stateful: plan for reconnects and deploys." },
+    ],
+  });
 })();
 </script>
 </body>
