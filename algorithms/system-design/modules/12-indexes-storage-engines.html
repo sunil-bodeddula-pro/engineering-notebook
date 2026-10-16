@@ -2230,7 +2230,109 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>LSM everywhere:</strong> RocksDB, an embeddable LSM engine, sits under many systems: TiKV, MySQL's MyRocks engine, and the state stores of Kafka Streams and Flink. Cassandra and ScyllaDB expose LSM behaviour directly: fast writes, tombstones for deletes, and compaction strategies to tune.</li>
       <li><strong>Bloom filters</strong> appear far beyond LSM trees: caches use them to skip lookups for keys that don't exist, and crawlers to skip URLs already seen.</li>
     </ul>
-    <p><strong>In an interview</strong>, for every important query say which index serves it: "<code>GET /users/{id}/orders</code> needs an index on <code>orders(user_id, created_at)</code>." For write-heavy ingestion (metrics, chat messages, events), mention an LSM-based store and why.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>For every important query, say which index serves it: <q><code>GET /users/{id}/orders</code> needs an index on <code>orders(user_id, created_at)</code>.</q> Default to B-trees. Location search → geohash cells (or PostGIS for shapes); text search → an inverted index; write-heavy ingestion → an LSM-based store.</div>
+
+    <section class="tech" id="t-btree">
+      <div class="tech-h"><h3>B-tree indexes</h3><span class="tech-status s-default">The default · when in doubt</span></div>
+      <p>The sorted, shallow tree behind nearly every database index: equality, ranges, sorting and prefix matches.</p>
+      <h4>How it works</h4>
+      <p>Covered above: a few page reads per lookup, leaf pages linked for range scans, composite indexes ordered by their leftmost columns. The cost is on writes: every insert or update also updates each index, and each index takes disk (sometimes close to the table's size).</p>
+      <h4>Status today</h4>
+      <p>The default in PostgreSQL, MySQL, SQL Server, Oracle and MongoDB; primary keys and unique constraints get one automatically.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every column your key queries filter, join or sort on</li><li>Composite indexes for filter + sort: equality columns first, then the range or sort column</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Write-heavy, rarely-read tables (raw logs)</li><li>Tiny tables, which are faster to scan</li><li>Text search inside strings, and 2D location queries (blocks below)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>For each key query, name its index: <q><code>GET /users/{id}/orders</code> needs an index on <code>orders(user_id, created_at)</code>.</q> Under-indexing hurts far more than over-indexing, so add them confidently.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Never mentioning indexes</strong>, then adding a cache to fix a slow query that an index would solve.</li><li><strong>The wrong composite order:</strong> an index on <code>(created_at, user_id)</code> can't serve "this user's latest".</li><li><strong>Indexing every column "just in case"</strong>: slower writes, wasted memory.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-lsm">
+      <div class="tech-h"><h3>LSM-tree storage engines</h3><span class="tech-status s-situational">Situational · write-heavy ingestion</span></div>
+      <p>Storage engines that never update in place: writes go to memory and are flushed as sorted, immutable files that are merged in the background.</p>
+      <h4>How it works</h4>
+      <p>Write path: write-ahead log + memtable → flush to an SSTable → background <strong>compaction</strong> merges files. Read path: memtable, then SSTables newest first, skipping files with <strong>bloom filters</strong>. Writes are fast and sequential; reads may touch several files.</p>
+      <h4>Status today</h4>
+      <p>Behind Cassandra, ScyllaDB, RocksDB (and the systems built on it), HBase and Bigtable. DynamoDB-style stores and many time-series databases use similar ideas.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Writes far outnumber reads: metrics, logs, events, chat messages, IoT</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Read-heavy user-facing apps: a B-tree database is the better default</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Ingestion is 500k events a second, append-only, so an LSM-based store like Cassandra: sequential writes, compaction in the background.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Use a faster database"</strong> without saying why LSM writes are faster (append-only, no in-place page updates).</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-geohash">
+      <div class="tech-h"><h3>Geohash and cell IDs on a normal index</h3><span class="tech-status s-default">The default for moving points</span></div>
+      <p>Turn latitude and longitude into a sortable cell key, then use an ordinary B-tree or sorted set. Nearby places share a prefix.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Why a plain index fails:</strong> a B-tree sorts on one dimension, so an index on latitude (even a composite one) returns a whole strip of the map, then checks every row in it.</li>
+        <li><strong>Geohash:</strong> the world is split into 32 cells, each split into 32 more, one base-32 character per level: 5 characters ≈ 5 km cells, 6 ≈ 1 km, 9 ≈ 5 m. Search with a prefix scan (<code>WHERE geohash LIKE '9q8yy%'</code>).</li>
+        <li><strong>The boundary problem:</strong> a driver 10 m away may sit in the next cell with a different prefix. So query the <strong>3×3 block</strong> (your cell and its 8 neighbours), then <strong>post-filter</strong> by exact distance.</li>
+        <li>A moving driver is one cheap integer or string update, which scales to millions of updates a second. Redis <code>GEOADD</code>/<code>GEOSEARCH</code> stores a 52-bit geohash as a sorted-set score.</li>
+      </ul>
+      <div id="sc-geo"></div>
+      <h4>Status today</h4>
+      <p>Battle-tested and simple: Redis GEO, plain database indexes, and most "nearby" features in interviews.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Moving points: drivers, couriers, friends' locations</li><li>"Within X km" searches over many items</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Shapes: delivery zones, road segments (spatial trees, next block)</li><li>About 1,000 items: just scan them</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Drivers report every few seconds into Redis GEO, keyed by geohash; a ride request searches the rider's cell and its 8 neighbours, then filters by exact distance.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Two separate indexes on latitude and longitude</strong> as the plan.</li><li><strong>Searching only the rider's own cell</strong>, missing the driver just across the border.</li><li><strong>No exact-distance post-filter</strong>: cells are squares, not circles.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-spatialtree">
+      <div class="tech-h"><h3>Spatial trees: R-tree, quadtree, k-d and BKD</h3><span class="tech-status s-situational">Situational · shapes and geometry</span></div>
+      <p>Tree indexes built for two dimensions, inside spatial databases and search engines.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>R-tree</strong> (GiST in PostGIS): wraps each object in a bounding rectangle and nests rectangles, like a B-tree of boxes. Handles points, lines and polygons: "which delivery zone contains this address?"</li>
+        <li><strong>Quadtree:</strong> splits a square into four whenever it holds too many points, so dense downtowns get deep trees and lakes stay coarse. Mostly in memory (map tiles, games).</li>
+        <li><strong>k-d → BKD tree:</strong> alternates x and y splits at the median, keeping the tree balanced; the BKD variant packs points into disk blocks. Elasticsearch uses it for geo fields. Built once, so it's poor for constantly moving points.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Mature: PostGIS (the default spatial extension for PostgreSQL), SQLite and Oracle Spatial use R-trees; Elasticsearch and OpenSearch use BKD trees.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Polygons and containment: zones, regions, geofences</li><li>Geo search combined with text search (Elasticsearch)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Millions of moving points updated every few seconds (geohash or H3 cells)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Delivery zones are polygons in PostGIS with a GiST index; "which zone contains this address" is one indexed query.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Building your own quadtree service</strong> when PostGIS or Redis GEO does the job; say what the product gives you first.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-s2h3">
+      <div class="tech-h"><h3>S2 and H3 cells</h3><span class="tech-status s-rare">Specialised · a bonus to name</span></div>
+      <p>Global cell systems from Google (S2) and Uber (H3) that improve on geohash's distortions.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>S2:</strong> projects a cube onto the sphere; cells are roughly equal in area and have 64-bit hierarchical IDs (truncate for the parent cell). MongoDB's <code>2dsphere</code> index uses it.</li><li><strong>H3:</strong> hexagons, so every neighbour is the same distance away and "rings" around a cell are clean. Uber uses it for dispatch and pricing heat maps: look up the rider's cell plus a ring, widen if needed, then post-filter.</li></ul>
+      <h4>Status today</h4>
+      <p>Both open source and widely used; H3 has libraries in most languages and database extensions.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Global scale, high latitudes, or analytics over evenly sized cells (H3 heat maps)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Most interviews: geohash makes the same point more simply</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>A bonus line after geohash: <q>At Uber scale you'd use H3 hexagons, which have equidistant neighbours.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Leading with H3 or S2</strong> before explaining why a normal index fails. The insight scores; the name is a bonus.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-hashidx">
+      <div class="tech-h"><h3>Hash indexes</h3><span class="tech-status s-rare">Rare · don't over-emphasise</span></div>
+      <p>An index that maps a key straight to its location: O(1) exact matches, but no ranges and no sorting.</p>
+      <h4>How it works</h4>
+      <p>Common inside in-memory stores (Redis's main dictionary is a hash table). On disk, B-trees handle equality almost as well and also do ranges, so hash indexes are seldom chosen.</p>
+      <h4>Status today</h4>
+      <p>Available in PostgreSQL but rarely used; standard inside in-memory key-value stores.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>In-memory lookups by exact key</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Anything needing ranges, sorting or prefix matches</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Usually unsaid. If asked: <q>A B-tree handles equality nearly as fast and also gives ranges.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choosing a hash index on disk for speed</strong> and losing range queries.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2309,6 +2411,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Which workload most favours an LSM-based store?</p>
         <div class="opts"><button>A bank's account ledger with complex queries</button><button>Write-heavy event ingestion</button><button>A small admin dashboard</button></div>
         <div class="why">Sequential, batched writes make LSMs excel at high write rates such as events, metrics and messages.</div>
+      </div>
+      <div class="quiz-q" data-answer="It sorts by one dimension first, so it returns a whole strip of the map">
+        <p>Why can't a composite B-tree index on (latitude, longitude) answer "drivers within 1 km" efficiently?</p>
+        <div class="opts"><button>B-trees can't store decimals</button><button>It sorts by one dimension first, so it returns a whole strip of the map</button><button>It can, as long as both columns are indexed</button></div>
+        <div class="why">Latitude narrows to a band around the world; longitude can't narrow inside it. Geohash turns 2D into one sortable key.</div>
+      </div>
+      <div class="quiz-q" data-answer="Search the 8 neighbouring cells, then filter by exact distance">
+        <p>A geohash search returns the drivers in the rider's cell. What two steps are missing?</p>
+        <div class="opts"><button>Add a cache, then sort by name</button><button>Search the 8 neighbouring cells, then filter by exact distance</button><button>Increase the geohash length, then retry</button></div>
+        <div class="why">Nearby drivers can sit across a cell border, and cells are squares rather than circles.</div>
       </div>
     </div>
 
@@ -2427,9 +2539,27 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-bt", title: "3 · A B-tree lookup", text: "Step through finding key 42." },
     { el: "#viz-lsm", title: "4 · LSM trees", text: "The write-optimised alternative: memtable, flushes and compaction." },
     { el: "#depth", title: "5 · How deep is the index?", text: "Change rows and key size and see the levels and lookup cost." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "B-trees, LSM engines, geohash, spatial trees, S2/H3: when each fits, and the red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-geo", {
+    title: "Geohash search: your cell, its 8 neighbours, then filter", sub: "<b>Blue</b> = cells searched, <b>red</b> = a missed driver, <b>green</b> = found.",
+    nodes: [{ id: "q", x: 85, y: 140, w: 120, label: "Rider", sub: "nearest drivers?" }, { id: "nw", x: 300, y: 60, w: 90, h: 60, label: "cell NW" }, { id: "n", x: 400, y: 60, w: 90, h: 60, label: "cell N" }, { id: "ne", x: 500, y: 60, w: 90, h: 60, label: "cell NE" }, { id: "w", x: 300, y: 140, w: 90, h: 60, label: "cell W" }, { id: "c", x: 400, y: 140, w: 90, h: 60, label: "9q8yy", sub: "rider's cell" }, { id: "e", x: 500, y: 140, w: 90, h: 60, label: "cell E" }, { id: "sw", x: 300, y: 220, w: 90, h: 60, label: "cell SW" }, { id: "s", x: 400, y: 220, w: 90, h: 60, label: "cell S" }, { id: "se", x: 500, y: 220, w: 90, h: 60, label: "cell SE" }],
+    edges: [["q", "nw"], ["q", "n"], ["q", "ne"], ["q", "w"], ["q", "c"], ["q", "e"], ["q", "sw"], ["q", "s"], ["q", "se"]],
+    width: 580, height: 280,
+    steps: [
+      { hl: { q: "active", c: "active" }, moves: [{ e: "q>c", t: "prefix 9q8yy", k: "req" }], pops: [{ n: "c", t: "2 drivers in cell", k: "ok", at: 1.4 }],
+        note: "The rider's location encodes to <b>9q8yy</b>. A prefix scan on an ordinary index returns the drivers in that cell." },
+      { hl: { q: "active", c: "active", e: "bad" }, pops: [{ n: "e", t: "closest driver, 40 m away!", k: "bad", at: 0.4 }],
+        note: "But the closest driver is just across the cell border, with a different prefix. Searching one cell misses them: the <b>boundary problem</b>." },
+      { hl: { q: "active", nw: "active", n: "active", ne: "active", w: "active", c: "active", e: "found", sw: "active", s: "active", se: "active" },
+        moves: [{ e: "q>nw", t: "scan", k: "req", delay: 0.00 }, { e: "q>n", t: "scan", k: "req", delay: 0.12 }, { e: "q>ne", t: "scan", k: "req", delay: 0.24 }, { e: "q>w", t: "scan", k: "req", delay: 0.36 }, { e: "q>c", t: "scan", k: "req", delay: 0.48 }, { e: "q>e", t: "scan", k: "req", delay: 0.60 }, { e: "q>sw", t: "scan", k: "req", delay: 0.72 }, { e: "q>s", t: "scan", k: "req", delay: 0.84 }, { e: "q>se", t: "scan", k: "req", delay: 0.96 }], hold: 3.6,
+        note: "So search the <b>3×3 block</b>: the rider's cell and its 8 neighbours. Nine cheap prefix scans." },
+      { hl: { q: "found", c: "found", e: "found" }, pops: [{ n: "q", t: "keep those within 1 km", k: "ok", at: 0.4 }],
+        note: "Cells are squares, not circles, so <b>post-filter</b> the candidates by exact distance and sort. A spatial index only narrows the search; the filter gives the answer." },
+    ],
+  });
 })();
 </script>
 </body>
