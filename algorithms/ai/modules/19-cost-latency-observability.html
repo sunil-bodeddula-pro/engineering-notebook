@@ -2128,6 +2128,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 19 of 20 · Level 5: Production</div>
     <h1>Cost, latency and observability</h1>
     <p class="lede">An AI feature that works in a demo can still fail in production: too slow, too expensive at scale, or quietly looping on some inputs. You can't fix what you can't see, so the first step is recording every model and tool call. Then the savings are usually easy to find.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2345,7 +2346,30 @@ svg.flow .fn { transition: opacity .35s ease; }
   ];
   const E = [["app", "span"], ["span", "col"], ["col", "alert"], ["col", "dash", "", { bend: 20 }], ["dash", "ev"]];
   const fl = (hl, eh) => Viz.flow(N, E, { width: 470, height: 195, hl, edgeHl: eh, title: "Observability pipeline" });
-  $("fig-obs").innerHTML = fl({ span: "warm" }, {});
+  Viz.scene("#fig-obs", {
+    title: "Find the costly bug", sub: "<b>Blue</b> = calls, <b>teal</b> = spans, <b>red</b> = the problem, <b>green</b> = the fix.",
+    nodes: N, edges: E, width: 470, height: 195,
+    steps: [
+      { hl: { app: "active", span: "active", col: "active" }, moves: [{ e: "app>span", t: "every call", k: "req" }, { e: "span>col", t: "spans", k: "evt", delay: 1.1 }], hold: 3.4,
+        note: "Every model and tool call emits a <b>span</b>: tokens, time, cost, and your own feature and customer tags." },
+      { hl: { col: "active", alert: "bad" }, moves: [{ e: "col>alert", t: "3× normal spend", k: "bad" }], pops: [{ n: "alert", t: "alert fires", k: "bad", at: 1.4 }],
+        note: "An alert fires: one feature is spending three times its normal amount." },
+      { hl: { col: "active", dash: "bad" }, moves: [{ e: "col>dash", t: "by feature, customer", k: "evt" }], pops: [{ n: "dash", t: "one customer", k: "bad", at: 1.4 }],
+        note: "Because spans carry tags, the dashboard points straight at one customer's runs." },
+      { hl: { dash: "bad" }, moves: [{ e: "col>dash", t: "one trace", k: "evt" }], pops: [{ n: "dash", t: "a search retried in a loop", k: "bad", at: 1.4 }],
+        note: "One trace shows the agent retrying a search that can never succeed: this customer's documents were never indexed." },
+      { hl: { dash: "found", ev: "found" }, moves: [{ e: "dash>ev", t: "trace → case", k: "ok" }], pops: [{ n: "ev", t: "can't come back silently", k: "ok", at: 1.4 }],
+        note: "Fix the cause, add a guard, and turn the trace into an <b>eval case</b>." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Record every model and tool call; then the savings are easy to find." },
+    { el: "#fig-obs", title: "2 · The pipeline", text: "Watch an alert lead to one customer, one trace, and a fix." },
+    { el: "#viz-obs", title: "3 · Step through it", text: "The same investigation, frame by frame." },
+    { el: "#try", title: "4 · Trim the bill", text: "Switch on cost levers and watch the monthly bill fall." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for cost and observability." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
   const card = (cls, h, t) => `<div class="msg ${cls}"><b>${h}</b>${Viz.esc(t)}</div>`;
   const f = [
     { view: `<div class="obs">${fl({ alert: "bad" }, {})}${card("bad", "Alert, Tuesday 09:10", "support-answer: spend 3.2× the 7-day average")}</div>`, note: "An alert fires: one feature is spending three times its normal amount." },

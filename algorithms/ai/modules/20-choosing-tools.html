@@ -2129,6 +2129,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 20 of 20 · Level 5: Production</div>
     <h1>Choosing tools and staying current</h1>
     <p class="lede">New models and tool features ship every week, and every launch claims to change everything. You don't need to chase them. Pick tools by testing them on your own work, and keep up with a small routine built on primary sources. The concepts from this course change slowly; the buttons change monthly.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2324,7 +2325,30 @@ svg.flow .fn { transition: opacity .35s ease; }
   ];
   const E = [["wk", "mo"], ["mo", "qt"], ["qt", "dec"], ["dec", "setup"], ["setup", "wk", "", { bend: 30 }]];
   const fl = (hl, eh) => Viz.flow(N, E, { width: 540, height: 195, hl, edgeHl: eh, title: "Staying-current routine" });
-  $("fig-rt").innerHTML = fl({ qt: "warm" }, {});
+  Viz.scene("#fig-rt", {
+    title: "A light routine", sub: "<b>Teal</b> = news, <b>blue</b> = trying it, <b>green</b> = evidence and decisions.",
+    nodes: N, edges: E, width: 540, height: 195,
+    steps: [
+      { hl: { wk: "active", mo: "active" }, moves: [{ e: "wk>mo", t: "one item worth trying", k: "evt" }],
+        note: "<b>Weekly</b>, 15 minutes: skim the changelogs of the tools you use. Most items need nothing from you." },
+      { hl: { mo: "active", qt: "active" }, moves: [{ e: "mo>qt", t: "tried on real work", k: "req" }],
+        note: "<b>Monthly</b>: try one change on a real task, not a toy demo." },
+      { hl: { qt: "active", dec: "found" }, moves: [{ e: "qt>dec", t: "scorecard + evals", k: "ok" }],
+        note: "<b>Quarterly</b>: re-run your scorecard tasks and your evals with the current versions." },
+      { hl: { dec: "found", setup: "active" }, moves: [{ e: "dec>setup", t: "keep · add · switch", k: "ok" }], pops: [{ n: "setup", t: "portable setup", k: "ok", at: 1.4 }],
+        note: "Decide on evidence, then update your setup. Because AGENTS.md, skills and MCP are portable, adding a tool is cheap." },
+      { hl: { setup: "active", wk: "active" }, moves: [{ e: "setup>wk", t: "next week", k: "evt" }],
+        note: "And round again. The concepts change slowly; the buttons change monthly." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Test tools on your own work, and keep up with a small routine." },
+    { el: "#fig-rt", title: "2 · The routine", text: "Weekly, monthly, quarterly: watch news turn into evidence and decisions." },
+    { el: "#viz-trial", title: "3 · A tool trial", text: "Step through testing a new tool on real work." },
+    { el: "#try", title: "4 · Your scorecard", text: "Weight what matters to you and score each tool." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for staying current." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   const card = (cls, h, t) => `<div class="msg ${cls}"><b>${h}</b>${Viz.esc(t)}</div>`;
   const wrap = (x) => `<div class="rt">${x}</div>`;
