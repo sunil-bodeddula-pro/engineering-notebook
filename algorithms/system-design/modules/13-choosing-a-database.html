@@ -2209,7 +2209,123 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Distributed SQL</strong> (Spanner, CockroachDB, YugabyteDB, Aurora DSQL) gives transactions across regions, at the cost of higher write latency, because commits need agreement across distant replicas (Module 21).</li>
       <li><strong>Analytics</strong> almost always means a separate columnar warehouse fed by CDC or batch exports, so reports never slow down the production database.</li>
     </ul>
-    <p><strong>In an interview</strong>, say "PostgreSQL" by default and name the reason whenever you choose something else: "Messages: 200k writes a second, read by channel and time, eventual consistency is fine, so Cassandra partitioned by channel and bucket." Avoid exotic choices to impress; interviewers reward the boring correct one.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong><q>PostgreSQL</q> by default, and name the reason whenever you choose something else, with numbers: <q>Messages: 200k writes a second, read by channel and time, eventual consistency is fine, so Cassandra partitioned by channel and bucket.</q> Avoid exotic choices to impress; interviewers reward the boring correct one.</div>
+
+    <section class="tech" id="t-cassandra">
+      <div class="tech-h"><h3>Cassandra (wide-column)</h3><span class="tech-status s-situational">Situational · huge write volume, known queries</span></div>
+      <p>A distributed, wide-column database built for availability and very high write throughput on commodity machines. Eventually consistent by default, write-optimised (an LSM tree), with no single leader.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Data model:</strong> keyspace → table → rows. The <strong>primary key = partition key + clustering columns</strong>. The partition key decides which nodes hold the row; clustering columns sort rows inside the partition (<code>PRIMARY KEY ((channel_id, bucket), message_id)</code>). No joins, no foreign keys, no multi-row transactions.</li>
+        <li><strong>Placement:</strong> a consistent-hashing ring with virtual nodes (Module 15); each row is copied to the next N nodes, spread across racks and data centres (<code>NetworkTopologyStrategy</code>).</li>
+        <li><strong>Tunable consistency per query:</strong> ONE, QUORUM (a majority), ALL. QUORUM writes plus QUORUM reads overlap on at least one replica, so reads see the latest write.</li>
+        <li><strong>Writes:</strong> commit log (durability) → memtable (memory) → flushed to immutable <strong>SSTables</strong>. Updates and deletes are new entries; a delete writes a <strong>tombstone</strong>. Conflicts resolve by timestamp: last write wins.</li>
+        <li><strong>Reads:</strong> memtable, then SSTables newest first, skipping files with <strong>bloom filters</strong>. <strong>Compaction</strong> merges SSTables and drops tombstones.</li>
+        <li><strong>Membership and failures:</strong> nodes gossip with each other; any node can coordinate a request. A down replica's writes are kept as hints and replayed when it returns (<strong>hinted handoff</strong>); repair fixes longer gaps.</li>
+      </ul>
+      <div id="sc-cass"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Cassandra 5.0 is the current stable line (5.0.9, August 2026), adding storage-attached indexes (SAI) and vector search; 6.0 is in alpha. ScyllaDB is a compatible rewrite in C++. Discord, Netflix and Apple are well-known users.</p>
+      <p><strong>Model from the queries.</strong> Discord stored messages as <code>PRIMARY KEY (channel_id, message_id)</code> with time-sortable Snowflake IDs; busy channels made partitions huge, so they moved to <code>((channel_id, bucket), message_id)</code> with 10-day buckets, keeping each partition bounded.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Messages, events, activity logs, IoT and time series at very high write rates</li><li>Availability matters more than strict consistency</li><li>A few well-known query patterns, each served by its own table</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Payments, inventory, anything needing transactions</li><li>Joins and ad-hoc queries or aggregations</li><li>Small or moderate scale, where PostgreSQL is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>With numbers and a key: <q>Messages: 200k writes a second, read by channel and time, eventual consistency is fine, so Cassandra with <code>PRIMARY KEY ((channel_id, bucket), message_id)</code>, QUORUM writes and reads.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Naming Cassandra without a partition key and clustering order.</strong> The design <em>is</em> the key; expect "what's your partition key, and how big does a partition get?"</li><li><strong>Using it for money or inventory.</strong> No multi-row transactions; last write wins silently drops concurrent updates.</li><li><strong>Unbounded partitions</strong> (one partition per busy channel forever). Bucket by time.</li><li><strong>Heavy deletes</strong> without knowing about tombstones, which slow reads until compaction.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-dynamo">
+      <div class="tech-h"><h3>DynamoDB (managed key-value)</h3><span class="tech-status s-situational">Situational · key lookups at any scale</span></div>
+      <p>AWS's fully managed key-value and document store: you define a partition key (and optional sort key), and it scales throughput and storage automatically.</p>
+      <h4>How it works</h4>
+      <ul><li>Items are found by <strong>partition key</strong>, and sorted within it by an optional <strong>sort key</strong>; global secondary indexes give other access paths.</li><li>Items are limited to 400 KB, and each partition serves at most 3,000 read units and 1,000 write units a second, so the key must spread load.</li><li>Strongly consistent reads, conditional writes (<code>ConditionExpression</code>) and multi-item transactions are available; global tables replicate across regions.</li></ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Mature and widely used; billed per request (on-demand) or per provisioned capacity. Its design ideas come from Amazon's Dynamo paper, though the service itself is different.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Lookups by a known key at large or spiky scale: sessions, carts, profiles, device state</li><li>Serverless stacks on AWS</li><li>Teams that want no database operations</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Ad-hoc queries, joins, reporting</li><li>Workloads that would need table scans</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>DynamoDB with <code>user_id</code> as partition key and <code>created_at</code> as sort key; it handles sharding and rebalancing for us.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A low-cardinality or skewed partition key</strong> (country, status): hot partitions.</li><li><strong>Planning on Scan</strong> for normal requests: it reads the whole table.</li><li><strong>Choosing it, then needing ad-hoc queries</strong> the access patterns didn't plan for.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-mongo">
+      <div class="tech-h"><h3>MongoDB (document)</h3><span class="tech-status s-rare">Situational · rarely the interview answer</span></div>
+      <p>Stores JSON-like documents; related data is usually embedded in one document and read whole.</p>
+      <h4>How it works</h4>
+      <p>Collections of documents with flexible fields; secondary indexes on any field; multi-document ACID transactions (since version 4.0); horizontal scaling by a shard key, with automatic balancing of chunks.</p>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Mature and popular; MongoDB 9.0 is the current release (October 2026), and Atlas is the managed service. Firestore and Couchbase are other document stores.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Records whose shape varies a lot, read and written as a whole (product catalogues with very different attributes, CMS content)</li><li>The interviewer says the schema changes constantly</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Data with many relationships and joins</li><li>When PostgreSQL's <code>jsonb</code> already covers the flexible part</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only with a stated reason: <q>Product attributes vary wildly by category, so a document per product; orders stay in PostgreSQL.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Schemaless, so it's more flexible"</strong> as the reason. The schema still exists, in your code.</li><li><strong>"MongoDB has no transactions"</strong>: outdated by years; interviewers notice.</li><li><strong>Choosing it for relational data</strong> and then simulating joins in the application.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-search">
+      <div class="tech-h"><h3>Elasticsearch and OpenSearch (search)</h3><span class="tech-status s-situational">Situational · search beyond the database</span></div>
+      <p>Search engines built on inverted indexes (word → documents), with relevance ranking, typo tolerance, facets and aggregations.</p>
+      <h4>How it works</h4>
+      <p>Documents are indexed into shards; a query fans out to the shards and merges the best results. New documents become searchable after a refresh (about a second by default), so it's near-real-time. It's a <strong>derived store</strong>: fed from the main database by change data capture, never the source of truth.</p>
+      <h4>Status today</h4>
+      <p>Elasticsearch and its open-source fork OpenSearch are the standard choices; managed versions exist on every cloud. PostgreSQL full-text search covers simpler needs.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Relevance-ranked search, fuzzy matching, typeahead, faceted filters</li><li>Very large search corpora and log analytics</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple keyword search over tens of millions of rows or fewer: PostgreSQL <code>tsvector</code> with a GIN index first</li><li>As the primary database</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>PostgreSQL is the source of truth; CDC streams changes into Elasticsearch for full-text search, a second or so behind.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Elasticsearch as the system of record.</strong></li><li><strong>Writing to the database and the search index from app code</strong> (dual writes); use CDC or an outbox.</li><li><strong><code>LIKE '%word%'</code></strong> as a search plan: it can't use a B-tree index.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-dsql">
+      <div class="tech-h"><h3>Distributed SQL</h3><span class="tech-status s-rare">Specialised · multi-region transactions</span></div>
+      <p>Relational databases that spread data and transactions over many machines and regions: Spanner, CockroachDB, YugabyteDB, Aurora DSQL.</p>
+      <h4>How it works</h4>
+      <p>Data is split into ranges, each replicated with consensus (Module 21). Transactions across ranges coordinate between replicas, which can be far apart, so writes pay cross-region round trips.</p>
+      <h4>Status today</h4>
+      <p>Production-proven (Spanner behind many Google services; CockroachDB and YugabyteDB widely deployed). Costlier and slower per write than a single-region PostgreSQL.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Strong consistency and SQL across regions, with writes accepted everywhere</li><li>Global financial ledgers, inventory shared by regions</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Single-region apps: PostgreSQL with replicas is simpler and faster</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only for multi-region writes: <q>Balances need ACID writes from three regions, so Spanner-style distributed SQL, accepting ~100 ms commits.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing it for a single-region app</strong> "for scale". Explain the latency cost or don't name it.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-graphdb">
+      <div class="tech-h"><h3>Graph databases</h3><span class="tech-status s-rare">Rare · almost never the answer</span></div>
+      <p>Nodes and edges stored for fast traversal many hops deep: Neo4j, Amazon Neptune.</p>
+      <h4>How it works</h4>
+      <p>Each node keeps direct references to its neighbours, so walking "friends of friends of friends" doesn't need repeated index lookups.</p>
+      <h4>Status today</h4>
+      <p>Mature for niche workloads. Big social graphs mostly run on sharded relational or key-value stores: Facebook's social graph (TAO) is built on MySQL.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Queries many hops deep: fraud rings, recommendation paths, network topology</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>"Users follow users": a follows table with two indexes handles it</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Rarely: <q>Followers are a table <code>follows(follower_id, followee_id)</code> with indexes both ways.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A graph database for a follower list.</strong> One or two hops are joins, not graph traversals.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-tscol">
+      <div class="tech-h"><h3>Time-series and columnar stores</h3><span class="tech-status s-situational">Situational · metrics and analytics</span></div>
+      <p>Time-series databases store timestamped points with compression, rollups and retention; columnar (OLAP) stores scan and aggregate billions of rows.</p>
+      <h4>How it works</h4>
+      <p>Both store data by column and time rather than by row: compression is high and scans are fast, but single-row updates are slow. Time-series: Prometheus, TimescaleDB, InfluxDB, VictoriaMetrics (Design D18). Columnar: ClickHouse, BigQuery, Snowflake, Redshift, DuckDB.</p>
+      <h4>Status today</h4>
+      <p>Standard for monitoring and analytics; fed from the app database by CDC or batch exports.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Metrics, monitoring, sensor data</li><li>Dashboards and reports over large history</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Serving user requests that read or update single rows</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Reports run on a columnar warehouse fed by CDC, so they never slow the production database.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Running heavy reports on the database that serves users.</strong></li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2287,6 +2403,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Where does data modelling for Cassandra or DynamoDB start?</p>
         <div class="opts"><button>From the entities, normalised</button><button>From the queries it must answer</button><button>From the storage size</button></div>
         <div class="why">Each table is designed to answer a specific query with one partition read; data is copied across tables as needed.</div>
+      </div>
+      <div class="quiz-q" data-answer="Add a time bucket to the partition key">
+        <p>Your Cassandra messages table uses PRIMARY KEY (channel_id, message_id), and a few huge channels are slowing everything down. What's the usual fix?</p>
+        <div class="opts"><button>Add a secondary index on channel_id</button><button>Add a time bucket to the partition key</button><button>Switch reads to consistency ALL</button></div>
+        <div class="why">((channel_id, bucket), message_id) keeps each partition bounded, as Discord did with 10-day buckets.</div>
+      </div>
+      <div class="quiz-q" data-answer="QUORUM writes and QUORUM reads">
+        <p>With replication factor 3, which consistency levels guarantee a read sees the latest acknowledged write?</p>
+        <div class="opts"><button>ONE writes and ONE reads</button><button>QUORUM writes and QUORUM reads</button><button>ONE writes and QUORUM reads</button></div>
+        <div class="why">2 + 2 > 3, so the read and write sets overlap on at least one replica.</div>
       </div>
     </div>
 
@@ -2410,9 +2536,29 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · Keeping stores in step", text: "Watch CDC feed derived stores, and a dual write go wrong." },
     { el: "#viz-shop", title: "3 · An online shop's data", text: "Build a polyglot data layer one need at a time." },
     { el: "#chooser", title: "4 · Database chooser", text: "Tick what's true for your system and get a suggestion with reasons." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "Cassandra in depth, DynamoDB, MongoDB, search, distributed SQL and more, with red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-cass", {
+    title: "A Cassandra write and read at QUORUM", sub: "Replication factor 3. <b>Blue</b> = requests, <b>green</b> = acknowledged, <b>teal</b> = hints, <b>red</b> = a down node.",
+    nodes: [{ id: "c", x: 70, y: 120, w: 100, label: "Client" }, { id: "co", x: 250, y: 120, w: 130, label: "Coordinator", sub: "any node" },
+      { id: "r1", x: 470, y: 40, w: 120, label: "Replica 1" }, { id: "r2", x: 470, y: 120, w: 120, label: "Replica 2" }, { id: "r3", x: 470, y: 200, w: 120, label: "Replica 3" }],
+    edges: [["c", "co"], ["co", "r1"], ["co", "r2"], ["co", "r3"]],
+    width: 560, height: 240,
+    steps: [
+      { hl: { c: "active", co: "active" }, moves: [{ e: "c>co", t: "INSERT, QUORUM", k: "req" }], pops: [{ n: "co", t: "hash partition key → 3 replicas", k: "req", at: 1.2 }],
+        note: "Any node can coordinate. It hashes the <b>partition key</b> to find the three replicas on the ring." },
+      { hl: { co: "active", r1: "found", r2: "found", r3: "bad" }, moves: [{ e: "co>r1", t: "write", k: "req" }, { e: "co>r2", t: "write", k: "req", delay: 0.15 }, { e: "co>r3", t: "write", k: "bad", delay: 0.3 }], pops: [{ n: "r1", t: "commit log + memtable", k: "ok", at: 1.5 }, { n: "r3", t: "down", k: "bad", at: 1.5 }], hold: 3.4,
+        note: "Each replica appends to its <b>commit log</b> and <b>memtable</b>. Replica 3 is down." },
+      { hl: { co: "found", c: "found", r1: "found", r2: "found", r3: "bad" }, moves: [{ e: "co>r1", t: "ack", k: "ok", back: true }, { e: "co>r2", t: "ack", k: "ok", back: true, delay: 0.2 }, { e: "c>co", t: "ok", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "co", t: "2 of 3 = QUORUM; hint kept", k: "ok", at: 1.0 }], hold: 3.6,
+        note: "Two of three acknowledged: QUORUM is met, the write succeeds, and the coordinator keeps a <b>hint</b> for replica 3." },
+      { hl: { co: "active", r3: "found" }, moves: [{ e: "co>r3", t: "hinted handoff", k: "evt" }], pops: [{ n: "r3", t: "caught up", k: "ok", at: 1.4 }],
+        note: "When replica 3 returns, the hint is replayed: <b>hinted handoff</b>." },
+      { hl: { c: "active", co: "active", r1: "found", r3: "found" }, moves: [{ e: "c>co", t: "SELECT, QUORUM", k: "req" }, { e: "co>r1", t: "read", k: "req", delay: 1.0 }, { e: "co>r3", t: "read", k: "req", delay: 1.1 }, { e: "c>co", t: "newest version", k: "ok", back: true, delay: 2.4 }], pops: [{ n: "co", t: "R + W > N: sees the latest", k: "ok", at: 2.2 }], hold: 4,
+        note: "A QUORUM read asks two replicas. With 2 + 2 > 3, at least one has the latest write; the newest timestamp wins." },
+    ],
+  });
 })();
 </script>
 </body>

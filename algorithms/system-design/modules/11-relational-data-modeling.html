@@ -2196,6 +2196,27 @@ LIMIT 20;</code></pre>
     </ol>
     <p>Beware operations that lock a big table for minutes (some column type changes, adding an index without <code>CONCURRENTLY</code> in PostgreSQL). Tools such as gh-ost, pgroll and pg-osc exist to do large changes online.</p>
 
+    <h3>Data modelling in the interview</h3>
+    <p>The bar is "good enough", not a full schema. Data modelling shows up twice: you list the <strong>core entities</strong> during requirements, then sketch the <strong>tables beside the database box</strong> in the high-level design. Tie every choice to one of three drivers, out loud:</p>
+    <ul>
+      <li><strong>Access patterns</strong> (most important): which queries does each endpoint run?</li>
+      <li><strong>Data volume:</strong> does it fit one database, or must it be split?</li>
+      <li><strong>Consistency:</strong> strong (payments) keeps related data in one transactional database; eventual (likes, feeds) can be spread out. <q>Feeds must load fast and likes can lag, so I'll keep a like_count on posts.</q></li>
+    </ul>
+    <p>When you add the database, run this checklist:</p>
+    <ol class="steps-list">
+      <li>Pick the database type (relational unless there's a reason, Module 13).</li>
+      <li>List the columns each entity needs for the functional requirements, and only those.</li>
+      <li>Mark primary and foreign keys.</li>
+      <li>Mark indexed columns, each tied to an endpoint's query.</li>
+      <li>Decide whether anything must be denormalised.</li>
+      <li>Decide whether sharding is needed, and on which key (Module 15).</li>
+    </ol>
+    <pre><code>Users:    user_id (pk), name, email (unique), created_at
+Posts:    post_id (pk), user_id (fk, index), content, media_urls, created_at (index)
+Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, created_at</code></pre>
+    <p>Foreign keys stop orphaned rows but slow writes; very large systems sometimes enforce integrity in the application instead. Use domain names (<code>users</code>, <code>bookings</code>), never abstract ones.</p>
+
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
     <h3>Why store each fact once</h3>
@@ -2230,7 +2251,52 @@ LIMIT 20;</code></pre>
       <li><strong>Rough single-node numbers:</strong> tens of thousands of simple indexed reads a second; thousands of simple writes a second per core; performance drops sharply when the working set no longer fits in memory (Module 02).</li>
       <li><strong>ORMs</strong> (Django, Rails, Hibernate, Prisma) are fine, but watch for the <strong>N+1 query</strong> pattern: one query for 50 posts, then 50 more for their authors. Load related rows in one query.</li>
     </ul>
-    <p><strong>In an interview</strong>, list the core entities early, then next to the database box write each table with its primary key, the foreign keys, and the indexes the API's queries need. "Postgres, normalised, with these three indexes" is a strong default.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong><q>PostgreSQL, normalised, with these three indexes.</q> List the core entities early; beside the database box write each table with its primary key, foreign keys, and the indexes the API's queries need. Leave the database only for a reason you can state with numbers.</div>
+
+    <section class="tech" id="t-postgres">
+      <div class="tech-h"><h3>PostgreSQL</h3><span class="tech-status s-default">The default · start here</span></div>
+      <p>An open-source relational database with transactions, constraints and joins, plus JSON, full-text search, geospatial and vector extensions in the same engine. The interview default: start with it, and justify any departure.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Reads:</strong> B-tree indexes by default (the primary key gets one automatically); composite, covering (<code>INCLUDE</code>) and partial (<code>WHERE status = 'active'</code>) indexes; <strong>GIN</strong> indexes for full-text search (<code>tsvector</code>) and <code>jsonb</code>; <strong>GiST</strong> with PostGIS for radius and polygon queries (<code>ST_DWithin</code>). These combine in one query.</li>
+        <li><strong>Writes:</strong> a change updates pages in memory and appends a record to the <strong>write-ahead log (WAL)</strong>. At commit, the WAL is flushed to disk: that sequential write sets commit latency. Data pages reach disk later, in the background. Every extra index adds work to each write.</li>
+        <li><strong>Replication:</strong> followers replay the WAL. Asynchronous (the default) is fast but can lose the last writes on failover and lets replicas lag; synchronous waits for a replica. A common mix: one synchronous standby plus asynchronous read replicas.</li>
+        <li><strong>Concurrency:</strong> the default isolation, Read Committed, lets two transactions read the same value and both act on it (two bidders both see $90). Fix it with a row lock (<code>SELECT … FOR UPDATE</code>), optimistic versioning, or Serializable isolation (Module 17).</li>
+      </ul>
+      <div id="sc-pg"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>PostgreSQL 18 is the current release; 19 reached release candidate on 15 October 2026, with general availability planned for 19 November. Every cloud runs it as a managed service (RDS and Aurora, Cloud SQL and AlloyDB, Azure). There's no built-in sharding: use Citus, or shard in the application.</p>
+      <table><thead><tr><th>Rough single-node throughput</th><th>Order of magnitude</th></tr></thead><tbody>
+        <tr><td>Simple indexed reads</td><td>tens of thousands per second per core</td></tr>
+        <tr><td>Indexed joins over a few tables</td><td>thousands to tens of thousands per second</td></tr>
+        <tr><td>Simple inserts</td><td>a few thousand per second per core</td></tr>
+        <tr><td>Multi-table transactions</td><td>hundreds per second</td></tr>
+      </tbody></table>
+      <p class="idx">Starting points, not promises: hardware, row size and indexes move them a lot. Tables get unwieldy past about 100 million rows, and performance drops sharply once the working set no longer fits in memory.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Anything with relationships, rules and transactions: e-commerce, payments, bookings, inventory</li><li>Mixed structured and JSON data, text search to tens of millions of documents, geospatial queries</li><li>Until a measured limit says otherwise</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Millions of writes a second (Cassandra for events, Redis for counters)</li><li>Active-active writes in several regions (CockroachDB, Spanner, DynamoDB global tables)</li><li>Pure key-value lookups at huge scale (DynamoDB, Redis)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>PostgreSQL, normalised, with an index on bookings(user_id).</q> When a requirement pushes harder, say how you use it: <q>The purchase runs in one transaction with a row lock on the seat.</q> Scaling writes past a few thousand a second, in order: bigger machine, batching, moving logs and analytics off the hot path, time-partitioned tables, then sharding by the main query key.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"It's ACID" as the whole argument.</strong> Say how you use it: which transaction, which lock, which constraint.</li><li><strong>"It scales better" as the reason to leave Postgres.</strong> Name the limit with numbers, or stay.</li><li><strong>Sharding on day one.</strong> One node handles far more than most interview prompts need; do the math first (Module 03).</li><li><strong>Forgetting connections:</strong> one process per connection, so hundreds of app servers need a pooler (next block).</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-pooler">
+      <div class="tech-h"><h3>Connection poolers (PgBouncer)</h3><span class="tech-status s-situational">Situational · many app servers</span></div>
+      <p>A proxy that shares a small set of real database connections among many application connections.</p>
+      <h4>How it works</h4>
+      <p>PostgreSQL forks a process for each connection, so thousands of connections waste memory and CPU. A pooler such as PgBouncer (or RDS Proxy, or the pool built into your framework) keeps, say, 100 real connections and hands one to each transaction as it runs ("transaction pooling"), returning it at commit.</p>
+      <h4>Status today</h4>
+      <p>Standard in production PostgreSQL deployments; managed services offer their own (RDS Proxy, Azure's built-in PgBouncer).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Many app servers, or autoscaling fleets, each with its own pool</li><li>Serverless functions, which open connections in bursts</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A handful of servers with a sensible in-process pool</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>One line when the fleet is big: <q>A PgBouncer layer keeps the database at a few hundred connections however many app servers we run.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Hundreds of servers × 20 connections</strong> straight at one database, unmentioned. That's a real outage pattern.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2309,6 +2375,16 @@ LIMIT 20;</code></pre>
         <p>How do you rename a column used by running code without downtime?</p>
         <div class="opts"><button>ALTER TABLE ... RENAME during a deploy</button><button>Add the new column first, migrate, then remove the old</button><button>Stop the app, rename, restart</button></div>
         <div class="why">Expand and contract: both versions of the code keep working at every step.</div>
+      </div>
+      <div class="quiz-q" data-answer="A row lock with SELECT … FOR UPDATE (or a version check)">
+        <p>Two bidders read the current high bid ($90) at the same moment in PostgreSQL's default isolation, and both write a higher bid. What prevents the lost update?</p>
+        <div class="opts"><button>Nothing: transactions already prevent it</button><button>A row lock with SELECT … FOR UPDATE (or a version check)</button><button>A bigger instance</button></div>
+        <div class="why">Read Committed lets both transactions read $90. Lock the auction row, or update only WHERE the version is unchanged.</div>
+      </div>
+      <div class="quiz-q" data-answer="It scales better">
+        <p>Which reason for leaving PostgreSQL is weakest in an interview?</p>
+        <div class="opts"><button>We need 500k writes a second of append-only events</button><button>Users in three regions must all write with low latency</button><button>It scales better</button></div>
+        <div class="why">Name the limit with numbers. A vague "scales better" invites the follow-up you can't answer.</div>
       </div>
     </div>
 
@@ -2419,9 +2495,29 @@ LIMIT 20;</code></pre>
     { el: "#sc-main", title: "2 · One query, three tables", text: "Watch a join assemble a booking list, and an update change one row." },
     { el: "#viz-model", title: "3 · Modelling a booking app", text: "From requirements to tables, one access pattern at a time." },
     { el: "#anom", title: "4 · Why store each fact once", text: "Change one email in two designs and compare." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "PostgreSQL in depth, connection poolers, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-pg", {
+    title: "A PostgreSQL write, from COMMIT to disk", sub: "<b>Blue</b> = the write, <b>teal</b> = background work, <b>green</b> = durable, <b>red</b> = a crash.",
+    nodes: [{ id: "app", x: 70, y: 120, w: 100, label: "App" }, { id: "pg", x: 260, y: 120, w: 140, label: "PostgreSQL", sub: "pages in memory" },
+      { id: "wal", x: 480, y: 40, w: 130, label: "WAL on disk" }, { id: "rep", x: 480, y: 120, w: 130, label: "Replica" }, { id: "data", x: 480, y: 200, w: 130, label: "Data files" }],
+    edges: [["app", "pg"], ["pg", "wal"], ["pg", "rep"], ["pg", "data"]],
+    width: 570, height: 240,
+    steps: [
+      { hl: { app: "active", pg: "active" }, moves: [{ e: "app>pg", t: "UPDATE … COMMIT", k: "req" }], pops: [{ n: "pg", t: "pages changed in memory", k: "req", at: 1.3 }],
+        note: "The transaction changes pages in memory." },
+      { hl: { pg: "active", wal: "found", app: "found" }, moves: [{ e: "pg>wal", t: "WAL record, flushed", k: "req" }, { e: "app>pg", t: "COMMIT ok", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "wal", t: "sets commit latency", k: "evt", at: 1.0 }], hold: 3.6,
+        note: "At commit the <b>write-ahead log</b> is flushed to disk, then the app hears \"ok\". That sequential flush is what makes it durable." },
+      { hl: { pg: "active", rep: "warm" }, moves: [{ e: "pg>rep", t: "stream WAL", k: "evt" }], pops: [{ n: "rep", t: "async: may lag", k: "bad", at: 1.3 }],
+        note: "Replicas replay the same WAL. Asynchronous by default, so they can be slightly behind (Module 14)." },
+      { hl: { pg: "active", data: "found" }, moves: [{ e: "pg>data", t: "checkpoint, later", k: "evt" }],
+        note: "The changed pages reach the data files later, in the background. Commit didn't wait for them." },
+      { hl: { pg: "bad", wal: "found" }, moves: [{ e: "pg>wal", t: "replay", k: "ok", back: true, delay: 0.8 }], pops: [{ n: "pg", t: "crash", k: "bad", at: 0.2 }, { n: "data", t: "rebuilt from WAL", k: "ok", at: 2.0 }], hold: 3.6,
+        note: "After a crash, PostgreSQL replays the WAL from the last checkpoint: every committed transaction comes back." },
+    ],
+  });
 })();
 </script>
 </body>
