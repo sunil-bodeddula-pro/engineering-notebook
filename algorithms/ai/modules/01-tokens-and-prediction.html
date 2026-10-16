@@ -2109,6 +2109,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 01 of 20 · Level 1: How AI works</div>
     <h1>Tokens and next-token prediction: how an LLM writes</h1>
     <p class="lede">Every AI tool you'll use (chat, coding agents, AI features in products) is built on one simple loop: look at the text so far, guess the next small chunk, add it, repeat. Understand that loop and most of AI's strengths, weaknesses and costs stop being mysterious.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2299,7 +2300,36 @@ svg.flow .fn { transition: opacity .35s ease; }
   ];
   const E = [["text", "tok"], ["tok", "model"], ["model", "probs"], ["probs", "pick"], ["pick", "append"], ["append", "text", "repeat", { bend: -20 }]];
   const loop = (hl, edgeHl) => Viz.flow(N, E, { hl, edgeHl, width: 580, height: 240, title: "generation loop" });
-  document.getElementById("fig-loop").innerHTML = loop({}, {});
+  Viz.scene("#fig-loop", {
+    title: "The generation loop", sub: "<b>Blue</b> = text and token IDs, <b>teal</b> = scores, <b>green</b> = the token picked.",
+    nodes: N, edges: E, width: 580, height: 240,
+    steps: [
+      { hl: { text: "active", tok: "active" }, moves: [{ e: "text>tok", t: "The capital of France is", k: "req" }], pops: [{ n: "tok", t: "5 tokens", k: "ok" }],
+        note: "Your text goes into the <b>tokenizer</b>, which chops it into 5 tokens." },
+      { hl: { tok: "active", model: "active" }, moves: [{ e: "tok>model", t: "791 6864 315 9822 374", k: "req" }], pops: [{ n: "model", t: "one full pass", k: "ok" }],
+        note: "The model only sees token IDs. It reads them all at once, in one pass." },
+      { hl: { model: "active", probs: "found" }, moves: [{ e: "model>probs", t: "Paris 91%", k: "evt" }, { e: "model>probs", t: "a 3%", k: "evt", delay: 0.4 }],
+        note: "Out comes a probability for <b>every</b> token in its vocabulary. \"Paris\" is far ahead." },
+      { hl: { probs: "active", pick: "found" }, moves: [{ e: "probs>pick", t: "Paris", k: "ok" }], pops: [{ n: "pick", t: "picked", k: "ok" }],
+        note: "Sampling picks one token. At low temperature the top one almost always wins." },
+      { hl: { pick: "active", append: "found", text: "found" }, moves: [{ e: "pick>append", t: "Paris", k: "ok" }, { e: "append>text", t: "…is Paris", k: "req", delay: 1.1 }], hold: 3.4,
+        note: "It's appended to the text, and the loop starts again with the longer text." },
+      { hl: { text: "active", tok: "active", model: "active", probs: "active", pick: "found" },
+        moves: [{ e: "text>tok", t: "…Paris", k: "req", dur: 0.7 }, { e: "tok>model", t: "6 IDs", k: "req", delay: 0.7, dur: 0.7 }, { e: "model>probs", t: ". 62%", k: "evt", delay: 1.4, dur: 0.7 }, { e: "probs>pick", t: ".", k: "ok", delay: 2.1, dur: 0.7 }], hold: 3.6,
+        note: "Second lap: a full pass over 6 tokens, and the full stop wins. Every new token costs one trip." },
+      { hl: { probs: "active", pick: "found", append: "found" }, moves: [{ e: "probs>pick", t: "<end> 71%", k: "ok" }, { e: "pick>append", t: "<end>", k: "ok", delay: 1.1 }], pops: [{ n: "append", t: "stop", k: "ok", at: 2.3 }], hold: 3.4,
+        note: "Third lap: the special <b>&lt;end&gt;</b> token wins, so generation stops. <b>The capital of France is Paris.</b>" },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "An LLM only ever predicts the next token, then repeats." },
+    { el: "#fig-loop", title: "2 · The loop", text: "Watch tokens travel round the loop: tokenize, score, pick, append." },
+    { el: "#viz-gen", title: "3 · Step through it", text: "Every frame of the model finishing one sentence, with the probabilities." },
+    { el: "#tok-widget", title: "4 · Tokenize anything", text: "Type text and see why code, numbers and other scripts cost more tokens." },
+    { el: "#temp-widget", title: "5 · Temperature", text: "Drag the slider and sample: this is why the same prompt gives different answers." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- step-through: finishing a sentence ---------- */
   const toks = (list, newIdx) => `<div class="toks">${list.map((t, i) => `<span class="tok t${i % 5}${i === newIdx ? " new" : ""}">${Viz.esc(t)}</span>`).join("")}</div>`;

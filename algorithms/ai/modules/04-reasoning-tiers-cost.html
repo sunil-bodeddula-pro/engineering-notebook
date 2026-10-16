@@ -2119,6 +2119,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 04 of 20 · Level 1: How AI works</div>
     <h1>Reasoning, model tiers and cost</h1>
     <p class="lede">Which model should you use, how hard should it think, and what will it cost? Three settings decide quality, speed and the bill. Learn to turn them deliberately and you'll get better results for a fraction of the price.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2312,7 +2313,30 @@ svg.flow .fn { transition: opacity .35s ease; }
     { id: "bill", x: 230, y: 150, w: 170, label: "The bill", sub: "input + thinking + answer" },
   ];
   const E = [["in", "model"], ["model", "th"], ["th", "ans"], ["ans", "bill"], ["in", "bill", "", { bend: 10 }]];
-  document.getElementById("fig-bill").innerHTML = Viz.flow(N, E, { width: 560, height: 195, hl: { bill: "warm" }, title: "what a request costs" });
+  Viz.scene("#fig-bill", {
+    title: "What a request costs", sub: "<b>Blue</b> = tokens, <b>gold</b> = money. Prices: $2 per million input, $10 per million output (illustrative).",
+    nodes: N, edges: E, width: 560, height: 195,
+    steps: [
+      { hl: { in: "active", model: "active" }, moves: [{ e: "in>model", t: "20,000 tokens", k: "req" }], pops: [{ n: "model", t: "tier sets the price", k: "req", at: 1.5 }],
+        note: "Your prompt (files, history, question) goes in. The <b>tier</b> you pick sets the price per token." },
+      { hl: { in: "found", bill: "warm" }, moves: [{ e: "in>bill", t: "$0.04", k: "money" }],
+        note: "Input is charged at the input price: 20,000 × $2 per million = <b>$0.04</b>." },
+      { hl: { model: "active", th: "active" }, moves: [{ e: "model>th", t: "8,000 thinking", k: "req" }], pops: [{ n: "th", t: "effort dial", k: "req", at: 1.5 }],
+        note: "The model thinks before answering. The <b>effort</b> setting decides how many thinking tokens it may spend, charged at the output price." },
+      { hl: { th: "active", ans: "active" }, moves: [{ e: "th>ans", t: "1,000 answer", k: "req" }],
+        note: "Then it writes the answer, also at the output price." },
+      { hl: { ans: "found", bill: "warm" }, moves: [{ e: "ans>bill", t: "$0.09", k: "money" }], pops: [{ n: "bill", t: "total $0.13", k: "money", at: 1.6 }], hold: 3.4,
+        note: "9,000 output tokens × $10 per million = <b>$0.09</b>. Total <b>$0.13</b>: here, thinking costs more than the whole prompt." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Three dials: model tier, effort, and how much you send." },
+    { el: "#fig-bill", title: "2 · The bill", text: "Watch tokens turn into money: input at one price, thinking and answer at another." },
+    { el: "#viz-effort", title: "3 · Low vs high effort", text: "The same tricky bug, answered at two effort levels." },
+    { el: "#calc", title: "4 · Cost calculator", text: "Try it yourself: change the dials and watch the bill." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for tiers and cost." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- same bug, two efforts ---------- */
   const PIN = 2, POUT = 10, prompt = 3000;

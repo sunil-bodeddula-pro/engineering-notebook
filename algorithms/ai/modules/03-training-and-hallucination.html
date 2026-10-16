@@ -2115,6 +2115,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 03 of 20 · Level 1: How AI works</div>
     <h1>Training, knowledge cutoff and hallucination</h1>
     <p class="lede">Where does a model's knowledge come from, why does it stop at a date, and why does it sometimes state made-up things with total confidence? Knowing how models are made tells you exactly when to trust them, and how to make them trustworthy.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2310,7 +2311,30 @@ svg.flow .fn { transition: opacity .35s ease; }
     { id: "ans", x: 505, y: 160, w: 118, label: "Answer" },
   ];
   const PE = [["text", "pre"], ["pre", "post"], ["post", "model"], ["model", "ans", "memory"], ["ctx", "ans", "grounding"]];
-  document.getElementById("fig-pipeline").innerHTML = Viz.flow(P, PE, { width: 580, height: 200, hl: { ctx: "found" }, title: "training pipeline" });
+  Viz.scene("#fig-pipeline", {
+    title: "How a model is made, and where answers come from", sub: "<b>Blue</b> = training data, <b>teal</b> = the model taking shape, <b>green</b> = grounded, <b>red</b> = a guess.",
+    nodes: P, edges: PE, width: 580, height: 200,
+    steps: [
+      { hl: { text: "active", pre: "active" }, moves: [{ e: "text>pre", t: "web, books, code", k: "req" }], pops: [{ n: "pre", t: "predict next token", k: "req", at: 1.5 }],
+        note: "<b>Pretraining:</b> the model reads a huge amount of text and code and learns to predict the next token." },
+      { hl: { pre: "active", post: "active" }, moves: [{ e: "pre>post", t: "base model", k: "evt" }], pops: [{ n: "post", t: "learns to help", k: "ok", at: 1.5 }],
+        note: "<b>Post-training:</b> examples, human feedback (RLHF) and reinforcement learning turn a text predictor into an assistant." },
+      { hl: { post: "active", model: "found" }, moves: [{ e: "post>model", t: "assistant", k: "evt" }], pops: [{ n: "model", t: "frozen at cutoff", k: "bad", at: 1.5 }],
+        note: "Training stops at a date, the <b>cutoff</b>. Nothing newer, and nothing private, is in the model's memory." },
+      { hl: { model: "active", ans: "bad" }, moves: [{ e: "model>ans", t: "from memory", k: "bad" }], pops: [{ n: "ans", t: "fluent, maybe wrong", k: "bad", at: 1.5 }],
+        note: "Answering from memory alone, it writes the most likely-sounding text, even when it doesn't know. That's a <b>hallucination</b>." },
+      { hl: { ctx: "found", ans: "found" }, moves: [{ e: "ctx>ans", t: "deploy.sh", k: "ok" }], pops: [{ n: "ans", t: "grounded ✓", k: "ok", at: 1.5 }], hold: 3.2,
+        note: "Put the real source in the context (a file, a search result, tool output) and the answer is <b>grounded</b>: checkable and current." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Knowledge comes from training, and it stops at a date." },
+    { el: "#fig-pipeline", title: "2 · Made, then frozen", text: "Watch pretraining and post-training build the model, then grounding fix its answers." },
+    { el: "#viz-book", title: "3 · Closed book vs open book", text: "The same question answered from memory and from a source." },
+    { el: "#guess-widget", title: "4 · Why models guess", text: "Compare always guessing with saying \"I don't know\", under different scoring." },
+    { el: "#remember", title: "5 · Remember it", text: "The memory hook for hallucination." },
+    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- closed book vs open book ---------- */
   const N = [

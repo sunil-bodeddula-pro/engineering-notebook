@@ -2113,6 +2113,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">AI engineering · Module 02 of 20 · Level 1: How AI works</div>
     <h1>The context window: everything the model can see</h1>
     <p class="lede">A model knows two things: what it learned in training, and what's in front of it right now. "What's in front of it" is the context window. Managing it well is the single most underrated skill in using AI tools: it decides quality, speed and cost.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2319,7 +2320,33 @@ svg.flow .fn { transition: opacity .35s ease; }
     { id: "hist", x: 270, y: 215, w: 170, label: "Chat history", sub: "kept by the app" },
   ];
   const E = [["you", "app", "message"], ["app", "model", "everything, again", { bend: -45 }], ["model", "app", "reply", { bend: -45 }], ["app", "hist", "save", { bend: -35 }], ["hist", "app", "load", { bend: -35 }]];
-  document.getElementById("fig-state").innerHTML = Viz.flow(N, E, { width: 580, height: 255, title: "stateless model" });
+  Viz.scene("#fig-state", {
+    title: "A stateless model", sub: "<b>Blue</b> = what you send, <b>green</b> = replies, <b>teal</b> = history the app keeps.",
+    nodes: N, edges: E, width: 580, height: 255,
+    steps: [
+      { hl: { you: "active", app: "active" }, moves: [{ e: "you>app", t: "message 1", k: "req" }],
+        note: "Turn 1: you type a message. It goes to the <b>app</b> (the chat window or coding agent), not straight to the model." },
+      { hl: { app: "active", model: "active" }, moves: [{ e: "app>model", t: "system + msg 1", k: "req" }], pops: [{ n: "model", t: "reads it all", k: "req" }],
+        note: "The app builds the whole context (instructions plus your message) and sends it." },
+      { hl: { model: "bad", app: "active", hist: "found" }, moves: [{ e: "model>app", t: "reply 1", k: "ok" }, { e: "app>hist", t: "save", k: "evt", delay: 1.1 }], pops: [{ n: "model", t: "forgets everything", k: "bad", at: 1.4 }], hold: 3.4,
+        note: "The model replies, then forgets. The <b>app</b> saves the conversation." },
+      { hl: { you: "active", app: "active", hist: "found" }, moves: [{ e: "you>app", t: "message 2", k: "req" }, { e: "hist>app", t: "turn 1", k: "evt", delay: 0.6 }],
+        note: "Turn 2: your new message arrives, and the app loads turn 1 from the history." },
+      { hl: { app: "active", model: "active" }, moves: [{ e: "app>model", t: "system + turn 1 + msg 2", k: "req" }], pops: [{ n: "model", t: "bigger input", k: "bad" }],
+        note: "Everything is sent <b>again</b>, so each turn is bigger than the last: more cost, more time, more to get lost in." },
+      { hl: { model: "active", app: "active", hist: "warm" }, moves: [{ e: "model>app", t: "reply 2", k: "ok" }, { e: "app>hist", t: "save", k: "evt", delay: 1.1 }], pops: [{ n: "hist", t: "keeps growing", k: "bad", at: 2.2 }], hold: 3.6,
+        note: "The history grows every turn until the window fills. Then the tool compacts it, or you start a fresh session." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Training knowledge plus whatever is in front of the model right now." },
+    { el: "#fig-state", title: "2 · A stateless model", text: "Watch the app re-send the whole conversation every turn." },
+    { el: "#viz-turns", title: "3 · Four turns", text: "Each turn is bigger than the last." },
+    { el: "#viz-session", title: "4 · A real session", text: "Tool output fills a 200,000-token window far faster than your messages." },
+    { el: "#ctx-widget", title: "5 · Fill a window", text: "Build a session and see how much of the window each piece takes." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook for the context window." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 
   /* ---------- turns grow ---------- */
   (function () {
