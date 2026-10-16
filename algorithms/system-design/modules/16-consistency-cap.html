@@ -2220,7 +2220,70 @@ svg.flow .fn { transition: opacity .35s ease; }
         <tr><td>etcd, ZooKeeper</td><td>Linearizable writes via consensus</td><td>Used precisely because they choose C (Module 21)</td></tr>
       </tbody>
     </table>
-    <p><strong>In an interview</strong>, decide this early in the non-functional requirements with one question: "would it be harmful if a user briefly saw stale or conflicting data here?" Then state it per feature, and let it drive the database and replication choices.</p>
+
+        <h3 id="up-close">The choices up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Decide early, in the non-functional requirements, with one question per feature: <q>would it be catastrophic if a user briefly saw stale or conflicting data here?</q> Yes → consistency; no → availability. Then say it per feature (<q>consistency for bookings, availability for browsing</q>) and let it drive the database and replication choices.</div>
+
+    <section class="tech" id="t-cp">
+      <div class="tech-h"><h3>Prioritise consistency</h3><span class="tech-status s-situational">Situational · when stale data does harm</span></div>
+      <p>During a partition, refuse (or delay) requests rather than risk a stale read or a conflicting write.</p>
+      <h4>How it works</h4>
+      <p>Writes and fresh reads go through one source of truth: a single primary database, a majority quorum, or a consensus system. Nodes that can't confirm with that source return an error or wait.</p>
+      <h4>Status today</h4>
+      <p>Single-primary PostgreSQL and MySQL, Spanner and CockroachDB, DynamoDB's strongly consistent reads and transactions, etcd and ZooKeeper.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Seat and ticket booking, the last item in stock</li><li>Payments, balances, trading order books</li><li>Uniqueness: usernames, locks, leader election</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Feeds, profiles, counts, recommendations: brief staleness there is invisible</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Booking a seat must never double-sell, so it's consistency first: one primary database with a conditional write. Users may see an error during a partition, which beats selling a seat twice.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choosing consistency for the whole system</strong>, including browsing, so a partition takes everything down.</li><li><strong>Saying "strong consistency" without the mechanism</strong> (which database, which write, which lock).</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-ap">
+      <div class="tech-h"><h3>Prioritise availability</h3><span class="tech-status s-default">The default for most features</span></div>
+      <p>Keep answering on every side of a partition, accepting that copies disagree for a while and converge later (eventual consistency).</p>
+      <h4>How it works</h4>
+      <p>Reads come from replicas and caches; writes may be accepted in several places and reconciled later (last write wins, merges, CRDTs). Change data capture keeps derived copies roughly up to date.</p>
+      <h4>Status today</h4>
+      <p>Cassandra and DynamoDB by default, read replicas and caches everywhere, DNS. Most user-facing reads in large products work this way.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Social feeds, profiles, likes and views</li><li>Product descriptions, business hours, catalogue pages</li><li>Anything where "a few seconds old" is fine</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Money, inventory, bookings, uniqueness</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Would it be catastrophic if a user briefly saw stale data? For the feed, no, so availability: replicas, caches and eventual consistency.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Eventual consistency" for a balance or a seat.</strong></li><li><strong>Not saying how conflicts resolve:</strong> last write wins silently drops one of two concurrent updates.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-mixcap">
+      <div class="tech-h"><h3>Mix per feature</h3><span class="tech-status s-default">The senior answer</span></div>
+      <p>CAP isn't a choice for the whole system. Decide per feature, early, in the non-functional requirements.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Ticketmaster:</strong> consistency for booking seats, availability for browsing events.</li><li><strong>Tinder:</strong> consistency for creating a match, availability for viewing profiles.</li><li><strong>A bank:</strong> consistency for transfers, availability for the transaction history page.</li></ul>
+      <div id="sc-mix"></div>
+      <h4>Status today</h4>
+      <p>How real products are built: one transactional source of truth for the critical writes, replicas and caches for everything else.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every design with both critical writes and heavy browsing (most of them)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Never: even a simple design benefits from saying which features need which</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'll prioritise consistency for bookings and availability for browsing.</q> One sentence in the non-functional requirements, then let it drive the database and replication choices.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Reciting CAP's definition</strong> instead of applying it to the features in front of you.</li><li><strong>Claiming "CA"</strong> for a distributed system: partitions aren't optional.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-pacelc">
+      <div class="tech-h"><h3>PACELC</h3><span class="tech-status s-rare">Situational · a senior-level extension</span></div>
+      <p>If there's a Partition, choose Availability or Consistency; Else, choose Latency or Consistency.</p>
+      <h4>How it works</h4>
+      <p>Even with a healthy network, strong consistency means waiting for other replicas (often in other zones or regions) on every write or read. Lower latency means answering from one nearby copy and accepting staleness. That trade-off is paid every millisecond, not just during rare outages.</p>
+      <h4>Status today</h4>
+      <p>A widely cited refinement of CAP (Abadi, 2010); databases are often described as PA/EL (Cassandra, DynamoDB defaults) or PC/EC (Spanner, single-primary SQL).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Multi-region designs, where cross-region consistency costs 50–150 ms per write</li><li>When the interviewer probes latency vs freshness</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple single-region designs: CAP per feature is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>If latency comes up: <q>Even without partitions, synchronous cross-region writes add about 100 ms, so only the ledger pays that; everything else reads locally.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Name-dropping PACELC</strong> without connecting it to a latency number in your design.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2299,6 +2362,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>What's the main danger of last-write-wins?</p>
         <div class="opts"><button>It's slow</button><button>One of the concurrent updates is silently discarded</button><button>It needs a leader</button></div>
         <div class="why">Only one version survives; the other user's change is lost without an error, and clock skew can pick the wrong one.</div>
+      </div>
+      <div class="quiz-q" data-answer="Consistency for booking seats, availability for browsing events">
+        <p>Designing a ticketing site. What's the strongest CAP statement?</p>
+        <div class="opts"><button>The whole system is CP</button><button>Consistency for booking seats, availability for browsing events</button><button>CA, since we use PostgreSQL</button></div>
+        <div class="why">Decide per feature. Double-selling a seat is harmful; a slightly stale event page isn't. "CA" isn't an option for a distributed system.</div>
       </div>
     </div>
 
@@ -2441,9 +2509,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · The partition choice", text: "Watch a node cut off, then refuse (CP) or accept (AP), then heal." },
     { el: "#viz-cap", title: "3 · Step through it", text: "A three-node cluster, a partition, and both responses." },
     { el: "#part", title: "4 · Partition a cart", text: "Cut the network, add items on both sides, heal under each strategy." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The choices up close", text: "Consistency, availability, mixing per feature and PACELC, with the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-mix", {
+    title: "One product, two choices: browse vs book", sub: "<b>Blue</b> = requests, <b>green</b> = answered, <b>red</b> = partition or refusal.",
+    nodes: [{ id: "u", x: 70, y: 125, w: 100, label: "Fan" }, { id: "br", x: 250, y: 50, w: 140, label: "Browse events", sub: "availability" },
+      { id: "bk", x: 250, y: 200, w: 140, label: "Book a seat", sub: "consistency" },
+      { id: "rep", x: 480, y: 50, w: 130, label: "Replicas + cache" }, { id: "pri", x: 480, y: 200, w: 130, label: "Primary DB" }],
+    edges: [["u", "br"], ["u", "bk"], ["br", "rep"], ["bk", "pri"], ["pri", "rep", "replicates"]],
+    width: 580, height: 250,
+    steps: [
+      { hl: { u: "active", br: "active", rep: "found" }, moves: [{ e: "u>br", t: "event page", k: "req" }, { e: "br>rep", t: "read", k: "req", delay: 1.0 }, { e: "br>rep", t: "page", k: "ok", back: true, delay: 2.0 }], pops: [{ n: "rep", t: "a few seconds stale: fine", k: "ok", at: 2.6 }], hold: 4,
+        note: "Browsing reads from replicas and the cache. A page a few seconds old harms nobody." },
+      { hl: { rep: "warm", pri: "warm", br: "found" }, moves: [{ e: "pri>rep", t: "✂ partition", k: "bad" }, { e: "u>br", t: "event page", k: "req", delay: 1.2 }, { e: "br>rep", t: "still served", k: "ok", delay: 2.2 }], hold: 4,
+        note: "A partition cuts the replicas off from the primary. Browsing <b>stays up</b> on slightly stale data: availability." },
+      { hl: { u: "active", bk: "active", pri: "found" }, moves: [{ e: "u>bk", t: "book 14C", k: "req" }, { e: "bk>pri", t: "if seat is free", k: "req", delay: 1.0 }, { e: "bk>pri", t: "booked", k: "ok", back: true, delay: 2.0 }], pops: [{ n: "pri", t: "one source of truth", k: "ok", at: 2.4 }], hold: 4,
+        note: "Booking always goes to the <b>primary</b> with a conditional write, never to a replica." },
+      { hl: { bk: "bad", pri: "bad" }, moves: [{ e: "bk>pri", t: "book 15C", k: "bad" }], pops: [{ n: "bk", t: "\"try again in a moment\"", k: "bad", at: 1.3 }],
+        note: "If the primary can't be reached, booking <b>refuses</b> rather than guess: an error beats selling a seat twice. That's consistency." },
+    ],
+  });
 })();
 </script>
 </body>
