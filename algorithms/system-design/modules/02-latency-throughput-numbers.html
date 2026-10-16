@@ -2226,6 +2226,23 @@ svg.flow .fn { transition: opacity .35s ease; }
     </table>
     <div class="callout warn"><strong>Treat these as starting points, not promises</strong>Real numbers depend on payload size, query shape, indexes, hardware and configuration. In an interview, quoting the right order of magnitude ("one Postgres box handles tens of thousands of reads a second") is what counts. At work, measure with a load test.</div>
 
+        <h3 id="up-close">The numbers in the interview</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Quote the order of magnitude, not the decimal: <q>one PostgreSQL box handles tens of thousands of indexed reads a second</q>. Do the math before adding shards, caches or queues, and say what each number means for the design.</div>
+    <ul>
+      <li><strong>Caches</strong> can often hold the whole hot dataset; the limit is usually operations per second or bandwidth, not memory.</li>
+      <li><strong>One database</strong> carries millions to tens of millions of users. Still run replicas for availability: replication (staying up) and sharding (scale) are separate decisions.</li>
+      <li><strong>App servers</strong> run out of CPU before memory; spare RAM is good for local caches, and autoscaling is quick enough that you needn't over-provision.</li>
+      <li><strong>Queues</strong> are fast enough to sit inside a synchronous request flow when there's no backlog.</li>
+      <li><strong>Distance</strong> can't be optimised away: same zone ≈ 0.25 ms, another zone ≈ 1–2 ms, another continent 60–180 ms. Keep data close to compute and users.</li>
+    </ul>
+    <div id="sc-dist"></div>
+    <div class="callout redflag"><strong>🚩 Red flags: the four classic mistakes with numbers</strong><ul>
+      <li><strong>Premature sharding.</strong> Yelp-sized data: 10 million businesses × 1 KB = 10 GB; ×10 for reviews = 100 GB. That's one database. Even a 400 GB leaderboard fits in one large cache.</li>
+      <li><strong>Overestimating database latency.</strong> An indexed row lookup on SSD takes well under a millisecond to a few milliseconds. Simple lookups don't need a cache; expensive queries might.</li>
+      <li><strong>A queue for "high" writes.</strong> PostgreSQL handles thousands of simple writes a second per core, so 5,000 writes a second needs no queue. Try batching, better indexes and connection pooling first; use queues for guaranteed delivery, decoupling or spikes beyond capacity.</li>
+      <li><strong>Old hardware assumptions.</strong> Designing for 2015-era machines ("8 GB of RAM, so we need 50 servers") over-engineers everything. Think in orders of magnitude and avoid 100 machines where one will do.</li>
+    </ul></div>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Lanes, trip time, traffic jam"</strong>Bandwidth is lanes, latency is trip time, utilization is how full the road is. Near full, every trip gets slow, and the unluckiest trip is the one users remember.</div>
@@ -2304,6 +2321,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Why do systems with large fan-out care so much about p99?</p>
         <div class="opts"><button>Their servers are slower</button><button>Waiting for many servers, any of which can be slow</button><button>They use more bandwidth</button></div>
         <div class="why">A request that needs 100 servers is slow if any one of them is. A rare per-server event becomes common per request.</div>
+      </div>
+      <div class="quiz-q" data-answer="None: about 100 GB fits on one database">
+        <p>Yelp: 10 million businesses at about 1 KB each, plus 10× that in reviews. How many database shards do you need for storage?</p>
+        <div class="opts"><button>About 10</button><button>About 100</button><button>None: about 100 GB fits on one database</button></div>
+        <div class="why">10M × 1 KB = 10 GB; with reviews ≈ 100 GB. One database holds tens of TB. Premature sharding is the classic mistake.</div>
+      </div>
+      <div class="quiz-q" data-answer="No: that's within one database's capacity">
+        <p>Your service writes 5,000 simple rows a second to PostgreSQL. Do you need a queue in front?</p>
+        <div class="opts"><button>Yes, writes are high</button><button>No: that's within one database's capacity</button><button>Yes, and shard as well</button></div>
+        <div class="why">Queues are for guaranteed delivery, decoupling or spikes beyond capacity, not for a load the database already handles.</div>
       </div>
     </div>
 
@@ -2438,9 +2465,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-pct", title: "3 · Percentiles", text: "Twenty real requests: why the average hides the users who suffer." },
     { el: "#fan-widget", title: "4 · Fan-out lab", text: "Change the shard count and the slow rate; watch the red dots." },
     { el: "#q-widget", title: "5 · The queueing cliff", text: "Drag utilization up and watch response time explode." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The numbers in the interview", text: "What the numbers mean for a design, and the four classic mistakes." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-dist", {
+    title: "Distance you can't optimise away", sub: "The same small request to three places. Travel times are drawn to scale (slowed down).",
+    nodes: [{ id: "app", x: 80, y: 125, w: 110, label: "App server", sub: "US East, zone a" },
+      { id: "z", x: 430, y: 40, w: 160, label: "DB, same zone", sub: "≈ 0.25 ms round trip" }, { id: "az", x: 430, y: 125, w: 160, label: "DB, another zone", sub: "≈ 1.5 ms" },
+      { id: "eu", x: 430, y: 210, w: 160, label: "DB in Europe", sub: "≈ 80 ms" }],
+    edges: [["app", "z"], ["app", "az"], ["app", "eu"]],
+    width: 560, height: 250,
+    steps: [
+      { hl: { app: "active", z: "found" }, moves: [{ e: "app>z", t: "query", k: "req", dur: 0.3 }, { e: "app>z", t: "row", k: "ok", back: true, delay: 0.35, dur: 0.3 }], hold: 2.4,
+        note: "Inside one zone a round trip is a fraction of a millisecond: dozens of queries per request are affordable." },
+      { hl: { app: "active", az: "found" }, moves: [{ e: "app>az", t: "query", k: "req", dur: 0.6 }, { e: "app>az", t: "row", k: "ok", back: true, delay: 0.65, dur: 0.6 }], hold: 2.6,
+        note: "Across zones in the same region: one to two milliseconds. Fine for replication and failover." },
+      { hl: { app: "active", eu: "bad" }, moves: [{ e: "app>eu", t: "query", k: "req", dur: 2.6 }, { e: "app>eu", t: "row", k: "ok", back: true, delay: 2.7, dur: 2.6 }], pops: [{ n: "eu", t: "physics: ≥ 56 ms NY–London", k: "bad", at: 1.0 }], hold: 6,
+        note: "Across the Atlantic: about 80 ms, and light in fibre sets a floor no engineering removes. Ten such calls in a request is most of a second." },
+      { hl: { app: "found", z: "found" }, pops: [{ n: "app", t: "keep data near compute", k: "ok", at: 0.3 }],
+        note: "So keep each request's data in its own region, put a CDN near users, and partition by region when users only need local data." },
+    ],
+  });
 })();
 </script>
 </body>
