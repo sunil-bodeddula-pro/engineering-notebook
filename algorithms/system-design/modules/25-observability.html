@@ -2113,6 +2113,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 25 of 29 · Level 5: Production and architecture</div>
     <h1>Observability: seeing inside a running system</h1>
     <p class="lede">A design isn't finished when it's drawn; it's finished when you can tell whether it's working. In production you can't attach a debugger to fifty services. You rely on what the system tells you: logs, metrics and traces. This module covers what each is for, how to follow one request across many services, how to avoid drowning in data, and how to alert on what users feel rather than on every twitch of a CPU graph.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2135,6 +2136,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Following one slow request</h3>
     <p>A user says checkout was slow. Press Play to see how a distributed trace finds the cause.</p>
     <div id="viz-trace"></div>
@@ -2341,6 +2343,35 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   L.forEach((_, i) => $("cl-" + i).addEventListener("input", card));
   card();
+  Viz.scene("#sc-main", {
+    title: "A trace finds the slow call", sub: "<b>Teal</b> = trace context passed along, <b>green</b> = fast spans, <b>red</b> = the slow one.",
+    nodes: [{ id: "u", x: 70, y: 120, w: 100, label: "User" }, { id: "co", x: 240, y: 120, w: 130, label: "Checkout", sub: "root span 3.1 s" },
+      { id: "auth", x: 460, y: 25, w: 130, h: 34, label: "Auth" }, { id: "cart", x: 460, y: 80, w: 130, h: 34, label: "Cart (Redis)" },
+      { id: "price", x: 460, y: 135, w: 130, h: 34, label: "Pricing (Postgres)" }, { id: "fraud", x: 460, y: 200, w: 150, label: "Fraud check", sub: "third party" }],
+    edges: [["u", "co"], ["co", "auth"], ["co", "cart"], ["co", "price"], ["co", "fraud"]],
+    width: 560, height: 240,
+    steps: [
+      { hl: { u: "active", co: "active" }, moves: [{ e: "u>co", t: "POST /checkout", k: "req" }],
+        note: "Checkout p99 has jumped to 3 s. Open one slow request's <b>trace</b>: its root span is the whole request, 3.1 seconds." },
+      { hl: { co: "active", auth: "found", cart: "found", price: "found" },
+        moves: [{ e: "co>auth", t: "traceparent", k: "evt" }, { e: "co>cart", t: "traceparent", k: "evt", delay: 0.2 }, { e: "co>price", t: "traceparent", k: "evt", delay: 0.4 },
+          { e: "co>auth", t: "8 ms", k: "ok", back: true, delay: 1.4 }, { e: "co>cart", t: "2 ms", k: "ok", back: true, delay: 1.6 }, { e: "co>price", t: "120 ms", k: "ok", back: true, delay: 1.8 }], hold: 4,
+        note: "Every call carries the trace ID in the <code>traceparent</code> header, so each service's span joins the same tree. These are fast." },
+      { hl: { co: "active", fraud: "bad" }, moves: [{ e: "co>fraud", t: "traceparent", k: "evt" }, { e: "co>fraud", t: "2.6 s", k: "bad", back: true, delay: 1.0, dur: 2.4 }], pops: [{ n: "fraud", t: "2.6 s of 3.1", k: "bad", at: 3.2 }], hold: 4.6,
+        note: "The <b>fraud check</b>, a third-party call, took 2.6 of the 3.1 seconds. Found in seconds." },
+      { hl: { fraud: "bad", co: "warm" }, pops: [{ n: "co", t: "same trace ID → its logs", k: "evt", at: 0.3 }],
+        note: "The logs carrying the same trace ID show timeouts and a retry. Fix: a tighter timeout, a circuit breaker and a fallback (Module 24)." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Logs, metrics and traces: what the system tells you about itself." },
+    { el: "#sc-main", title: "2 · A trace", text: "Watch trace context follow a request and expose the slow call." },
+    { el: "#viz-trace", title: "3 · One slow checkout", text: "The same trace as a waterfall, span by span." },
+    { el: "#burn", title: "4 · Should this page someone?", text: "SLO burn rates over two windows." },
+    { el: "#card", title: "5 · How many time series?", text: "Pick metric labels and watch the cardinality grow." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

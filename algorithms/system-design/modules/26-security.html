@@ -2111,6 +2111,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 26 of 29 · Level 5: Production and architecture</div>
     <h1>Security: designing systems that are hard to misuse</h1>
     <p class="lede">Security isn't a box you add at the end; it's a property of how the boxes are connected. Most real breaches aren't clever cryptography attacks. They're an endpoint that forgot to check who owns a record, a secret in a repository, an over-privileged service account, or one customer's data reachable from another's. This module gives you the design-level toolkit: identity, permissions, secrets, encryption and isolation.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2125,6 +2126,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Sessions and tokens</h3>
     <ul>
       <li><strong>Server-side session:</strong> after login, the server stores a session record and gives the browser a random session ID in a cookie (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>). Easy to revoke (delete the record); needs a shared session store when you have many servers.</li>
@@ -2375,6 +2377,34 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["az-auth", "az-own", "az-role"].forEach((id) => $(id).addEventListener("input", az));
   az();
+  Viz.scene("#sc-main", {
+    title: "Signing in with PKCE", sub: "<b>Blue</b> = redirects and requests, <b>teal</b> = secrets kept back, <b>green</b> = codes and tokens.",
+    nodes: [{ id: "br", x: 70, y: 115, w: 100, label: "Browser" }, { id: "app", x: 280, y: 40, w: 120, label: "Your app" },
+      { id: "idp", x: 280, y: 190, w: 140, label: "Identity provider" }, { id: "api", x: 500, y: 40, w: 110, label: "Your API" }],
+    edges: [["br", "app"], ["br", "idp"], ["app", "idp"], ["app", "api"]],
+    width: 570, height: 235,
+    steps: [
+      { hl: { br: "active", app: "active" }, moves: [{ e: "br>app", t: "sign in", k: "req" }, { e: "br>app", t: "redirect + challenge", k: "req", back: true, delay: 1.1 }], pops: [{ n: "app", t: "keeps the verifier secret", k: "evt", at: 1.1 }], hold: 3.6,
+        note: "The app makes a random <b>code verifier</b>, keeps it, and sends only its hash (the <b>code challenge</b>) with the redirect." },
+      { hl: { br: "active", idp: "active" }, moves: [{ e: "br>idp", t: "log in + consent", k: "req" }], pops: [{ n: "idp", t: "password only here", k: "ok", at: 1.3 }],
+        note: "The user signs in <b>at the identity provider</b>. The app never sees their password." },
+      { hl: { br: "active", idp: "active", app: "active" }, moves: [{ e: "br>idp", t: "auth code", k: "ok", back: true }, { e: "br>app", t: "auth code", k: "ok", delay: 1.1 }], hold: 3.2,
+        note: "The provider redirects back with a short-lived, single-use <b>authorization code</b>." },
+      { hl: { app: "active", idp: "found" }, moves: [{ e: "app>idp", t: "code + verifier", k: "req" }, { e: "app>idp", t: "ID + access token", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "idp", t: "hash(verifier) = challenge ✓", k: "ok", at: 1.2 }], hold: 3.6,
+        note: "The app swaps the code for tokens, proving it's the same app by sending the verifier. A stolen code alone is useless." },
+      { hl: { app: "active", api: "found" }, moves: [{ e: "app>api", t: "Bearer token", k: "req" }], pops: [{ n: "api", t: "verify, then check ownership", k: "ok", at: 1.3 }],
+        note: "API calls carry the access token. The API verifies it, and <b>still</b> checks per-resource permissions on every request." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Security is how the boxes are connected, not a box at the end." },
+    { el: "#sc-main", title: "2 · Signing in", text: "Watch the authorization code flow with PKCE." },
+    { el: "#viz-oauth", title: "3 · Step through it", text: "Every redirect and exchange, frame by frame." },
+    { el: "#jwt", title: "4 · Tamper with a token", text: "Edit the claims and see whether the signature still holds." },
+    { el: "#az", title: "5 · Who may do what?", text: "Try authorization rules on real requests." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

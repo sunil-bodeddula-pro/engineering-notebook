@@ -2125,6 +2125,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 24 of 29 · Level 5: Production and architecture</div>
     <h1>Reliability patterns: keeping failures small</h1>
     <p class="lede">In a system of many services, something is always slow or broken. The danger isn't the first failure; it's the chain reaction: callers wait, threads run out, retries multiply the load, and a hiccup in one service takes down five. This module is the toolkit that stops the spread: timeouts, sensible retries, circuit breakers, bulkheads, rate limits and load shedding, plus how to degrade gracefully and test it all on purpose.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2145,6 +2146,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>Timeouts and retries</h3>
     <ul>
       <li><strong>Every network call gets a timeout</strong>, set from the dependency's normal latency (a little above its p99), and smaller than the caller's own deadline. Propagate deadlines down the call chain (gRPC does this, Module 07), so downstream work stops when the user has given up.</li>
@@ -2398,6 +2400,32 @@ svg.flow .fn { transition: opacity .35s ease; }
   ["tb-b", "tb-r"].forEach((id) => $(id).addEventListener("input", reset));
   setInterval(() => { refill(); draw(); }, 250);
   reset();
+  Viz.scene("#sc-main", {
+    title: "A circuit breaker stops the spread", sub: "<b>Blue</b> = calls, <b>red</b> = timeouts, <b>green</b> = fast answers and recovery.",
+    nodes: [{ id: "svc", x: 80, y: 115, w: 110, label: "Checkout" }, { id: "cb", x: 270, y: 115, w: 130, label: "Circuit breaker" },
+      { id: "psp", x: 480, y: 45, w: 140, label: "Payment provider" }, { id: "fb", x: 480, y: 190, w: 140, label: "Fallback", sub: "fail fast, retry later" }],
+    edges: [["svc", "cb"], ["cb", "psp"], ["cb", "fb"]],
+    width: 560, height: 235,
+    steps: [
+      { hl: { svc: "active", cb: "found", psp: "found" }, moves: [{ e: "svc>cb", t: "pay", k: "req" }, { e: "cb>psp", t: "pay", k: "req", delay: 1.0 }, { e: "cb>psp", t: "200 ms", k: "ok", back: true, delay: 2.1 }], pops: [{ n: "cb", t: "closed", k: "ok", at: 0.3 }], hold: 3.6,
+        note: "Normally the breaker is <b>closed</b>: calls pass straight through." },
+      { hl: { cb: "warm", psp: "bad" }, moves: [0, 1, 2].map((i) => ({ e: "cb>psp", t: "pay", k: "bad", delay: i * 0.35 })), pops: [{ n: "psp", t: "timeouts", k: "bad", at: 1.6 }, { n: "cb", t: "failures counted", k: "bad", at: 2.0 }], hold: 3.6,
+        note: "The provider starts timing out. Each caller waits for its timeout, threads pile up, and retries add load. This is how one failure spreads." },
+      { hl: { svc: "active", cb: "bad", fb: "found" }, moves: [{ e: "svc>cb", t: "pay", k: "req" }, { e: "cb>fb", t: "fail fast", k: "ok", delay: 1.0 }], pops: [{ n: "cb", t: "open: don't call", k: "bad", at: 0.6 }], hold: 3.4,
+        note: "Past a failure threshold the breaker <b>opens</b>: calls fail immediately to a fallback (queue the payment, show \"try again shortly\"). No waiting, no extra load on the struggling provider." },
+      { hl: { cb: "warm", psp: "found" }, moves: [{ e: "cb>psp", t: "one trial call", k: "req" }, { e: "cb>psp", t: "ok", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "cb", t: "closed again", k: "ok", at: 2.3 }], hold: 3.6,
+        note: "After a cool-down it's <b>half-open</b>: one trial call. It succeeds, so the breaker closes and traffic resumes." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Stop one failure from becoming a chain reaction." },
+    { el: "#sc-main", title: "2 · Circuit breaker", text: "Watch it close, open under timeouts, and test its way back." },
+    { el: "#viz-cb", title: "3 · Step through it", text: "A breaker around a payment provider, frame by frame." },
+    { el: "#storm", title: "4 · Retry storm", text: "Compare retry policies during and after an outage." },
+    { el: "#tb", title: "5 · Token bucket", text: "Send requests and bursts against a rate limit." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>

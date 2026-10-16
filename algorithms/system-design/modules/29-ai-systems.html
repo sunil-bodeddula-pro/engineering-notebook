@@ -2105,6 +2105,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <div class="eyebrow">System design · Module 29 of 29 · Level 5: Production and architecture</div>
     <h1>Designing AI systems</h1>
     <p class="lede">A product built on a large language model is still a distributed system: requests, queues, caches, databases, rate limits, failures. But one component behaves differently from anything before it: it's slow, expensive per call, priced and limited in tokens, non-deterministic, and can be steered by its own input. This module applies the whole course to AI features: the request path, cost and capacity, serving models yourself, retrieval, agents, and making it safe and measurable. For the AI concepts themselves, this site's <a href="../../ai/index.html">AI engineering track</a> goes deeper.</p>
+    <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
@@ -2130,6 +2131,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
+    <div id="sc-main"></div>
     <h3>One question to a document assistant</h3>
     <p>Press Play: a user asks an internal assistant a question about company policy.</p>
     <div id="viz-rag"></div>
@@ -2358,6 +2360,35 @@ svg.flow .fn { transition: opacity .35s ease; }
   }
   ["g-p", "g-m", "g-k"].forEach((id) => $(id).addEventListener("input", gpu));
   gpu();
+  Viz.scene("#sc-main", {
+    title: "One question to a document assistant", sub: "<b>Blue</b> = requests, <b>green</b> = results and streamed tokens, <b>teal</b> = telemetry.",
+    nodes: [{ id: "u", x: 70, y: 115, w: 100, label: "Employee" }, { id: "gw", x: 240, y: 115, w: 120, label: "AI gateway" },
+      { id: "ret", x: 450, y: 40, w: 140, label: "Retrieval", sub: "vector + keyword" }, { id: "llm", x: 450, y: 115, w: 140, label: "Model" },
+      { id: "ev", x: 450, y: 195, w: 140, label: "Traces + evals" }],
+    edges: [["u", "gw"], ["gw", "ret"], ["gw", "llm"], ["gw", "ev"]],
+    width: 560, height: 235,
+    steps: [
+      { hl: { u: "active", gw: "active" }, moves: [{ e: "u>gw", t: "policy question", k: "req" }], pops: [{ n: "gw", t: "auth · token budget", k: "ok", at: 1.3 }],
+        note: "The <b>AI gateway</b> authenticates the employee, checks their token budget and rate limit, and starts a trace." },
+      { hl: { gw: "active", ret: "found" }, moves: [{ e: "gw>ret", t: "search", k: "req" }, { e: "gw>ret", t: "best 5 chunks", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "ret", t: "only what they may see", k: "ok", at: 1.2 }], hold: 3.4,
+        note: "Retrieval searches by meaning and keywords, <b>filtered to documents this employee may see</b>, and keeps the best 5." },
+      { hl: { gw: "active", llm: "active" }, moves: [{ e: "gw>llm", t: "cached prefix + chunks + question", k: "req" }], pops: [{ n: "llm", t: "fast first token", k: "ok", at: 1.5 }],
+        note: "The prompt puts the stable part first, so the provider can reuse its cached prefix. The call has a timeout, a retry and a fallback model." },
+      { hl: { llm: "found", gw: "active", u: "found" }, moves: [{ e: "gw>llm", t: "tokens", k: "ok", back: true }, { e: "u>gw", t: "answer + citations", k: "ok", back: true, delay: 1.1 }], hold: 3.4,
+        note: "Tokens <b>stream</b> back to the browser, with citations the employee can check." },
+      { hl: { gw: "active", ev: "found" }, moves: [{ e: "gw>ev", t: "tokens, cost, latency", k: "evt" }], pops: [{ n: "ev", t: "sampled by evals", k: "evt", at: 1.3 }],
+        note: "The trace records retrieval, tokens, cost and latency. Evals score a sample of conversations, and thumbs-down feedback flags cases to fix." },
+    ],
+  });
+  Viz.tour("#tour", [
+    { el: "#idea", title: "1 · The idea", text: "Still a distributed system, with one slow, costly, non-deterministic component." },
+    { el: "#sc-main", title: "2 · A document assistant", text: "Watch a question pass the gateway, retrieval, the model and telemetry." },
+    { el: "#viz-rag", title: "3 · Step through it", text: "The same request, frame by frame." },
+    { el: "#cost", title: "4 · Cost and capacity", text: "Tokens, prices and traffic into a monthly bill." },
+    { el: "#gpu", title: "5 · How many GPUs?", text: "Model size and precision into GPU memory." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+  ]);
 })();
 </script>
 </body>
