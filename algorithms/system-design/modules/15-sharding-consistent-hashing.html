@@ -2219,7 +2219,85 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Vitess</strong> (sharded MySQL, created at YouTube) and <strong>Citus</strong> (distributed PostgreSQL) route queries to shards and support resharding online.</li>
       <li><strong>Kafka</strong> partitions topics by key the same way, so all events for one key stay in order on one partition (Module 18).</li>
     </ul>
-    <p><strong>In an interview</strong>, shard only after showing the numbers need it. Then say: the key ("user_id, because every main query is per user"), the strategy ("hash, with consistent hashing"), the cost ("global trending needs a scatter-gather, so I precompute it"), and the hot-key plan.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Shard only after showing the numbers need it, then four lines: the <strong>key</strong> (<q><code>user_id</code>, because every main query is per user</q>), the <strong>strategy</strong> (<q>hash, with consistent hashing</q>), the <strong>cost</strong> (<q>global trending needs a scatter-gather, so I precompute it</q>), and the <strong>hot-key plan</strong>. And don't build it yourself: <q>DynamoDB with <code>user_id</code> as partition key</q>, or Vitess/Citus for SQL, is a complete answer.</div>
+
+    <section class="tech" id="t-hashshard">
+      <div class="tech-h"><h3>Hash sharding with consistent hashing</h3><span class="tech-status s-default">The default · once the numbers demand it</span></div>
+      <p>Hash the shard key and map it onto shards with a ring (or fixed hash slots), so keys spread evenly and adding a shard moves only a fraction of them.</p>
+      <h4>How it works</h4>
+      <p>Covered above. Choosing the key is the real decision: <strong>high cardinality</strong>, <strong>even load</strong>, and <strong>common queries hit one shard</strong>. Good: <code>user_id</code> for user-centric apps, <code>order_id</code> for orders. Bad: a boolean like <code>is_premium</code> (two shards), <code>created_at</code> on a growing table (every new write hits the newest shard), country (skewed). The key is close to permanent.</p>
+      <div id="sc-salt"></div>
+      <h4>Status today</h4>
+      <p>How Cassandra, DynamoDB, Redis Cluster, Kafka and most distributed caches place data. Failures are handled by replicas, not by moving data; data moves only for planned changes.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>One database can't keep up with storage, writes or reads, and you've shown it with numbers</li><li>Most queries are scoped to one entity (a user, a tenant, a channel)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Before the math says so: one large PostgreSQL holds far more than most prompts need (Module 02)</li><li>Range-heavy queries across keys</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Four steps: <q>The limit is 50k writes a second at peak. Queries are per user, so shard key <code>user_id</code>. Hash with consistent hashing. Global trending needs every shard, so I precompute it in a background job.</q> Add the growth plan: <q>start with 64 shards; consistent hashing moves only a fraction when we add more.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Sharding on day one.</strong> Premature sharding is the most common mistake interviewers see.</li><li><strong>Naming a shard key without checking the queries</strong>: if the main page hits every shard, the key is wrong.</li><li><strong>Confusing the two problems:</strong> virtual nodes fix uneven <em>keys</em>; replication, caching and salting fix uneven <em>traffic</em>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-rangeshard">
+      <div class="tech-h"><h3>Range sharding</h3><span class="tech-status s-situational">Situational · range scans, tenants</span></div>
+      <p>Each shard owns a contiguous range of keys: IDs 1–1M on shard 1, or one range per customer.</p>
+      <h4>How it works</h4>
+      <p>Range scans stay on one shard and data is easy to reason about. But traffic clusters: with time or sequential IDs, all new writes land on the last range. Systems that use ranges (HBase, Bigtable, CockroachDB, MongoDB's ranged sharding) split hot ranges automatically.</p>
+      <h4>Status today</h4>
+      <p>Common inside databases that auto-split; less common as a hand-built scheme.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Multi-tenant SaaS (a range or shard per customer)</li><li>Archives and analytics partitioned by time</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Write-heavy data keyed by time or a sequence: one hot shard takes every write</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Partition the archive by month for cheap range scans and drops; live writes stay hash-sharded by user.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Time-range sharding for write-heavy data.</strong> The newest shard melts while the rest idle.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-dirshard">
+      <div class="tech-h"><h3>Directory sharding</h3><span class="tech-status s-rare">Rare · flexibility at a cost</span></div>
+      <p>A lookup table maps each key or tenant to a shard.</p>
+      <h4>How it works</h4>
+      <p>Every request first asks the directory (usually cached), then goes to the shard. Any tenant can be moved by changing one row, so a huge customer can get a shard of its own.</p>
+      <h4>Status today</h4>
+      <p>Used for large multi-tenant products; rarely the interview answer.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>A few tenants are vastly bigger than the rest and need isolating</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Uniform workloads: hashing needs no lookup</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only for tenant isolation: <q>A directory maps each tenant to a shard, so the biggest customers get their own.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Forgetting the directory is on every request's path</strong>: it must be cached and highly available.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-vpart">
+      <div class="tech-h"><h3>Vertical partitioning</h3><span class="tech-status s-situational">Situational · different access patterns</span></div>
+      <p>Split data by how it's used, each part in a store tuned for it, rather than splitting rows.</p>
+      <h4>How it works</h4>
+      <p>For posts: <code>post_content</code> (written once, read many → a B-tree database), <code>post_metrics</code> (counters updated constantly → an in-memory counter store), <code>post_analytics</code> (append-only events → a time-series or columnar store). Inside one database, the same idea moves rarely used or large columns out of a hot table.</p>
+      <h4>Status today</h4>
+      <p>Standard practice in large products, often combined with horizontal sharding.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>One entity has parts with very different read/write patterns</li><li>A hot table is slowed by big, rarely read columns</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small systems: one table is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Like counts change thousands of times a second, so they live in Redis counters flushed periodically; the post itself stays in PostgreSQL.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Sharding everything</strong> when only one part (the counters) is write-hot.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-2pc">
+      <div class="tech-h"><h3>Two-phase commit (2PC)</h3><span class="tech-status s-rare">Rare · usually the wrong answer</span></div>
+      <p>A protocol to commit one transaction across several databases: a coordinator asks everyone to <em>prepare</em>, then tells them all to <em>commit</em>.</p>
+      <h4>How it works</h4>
+      <p>Participants hold locks between prepare and commit. If the coordinator dies after prepare, participants are stuck holding those locks until it recovers. Every transaction pays extra round trips.</p>
+      <h4>Status today</h4>
+      <p>Exists (XA transactions), and is used <em>inside</em> some distributed databases (Spanner runs 2PC over consensus groups, so the coordinator can't simply vanish). Across services and third-party APIs it's impractical: payment providers don't take part in your transactions.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Inside a database that does it for you (distributed SQL)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Across microservices or external APIs: use a saga (Module 22)</li><li>Anything on a hot path</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A user's data stays on one shard so transactions are local; across services we use a saga with compensations rather than 2PC.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing 2PC across microservices.</strong> Expect: what happens when the coordinator crashes after prepare?</li><li><strong>Needing cross-shard transactions often:</strong> a sign the shard key or service boundaries are wrong.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2298,6 +2376,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>One viral post's like counter overloads its shard. A common fix?</p>
         <div class="opts"><button>Add more shards</button><button>Split the counter into several keys and sum on read</button><button>Switch to range sharding</button></div>
         <div class="why">More shards don't help one key. Splitting the key spreads its writes; reads add the parts up.</div>
+      </div>
+      <div class="quiz-q" data-answer="created_at">
+        <p>Which is the worst shard key for a busy orders table?</p>
+        <div class="opts"><button>order_id</button><button>created_at</button><button>customer_id</button></div>
+        <div class="why">Every new order has the latest timestamp, so all writes land on the newest shard.</div>
+      </div>
+      <div class="quiz-q" data-answer="Split the counter into several salted keys and sum on read">
+        <p>A viral post's like counter overloads one shard. What helps most?</p>
+        <div class="opts"><button>Add more virtual nodes</button><button>Split the counter into several salted keys and sum on read</button><button>Move to range sharding</button></div>
+        <div class="why">Virtual nodes even out keys, not traffic on one key. Salting spreads that key's writes over several shards.</div>
       </div>
     </div>
 
@@ -2431,9 +2519,29 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · Adding a shard", text: "Watch % N move most keys, consistent hashing move a quarter, and a hot key." },
     { el: "#viz-mod", title: "3 · Why % N is a trap", text: "Step through adding a shard key by key." },
     { el: "#ring", title: "4 · Hash ring simulator", text: "Add nodes, raise virtual nodes, watch the load even out." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "Hash, range and directory sharding, vertical partitioning and 2PC: when each fits, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-salt", {
+    title: "A hot key, split across shards", sub: "<b>Red</b> = one overloaded shard, <b>blue</b> = spread writes, <b>green</b> = summed on read.",
+    nodes: [{ id: "w", x: 80, y: 130, w: 120, label: "Likes", sub: "viral post 42" },
+      { id: "s0", x: 330, y: 35, w: 130, h: 40, label: "Shard 0" }, { id: "s1", x: 330, y: 100, w: 130, h: 40, label: "Shard 1" },
+      { id: "s2", x: 330, y: 165, w: 130, h: 40, label: "Shard 2" }, { id: "s3", x: 330, y: 230, w: 130, h: 40, label: "Shard 3" },
+      { id: "r", x: 560, y: 130, w: 110, label: "Reader" }],
+    edges: [["w", "s0"], ["w", "s1"], ["w", "s2"], ["w", "s3"], ["r", "s0"], ["r", "s1"], ["r", "s2"], ["r", "s3"]],
+    width: 640, height: 265,
+    steps: [
+      { hl: { w: "active", s2: "bad" }, moves: [0, 1, 2, 3, 4].map((i) => ({ e: "w>s2", t: "+1", k: "bad", delay: i * 0.3, dur: 0.9 })), pops: [{ n: "s2", t: "100k likes/s on one key", k: "bad", at: 1.8 }], hold: 3.6,
+        note: "Consistent hashing spreads <b>keys</b> evenly, but every like for post 42 hits the one shard that owns it." },
+      { hl: { w: "active", s0: "active", s1: "active", s2: "active", s3: "active" }, moves: [0, 1, 2, 3].map((i) => ({ e: "w>s" + i, t: "post:42#" + i, k: "req", delay: i * 0.25 })), pops: [{ n: "w", t: "pick a suffix at random", k: "req", at: 0.3 }], hold: 3.4,
+        note: "<b>Salt</b> the key: write to <code>post:42#0</code> … <code>#3</code> at random. Each lands on a different shard." },
+      { hl: { r: "active", s0: "found", s1: "found", s2: "found", s3: "found" }, moves: [0, 1, 2, 3].map((i) => ({ e: "r>s" + i, t: "count", k: "ok", back: false, delay: i * 0.2 })), pops: [{ n: "r", t: "sum of 4 counters", k: "ok", at: 1.9 }], hold: 3.6,
+        note: "Readers fetch all four counters and add them up: four times the reads, but no single hot shard." },
+      { hl: { r: "warm" }, pops: [{ n: "r", t: "only for summable values", k: "evt", at: 0.3 }],
+        note: "It works for counts (likes, views), not for records that must change atomically. Split only the keys that are actually hot." },
+    ],
+  });
 })();
 </script>
 </body>
