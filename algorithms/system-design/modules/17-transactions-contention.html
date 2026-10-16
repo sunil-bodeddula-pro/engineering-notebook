@@ -2219,7 +2219,112 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Distributed locks</strong> (Redis, ZooKeeper, etcd) coordinate work across services, but a lock that expires while its holder is paused can be held by two clients at once. For correctness, pair it with <strong>fencing tokens</strong> checked by the storage (Module 21).</li>
       <li><strong>Ticketing at scale</strong> combines several tools: a virtual waiting room to limit concurrency, seat holds with expiry, and a conditional write at purchase (Design D15).</li>
     </ul>
-    <p><strong>In an interview</strong>, raise contention yourself whenever there's limited inventory, money, or "only one may win". Name the race, then the simplest correct guard: "a conditional update on the seat row, and a 10-minute hold so payment doesn't race."</p>
+
+        <h3 id="up-close">The tools up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Raise contention yourself whenever there's limited inventory, money, or "only one may win". Name the race, then the simplest correct guard, at the single source of truth: <q>a conditional update on the seat row, and a 10-minute hold so payment doesn't race.</q> Don't overcomplicate: no Redis lock where a row lock or OCC works.</div>
+    <table><thead><tr><th>Prompt</th><th>Approach</th></tr></thead><tbody>
+      <tr><td>Auction</td><td>Optimistic concurrency using the <strong>current high bid as the version</strong> (it only goes up, so no ABA)</td></tr>
+      <tr><td>Ticketmaster</td><td>A 10-minute seat hold with expiry, then a conditional write at purchase</td></tr>
+      <tr><td>Bank transfer (one database)</td><td>Pessimistic locks in ascending account-ID order, or OCC; across services → a saga</td></tr>
+      <tr><td>Ride dispatch</td><td>Set the driver to <code>pending_request</code> with a ~10-second expiry so two riders can't get the same driver</td></tr>
+      <tr><td>Flash sale</td><td>OCC or a conditional decrement on inventory, plus cart holds with a TTL</td></tr>
+      <tr><td>Ratings average</td><td>OCC with a version column when updating the average</td></tr>
+    </tbody></table>
+
+    <section class="tech" id="t-condwrite">
+      <div class="tech-h"><h3>Conditional (atomic) write</h3><span class="tech-status s-default">The default · start here</span></div>
+      <p>Put the rule in the <code>WHERE</code> clause of the write itself, so checking and changing happen as one step.</p>
+      <h4>How it works</h4>
+      <p><code>UPDATE events SET left = left - 1 WHERE id = 7 AND left &gt; 0</code>, or claim a seat with <code>… WHERE status = 'available'</code>. Then <strong>check rows affected</strong>: 0 means someone else won, which isn't an error. Chain follow-up inserts to it in the same statement or transaction (<code>WITH … RETURNING</code>).</p>
+      <h4>Status today</h4>
+      <p>Works everywhere: SQL, DynamoDB condition expressions, Redis <code>SET NX</code>, Cassandra lightweight transactions, HTTP <code>If-Match</code>.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>The rule is a condition on the row being written: a counter, a status, a claim</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>The decision needs application logic or other rows (find 4 adjacent seats)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Purchase is <code>UPDATE seats SET status = 'sold' WHERE id = ? AND status = 'held' AND held_by = ?</code>; zero rows means it's gone.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Read, then decide in code, then write</strong> without a guard: the classic lost update.</li><li><strong>A counter ("seats left") guarding specific seats.</strong> Guard the thing people fight over: one row per seat.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-occ">
+      <div class="tech-h"><h3>Optimistic concurrency (OCC)</h3><span class="tech-status s-situational">Situational · conflicts are rare</span></div>
+      <p>Read a version, do your work without locks, and write only if the version hasn't changed; otherwise re-read and retry.</p>
+      <h4>How it works</h4>
+      <p><code>UPDATE … SET …, version = version + 1 WHERE id = 7 AND version = 41</code>; 0 rows → someone else wrote first. <strong>The ABA problem:</strong> if you check a business value instead of a version, it can go A → B → A and your check wrongly passes. Use a dedicated counter that only increases, or a value that only moves one way (an auction's high bid).</p>
+      <div id="sc-occ"></div>
+      <h4>Status today</h4>
+      <p>Standard: version columns, HTTP ETag/If-Match, etcd revisions, DynamoDB version attributes, JPA/Hibernate <code>@Version</code>.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Conflicts are rare; users think for a while between read and write</li><li>Auctions, edits to a document's metadata, rating averages</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>High contention: most attempts fail and retry storms waste work</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Bidders compete, so OCC with the high bid as the version: a bid only succeeds if the high bid is still what you saw.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>OCC under heavy contention</strong> (a ticket drop): retries pile up.</li><li><strong>Using a value that can return to an old state</strong> as the version (ABA).</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-pessimistic">
+      <div class="tech-h"><h3>Pessimistic locks</h3><span class="tech-status s-situational">Situational · high contention with app logic</span></div>
+      <p>Lock the rows first (<code>SELECT … FOR UPDATE</code>), decide, update, commit; others wait in line.</p>
+      <h4>How it works</h4>
+      <p>Lock as little as possible for as short as possible. Never call a payment provider or wait for a user while holding a lock. Avoid deadlocks by always locking in a fixed order (ascending ID); the database still detects deadlocks, so catch the error and retry.</p>
+      <h4>Status today</h4>
+      <p>Built into every relational database.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Read, decide in code, write, with frequent conflicts (find 4 adjacent seats, transfer between two accounts)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Rare conflicts (every request pays for the lock)</li><li>Holds that must outlast one transaction (use a lease)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The transfer locks both accounts with <code>FOR UPDATE</code> in ascending ID order, so two opposite transfers can't deadlock.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Slow I/O inside the lock</strong> (a payment API call).</li><li><strong>Locking in "initiator first" order</strong>: two opposite transfers deadlock.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-serial">
+      <div class="tech-h"><h3>Serializable isolation</h3><span class="tech-status s-rare">Situational · rules across rows</span></div>
+      <p>The database makes concurrent transactions behave as if they ran one at a time, aborting one when they conflict.</p>
+      <h4>How it works</h4>
+      <p>Catches <strong>write skew</strong>: two on-call doctors each check "is someone else on call?", both see yes, both leave. No single row conflicts, so only Serializable (or moving the rule onto one row you can lock) catches it. The app must retry aborted transactions.</p>
+      <h4>Status today</h4>
+      <p>PostgreSQL's Serializable uses Serializable Snapshot Isolation (retry on error 40001); support and cost vary across databases, and it's mostly unavailable outside relational ones.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Rules that span several rows and are hard to express as one condition</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Hot paths: aborts and tracking get expensive under contention</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The on-call rule spans rows, so either Serializable with retries, or a count on the team row that we lock.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Assuming the default isolation level catches write skew.</strong> Only Serializable does.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-leases">
+      <div class="tech-h"><h3>Distributed locks and leases</h3><span class="tech-status s-situational">Situational · holds that outlast a transaction</span></div>
+      <p>A lock with an expiry, held across steps or services: a 10-minute seat hold, a job only one worker may run.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Where</th><th>How</th><th>Trade-off</th></tr></thead><tbody>
+        <tr><td>Redis</td><td><code>SET key owner NX EX 600</code></td><td>Fast and self-expiring; a stalled holder can briefly overlap another. Fine for soft holds, not correctness</td></tr>
+        <tr><td>Database columns</td><td><code>UPDATE seats SET held_by = ?, held_until = now() + '10 min' WHERE id = ? AND (held_until IS NULL OR held_until &lt; now())</code></td><td>No new infrastructure; expired holds count as free without cleanup</td></tr>
+        <tr><td>ZooKeeper / etcd</td><td>Consensus-backed leases; ephemeral nodes vanish when the client dies</td><td>Most robust; another cluster to run. Pair with fencing tokens (Module 21)</td></tr>
+      </tbody></table>
+      <h4>Status today</h4>
+      <p>All three are common; database-column holds are the simplest correct choice for seat-style reservations.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Reservations (seat or cart holds)</li><li>Leader-only jobs, coordinating work across services</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A single-row guard inside one transaction already does the job</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'll reserve the seat for 10 minutes with held_until on the seat row, so users don't lose it after typing a card number.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A Redis lock where a row lock or OCC would do</strong>: more infrastructure, weaker guarantee.</li><li><strong>A lock without expiry:</strong> a crashed holder blocks everyone forever.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-qserial">
+      <div class="tech-h"><h3>Queue-based serialization</h3><span class="tech-status s-rare">Rare · everyone wants one item</span></div>
+      <p>Send every request for one hot item through one queue with a single worker, so they're processed strictly one at a time.</p>
+      <h4>How it works</h4>
+      <p>Sharding, replicas and load balancing don't help one row. First try to <strong>change the problem</strong>: split 10,000 identical tickets into 100 pools, or make likes and follows eventually consistent. If one item really must be serialised, a dedicated queue and worker absorb the spike, at the cost of a throughput ceiling and a standby for the worker.</p>
+      <h4>Status today</h4>
+      <p>Used for extreme single-item contention (limited drops, some exchanges' order books per instrument).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>A single item gets a burst no database row could handle</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Normal contention: conditional writes are simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>For the drop, requests for that product go through one ordered queue and a single worker; everything else stays normal.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Adding servers or replicas to fix one hot row.</strong> They all still write to that row.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2298,6 +2403,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Two transactions each read the same rows and update different rows, together breaking a rule. What is it?</p>
         <div class="opts"><button>A dirty read</button><button>Write skew</button><button>A phantom</button></div>
         <div class="why">Only serializable isolation (or moving the rule onto one row you lock) prevents write skew.</div>
+      </div>
+      <div class="quiz-q" data-answer="The ABA problem">
+        <p>An OCC check uses the item's status as the version. It goes available → held → available while you think, and your write succeeds. What's this called?</p>
+        <div class="opts"><button>A deadlock</button><button>The ABA problem</button><button>Write skew</button></div>
+        <div class="why">The value returned to what you saw, hiding a change. Use a version counter that only increases.</div>
+      </div>
+      <div class="quiz-q" data-answer="…don't help: they all write to the same row">
+        <p>Ten thousand people want one limited-edition item at the same second. More app servers and replicas…</p>
+        <div class="opts"><button>…solve it</button><button>…don't help: they all write to the same row</button><button>…help if you add a cache</button></div>
+        <div class="why">Change the problem (split into pools) or serialise requests for that item through one queue.</div>
       </div>
     </div>
 
@@ -2415,9 +2530,27 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · The last ticket", text: "Watch a lost update sell a ticket twice, then a conditional write prevent it." },
     { el: "#viz-lost", title: "3 · A lost update", text: "The same race, step by step." },
     { el: "#race", title: "4 · Ticket rush simulator", text: "200 buyers, 20 tickets: run each strategy." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The tools up close", text: "Conditional writes, OCC, locks, Serializable, leases and queue serialization, with red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-occ", {
+    title: "Optimistic concurrency in an auction", sub: "<b>Blue</b> = reads and bids, <b>green</b> = accepted, <b>red</b> = rejected, then retried.",
+    nodes: [{ id: "a", x: 80, y: 55, w: 110, label: "Bidder A" }, { id: "b", x: 80, y: 195, w: 110, label: "Bidder B" },
+      { id: "db", x: 420, y: 125, w: 180, label: "Auction 7", sub: "high bid $90" }],
+    edges: [["a", "db"], ["b", "db"]],
+    width: 540, height: 250,
+    steps: [
+      { hl: { a: "active", b: "active", db: "active" }, moves: [{ e: "a>db", t: "read: $90", k: "ok", back: true }, { e: "b>db", t: "read: $90", k: "ok", back: true, delay: 0.2 }], hold: 3,
+        note: "Both bidders see a high bid of $90. No locks are taken." },
+      { hl: { a: "found", db: "found" }, moves: [{ e: "a>db", t: "$95 if high = $90", k: "req" }, { e: "a>db", t: "1 row ✓", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
+        note: "A bids $95 <b>only if</b> the high bid is still $90. It is, so one row changes." },
+      { hl: { b: "bad", db: "found" }, moves: [{ e: "b>db", t: "$100 if high = $90", k: "req" }, { e: "b>db", t: "0 rows", k: "bad", back: true, delay: 1.1 }], pops: [{ n: "b", t: "someone bid first", k: "bad", at: 2.2 }], hold: 3.4,
+        note: "B's condition no longer holds (the high bid is now $95), so zero rows change. Not an error: a signal to re-read." },
+      { hl: { b: "found", db: "found" }, moves: [{ e: "b>db", t: "read: $95", k: "ok", back: true }, { e: "b>db", t: "$100 if high = $95", k: "req", delay: 1.0 }, { e: "b>db", t: "1 row ✓", k: "ok", back: true, delay: 2.1 }], pops: [{ n: "db", t: "high bid only rises: no ABA", k: "ok", at: 2.6 }], hold: 4.2,
+        note: "B re-reads and retries. The high bid only goes up, so it can safely act as the version: no ABA problem." },
+    ],
+  });
 })();
 </script>
 </body>
