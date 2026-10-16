@@ -2187,6 +2187,23 @@ svg.flow .fn { transition: opacity .35s ease; }
     <h3>Back-pressure: when the queue keeps growing</h3>
     <p>A queue only absorbs bursts. If messages arrive faster than consumers process them <em>on average</em>, the backlog grows without limit, and latency with it. Watch <strong>queue depth</strong> and <strong>consumer lag</strong>; scale consumers on them, not on CPU; and if you can't keep up, push back on producers (reject, slow down) or shed low-value work. Try it in section 3.</p>
 
+    <h3>Scaling writes: the strategies in order</h3>
+    <p>The core idea is to reduce the write throughput each component handles. Do the math first, then go in order:</p>
+    <ol class="steps-list">
+      <li><strong>Vertical scaling and the right database.</strong> Check you're actually hitting disk, CPU or network limits; modern machines are huge. For append-heavy data, a write-optimised store (Cassandra, a time-series database) trades read speed for write speed, because it appends instead of updating pages (Module 12).</li>
+      <li><strong>Sharding and vertical partitioning</strong> (Module 15): ten shards ≈ ten times the writes, if the key spreads load; split hot counters from content.</li>
+      <li><strong>Queues for bursts, load shedding for overload.</strong> A queue absorbs a spike and lets the database drain it steadily, but if input stays above capacity on average, the queue grows forever. Load shedding drops the least valuable writes when overloaded: a location ping (a fresher one arrives in seconds), impressions before clicks.</li>
+      <li><strong>Batching and hierarchical aggregation.</strong> Combine many small writes into a few: a "like batcher" sums likes per post per second, turning 100 writes into 1. For live events with millions of viewers, aggregate in layers (below).</li>
+    </ol>
+    <div id="sc-hier"></div>
+    <table><thead><tr><th>Prompt</th><th>Write-scaling plan</th></tr></thead><tbody>
+      <tr><td>Instagram / social</td><td>Shard by user ID; separate profiles, posts and analytics; tiered storage for old posts</td></tr>
+      <tr><td>News feed</td><td>Balance celebrity fan-out on write against building feeds on read</td></tr>
+      <tr><td>Search indexing</td><td>Partition the index and batch the indexing pipeline</td></tr>
+      <tr><td>Live comments and likes</td><td>Hierarchical aggregation and batching</td></tr>
+    </tbody></table>
+    <p>State the trade-offs: queues add delay and eventual consistency; partitioning can make some reads harder; batching adds latency and moving parts, and loses the batch on a crash unless the source (a Kafka topic) can be re-read.</p>
+
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
     <p>Messages arrive at a steady rate with a burst in the middle. Workers each handle a fixed number per second. Find the worker count that drains the burst within your target, and see what happens when the average rate exceeds capacity.</p>
@@ -2218,7 +2235,81 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>RabbitMQ</strong> offers flexible routing (exchanges), quorum queues for durability, and streams for log-style use. <strong>Google Cloud Pub/Sub</strong> and <strong>Amazon SNS</strong> are managed pub/sub; SNS commonly fans out into several SQS queues. <strong>Redis Streams</strong> suit modest queues where Redis is already running.</li>
       <li><strong>Keep messages small:</strong> pass IDs and pointers ("video 123 uploaded to s3://…"), not the video. Brokers are built for many small messages.</li>
     </ul>
-    <p><strong>In an interview</strong>, add a queue when work is slow, bursty or must survive failures, and say three things: the guarantee ("at-least-once, so consumers are idempotent"), the key and ordering ("partitioned by order ID"), and the failure path ("retries with backoff, then a DLQ we alert on").</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Add a queue when work is slow, bursty or must survive failures, and say three things: the <strong>guarantee</strong> (<q>at-least-once, so consumers are idempotent</q>), the <strong>key and ordering</strong> (<q>partitioned by order ID</q>), and the <strong>failure path</strong> (<q>retries with backoff, then a DLQ we alert on</q>). Don't use a queue to hide a database that can't handle normal load.</div>
+
+    <section class="tech" id="t-kafka">
+      <div class="tech-h"><h3>Apache Kafka</h3><span class="tech-status s-situational">Situational · the event log at scale</span></div>
+      <p>A distributed, durable, append-only log that works as a message queue or an event stream. Lead with your partition key and your plan for hot partitions.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+        <tr><td>Broker</td><td>A server in the cluster; more brokers = more storage and throughput</td></tr>
+        <tr><td>Topic / partition</td><td>A topic is split into partitions: ordered, immutable logs, the <strong>unit of parallelism and ordering</strong></td></tr>
+        <tr><td>Key</td><td><code>hash(key) % partitions</code>: the same key always lands in the same partition, in order. No key = spread evenly, unordered</td></tr>
+        <tr><td>Consumer group</td><td>Each partition is read by one consumer in the group; consumers <strong>pull</strong> at their own pace</td></tr>
+        <tr><td>Offset</td><td>A consumer's position in a partition; committed so it can resume after a crash</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>Queue vs stream:</strong> one group processing each message = a queue; many groups reading the same events independently, with replay = a stream. Retention defaults to 7 days.</li>
+        <li><strong>Durability:</strong> replication factor 3, <code>acks=all</code>, a minimum in-sync replica count; the controller promotes an in-sync follower if a partition's leader dies.</li>
+        <li><strong>Delivery:</strong> at-least-once by default (a crash before committing the offset means reprocessing); idempotent producers stop duplicates on retry; exactly-once within Kafka uses transactions.</li>
+        <li><strong>Failures:</strong> a dead consumer's partitions are rebalanced to the others; commit offsets only after the work is safely stored. Consumer retries aren't built in: use a retry topic, then a DLQ.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Kafka 4.3 is current (October 2026). Since 4.0 it runs without ZooKeeper (KRaft), and 4.2 added share groups for queue-style consumption. Managed: Confluent Cloud, Amazon MSK; Redpanda is a compatible alternative. Rough sizing: one broker handles on the order of a terabyte and up to about a million small messages a second, so below that, scaling Kafka isn't worth discussing.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Async work at scale with ordering per key (all events of one order in sequence)</li><li>Many independent consumers of the same events, with replay (analytics, search indexing, CDC)</li><li>Absorbing bursts in front of a slower system</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple job queues with built-in retries and DLQs (SQS is simpler)</li><li>Large payloads: keep messages under 1 MB and send pointers to S3</li><li>Request/response RPC</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Clicks go to a Kafka topic partitioned by <code>ad_id</code>, replication factor 3 with <code>acks=all</code>. Consumers are idempotent because delivery is at-least-once; a viral ad gets a salted key so one partition doesn't melt.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>No partition key</strong>, or a skewed one: a viral ad sends everything to one partition. Fixes: salting (<code>ad_id + random</code>, re-aggregate later), a compound key (<code>ad_id + region</code>), back-pressure.</li><li><strong>Blobs in Kafka.</strong> Store the video in S3, send a pointer.</li><li><strong>Assuming exactly-once end to end</strong> without idempotent consumers.</li><li><strong>Spending time on "what if Kafka goes down?"</strong> A replicated cluster going down entirely is unrealistic; it's fair to say so politely and focus on consumer failures.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-sqs">
+      <div class="tech-h"><h3>Amazon SQS (and simple job queues)</h3><span class="tech-status s-default">The default for background jobs</span></div>
+      <p>A fully managed message queue: send, receive, delete, with retries and dead-letter queues built in.</p>
+      <h4>How it works</h4>
+      <p>A received message becomes invisible for a visibility timeout (30 s by default); delete it when done, or it reappears for another worker. After a set number of receives it moves to a dead-letter queue. Standard queues: near-unlimited throughput, at-least-once, best-effort order. FIFO queues: order per message group, deduplication.</p>
+      <h4>Status today</h4>
+      <p>Mature, serverless, pay per message; messages up to 1 MiB. Google Cloud Tasks and Azure Queue Storage are equivalents.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Background jobs: send this email, resize this image</li><li>When you want retries and DLQs without building them</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Many consumers reading the same events, or replay (Kafka)</li><li>Strict global ordering</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Jobs go on SQS with a redrive policy: three failed attempts and the message lands in a DLQ we alert on.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A visibility timeout shorter than the job</strong>: two workers process the same message.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-rabbit">
+      <div class="tech-h"><h3>RabbitMQ</h3><span class="tech-status s-rare">Situational · rich routing</span></div>
+      <p>A self-hosted message broker with flexible routing through exchanges (direct, topic, fan-out), plus quorum queues and streams.</p>
+      <h4>How it works</h4>
+      <p>Producers publish to an exchange; bindings route each message to one or more queues; consumers acknowledge each message. Quorum queues replicate with Raft for durability.</p>
+      <h4>Status today</h4>
+      <p>Mature and widely deployed on-premises and as a managed service (Amazon MQ, CloudAMQP).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Complex routing rules between many services</li><li>Teams already operating it</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Replayable event history at huge scale (Kafka)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Fine to name if you know it; otherwise <q>a queue such as SQS or RabbitMQ</q> is enough.</p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Debating Kafka vs RabbitMQ at length.</strong> Interviewers care about the guarantee, the key and the failure path, not the brand.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-redisstreams">
+      <div class="tech-h"><h3>Redis Streams and BullMQ</h3><span class="tech-status s-rare">Situational · modest queues, Redis already there</span></div>
+      <p>Queues built on Redis: Streams with consumer groups and acknowledgements, or job libraries like BullMQ with delays, retries and priorities.</p>
+      <h4>How it works</h4>
+      <p><code>XADD</code> appends; consumer groups read with <code>XREADGROUP</code> and acknowledge; a dead worker's pending items are reclaimed with <code>XAUTOCLAIM</code>. Durability follows Redis's persistence settings.</p>
+      <h4>Status today</h4>
+      <p>Popular for small and medium workloads where Redis is already running.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Modest job queues and notification fan-out alongside an existing Redis</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Long retention, replay by many consumers, or data you can't lose on a Redis failover</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>At this volume, Redis Streams is enough; we'd move to Kafka if we needed replay or long retention.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Treating a memory-first queue as durable</strong> for jobs you can't lose.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2297,6 +2388,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>A message fails every time it's processed. What should happen?</p>
         <div class="opts"><button>Retry it forever</button><button>Move it to a dead-letter queue after a few attempts</button><button>Delete it silently</button></div>
         <div class="why">Park it where it can be inspected and replayed after a fix, and alert so someone looks.</div>
+      </div>
+      <div class="quiz-q" data-answer="No: the backlog grows forever; you need more write capacity">
+        <p>Writes arrive at 30k/s on average and your database handles 20k/s. Does a queue in front fix it?</p>
+        <div class="opts"><button>Yes, the queue absorbs it</button><button>No: the backlog grows forever; you need more write capacity</button><button>Yes, if the queue is Kafka</button></div>
+        <div class="why">Queues absorb bursts, not a sustained excess. Shard, batch or shed load instead.</div>
+      </div>
+      <div class="quiz-q" data-answer="Salt or compound the key, and re-aggregate downstream">
+        <p>Clicks for one viral ad all land on one Kafka partition. What's the usual fix?</p>
+        <div class="opts"><button>Add consumers to the group</button><button>Salt or compound the key, and re-aggregate downstream</button><button>Increase retention</button></div>
+        <div class="why">One key always maps to one partition, which only one consumer in a group can read. Spreading the key spreads the load.</div>
       </div>
     </div>
 
@@ -2401,9 +2502,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#sc-main", title: "2 · A queue at work", text: "Watch a spike become a backlog, a redelivery, and an idempotent worker." },
     { el: "#viz-log", title: "3 · A partitioned log", text: "Partitions, keys and two consumer groups reading at their own pace." },
     { el: "#qd", title: "4 · Drain the burst", text: "Find the worker count that clears a burst in time." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "Kafka in depth, SQS, RabbitMQ and Redis Streams: when each fits, and the red flags." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-hier", {
+    title: "Hierarchical aggregation: millions of likes, one update a second", sub: "<b>Blue</b> = individual likes, <b>green</b> = aggregated counts, <b>teal</b> = broadcasts.",
+    nodes: [{ id: "v", x: 70, y: 130, w: 110, label: "Viewers", sub: "liking" }, { id: "a1", x: 225, y: 60, w: 115, label: "Aggregator 1" }, { id: "a2", x: 225, y: 200, w: 115, label: "Aggregator 2" },
+      { id: "root", x: 380, y: 130, w: 100, label: "Root" }, { id: "b1", x: 530, y: 60, w: 115, label: "Broadcast 1" }, { id: "b2", x: 530, y: 200, w: 115, label: "Broadcast 2" },
+      { id: "out", x: 665, y: 130, w: 100, label: "Viewers", sub: "watching" }],
+    edges: [["v", "a1"], ["v", "a2"], ["a1", "root"], ["a2", "root"], ["root", "b1"], ["root", "b2"], ["b1", "out"], ["b2", "out"]],
+    width: 730, height: 260,
+    steps: [
+      { hl: { v: "active", a1: "active", a2: "active" }, moves: [0, 1, 2, 3, 4, 5].map((i) => ({ e: i % 2 ? "v>a2" : "v>a1", t: "+1", k: "req", delay: i * 0.25, dur: 0.8 })), pops: [{ n: "a1", t: "sum per second", k: "req", at: 1.8 }], hold: 3.6,
+        note: "Hundreds of thousands of likes a second go to <b>aggregators</b> (chosen by hashing), each summing what it receives over a short window." },
+      { hl: { a1: "found", a2: "found", root: "active" }, moves: [{ e: "a1>root", t: "+4,210", k: "ok" }, { e: "a2>root", t: "+3,980", k: "ok", delay: 0.2 }], pops: [{ n: "root", t: "+8,190 this second", k: "ok", at: 1.4 }], hold: 3.2,
+        note: "Each aggregator sends <b>one number</b> per window to the root, which merges them." },
+      { hl: { root: "active", b1: "active", b2: "active", out: "found" }, moves: [{ e: "root>b1", t: "1.2M likes", k: "evt" }, { e: "root>b2", t: "1.2M likes", k: "evt", delay: 0.2 }, { e: "b1>out", t: "1.2M", k: "evt", delay: 1.1 }, { e: "b2>out", t: "1.2M", k: "evt", delay: 1.3 }], pops: [{ n: "out", t: "1 update a second", k: "ok", at: 2.5 }], hold: 4,
+        note: "The total fans out through <b>broadcast nodes</b> (viewers assigned by consistent hashing). Each viewer gets one update a second instead of thousands." },
+      { hl: { root: "warm" }, pops: [{ n: "root", t: "cost: ~1 s of delay", k: "evt", at: 0.3 }],
+        note: "This avoids the all-to-all problem (every like to every viewer), at the cost of about one window of latency." },
+    ],
+  });
 })();
 </script>
 </body>
