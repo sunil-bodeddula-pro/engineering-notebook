@@ -305,9 +305,10 @@
          <button id="${id}-play" class="primary" title="Play / pause (space)">▶ Play</button>
          <button id="${id}-next" title="Next (→)">Next ▶</button>
          <input id="${id}-range" type="range" min="0" max="${Math.max(0, frames.length - 1)}" value="0" aria-label="step">
-         <span class="counter"></span>
+         <span class="counter"></span>${cfg.speedControl ? `<button id="${id}-speed" class="sc-speed" title="Playback speed">1×</button>` : ""}
        </div>`;
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
+    let speed = 1;
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
     const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
@@ -328,14 +329,17 @@
       vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
+      if (cfg.onShow) cfg.onShow(i);
     }
     function stop() { clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; }
     function play() {
       if (timer) return stop();
       if (i >= frames.length - 1) show(0);
       playBtn.textContent = "❚❚ Pause";
-      timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, cfg.speed || 1100);
+      timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, (cfg.speed || 1100) / speed);
     }
+    const speedBtn = root.querySelector(`#${id}-speed`);
+    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (timer) { stop(); play(); } };
     root.querySelector(`#${id}-prev`).onclick = () => { stop(); show(i - 1); };
     root.querySelector(`#${id}-next`).onclick = () => { stop(); show(i + 1); };
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
@@ -375,6 +379,72 @@
       if (e.key === " ") { play(); e.preventDefault(); }
     });
     show(0);
+    return { show: (k) => { stop(); show(k); }, index: () => i, count: frames.length };
+  }
+
+  /** Template lab: ONE execution trace drives the highlighted code line (Python, TypeScript or Java), the
+   *  variables, the data-structure view, the analogy and the explanation.
+   *  cfg {title, sub, code: {py: [[lineId, text], ...], ts, java},
+   *       steps: [{line: id | [ids], vars, view, analogy, note, ask: {q, options, answer, why}}],
+   *       bug: {label, code, steps, diverge, why}}   (bug.code may hold only py; other languages fall back to it) */
+  function tlab(target, cfg) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const LN = { py: "Python", ts: "TypeScript", java: "Java" };
+    let lang = "py", buggy = false, ctl = null;
+    try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
+    if (!cfg.code[lang]) lang = "py";
+    root.classList.add("tlab");
+    root.innerHTML = `<div class="tl-bar">
+        <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
+        ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
+        <label class="tl-opt"><input type="checkbox" class="tl-pred"> Predict each step</label>
+        <label class="tl-opt"><input type="checkbox" class="tl-expl" checked> Explanations</label>
+      </div><div class="tl-player"></div><div class="tl-ask" aria-live="polite" hidden></div>`;
+    const ask = root.querySelector(".tl-ask"), pred = root.querySelector(".tl-pred");
+    const src = () => (buggy ? cfg.bug : cfg);
+    const isOn = (st, id) => id && st.line && (Array.isArray(st.line) ? st.line.includes(id) : st.line === id);
+    function frames() {
+      const s = src(), code = s.code[lang] || s.code.py, codeLang = s.code[lang] ? lang : "py";
+      return s.steps.map((st, k) => ({
+        view: `<div class="tl-grid"><pre class="tl-code"><code>${code.map(([id, t]) => `<span class="tl-ln${isOn(st, id) ? " on" : ""}">${t ? highlight(t, codeLang) : " "}</span>`).join("")}</code></pre>` +
+          `<div class="tl-side">${st.analogy ? `<div class="tl-analogy">${st.analogy}</div>` : ""}${st.view || ""}</div></div>`,
+        note: (buggy && k === cfg.bug.diverge ? `<strong class="tl-warn">⚠ First difference from the correct version:</strong> ${cfg.bug.why} ` : "") + (st.note || ""),
+        vars: st.vars,
+      }));
+    }
+    function showAsk(i) {
+      if (!pred.checked) { ask.hidden = true; return; }
+      const nx = src().steps[i + 1];
+      ask.hidden = false;
+      if (!nx) { ask.innerHTML = "<p>That's the last step. Press ⟲ Reset to try again.</p>"; return; }
+      if (!nx.ask) { ask.innerHTML = `<p>Nothing to predict here. <button type="button" class="tl-go">Show the next step ▶</button></p>`; }
+      else {
+        ask.innerHTML = `<p><strong>Predict:</strong> ${nx.ask.q}</p><div class="tl-opts">${[...nx.ask.options].sort((a, b) => (isNaN(a) || isNaN(b) ? String(a).localeCompare(String(b)) : a - b)).map((o) => `<button type="button" data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div><p class="tl-fb"></p>`;
+        ask.querySelectorAll("[data-o]").forEach((b) => (b.onclick = () => {
+          const ok = b.dataset.o === String(nx.ask.answer);
+          ask.querySelectorAll("[data-o]").forEach((x) => { x.disabled = true; if (x.dataset.o === String(nx.ask.answer)) x.classList.add("right"); });
+          if (!ok) b.classList.add("wrong");
+          ask.querySelector(".tl-fb").innerHTML = `${ok ? "✓ Right." : "✗ Not quite."} ${nx.ask.why || ""} <button type="button" class="tl-go">Show the step ▶</button>`;
+          ask.querySelector(".tl-go").onclick = () => ctl.show(i + 1);
+        }));
+      }
+      const go = ask.querySelector(".tl-go"); if (go) go.onclick = () => ctl.show(i + 1);
+    }
+    function build() {
+      const k = ctl ? ctl.index() : 0;
+      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk });
+      ctl.show(Math.min(k, ctl.count - 1));
+      root.querySelectorAll(".tl-lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === lang)));
+      root.querySelectorAll(".tl-bug button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.b === +buggy)));
+    }
+    root.querySelector(".tl-lang").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; lang = b.dataset.l; try { localStorage.setItem("ik-code-lang", lang); } catch (err) { /* storage unavailable */ } build(); };
+    const bugBar = root.querySelector(".tl-bug");
+    if (bugBar) bugBar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; buggy = b.dataset.b === "1"; ctl = null; build(); };
+    pred.onchange = () => showAsk(ctl.index());
+    root.querySelector(".tl-expl").onchange = (e) => root.classList.toggle("tl-noexpl", !e.target.checked);
+    build();
+    return ctl;
   }
 
   /* ---------- online libraries: progressive enhancement; every page still works when they can't load ---------- */
@@ -1450,5 +1520,5 @@
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();

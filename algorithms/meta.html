@@ -502,6 +502,46 @@ svg.flow .fn { transition: opacity .35s ease; }
 .modmap .mod span.d { font-size: .86rem; color: var(--ink-2); }
 .modmap div.mod { opacity: .7; }
 
+/* Template labs (coding patterns): code + state + analogy driven by one trace */
+.tlab { margin: 14px 0; }
+.tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
+.tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
+.tl-code code { display: block; }
+.tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
+.tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
+.tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.tl-bar .seg button { font: 600 .8rem var(--sans); color: var(--ink-2); background: none; border: 0; padding: 5px 12px; cursor: pointer; }
+.tl-bar .seg button + button { border-left: 1px solid var(--line); }
+.tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
+.tl-warn { color: var(--red); }
+.tlab.tl-noexpl .note { display: none; }
+.tl-ask { border: 1px dashed var(--accent); border-radius: 10px; padding: 8px 14px; margin-top: 8px; }
+.tl-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-opts button { font: 600 .85rem var(--mono); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.tl-opts button.right { border-color: var(--green); background: var(--green-soft); }
+.tl-opts button.wrong { border-color: var(--red); background: var(--red-soft); }
+.tl-ask button.tl-go { font: 600 .82rem var(--sans); border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.tmpl { border-top: 1px solid var(--line); margin-top: 26px; padding-top: 6px; }
+.tmpl-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 10px 0; }
+.tmpl-facts div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+.tmpl-facts b { display: block; font: 700 .72rem var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+.recall { background: var(--accent-soft); border-radius: 12px; padding: 10px 16px; margin: 14px 0; }
+.recall dl { margin: 6px 0; } .recall dt { font-weight: 700; margin-top: 6px; } .recall dd { margin: 0 0 0 0; }
+@media (max-width: 600px) {
+  table.tl-lbl thead { display: none; }
+  table.tl-lbl, table.tl-lbl tbody, table.tl-lbl tr, table.tl-lbl td { display: block; width: 100%; }
+  table.tl-lbl tr { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin-bottom: 10px; }
+  table.tl-lbl td { border: 0; padding: 3px 0; }
+  table.tl-lbl td::before { content: attr(data-h); display: block; font: 700 .68rem var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  table.tl-lbl td:first-child::before { display: none; }
+}
+@media (max-width: 760px) { .tl-grid { grid-template-columns: 1fr; } .tl-code { font-size: .74rem; overflow-x: auto; } }
+
 /* System design "technology up close" blocks: how it works, status, when to use, interview red flags */
 .tech { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 18px 20px 8px; margin: 24px 0; }
 .tech-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
@@ -940,9 +980,10 @@ svg.flow .fn { transition: opacity .35s ease; }
          <button id="${id}-play" class="primary" title="Play / pause (space)">▶ Play</button>
          <button id="${id}-next" title="Next (→)">Next ▶</button>
          <input id="${id}-range" type="range" min="0" max="${Math.max(0, frames.length - 1)}" value="0" aria-label="step">
-         <span class="counter"></span>
+         <span class="counter"></span>${cfg.speedControl ? `<button id="${id}-speed" class="sc-speed" title="Playback speed">1×</button>` : ""}
        </div>`;
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
+    let speed = 1;
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
     const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
@@ -963,14 +1004,17 @@ svg.flow .fn { transition: opacity .35s ease; }
       vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
+      if (cfg.onShow) cfg.onShow(i);
     }
     function stop() { clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; }
     function play() {
       if (timer) return stop();
       if (i >= frames.length - 1) show(0);
       playBtn.textContent = "❚❚ Pause";
-      timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, cfg.speed || 1100);
+      timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, (cfg.speed || 1100) / speed);
     }
+    const speedBtn = root.querySelector(`#${id}-speed`);
+    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (timer) { stop(); play(); } };
     root.querySelector(`#${id}-prev`).onclick = () => { stop(); show(i - 1); };
     root.querySelector(`#${id}-next`).onclick = () => { stop(); show(i + 1); };
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
@@ -1010,6 +1054,72 @@ svg.flow .fn { transition: opacity .35s ease; }
       if (e.key === " ") { play(); e.preventDefault(); }
     });
     show(0);
+    return { show: (k) => { stop(); show(k); }, index: () => i, count: frames.length };
+  }
+
+  /** Template lab: ONE execution trace drives the highlighted code line (Python, TypeScript or Java), the
+   *  variables, the data-structure view, the analogy and the explanation.
+   *  cfg {title, sub, code: {py: [[lineId, text], ...], ts, java},
+   *       steps: [{line: id | [ids], vars, view, analogy, note, ask: {q, options, answer, why}}],
+   *       bug: {label, code, steps, diverge, why}}   (bug.code may hold only py; other languages fall back to it) */
+  function tlab(target, cfg) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const LN = { py: "Python", ts: "TypeScript", java: "Java" };
+    let lang = "py", buggy = false, ctl = null;
+    try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
+    if (!cfg.code[lang]) lang = "py";
+    root.classList.add("tlab");
+    root.innerHTML = `<div class="tl-bar">
+        <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
+        ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
+        <label class="tl-opt"><input type="checkbox" class="tl-pred"> Predict each step</label>
+        <label class="tl-opt"><input type="checkbox" class="tl-expl" checked> Explanations</label>
+      </div><div class="tl-player"></div><div class="tl-ask" aria-live="polite" hidden></div>`;
+    const ask = root.querySelector(".tl-ask"), pred = root.querySelector(".tl-pred");
+    const src = () => (buggy ? cfg.bug : cfg);
+    const isOn = (st, id) => id && st.line && (Array.isArray(st.line) ? st.line.includes(id) : st.line === id);
+    function frames() {
+      const s = src(), code = s.code[lang] || s.code.py, codeLang = s.code[lang] ? lang : "py";
+      return s.steps.map((st, k) => ({
+        view: `<div class="tl-grid"><pre class="tl-code"><code>${code.map(([id, t]) => `<span class="tl-ln${isOn(st, id) ? " on" : ""}">${t ? highlight(t, codeLang) : " "}</span>`).join("")}</code></pre>` +
+          `<div class="tl-side">${st.analogy ? `<div class="tl-analogy">${st.analogy}</div>` : ""}${st.view || ""}</div></div>`,
+        note: (buggy && k === cfg.bug.diverge ? `<strong class="tl-warn">⚠ First difference from the correct version:</strong> ${cfg.bug.why} ` : "") + (st.note || ""),
+        vars: st.vars,
+      }));
+    }
+    function showAsk(i) {
+      if (!pred.checked) { ask.hidden = true; return; }
+      const nx = src().steps[i + 1];
+      ask.hidden = false;
+      if (!nx) { ask.innerHTML = "<p>That's the last step. Press ⟲ Reset to try again.</p>"; return; }
+      if (!nx.ask) { ask.innerHTML = `<p>Nothing to predict here. <button type="button" class="tl-go">Show the next step ▶</button></p>`; }
+      else {
+        ask.innerHTML = `<p><strong>Predict:</strong> ${nx.ask.q}</p><div class="tl-opts">${[...nx.ask.options].sort((a, b) => (isNaN(a) || isNaN(b) ? String(a).localeCompare(String(b)) : a - b)).map((o) => `<button type="button" data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div><p class="tl-fb"></p>`;
+        ask.querySelectorAll("[data-o]").forEach((b) => (b.onclick = () => {
+          const ok = b.dataset.o === String(nx.ask.answer);
+          ask.querySelectorAll("[data-o]").forEach((x) => { x.disabled = true; if (x.dataset.o === String(nx.ask.answer)) x.classList.add("right"); });
+          if (!ok) b.classList.add("wrong");
+          ask.querySelector(".tl-fb").innerHTML = `${ok ? "✓ Right." : "✗ Not quite."} ${nx.ask.why || ""} <button type="button" class="tl-go">Show the step ▶</button>`;
+          ask.querySelector(".tl-go").onclick = () => ctl.show(i + 1);
+        }));
+      }
+      const go = ask.querySelector(".tl-go"); if (go) go.onclick = () => ctl.show(i + 1);
+    }
+    function build() {
+      const k = ctl ? ctl.index() : 0;
+      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk });
+      ctl.show(Math.min(k, ctl.count - 1));
+      root.querySelectorAll(".tl-lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === lang)));
+      root.querySelectorAll(".tl-bug button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.b === +buggy)));
+    }
+    root.querySelector(".tl-lang").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; lang = b.dataset.l; try { localStorage.setItem("ik-code-lang", lang); } catch (err) { /* storage unavailable */ } build(); };
+    const bugBar = root.querySelector(".tl-bug");
+    if (bugBar) bugBar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; buggy = b.dataset.b === "1"; ctl = null; build(); };
+    pred.onchange = () => showAsk(ctl.index());
+    root.querySelector(".tl-expl").onchange = (e) => root.classList.toggle("tl-noexpl", !e.target.checked);
+    build();
+    return ctl;
   }
 
   /* ---------- online libraries: progressive enhancement; every page still works when they can't load ---------- */
@@ -2085,7 +2195,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->

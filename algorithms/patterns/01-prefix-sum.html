@@ -502,6 +502,46 @@ svg.flow .fn { transition: opacity .35s ease; }
 .modmap .mod span.d { font-size: .86rem; color: var(--ink-2); }
 .modmap div.mod { opacity: .7; }
 
+/* Template labs (coding patterns): code + state + analogy driven by one trace */
+.tlab { margin: 14px 0; }
+.tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
+.tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
+.tl-code code { display: block; }
+.tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
+.tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
+.tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.tl-bar .seg button { font: 600 .8rem var(--sans); color: var(--ink-2); background: none; border: 0; padding: 5px 12px; cursor: pointer; }
+.tl-bar .seg button + button { border-left: 1px solid var(--line); }
+.tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
+.tl-warn { color: var(--red); }
+.tlab.tl-noexpl .note { display: none; }
+.tl-ask { border: 1px dashed var(--accent); border-radius: 10px; padding: 8px 14px; margin-top: 8px; }
+.tl-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-opts button { font: 600 .85rem var(--mono); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.tl-opts button.right { border-color: var(--green); background: var(--green-soft); }
+.tl-opts button.wrong { border-color: var(--red); background: var(--red-soft); }
+.tl-ask button.tl-go { font: 600 .82rem var(--sans); border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.tmpl { border-top: 1px solid var(--line); margin-top: 26px; padding-top: 6px; }
+.tmpl-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 10px 0; }
+.tmpl-facts div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+.tmpl-facts b { display: block; font: 700 .72rem var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+.recall { background: var(--accent-soft); border-radius: 12px; padding: 10px 16px; margin: 14px 0; }
+.recall dl { margin: 6px 0; } .recall dt { font-weight: 700; margin-top: 6px; } .recall dd { margin: 0 0 0 0; }
+@media (max-width: 600px) {
+  table.tl-lbl thead { display: none; }
+  table.tl-lbl, table.tl-lbl tbody, table.tl-lbl tr, table.tl-lbl td { display: block; width: 100%; }
+  table.tl-lbl tr { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin-bottom: 10px; }
+  table.tl-lbl td { border: 0; padding: 3px 0; }
+  table.tl-lbl td::before { content: attr(data-h); display: block; font: 700 .68rem var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  table.tl-lbl td:first-child::before { display: none; }
+}
+@media (max-width: 760px) { .tl-grid { grid-template-columns: 1fr; } .tl-code { font-size: .74rem; overflow-x: auto; } }
+
 /* System design "technology up close" blocks: how it works, status, when to use, interview red flags */
 .tech { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 18px 20px 8px; margin: 24px 0; }
 .tech-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
@@ -940,9 +980,10 @@ svg.flow .fn { transition: opacity .35s ease; }
          <button id="${id}-play" class="primary" title="Play / pause (space)">▶ Play</button>
          <button id="${id}-next" title="Next (→)">Next ▶</button>
          <input id="${id}-range" type="range" min="0" max="${Math.max(0, frames.length - 1)}" value="0" aria-label="step">
-         <span class="counter"></span>
+         <span class="counter"></span>${cfg.speedControl ? `<button id="${id}-speed" class="sc-speed" title="Playback speed">1×</button>` : ""}
        </div>`;
     const stage = root.querySelector(".stage"), note = root.querySelector(".note"), vars = root.querySelector(".vars");
+    let speed = 1;
     const range = root.querySelector(`#${id}-range`), counter = root.querySelector(".counter");
     const playBtn = root.querySelector(`#${id}-play`);
     const varsHtml = (f) => f.vars ? Object.entries(f.vars).map(([a, b]) => `<span>${esc(a)} = ${esc(typeof b === "object" ? JSON.stringify(b) : b)}</span>`).join("") : "";
@@ -963,14 +1004,17 @@ svg.flow .fn { transition: opacity .35s ease; }
       vars.innerHTML = varsHtml(f);
       range.value = i;
       counter.textContent = `${i + 1} / ${frames.length}`;
+      if (cfg.onShow) cfg.onShow(i);
     }
     function stop() { clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; }
     function play() {
       if (timer) return stop();
       if (i >= frames.length - 1) show(0);
       playBtn.textContent = "❚❚ Pause";
-      timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, cfg.speed || 1100);
+      timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, (cfg.speed || 1100) / speed);
     }
+    const speedBtn = root.querySelector(`#${id}-speed`);
+    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (timer) { stop(); play(); } };
     root.querySelector(`#${id}-prev`).onclick = () => { stop(); show(i - 1); };
     root.querySelector(`#${id}-next`).onclick = () => { stop(); show(i + 1); };
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
@@ -1010,6 +1054,72 @@ svg.flow .fn { transition: opacity .35s ease; }
       if (e.key === " ") { play(); e.preventDefault(); }
     });
     show(0);
+    return { show: (k) => { stop(); show(k); }, index: () => i, count: frames.length };
+  }
+
+  /** Template lab: ONE execution trace drives the highlighted code line (Python, TypeScript or Java), the
+   *  variables, the data-structure view, the analogy and the explanation.
+   *  cfg {title, sub, code: {py: [[lineId, text], ...], ts, java},
+   *       steps: [{line: id | [ids], vars, view, analogy, note, ask: {q, options, answer, why}}],
+   *       bug: {label, code, steps, diverge, why}}   (bug.code may hold only py; other languages fall back to it) */
+  function tlab(target, cfg) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const LN = { py: "Python", ts: "TypeScript", java: "Java" };
+    let lang = "py", buggy = false, ctl = null;
+    try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
+    if (!cfg.code[lang]) lang = "py";
+    root.classList.add("tlab");
+    root.innerHTML = `<div class="tl-bar">
+        <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
+        ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
+        <label class="tl-opt"><input type="checkbox" class="tl-pred"> Predict each step</label>
+        <label class="tl-opt"><input type="checkbox" class="tl-expl" checked> Explanations</label>
+      </div><div class="tl-player"></div><div class="tl-ask" aria-live="polite" hidden></div>`;
+    const ask = root.querySelector(".tl-ask"), pred = root.querySelector(".tl-pred");
+    const src = () => (buggy ? cfg.bug : cfg);
+    const isOn = (st, id) => id && st.line && (Array.isArray(st.line) ? st.line.includes(id) : st.line === id);
+    function frames() {
+      const s = src(), code = s.code[lang] || s.code.py, codeLang = s.code[lang] ? lang : "py";
+      return s.steps.map((st, k) => ({
+        view: `<div class="tl-grid"><pre class="tl-code"><code>${code.map(([id, t]) => `<span class="tl-ln${isOn(st, id) ? " on" : ""}">${t ? highlight(t, codeLang) : " "}</span>`).join("")}</code></pre>` +
+          `<div class="tl-side">${st.analogy ? `<div class="tl-analogy">${st.analogy}</div>` : ""}${st.view || ""}</div></div>`,
+        note: (buggy && k === cfg.bug.diverge ? `<strong class="tl-warn">⚠ First difference from the correct version:</strong> ${cfg.bug.why} ` : "") + (st.note || ""),
+        vars: st.vars,
+      }));
+    }
+    function showAsk(i) {
+      if (!pred.checked) { ask.hidden = true; return; }
+      const nx = src().steps[i + 1];
+      ask.hidden = false;
+      if (!nx) { ask.innerHTML = "<p>That's the last step. Press ⟲ Reset to try again.</p>"; return; }
+      if (!nx.ask) { ask.innerHTML = `<p>Nothing to predict here. <button type="button" class="tl-go">Show the next step ▶</button></p>`; }
+      else {
+        ask.innerHTML = `<p><strong>Predict:</strong> ${nx.ask.q}</p><div class="tl-opts">${[...nx.ask.options].sort((a, b) => (isNaN(a) || isNaN(b) ? String(a).localeCompare(String(b)) : a - b)).map((o) => `<button type="button" data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div><p class="tl-fb"></p>`;
+        ask.querySelectorAll("[data-o]").forEach((b) => (b.onclick = () => {
+          const ok = b.dataset.o === String(nx.ask.answer);
+          ask.querySelectorAll("[data-o]").forEach((x) => { x.disabled = true; if (x.dataset.o === String(nx.ask.answer)) x.classList.add("right"); });
+          if (!ok) b.classList.add("wrong");
+          ask.querySelector(".tl-fb").innerHTML = `${ok ? "✓ Right." : "✗ Not quite."} ${nx.ask.why || ""} <button type="button" class="tl-go">Show the step ▶</button>`;
+          ask.querySelector(".tl-go").onclick = () => ctl.show(i + 1);
+        }));
+      }
+      const go = ask.querySelector(".tl-go"); if (go) go.onclick = () => ctl.show(i + 1);
+    }
+    function build() {
+      const k = ctl ? ctl.index() : 0;
+      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk });
+      ctl.show(Math.min(k, ctl.count - 1));
+      root.querySelectorAll(".tl-lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === lang)));
+      root.querySelectorAll(".tl-bug button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.b === +buggy)));
+    }
+    root.querySelector(".tl-lang").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; lang = b.dataset.l; try { localStorage.setItem("ik-code-lang", lang); } catch (err) { /* storage unavailable */ } build(); };
+    const bugBar = root.querySelector(".tl-bug");
+    if (bugBar) bugBar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; buggy = b.dataset.b === "1"; ctl = null; build(); };
+    pred.onchange = () => showAsk(ctl.index());
+    root.querySelector(".tl-expl").onchange = (e) => root.classList.toggle("tl-noexpl", !e.target.checked);
+    build();
+    return ctl;
   }
 
   /* ---------- online libraries: progressive enhancement; every page still works when they can't load ---------- */
@@ -2085,7 +2195,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -2189,86 +2299,134 @@ def slice_sum(prefix, left, right):
     <p><strong>Cost:</strong> build <code>O(n)</code> time and <code>O(n)</code> space; each query <code>O(1)</code>. The prefix + hash map version is <code>O(n)</code> time and <code>O(n)</code> space.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <p>There are two templates. <strong>Template A</strong> answers "what is the sum of this range?" many times. <strong>Template B</strong> counts how many slices add up to exactly <code>k</code>.</p>
-    <pre><code class="python"># A) Range sums: build once, then answer each query in O(1)
-def build_prefix(nums):
-    # [0] * (len(nums) + 1) makes a list of zeros, one longer than nums.
-    # prefix[0] stays 0 and means "the sum of nothing".
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Prefix Sum has two templates. They share one idea, <strong>a running total ("odometer reading") at every point</strong>, but answer different questions. <strong>Template A</strong> keeps every reading so it can answer many range-sum questions instantly. <strong>Template B</strong> keeps a logbook of readings it has passed, to count how many slices add up to exactly <code>k</code>. Read each one in order: question → hook → story → code → watch it run → invariant.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Build prefix sums, then answer range sums in O(1)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What is the sum of <code>nums[left..right]</code>? (asked many times)</div><div><b>What it keeps</b>Every odometer reading: <code>prefix[i]</code> = sum of the first <code>i</code> numbers.</div><div><b>When it checks for an answer</b>After the build, each query is one subtraction.</div><div><b>Use it when</b>The array doesn't change and there are many range-sum queries.</div><div><b>Not for</b>Counting slices with a target sum (Template B), or arrays that change between queries (a Fenwick tree, page 24).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Reading after the end minus reading before the start"</strong>Drive the array once, writing down the odometer at every checkpoint. The distance of any stretch is the reading <em>after</em> its last leg minus the reading <em>before</em> its first leg.</div>
+    <p><strong>The story, mapped to the code.</strong> Each number is one leg of a trip. The car starts at the factory with the odometer at 0.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The factory reading before any driving</td><td data-h="In the code"><code>prefix[0] = 0</code></td><td data-h="What it means">The total of nothing; it lets a stretch starting at index 0 have a "before" reading.</td></tr><tr><td data-h="In the story">One leg of the trip</td><td data-h="In the code"><code>nums[i]</code></td><td data-h="What it means">The distance added at step i.</td></tr><tr><td data-h="In the story">Reading before leg i</td><td data-h="In the code"><code>prefix[i]</code></td><td data-h="What it means">Sum of nums[0..i-1].</td></tr><tr><td data-h="In the story">Reading after leg i</td><td data-h="In the code"><code>prefix[i + 1]</code></td><td data-h="What it means">Sum of nums[0..i]: the reading before plus this leg.</td></tr><tr><td data-h="In the story">Distance of the stretch left..right</td><td data-h="In the code"><code>prefix[right + 1] - prefix[left]</code></td><td data-h="What it means">Reading after leg right, minus reading before leg left.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two small functions: build once, then query as often as you like. The extra slot at the front is the factory reading.</p>
+    <pre><code class="python">def build_prefix(nums):
     prefix = [0] * (len(nums) + 1)
     for i in range(len(nums)):
         number = nums[i]
-        # total after element i = total before element i + the element itself
         prefix[i + 1] = prefix[i] + number
     return prefix
 
 
 def range_sum(prefix, left, right):
-    # Sum of nums[left..right], both ends included.
-    # prefix[right + 1] = total of everything up to and including index right
-    # prefix[left]      = total of everything BEFORE index left
-    # Subtracting the two leaves exactly the slice we want.
     return prefix[right + 1] - prefix[left]</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>build_prefix</code> makes a list of zeros that is <strong>one longer</strong> than <code>nums</code>. Slot 0 stays 0: the odometer before we start driving.</li>
-      <li>The <code>for</code> loop visits every index <code>i</code>. It reads the number at that index into <code>number</code>.</li>
-      <li><code>prefix[i + 1] = prefix[i] + number</code>: the total after element <code>i</code> is the total before it plus the element. So <code>prefix[i]</code> always means "sum of the first <code>i</code> numbers".</li>
-      <li><code>range_sum</code> does one subtraction: the total up to and including <code>right</code>, minus the total of everything before <code>left</code>. What is left over is exactly <code>nums[left..right]</code>.</li>
-    </ol>
-    <p><strong>Dry run</strong> on the example <code>nums = [3, 1, 4, 1, 5]</code>:</p>
-    <table>
-      <thead><tr><th>i</th><th>number</th><th>prefix[i]</th><th>prefix[i + 1]</th><th>prefix after this step</th></tr></thead>
-      <tbody>
-        <tr><td>0</td><td>3</td><td>0</td><td>3</td><td>[0, 3, 0, 0, 0, 0]</td></tr>
-        <tr><td>1</td><td>1</td><td>3</td><td>4</td><td>[0, 3, 4, 0, 0, 0]</td></tr>
-        <tr><td>2</td><td>4</td><td>4</td><td>8</td><td>[0, 3, 4, 8, 0, 0]</td></tr>
-        <tr><td>3</td><td>1</td><td>8</td><td>9</td><td>[0, 3, 4, 8, 9, 0]</td></tr>
-        <tr><td>4</td><td>5</td><td>9</td><td>14</td><td>[0, 3, 4, 8, 9, 14]</td></tr>
-      </tbody>
-    </table>
-    <p>Query <code>range_sum(prefix, 1, 3)</code> = <code>prefix[4] - prefix[1]</code> = <code>9 - 3 = 6</code>, which matches <code>1 + 4 + 1</code>.</p>
-    <pre><code class="python"># B) Count subarrays whose sum is exactly k (works with negative numbers)
-def count_subarrays(nums, k):
-    # seen maps "a running total" -&gt; "how many times we have reached it so far"
-    seen = {}
-    # Before reading any number the running total is 0 (the empty prefix).
-    # Recording it lets a slice that starts at index 0 be counted.
-    seen[0] = 1
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function buildPrefix(nums: number[]): number[] {
+  const prefix: number[] = new Array(nums.length + 1).fill(0);
+  for (let i = 0; i &lt; nums.length; i++) {
+    const number = nums[i];
+    prefix[i + 1] = prefix[i] + number;
+  }
+  return prefix;
+}
+
+function rangeSum(prefix: number[], left: number, right: number): number {
+  return prefix[right + 1] - prefix[left];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int[] buildPrefix(int[] nums) {
+    int[] prefix = new int[nums.length + 1];
+    for (int i = 0; i &lt; nums.length; i++) {
+        int number = nums[i];
+        prefix[i + 1] = prefix[i] + number;
+    }
+    return prefix;
+}
+
+static int rangeSum(int[] prefix, int left, int right) {
+    return prefix[right + 1] - prefix[left];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>prefix = [0] * (len(nums) + 1)</code></td><td data-h="What it does">Makes one slot per checkpoint: n numbers have n + 1 readings, from the factory to the end.</td><td data-h="In the story">Write the factory reading, 0, in slot 0.</td><td data-h="Why here, and what breaks if it moves">Without the extra slot, a range starting at index 0 has no "before" reading and needs a special case.</td></tr><tr><td data-h="Line"><code>for i in range(len(nums))</code></td><td data-h="What it does">Visits each leg once, left to right.</td><td data-h="In the story">Drive the trip in order.</td><td data-h="Why here, and what breaks if it moves">Readings depend on the previous one, so the order can't change.</td></tr><tr><td data-h="Line"><code>number = nums[i]</code></td><td data-h="What it does">Reads this leg's distance.</td><td data-h="In the story">Look at the next leg.</td><td data-h="Why here, and what breaks if it moves">Only for readability.</td></tr><tr><td data-h="Line"><code>prefix[i + 1] = prefix[i] + number</code></td><td data-h="What it does">Reading after leg i = reading before leg i + the leg.</td><td data-h="In the story">The odometer goes up by this leg.</td><td data-h="Why here, and what breaks if it moves">Writing to <code>prefix[i]</code> instead shifts every reading by one: the classic off-by-one.</td></tr><tr><td data-h="Line"><code>return prefix[right + 1] - prefix[left]</code></td><td data-h="What it does">Range sum in one subtraction.</td><td data-h="In the story">Reading after the last leg minus reading before the first leg.</td><td data-h="Why here, and what breaks if it moves"><code>prefix[right] - prefix[left]</code> drops the last number; <code>prefix[right + 1] - prefix[left + 1]</code> drops the first.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the build, then a query for <code>left = 1, right = 3</code>. Switch the code language at the top; the trace is the same. Tick <em>Predict each step</em> to guess the next reading before it appears.</p>
+    <div id="tl-01a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-01a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After processing index <code>i</code>, <code>prefix[i + 1]</code> equals <code>nums[0] + … + nums[i]</code>, and every earlier slot is already final. So any range sum is the difference of two finished readings.</p>
+    <p><strong>Complexity.</strong> Build: O(n) time, O(n) extra space for the readings. Each query: O(1) time. Worth it once there are more than a couple of queries.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting the leading 0.</strong> "The factory reading" is part of the hook: without it, ranges starting at 0 break.</li><li><strong><code>prefix[right] - prefix[left]</code>.</strong> Say "reading <em>after</em> right" and the <code>+ 1</code> writes itself.</li><li><strong>Building inside every query.</strong> You drive the trip once; queries only read the log.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Reading after the end minus reading before the start.</dd>
+      <dt>Choose this template when</dt><dd>Static array, many "sum of this range" questions → build once, subtract per query.</dd>
+      <dt>Invariant</dt><dd><code>prefix[i]</code> is the sum of the first <code>i</code> numbers.</dd>
+      <dt>The line people get wrong</dt><dd><code>prefix[right + 1] - prefix[left]</code>: the <code>+ 1</code> belongs to the right end only.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why does <code>prefix</code> have <code>n + 1</code> slots?</summary><p>Because there are n + 1 readings: the factory reading 0, then one after each of the n legs.</p></details><details><summary>With <code>prefix = [0, 3, 4, 8, 9, 14]</code>, what is <code>nums[2..4]</code>?</summary><p>prefix[5] − prefix[2] = 14 − 4 = 10 (that's 4 + 1 + 5).</p></details><details><summary>What does <code>prefix[3]</code> mean in words?</summary><p>The total of the first three numbers, nums[0..2]: the reading before leg 3.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Count subarrays whose sum is exactly k (works with negatives)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>How many contiguous slices add up to exactly <code>k</code>?</div><div><b>What it keeps</b>A logbook <code>seen</code>: each running total reached so far → how many times.</div><div><b>When it checks for an answer</b>At every index, <em>before</em> logging the current reading.</div><div><b>Use it when</b>Counting (or finding) slices with a target sum, especially when numbers can be negative, so a sliding window can't work.</div><div><b>Not for</b>Many range-sum queries (Template A); "longest/shortest slice" questions need first/last positions instead of counts.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Which earlier reading would make this stretch exactly k?"</strong>At each point, ask the logbook how many times you've passed the reading <code>running − k</code>. Each of those earlier points starts a stretch ending here that is exactly <code>k</code> long. Then log where you are now.</div>
+    <p><strong>The story, mapped to the code.</strong> Same trip, but you don't keep a reading for every checkpoint. You keep a logbook that counts how often each reading has appeared. Negative numbers just mean the meter goes down for a leg; nothing else changes.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Current meter reading</td><td data-h="In the code"><code>running</code></td><td data-h="What it means">Sum of everything so far.</td></tr><tr><td data-h="In the story">The stretch length we want</td><td data-h="In the code"><code>k</code></td><td data-h="What it means">Target sum of a slice.</td></tr><tr><td data-h="In the story">The earlier reading that would make it work</td><td data-h="In the code"><code>needed = running - k</code></td><td data-h="What it means">If we passed this reading before, the stretch since then is exactly k.</td></tr><tr><td data-h="In the story">Logbook of readings passed</td><td data-h="In the code"><code>seen</code></td><td data-h="What it means">Running total → how many times we've been there.</td></tr><tr><td data-h="In the story">The factory reading, already in the logbook</td><td data-h="In the code"><code>seen = {0: 1}</code></td><td data-h="What it means">Lets a stretch that starts at index 0 be counted.</td></tr><tr><td data-h="In the story">Stretches found so far</td><td data-h="In the code"><code>count</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Five steps per number, always in this order: add, compute the needed reading, look it up, count, then log.</p>
+    <pre><code class="python">def count_subarrays(nums, k):
+    seen = {0: 1}
     running = 0
     count = 0
-    for i in range(len(nums)):
-        number = nums[i]
-        # add this number to the running total
-        running = running + number
-        # If an earlier running total equals running - k, the numbers between
-        # that earlier point and here add up to exactly k.
+    for number in nums:
+        running += number
         needed = running - k
         if needed in seen:
-            count = count + seen[needed]
-        # Only now record the current running total, for later positions.
-        if running not in seen:
-            seen[running] = 0
-        seen[running] = seen[running] + 1
+            count += seen[needed]
+        seen[running] = seen.get(running, 0) + 1
     return count</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>seen</code> is a dictionary. Its keys are running totals we have reached, its values are how many times we reached them.</li>
-      <li><code>seen[0] = 1</code> records the empty prefix (total 0 before any number). Without it, a slice that starts at index 0 would never be counted.</li>
-      <li>For each number, <code>running = running + number</code> moves the odometer forward.</li>
-      <li><code>needed = running - k</code> is the earlier total we would need. If we reached it <code>seen[needed]</code> times before, there are that many slices ending here that sum to <code>k</code>, so we add that to <code>count</code>.</li>
-      <li>Last, we record the current <code>running</code> in <code>seen</code> (create the key with 0 first if it is new, then add 1). Recording <em>after</em> counting means we never count an empty slice.</li>
-    </ol>
-    <p><strong>Dry run</strong> on the example <code>nums = [1, 1, 1]</code>, <code>k = 2</code>:</p>
-    <table>
-      <thead><tr><th>i</th><th>number</th><th>running</th><th>needed = running - k</th><th>added to count</th><th>count</th><th>seen after</th></tr></thead>
-      <tbody>
-        <tr><td>0</td><td>1</td><td>1</td><td>-1</td><td>0</td><td>0</td><td>{0: 1, 1: 1}</td></tr>
-        <tr><td>1</td><td>1</td><td>2</td><td>0</td><td>1</td><td>1</td><td>{0: 1, 1: 1, 2: 1}</td></tr>
-        <tr><td>2</td><td>1</td><td>3</td><td>1</td><td>1</td><td>2</td><td>{0: 1, 1: 1, 2: 1, 3: 1}</td></tr>
-      </tbody>
-    </table>
-    <p>Result: <code>2</code> (the slices <code>[1, 1]</code> at indices 0..1 and 1..2).</p>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function countSubarrays(nums: number[], k: number): number {
+  const seen = new Map&lt;number, number&gt;([[0, 1]]);
+  let running = 0;
+  let count = 0;
+  for (const number of nums) {
+    running += number;
+    const needed = running - k;
+    if (seen.has(needed)) {
+      count += seen.get(needed)!;
+    }
+    seen.set(running, (seen.get(running) ?? 0) + 1);
+  }
+  return count;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int countSubarrays(int[] nums, int k) {
+    Map&lt;Integer, Integer&gt; seen = new HashMap&lt;&gt;();
+    seen.put(0, 1);
+    int running = 0;
+    int count = 0;
+    for (int number : nums) {
+        running += number;
+        int needed = running - k;
+        if (seen.containsKey(needed)) {
+            count += seen.get(needed);
+        }
+        seen.merge(running, 1, Integer::sum);
+    }
+    return count;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>seen = {0: 1}</code></td><td data-h="What it does">Logs the reading 0 once, before any number.</td><td data-h="In the story">The factory reading is already in the logbook.</td><td data-h="Why here, and what breaks if it moves">Without it, a slice starting at index 0 (like nums[0..1] here) is never counted.</td></tr><tr><td data-h="Line"><code>running += number</code></td><td data-h="What it does">Moves the meter by this number (down, if it's negative).</td><td data-h="In the story">Drive the next leg.</td><td data-h="Why here, and what breaks if it moves">Must come first: everything after uses the new reading.</td></tr><tr><td data-h="Line"><code>needed = running - k</code></td><td data-h="What it does">The earlier reading that would make the stretch since then exactly k.</td><td data-h="In the story">"Where would I have had to be?"</td><td data-h="Why here, and what breaks if it moves">Writing <code>k - running</code> flips the sign and finds the wrong readings.</td></tr><tr><td data-h="Line"><code>if needed in seen: count += seen[needed]</code></td><td data-h="What it does">Adds one stretch for every time we passed that reading.</td><td data-h="In the story">Count the matching log entries.</td><td data-h="Why here, and what breaks if it moves">Adding 1 instead of <code>seen[needed]</code> undercounts when a reading repeats (zeros or negatives).</td></tr><tr><td data-h="Line"><code>seen[running] = seen.get(running, 0) + 1</code></td><td data-h="What it does">Logs the current reading for future positions.</td><td data-h="In the story">Write today's reading in the logbook.</td><td data-h="Why here, and what breaks if it moves">Doing this <em>before</em> the lookup lets the current reading match itself when <code>k = 0</code>: an empty slice gets counted. See the second player.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [1, 1, 1]</code>, <code>k = 2</code>. Tick <em>Predict each step</em> to guess <code>needed</code> and the count before they appear. The second player shows why the lookup must come before the logging.</p>
+    <div id="tl-01b"></div><div id="tl-01b-bug"></div><p>With <code>k = 0</code>, logging first makes every reading match itself, counting empty slices: 5 instead of the correct 2 ([1, −1] and [−1, 1]).</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-01b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When we reach index <code>i</code>, <code>seen</code> holds the readings of every prefix that ends <em>before</em> <code>i</code> (including the empty prefix). So <code>seen[running − k]</code> counts exactly the slices that end at <code>i</code> and sum to <code>k</code>.</p>
+    <p><strong>Complexity.</strong> O(n) time: one pass with O(1) dictionary operations. O(n) extra space: up to n + 1 different readings in the logbook.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Logging before looking up.</strong> The hook's order is "ask, then log": you can only ask about readings you passed <em>before</em> now.</li><li><strong>Forgetting <code>seen = {0: 1}</code>.</strong> The factory reading is in the logbook from the start.</li><li><strong>Using a sliding window.</strong> With negative numbers the meter goes down, so shrinking a window doesn't reliably reduce the sum. The logbook doesn't care.</li><li><strong>Storing positions instead of counts.</strong> Counting needs how many times; "longest slice" problems store the first position instead.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Which earlier reading would make this stretch exactly k? Ask the logbook, then log.</dd>
+      <dt>Choose this template when</dt><dd>"Count/find slices with sum (or a property) equal to k", especially with negatives → running total + logbook of counts.</dd>
+      <dt>Invariant</dt><dd><code>seen</code> holds every reading strictly before the current index, with the empty prefix as 0.</dd>
+      <dt>The line people get wrong</dt><dd>Recording <code>seen[running]</code> must come after the lookup.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why is <code>seen</code> started as <code>{0: 1}</code>?</summary><p>It's the reading before any number; it lets slices starting at index 0 be found (needed = 0).</p></details><details><summary>At <code>running = 7</code> with <code>k = 3</code>, which key do you look up?</summary><p>needed = 7 − 3 = 4.</p></details><details><summary>Why add <code>seen[needed]</code> rather than 1?</summary><p>Each earlier time we passed that reading starts a different valid slice; readings can repeat when numbers are zero or negative.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>Template A</th><th>Template B</th></tr></thead><tbody><tr><td data-h="Question">Main purpose</td><td data-h="Template A">Answer many range-sum queries</td><td data-h="Template B">Count slices whose sum is exactly k</td></tr><tr><td data-h="Question">Information kept</td><td data-h="Template A">Every reading, by position (<code>prefix</code> list)</td><td data-h="Template B">How often each reading occurred (<code>seen</code> map)</td></tr><tr><td data-h="Question">Meaning of the running total</td><td data-h="Template A"><code>prefix[i]</code> = sum before index i</td><td data-h="Template B"><code>running</code> = sum through the current index</td></tr><tr><td data-h="Question">Why a hash map?</td><td data-h="Template A">Not needed: queries ask for positions, which index the list</td><td data-h="Template B">Needed: we look up by <em>value</em> ("have I passed reading X?")</td></tr><tr><td data-h="Question">When the answer is computed</td><td data-h="Template A">Later, per query</td><td data-h="Template B">During the single pass, before logging</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="Template A">"Sum of elements between i and j" (LC 303)</td><td data-h="Template B">"Number of subarrays with sum k" (LC 560)</td></tr><tr><td data-h="Question">Time</td><td data-h="Template A">O(n) build + O(1) per query</td><td data-h="Template B">O(n)</td></tr><tr><td data-h="Question">Space</td><td data-h="Template A">O(n)</td><td data-h="Template B">O(n)</td></tr></tbody></table>
+    <p>Both rest on "a stretch = later reading minus earlier reading". A fixes the stretch's ends and looks up readings by position; B fixes the stretch's length (k) and looks up readings by value. Pick by the question: "sum of this range?" → A; "how many ranges sum to k?" → B.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -7695,6 +7853,96 @@ So the answer is [[2],[0],[0]].</span></div></div>
   Viz.stepper("#viz-304", { title: "304 · 2-D inclusion–exclusion", sub: "Big − top − left + corner.", frames: f4, speed: 1800 });
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  /* ---- Template A trace: build_prefix([3,1,4,1,5]) then range_sum(prefix, 1, 3) ---- */
+  function tlA() {
+    const nums = [3, 1, 4, 1, 5], n = nums.length, prefix = new Array(n + 1).fill(0), steps = [], rows = [];
+    const show = (hl, ptr, extra) => Viz.array(nums, { label: "nums", hl: hl || {}, ptrs: ptr || {} }) + Viz.array(prefix, { label: "prefix", hl: extra || {} });
+    steps.push({ line: "init", vars: { prefix: "[" + prefix.join(", ") + "]" }, view: show({}, {}, { 0: "found" }),
+      analogy: "🚗 The car leaves the factory: odometer <b>0</b>. One slot per checkpoint, so " + (n + 1) + " slots.",
+      note: "<code>prefix</code> gets <b>n + 1</b> zeros. Slot 0 is the reading before any leg." });
+    for (let i = 0; i < n; i++) {
+      const number = nums[i], before = prefix[i];
+      steps.push({ line: ["loop", "read"], vars: { i, number }, view: show({ [i]: "active" }, { [i]: "i" }),
+        analogy: `Next leg: <b>${number}</b>. Odometer before it: <b>${before}</b> (that's prefix[${i}]).`,
+        note: `Read <code>number = nums[${i}] = ${number}</code>.` });
+      prefix[i + 1] = before + number;
+      steps.push({ line: "write", vars: { i, number, [`prefix[${i + 1}]`]: prefix[i + 1] }, view: show({ [i]: "active" }, { [i]: "i" }, { [i]: "gold", [i + 1]: "found" }),
+        analogy: `Odometer ${before} + leg ${number} = <b>${prefix[i + 1]}</b>.`,
+        note: `<code>prefix[${i + 1}] = prefix[${i}] + ${number} = ${before} + ${number} = ${prefix[i + 1]}</code>: the reading <em>after</em> leg ${i}.`,
+        ask: { q: `What is prefix[${i + 1}]?`, options: [...new Set([prefix[i + 1], before, number, prefix[i + 1] + 1])].map(String), answer: prefix[i + 1], why: `Reading before (${before}) plus the leg (${number}).` } });
+      rows.push([i + 1, number, before, number, prefix[i + 1]]);
+    }
+    steps.push({ line: "ret", vars: { prefix: "[" + prefix.join(", ") + "]" }, view: show({}, {}, Object.fromEntries(prefix.map((_, k) => [k, "found"]))),
+      analogy: "The logbook of readings is complete.", note: `Built: <code>prefix = [${prefix.join(", ")}]</code>.` });
+    const L = 1, R = 3, ans = prefix[R + 1] - prefix[L];
+    steps.push({ line: "query", vars: { left: L, right: R, [`prefix[${R + 1}]`]: prefix[R + 1], [`prefix[${L}]`]: prefix[L], result: ans },
+      view: show({ 1: "window", 2: "window", 3: "window" }, { 1: "left", 3: "right" }, { [L]: "gold", [R + 1]: "gold" }),
+      analogy: `Reading after leg ${R}: <b>${prefix[R + 1]}</b>. Reading before leg ${L}: <b>${prefix[L]}</b>. Stretch = ${prefix[R + 1]} − ${prefix[L]} = <b>${ans}</b>.`,
+      note: `<code>range_sum(prefix, 1, 3) = prefix[4] − prefix[1] = ${prefix[R + 1]} − ${prefix[L]} = ${ans}</code>, the sum of nums[1..3] = 1 + 4 + 1.`,
+      ask: { q: "range_sum(prefix, 1, 3) = ?", options: ["6", "5", "8", "9"], answer: ans, why: "prefix[4] − prefix[1] = 9 − 3." } });
+    return { steps, table: { head: ["Step", "Number", "Odometer before", "Distance added", "Odometer after"], rows: [["Start", "—", 0, 0, 0], ...rows] } };
+  }
+
+  /* ---- Template B trace (logFirst = the buggy order) ---- */
+  function tlB(nums, k, logFirst) {
+    const seen = new Map([[0, 1]]), steps = [], rows = [["Start", "—", 0, "—", "—", 0, TL.map(seen)]];
+    let running = 0, count = 0;
+    const view = (i, hlKey) => Viz.array(nums, { label: "nums", hl: i >= 0 ? { [i]: "active" } : {} }) +
+      Viz.chips([...seen.entries()].map(([s, c]) => `${s} → ${c}` + (s === hlKey ? " ◀" : "")), "seen (reading → times)");
+    steps.push({ line: ["seen", "run0", "cnt0"], vars: { running, count, seen: TL.map(seen) }, view: view(-1),
+      analogy: "📒 The logbook starts with the factory reading: <b>0, seen once</b>.", note: "<code>seen = {0: 1}</code>, <code>running = 0</code>, <code>count = 0</code>." });
+    nums.forEach((number, i) => {
+      running += number;
+      steps.push({ line: ["loop", "add"], vars: { number, running, count }, view: view(i),
+        analogy: `Drive leg ${number < 0 ? "(the meter goes <b>down</b>) " : ""}${number}: meter now <b>${running}</b>.`,
+        note: `<code>running += ${number}</code> → ${running}.`,
+        ask: { q: "What is running now?", options: [...new Set([running, running - number, running + 1, number])].map(String), answer: running, why: `Previous reading ${running - number} plus ${number}.` } });
+      if (logFirst) {
+        seen.set(running, (seen.get(running) || 0) + 1);
+        steps.push({ line: "record", vars: { running, count, seen: TL.map(seen) }, view: view(i, running),
+          analogy: `Logged reading ${running} <b>before</b> asking.`, note: `<code>seen[${running}]</code> → ${seen.get(running)} (too early).` });
+      }
+      const needed = running - k, found = seen.get(needed) || 0;
+      steps.push({ line: "need", vars: { running, needed, count }, view: view(i, needed),
+        analogy: `To have a stretch of exactly ${k} ending here, I must have passed reading <b>${running} − ${k} = ${needed}</b>.`,
+        note: `<code>needed = running − k = ${running} − ${k} = ${needed}</code>.`,
+        ask: { q: "Which reading do we look up?", options: [...new Set([needed, k - running, running, running + k])].map(String), answer: needed, why: `running − k = ${running} − ${k}.` } });
+      count += found;
+      steps.push({ line: found ? ["look", "count"] : "look", vars: { needed, found, count }, view: view(i, needed),
+        analogy: found ? `The logbook says I passed ${needed} <b>${found}×</b>: ${found} stretch${found > 1 ? "es" : ""} of ${k} end here.` + (logFirst && needed === running ? " <b>⚠ One of those entries is the reading I just logged: an empty stretch.</b>" : "") : `Never passed ${needed}: no stretch of ${k} ends here.`,
+        note: found ? `<code>count += seen[${needed}]</code> → ${count}.` : `${needed} isn't in <code>seen</code>; count stays ${count}.`,
+        ask: { q: "What is count after this lookup?", options: [...new Set([count, count - found, count + 1])].map(String), answer: count, why: found ? `It gains seen[${needed}] = ${found}.` : "Nothing was found." } });
+      if (!logFirst) {
+        seen.set(running, (seen.get(running) || 0) + 1);
+        steps.push({ line: "record", vars: { running, count, seen: TL.map(seen) }, view: view(i, running),
+          analogy: `Now log today's reading <b>${running}</b> for later legs.`, note: `<code>seen[${running}]</code> → ${seen.get(running)}.` });
+      }
+      rows.push([i, number, running, needed, found, count, TL.map(seen)]);
+    });
+    steps.push({ line: "ret", vars: { count }, view: view(-1), analogy: `Stretches of exactly ${k}: <b>${count}</b>.`, note: `Return <code>count = ${count}</code>.` });
+    return { steps, table: { head: ["Index", "Number", "Running sum", "Needed sum", "Frequency found", "Count after lookup", "<code>seen</code> after logging"], rows } };
+  }
+
+  { const run = tlA();
+    Viz.tlab("#tl-01a", { title: "Template A \u00b7 build, then query nums[1..3]", sub: "Blue = the leg being added, green = readings written, gold = the two readings a query uses.", code: {"py": [[null, "def build_prefix(nums):"], ["init", "    prefix = [0] * (len(nums) + 1)"], ["loop", "    for i in range(len(nums)):"], ["read", "        number = nums[i]"], ["write", "        prefix[i + 1] = prefix[i] + number"], ["ret", "    return prefix"], [null, ""], [null, ""], [null, "def range_sum(prefix, left, right):"], ["query", "    return prefix[right + 1] - prefix[left]"]], "ts": [[null, "function buildPrefix(nums: number[]): number[] {"], ["init", "  const prefix: number[] = new Array(nums.length + 1).fill(0);"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["read", "    const number = nums[i];"], ["write", "    prefix[i + 1] = prefix[i] + number;"], [null, "  }"], ["ret", "  return prefix;"], [null, "}"], [null, ""], [null, "function rangeSum(prefix: number[], left: number, right: number): number {"], ["query", "  return prefix[right + 1] - prefix[left];"], [null, "}"]], "java": [[null, "static int[] buildPrefix(int[] nums) {"], ["init", "    int[] prefix = new int[nums.length + 1];"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["read", "        int number = nums[i];"], ["write", "        prefix[i + 1] = prefix[i] + number;"], [null, "    }"], ["ret", "    return prefix;"], [null, "}"], [null, ""], [null, "static int rangeSum(int[] prefix, int left, int right) {"], ["query", "    return prefix[right + 1] - prefix[left];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-01a-table").innerHTML = TL.table(run.table); }
+  { const run = tlB([1, 1, 1], 2, false);
+    Viz.tlab("#tl-01b", { title: "Template B \u00b7 nums = [1, 1, 1], k = 2", sub: "Blue = current number; \u25c0 marks the reading being looked up or logged.", code: {"py": [[null, "def count_subarrays(nums, k):"], ["seen", "    seen = {0: 1}"], ["run0", "    running = 0"], ["cnt0", "    count = 0"], ["loop", "    for number in nums:"], ["add", "        running += number"], ["need", "        needed = running - k"], ["look", "        if needed in seen:"], ["count", "            count += seen[needed]"], ["record", "        seen[running] = seen.get(running, 0) + 1"], ["ret", "    return count"]], "ts": [[null, "function countSubarrays(nums: number[], k: number): number {"], ["seen", "  const seen = new Map<number, number>([[0, 1]]);"], ["run0", "  let running = 0;"], ["cnt0", "  let count = 0;"], ["loop", "  for (const number of nums) {"], ["add", "    running += number;"], ["need", "    const needed = running - k;"], ["look", "    if (seen.has(needed)) {"], ["count", "      count += seen.get(needed)!;"], [null, "    }"], ["record", "    seen.set(running, (seen.get(running) ?? 0) + 1);"], [null, "  }"], ["ret", "  return count;"], [null, "}"]], "java": [[null, "static int countSubarrays(int[] nums, int k) {"], ["seen", "    Map<Integer, Integer> seen = new HashMap<>();"], ["seen", "    seen.put(0, 1);"], ["run0", "    int running = 0;"], ["cnt0", "    int count = 0;"], ["loop", "    for (int number : nums) {"], ["add", "        running += number;"], ["need", "        int needed = running - k;"], ["look", "        if (seen.containsKey(needed)) {"], ["count", "            count += seen.get(needed);"], [null, "        }"], ["record", "        seen.merge(running, 1, Integer::sum);"], [null, "    }"], ["ret", "    return count;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-01b-table").innerHTML = TL.table(run.table); }
+  { const run = tlB([1, -1, 1], 0, false);
+    Viz.tlab("#tl-01b-bug", { title: "Order matters \u00b7 nums = [1, \u22121, 1], k = 0", sub: "Switch between the correct order and logging first.", code: {"py": [[null, "def count_subarrays(nums, k):"], ["seen", "    seen = {0: 1}"], ["run0", "    running = 0"], ["cnt0", "    count = 0"], ["loop", "    for number in nums:"], ["add", "        running += number"], ["need", "        needed = running - k"], ["look", "        if needed in seen:"], ["count", "            count += seen[needed]"], ["record", "        seen[running] = seen.get(running, 0) + 1"], ["ret", "    return count"]], "ts": [[null, "function countSubarrays(nums: number[], k: number): number {"], ["seen", "  const seen = new Map<number, number>([[0, 1]]);"], ["run0", "  let running = 0;"], ["cnt0", "  let count = 0;"], ["loop", "  for (const number of nums) {"], ["add", "    running += number;"], ["need", "    const needed = running - k;"], ["look", "    if (seen.has(needed)) {"], ["count", "      count += seen.get(needed)!;"], [null, "    }"], ["record", "    seen.set(running, (seen.get(running) ?? 0) + 1);"], [null, "  }"], ["ret", "  return count;"], [null, "}"]], "java": [[null, "static int countSubarrays(int[] nums, int k) {"], ["seen", "    Map<Integer, Integer> seen = new HashMap<>();"], ["seen", "    seen.put(0, 1);"], ["run0", "    int running = 0;"], ["cnt0", "    int count = 0;"], ["loop", "    for (int number : nums) {"], ["add", "        running += number;"], ["need", "        int needed = running - k;"], ["look", "        if (seen.containsKey(needed)) {"], ["count", "            count += seen.get(needed);"], [null, "        }"], ["record", "        seen.merge(running, 1, Integer::sum);"], [null, "    }"], ["ret", "    return count;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: log before lookup", code: {"py": [[null, "def count_subarrays(nums, k):"], ["seen", "    seen = {0: 1}"], ["run0", "    running = 0"], ["cnt0", "    count = 0"], ["loop", "    for number in nums:"], ["add", "        running += number"], ["record", "        seen[running] = seen.get(running, 0) + 1"], ["need", "        needed = running - k"], ["look", "        if needed in seen:"], ["count", "            count += seen[needed]"], ["ret", "    return count"]]}, steps: tlB([1, -1, 1], 0, true).steps, diverge: 2, why: "the current reading was logged before the lookup, so <code>needed = running \u2212 0</code> finds itself and counts an empty slice." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

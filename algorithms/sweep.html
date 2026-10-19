@@ -1,0 +1,11 @@
+<!doctype html><meta charset=utf-8><body><pre id="HARNESS"></pre>
+<iframe id=a width=360 height=800 src="patterns/01-prefix-sum.html"></iframe><iframe id=b width=820 height=800 src="patterns/01-prefix-sum.html"></iframe>
+<script>
+const out=[];let done=0;
+function check(fr){const d=fr.contentDocument;d.querySelectorAll('details').forEach(x=>x.open=true);
+ setTimeout(()=>{const W=d.documentElement.clientWidth;const bad=new Set();
+  d.querySelectorAll('body *').forEach(e=>{const r=e.getBoundingClientRect();if(r.width&&r.right>W+1&&!e.closest('pre,.code-pane pre,.trace-code,[style*=overflow]')){let p=e.parentElement,clip=false;while(p&&p!==d.body){const o=getComputedStyle(p).overflowX;if(o==='auto'||o==='scroll'||o==='hidden'){clip=true;break}p=p.parentElement}if(!clip)bad.add(e.tagName+'.'+e.className+' '+(e.textContent||'').slice(0,40))}});
+  out.push(fr.width+'px scrollW='+d.documentElement.scrollWidth+' W='+W+' bad='+bad.size+(bad.size?' :: '+[...bad].slice(0,4).join(' | '):''));
+  if(++done===2)document.getElementById('HARNESS').textContent=out.join('\n');},3000);}
+a.onload=()=>check(a);b.onload=()=>check(b);
+</script>
