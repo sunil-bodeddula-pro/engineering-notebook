@@ -518,6 +518,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
 .tl-side > * { max-width: 100%; }
+.tlab.tl-stack .tl-grid { grid-template-columns: minmax(0, 1fr); }
 .tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
@@ -1094,7 +1095,13 @@ svg.flow .fn { transition: opacity .35s ease; }
         vars: st.vars,
       }));
     }
+    function fit() {
+      // A view too wide to sit beside the code moves below it (once stacked, the lab stays stacked).
+      const side = root.querySelector(".tl-side");
+      if (side && !root.classList.contains("tl-stack") && side.scrollWidth > side.clientWidth + 2) root.classList.add("tl-stack");
+    }
     function showAsk(i) {
+      fit();
       if (!pred.checked) { ask.hidden = true; return; }
       const nx = src().steps[i + 1];
       ask.hidden = false;
@@ -2307,106 +2314,214 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> sorting dominates: <code>O(n log n)</code> time. The sweep is <code>O(n)</code>. Space is <code>O(n)</code> for the output (or <code>O(log n)</code>–<code>O(n)</code> for the sort itself). The rooms heap adds <code>O(n log n)</code> time and <code>O(n)</code> space.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Interval problems start the same way, <strong>sort first</strong>, then sweep left to right, but they sort by different ends and keep different state. <strong>A</strong> merges overlaps (sort by start, extend the last block). <strong>B</strong> counts how many overlap at once (sort by start, a min-heap of end times = rooms in use). <strong>C</strong> keeps as many non-overlapping intervals as possible (sort by <em>end</em>, greedily keep the one that finishes first).</p><details><summary><strong>TypeScript has no built-in heap.</strong> The TypeScript templates on this page use this small <code>MinHeap</code> class (Python has <code>heapq</code>, Java has <code>PriorityQueue</code>).</summary>
+<pre><code class="typescript">class MinHeap&lt;T&gt; {
+  items: T[] = [];
+  less: (x: T, y: T) =&gt; boolean;
+  constructor(less: (x: T, y: T) =&gt; boolean) { this.less = less; }
+  get size(): number { return this.items.length; }
+  peek(): T | undefined { return this.items[0]; }
+  push(x: T): void {
+    const a = this.items;
+    a.push(x);
+    for (let i = a.length - 1; i &gt; 0; ) {            // bubble up
+      const p = (i - 1) &gt;&gt; 1;
+      if (!this.less(a[i], a[p])) break;
+      [a[i], a[p]] = [a[p], a[i]];
+      i = p;
+    }
+  }
+  pop(): T | undefined {
+    const a = this.items, top = a[0], last = a.pop()!;
+    if (a.length &gt; 0) {
+      a[0] = last;
+      for (let i = 0; ; ) {                            // sink down
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l &lt; a.length &amp;&amp; this.less(a[l], a[m])) m = l;
+        if (r &lt; a.length &amp;&amp; this.less(a[r], a[m])) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+}</code></pre>
+<p>Pass a "less than" function: <code>new MinHeap&lt;number&gt;((a, b) =&gt; a &lt; b)</code> is a min-heap, <code>(a, b) =&gt; a &gt; b</code> a max-heap. Push and pop are O(log n), peek is O(1).</p></details>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Merge overlapping intervals</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Combine all overlapping intervals into disjoint blocks.</div><div><b>What it keeps</b><code>merged</code>: blocks built so far; only the last one can still grow.</div><div><b>When it checks for an answer</b>Each interval either extends the last block or starts a new one.</div><div><b>Use it when</b>Merge intervals, insert an interval, total covered length, union of ranges.</div><div><b>Not for</b>Counting simultaneous overlaps (B) or choosing which to drop (C).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Sort by start; touch the last block → stretch it, else start a new one"</strong>Laying planks along a floor in order of where they start: if the next plank starts on or before the end of the last one, it just stretches that run; otherwise there's a gap and a new run begins.</div>
+    <p><strong>The story, mapped to the code.</strong> Each interval is a plank on a floor.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Planks sorted by where they start</td><td data-h="In the code"><code>sorted(intervals)</code></td><td data-h="What it means">Sort by start.</td></tr><tr><td data-h="In the story">The run being laid</td><td data-h="In the code"><code>merged[-1]</code></td><td data-h="What it means">The only block that can still grow.</td></tr><tr><td data-h="In the story">Touches the run</td><td data-h="In the code"><code>start &lt;= last[1]</code></td><td data-h="What it means">Overlap (or touching).</td></tr><tr><td data-h="In the story">Stretch the run</td><td data-h="In the code"><code>last[1] = max(last[1], end)</code></td><td data-h="What it means">Extend, never shrink.</td></tr><tr><td data-h="In the story">A gap</td><td data-h="In the code"><code>merged.append([start, end])</code></td><td data-h="What it means">New run.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Sort once, then one decision per interval.</p>
+    <pre><code class="python">def merge(intervals):
+    merged = []
+    for start, end in sorted(intervals):
+        if merged and start &lt;= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function merge(intervals: number[][]): number[][] {
+  const merged: number[][] = [];
+  for (const [start, end] of [...intervals].sort((a, b) =&gt; a[0] - b[0])) {
+    const last = merged[merged.length - 1];
+    if (last &amp;&amp; start &lt;= last[1]) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  }
+  return merged;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;int[]&gt; merge(int[][] intervals) {
+    int[][] sorted = intervals.clone();
+    Arrays.sort(sorted, (a, b) -&gt; Integer.compare(a[0], b[0]));
+    List&lt;int[]&gt; merged = new ArrayList&lt;&gt;();
+    for (int[] iv : sorted) {
+        int start = iv[0], end = iv[1];
+        int[] last = merged.isEmpty() ? null : merged.get(merged.size() - 1);
+        if (last != null &amp;&amp; start &lt;= last[1]) {
+            last[1] = Math.max(last[1], end);
+        } else {
+            merged.add(new int[]{start, end});
+        }
+    }
+    return merged;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for start, end in sorted(intervals)</code></td><td data-h="What it does">Visits intervals by start.</td><td data-h="In the story">Lay planks left to right.</td><td data-h="Why here, and what breaks if it moves">Without sorting, a later interval can overlap an <em>earlier</em> block and be missed.</td></tr><tr><td data-h="Line"><code>if merged and start &lt;= merged[-1][1]</code></td><td data-h="What it does">Does it touch the current run?</td><td data-h="In the story">Touching counts.</td><td data-h="Why here, and what breaks if it moves"><code>&lt;</code> treats [1,4] and [4,5] as separate (see the bug player); whether touching merges depends on the prompt, but LC 56 says yes.</td></tr><tr><td data-h="Line"><code>merged[-1][1] = max(merged[-1][1], end)</code></td><td data-h="What it does">Stretches the run.</td><td data-h="In the story">Extend the run.</td><td data-h="Why here, and what breaks if it moves"><code>= end</code> can <em>shrink</em> the run when a short plank sits inside a long one, e.g. [1,10] then [2,3].</td></tr><tr><td data-h="Line"><code>merged.append([start, end])</code></td><td data-h="What it does">Starts a new run.</td><td data-h="In the story">There's a gap.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[[8,10], [1,3], [2,6], [15,18]]</code> (sorted first). The second player uses <code>&lt;</code> on touching intervals.</p>
+    <div id="tl-08a"></div><div id="tl-08a-bug"></div><p>With <code>&lt;</code>, [4,5] starts exactly where [1,4] ends and is treated as a gap: the result is two blocks instead of <code>[[1, 5]]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-08a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After each interval, <code>merged</code> is a sorted list of disjoint blocks covering exactly the intervals seen so far, and only the last block can overlap anything that comes later.</p>
+    <p><strong>Complexity.</strong> O(n log n) for the sort, O(n) for the sweep; O(n) output.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting to sort.</strong> Planks must be laid left to right.</li><li><strong><code>= end</code> instead of <code>max</code>.</strong> A run only stretches, never shrinks.</li><li><strong>Comparing with the first block.</strong> Only the last block can still grow.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Sort by start; touch → stretch, gap → new run.</dd>
+      <dt>Choose this template when</dt><dd>"Merge / union / covered length" → A.</dd>
+      <dt>Invariant</dt><dd>Blocks are disjoint and sorted; only the last can grow.</dd>
+      <dt>The line people get wrong</dt><dd><code>max(last_end, end)</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Merge [1,10] and [2,3]?</summary><p>[1,10]: max keeps 10.</p></details><details><summary>Do [1,4] and [4,5] merge in LC 56?</summary><p>Yes (start <= last end).</p></details><details><summary>Cost?</summary><p>O(n log n).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Most overlapping at once (meeting rooms)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What's the largest number of intervals active at the same time (rooms needed)?</div><div><b>What it keeps</b>A min-heap of end times: one entry per room in use; the top is the room freed first.</div><div><b>When it checks for an answer</b>For each meeting: is the earliest-ending room free by its start?</div><div><b>Use it when</b>Meeting Rooms II, minimum platforms, max concurrent sessions, CPU load.</div><div><b>Not for</b>Merging (A). If you only need the count, a sweep over sorted starts and ends also works.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Sort by start; reuse the room that frees up first"</strong>A receptionist books rooms in order of start time. For each meeting, they check the room that becomes free soonest. If it's free in time, reuse it; otherwise open a new room. The number of rooms open at the end is the answer.</div>
+    <p><strong>The story, mapped to the code.</strong> Each interval is a meeting; the heap holds the end time of every room in use.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Rooms in use (their end times)</td><td data-h="In the code"><code>room_ends (min-heap)</code></td><td data-h="What it means">Heap size = rooms open.</td></tr><tr><td data-h="In the story">The room that frees up first</td><td data-h="In the code"><code>room_ends[0]</code></td><td data-h="What it means">Earliest end.</td></tr><tr><td data-h="In the story">Free in time</td><td data-h="In the code"><code>room_ends[0] &lt;= start</code></td><td data-h="What it means">Reuse it: pop, then push the new end.</td></tr><tr><td data-h="In the story">Not free</td><td data-h="In the code"><code>push end</code></td><td data-h="What it means">Open another room.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The heap never shrinks: a reused room is popped and pushed back with its new end.</p>
     <pre><code class="python">import heapq
 
-
-# A) Merge: sort by start, then extend-or-append
-def get_start(interval):
-    # Sort key helper: the start of an interval is its first number.
-    return interval[0]
-
-
-def merge_template(intervals):
-    # Sort a copy by start time. After sorting, an interval can only
-    # overlap the block we built just before it.
-    sorted_intervals = sorted(intervals, key=get_start)
-    merged = []
-
-    for i in range(len(sorted_intervals)):
-        # Read the two ends of the current interval into named variables.
-        start = sorted_intervals[i][0]
-        end = sorted_intervals[i][1]
-
-        if len(merged) == 0:
-            # Very first interval: nothing to compare with, so open a block.
-            merged.append([start, end])
-        else:
-            # The block we are currently building is the last one in merged.
-            last_block = merged[len(merged) - 1]
-            if start &lt;= last_block[1]:
-                # Starts before (or exactly when) the block ends: overlap.
-                # Stretch the block. max() matters: [1,10] then [2,3]
-                # must stay [1,10], not shrink to [1,3].
-                last_block[1] = max(last_block[1], end)
-            else:
-                # Starts after the block ends: there is a gap, so the
-                # last block is finished and this interval opens a new one.
-                merged.append([start, end])
-    return merged
-
-
-# B) How many overlap at once? Sort by start + min-heap of end times
-def max_overlap(intervals):
-    # Intervals are half-open [start, end): one ending at 5 does NOT
-    # clash with one starting at 5.
-    # heapq turns a plain list into a "min-heap":
-    #   heapq.heappush(heap, x)  adds x to the heap
-    #   heapq.heappop(heap)      removes and returns the SMALLEST item
-    #   heap[0]                  peeks at the smallest item (no removal)
-    sorted_intervals = sorted(intervals, key=get_start)
-    room_ends = []                      # end time of every room in use
-
-    for i in range(len(sorted_intervals)):
-        start = sorted_intervals[i][0]
-        end = sorted_intervals[i][1]
-
-        if len(room_ends) &gt; 0 and room_ends[0] &lt;= start:
-            # The room that frees up earliest is already free by now.
-            # Reuse it: remove its old end time, add the new end time.
+def min_rooms(intervals):
+    room_ends = []
+    for start, end in sorted(intervals):
+        if room_ends and room_ends[0] &lt;= start:
             heapq.heappop(room_ends)
-            heapq.heappush(room_ends, end)
-        else:
-            # Every room is still busy (or there are none): open a new room.
-            heapq.heappush(room_ends, end)
-
-    # Rooms are never closed, so the heap size is the most ever needed.
-    return len(room_ends)
-
-
-# C) Greedy "keep the most non-overlapping": sort by END
-def get_end(interval):
-    # Sort key helper: the end of an interval is its second number.
-    return interval[1]
-
-
-def max_non_overlapping(intervals):
-    # Earliest finish first: keeping the interval that ends soonest
-    # leaves the most room for the ones after it.
-    sorted_intervals = sorted(intervals, key=get_end)
-    count = 0
-    last_kept_end = float("-inf")       # nothing kept yet
-
-    for i in range(len(sorted_intervals)):
-        start = sorted_intervals[i][0]
-        end = sorted_intervals[i][1]
+        heapq.heappush(room_ends, end)
+    return len(room_ends)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function minRooms(intervals: number[][]): number {
+  const roomEnds = new MinHeap&lt;number&gt;((a, b) =&gt; a &lt; b);
+  for (const [start, end] of [...intervals].sort((a, b) =&gt; a[0] - b[0])) {
+    if (roomEnds.size &gt; 0 &amp;&amp; roomEnds.peek()! &lt;= start) {
+      roomEnds.pop();
+    }
+    roomEnds.push(end);
+  }
+  return roomEnds.size;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int minRooms(int[][] intervals) {
+    int[][] sorted = intervals.clone();
+    Arrays.sort(sorted, (a, b) -&gt; Integer.compare(a[0], b[0]));
+    PriorityQueue&lt;Integer&gt; roomEnds = new PriorityQueue&lt;&gt;();
+    for (int[] iv : sorted) {
+        if (!roomEnds.isEmpty() &amp;&amp; roomEnds.peek() &lt;= iv[0]) {
+            roomEnds.poll();
+        }
+        roomEnds.offer(iv[1]);
+    }
+    return roomEnds.size();
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for start, end in sorted(intervals)</code></td><td data-h="What it does">Meetings in start order.</td><td data-h="In the story">Book them as they start.</td><td data-h="Why here, and what breaks if it moves">Unsorted, a room might be "reused" before an earlier meeting is placed.</td></tr><tr><td data-h="Line"><code>if room_ends and room_ends[0] &lt;= start</code></td><td data-h="What it does">Is the soonest-free room free by now?</td><td data-h="In the story">Check the room that frees up first.</td><td data-h="Why here, and what breaks if it moves"><code>&lt;</code> treats back-to-back meetings (end 10, start 10) as clashing; decide per the prompt.</td></tr><tr><td data-h="Line"><code>heapq.heappop(room_ends)</code></td><td data-h="What it does">That room is reused.</td><td data-h="In the story">The old meeting leaves.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>heapq.heappush(room_ends, end)</code></td><td data-h="What it does">This meeting occupies a room until <code>end</code>.</td><td data-h="In the story">Book the room.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[[1,5], [2,6], [3,7], [6,8]]</code>.</p>
+    <div id="tl-08b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-08b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After placing each meeting, the heap holds one end time per room, and its size is the most rooms needed so far (the heap never shrinks).</p>
+    <p><strong>Complexity.</strong> O(n log n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Popping <em>every</em> finished room.</strong> Fine for counting <em>current</em> load, but then track the maximum size; this template reuses one room per meeting and the final size is the answer.</li><li><strong>Sorting by end.</strong> Book meetings as they <em>start</em>.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Sort by start; reuse the room that frees up first.</dd>
+      <dt>Choose this template when</dt><dd>"How many at once / rooms / platforms" → min-heap of ends.</dd>
+      <dt>Invariant</dt><dd>Heap size = rooms opened so far.</dd>
+      <dt>The line people get wrong</dt><dd><code>room_ends[0] &lt;= start</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Rooms for [[0,30],[5,10],[15,20]]?</summary><p>2.</p></details><details><summary>Why a min-heap of ends?</summary><p>To find the room that frees up first in O(log n).</p></details><details><summary>Back-to-back [1,5],[5,8]: one room or two?</summary><p>One, with <=.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Keep the most non-overlapping intervals (sort by end)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>How many intervals can you keep with none overlapping? (Or: how few must you remove?)</div><div><b>What it keeps</b><code>last_kept_end</code> and a count.</div><div><b>When it checks for an answer</b>Each interval: does it start after the last kept one ends?</div><div><b>Use it when</b>Activity selection, Non-overlapping Intervals (LC 435 = n − kept), minimum arrows (LC 452).</div><div><b>Not for</b>Merging (A) or counting rooms (B).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Always take the meeting that ends first"</strong>To attend the most meetings in one day, always pick the one that finishes earliest: it leaves the most time for everything else. Skip anything that starts before your current meeting ends.</div>
+    <p><strong>The story, mapped to the code.</strong> You can only be in one meeting at a time.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Meetings sorted by finishing time</td><td data-h="In the code"><code>sorted(intervals, key=end)</code></td><td data-h="What it means">Sort by end.</td></tr><tr><td data-h="In the story">When you're free again</td><td data-h="In the code"><code>last_kept_end</code></td><td data-h="What it means">End of the last meeting you took.</td></tr><tr><td data-h="In the story">Can attend</td><td data-h="In the code"><code>start &gt;= last_kept_end</code></td><td data-h="What it means">Starts after you're free.</td></tr><tr><td data-h="In the story">Attend it</td><td data-h="In the code"><code>count += 1; last_kept_end = end</code></td><td data-h="What it means">Greedy choice.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Greedy: sort by end, then keep whatever fits.</p>
+    <pre><code class="python">def max_non_overlapping(intervals):
+    count, last_kept_end = 0, float("-inf")
+    for start, end in sorted(intervals, key=lambda iv: iv[1]):
         if start &gt;= last_kept_end:
-            # It begins after the last kept one finished: keep it.
-            count = count + 1
+            count += 1
             last_kept_end = end
-        # Otherwise it clashes with what we kept, so we skip it.
     return count</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><strong><code>get_start</code> / <code>get_end</code></strong> are two-line helpers that return an interval's first or second number. Passing one as <code>key=</code> to <code>sorted</code> tells Python what to sort by. (Writing them as named functions is the long-hand form of a <code>lambda</code>.)</li>
-      <li><strong>A) <code>merge_template</code>:</strong> <code>sorted(...)</code> returns a new sorted list, leaving the input alone. We walk it with index <code>i</code> and read <code>start</code> and <code>end</code>.</li>
-      <li><strong>A) first interval:</strong> when <code>merged</code> is empty there is nothing to compare with, so the interval opens the first block.</li>
-      <li><strong>A) every later interval:</strong> <code>last_block = merged[len(merged) - 1]</code> is the block we are building. If <code>start &lt;= last_block[1]</code> they overlap, so the block's end becomes <code>max(old end, end)</code>. Otherwise there is a gap and <code>[start, end]</code> becomes a new block.</li>
-      <li><strong>B) <code>max_overlap</code>:</strong> the comment explains the three heap operations. <code>room_ends</code> holds one end time per room; <code>room_ends[0]</code> is the room that frees up soonest.</li>
-      <li><strong>B) reuse or open:</strong> if <code>room_ends[0] &lt;= start</code>, that room is free, so we pop its old end and push the new one (room count unchanged). Otherwise we push, which opens a new room. The final heap size is the most intervals that were ever overlapping at once.</li>
-      <li><strong>C) <code>max_non_overlapping</code>:</strong> sort by <em>end</em>. <code>last_kept_end</code> starts at minus infinity, so the first interval is always kept.</li>
-      <li><strong>C) keep or skip:</strong> if <code>start &gt;= last_kept_end</code>, the interval fits after the last kept one, so we add 1 to <code>count</code> and update <code>last_kept_end</code>. Otherwise it clashes and we skip it. "Fewest to remove" is simply <code>len(intervals) - count</code>.</li>
-    </ol>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function maxNonOverlapping(intervals: number[][]): number {
+  let count = 0, lastKeptEnd = -Infinity;
+  for (const [start, end] of [...intervals].sort((a, b) =&gt; a[1] - b[1])) {
+    if (start &gt;= lastKeptEnd) {
+      count++;
+      lastKeptEnd = end;
+    }
+  }
+  return count;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int maxNonOverlapping(int[][] intervals) {
+    int[][] sorted = intervals.clone();
+    Arrays.sort(sorted, (a, b) -&gt; Integer.compare(a[1], b[1]));
+    int count = 0;
+    long lastKeptEnd = Long.MIN_VALUE;
+    for (int[] iv : sorted) {
+        if (iv[0] &gt;= lastKeptEnd) {
+            count++;
+            lastKeptEnd = iv[1];
+        }
+    }
+    return count;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>sorted(intervals, key=lambda iv: iv[1])</code></td><td data-h="What it does">Sort by <em>end</em>.</td><td data-h="In the story">Earliest-finishing first.</td><td data-h="Why here, and what breaks if it moves">Sorting by start picks [1,10] first in [[1,10],[2,3],[4,5]] and keeps 1 instead of 2 (see the bug player).</td></tr><tr><td data-h="Line"><code>if start &gt;= last_kept_end</code></td><td data-h="What it does">Fits after the last kept one.</td><td data-h="In the story">Free in time?</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>last_kept_end = end</code></td><td data-h="What it does">You're busy until this one ends.</td><td data-h="In the story">Attend it.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[[1,2], [2,3], [3,4], [1,3]]</code>. The second player sorts by start instead.</p>
+    <div id="tl-08c"></div><div id="tl-08c-bug"></div><p>Sorted by start, the long meeting [1,10] is taken first and blocks both short ones: 1 kept instead of 2.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-08c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Among the intervals processed so far, the kept ones are a largest possible non-overlapping set, and among such sets they end as early as possible (<code>last_kept_end</code> is minimal).</p>
+    <p><strong>Complexity.</strong> O(n log n) time, O(1) extra space beyond the sort.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Sorting by start.</strong> Take the one that <em>ends</em> first.</li><li><strong>Answering LC 435 with the kept count.</strong> It asks how many to remove: n − kept.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Always take the meeting that ends first.</dd>
+      <dt>Choose this template when</dt><dd>Maximise non-overlapping / minimise removals / arrows → sort by end.</dd>
+      <dt>Invariant</dt><dd>Kept set is maximal and ends earliest.</dd>
+      <dt>The line people get wrong</dt><dd><code>key=lambda iv: iv[1]</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Removals for [[1,2],[2,3],[3,4],[1,3]]?</summary><p>4 − 3 = 1.</p></details><details><summary>Why does ending first win?</summary><p>It leaves the most room for later intervals (exchange argument).</p></details><details><summary>What's -inf for?</summary><p>So the first interval always fits.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · merge</th><th>B · rooms</th><th>C · keep most</th></tr></thead><tbody><tr><td data-h="Question">Sort by</td><td data-h="A · merge">Start</td><td data-h="B · rooms">Start</td><td data-h="C · keep most">End</td></tr><tr><td data-h="Question">State</td><td data-h="A · merge">List of blocks (last one grows)</td><td data-h="B · rooms">Min-heap of end times</td><td data-h="C · keep most">Last kept end + count</td></tr><tr><td data-h="Question">Per interval</td><td data-h="A · merge">Stretch or start new block</td><td data-h="B · rooms">Reuse earliest-free room or open one</td><td data-h="C · keep most">Keep if it fits, else skip</td></tr><tr><td data-h="Question">Answer</td><td data-h="A · merge">The blocks</td><td data-h="B · rooms">Heap size</td><td data-h="C · keep most">Count (or n − count removed)</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · merge">LC 56, 57</td><td data-h="B · rooms">LC 253, platforms</td><td data-h="C · keep most">LC 435, 452, activity selection</td></tr><tr><td data-h="Question">Time</td><td data-h="A · merge">O(n log n)</td><td data-h="B · rooms">O(n log n)</td><td data-h="C · keep most">O(n log n)</td></tr></tbody></table>
+    <p>First ask what the answer looks like: the union (A), a peak count (B), or a subset with no clashes (C). Then remember which end to sort by: only C sorts by end.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -5743,6 +5858,93 @@ class Solution:
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  class TLHeap {
+    constructor(less) { this.a = []; this.less = less; }
+    push(x) { const a = this.a; a.push(x); for (let i = a.length - 1; i > 0;) { const p = (i - 1) >> 1; if (!this.less(a[i], a[p])) break; [a[i], a[p]] = [a[p], a[i]]; i = p; } }
+    pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; for (let i = 0; ;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && this.less(a[l], a[m])) m = l; if (r < a.length && this.less(a[r], a[m])) m = r; if (m === i) break; [a[i], a[m]] = [a[m], a[i]]; i = m; } } return top; }
+    get size() { return this.a.length; }
+  }
+
+  const tl8iv = (list, hl) => Viz.intervals(list.map(([s, e], i) => ({ s, e, cls: hl[i] || "dim", label: `[${s},${e}]` })), [Math.min(...list.map((x) => x[0])), Math.max(...list.map((x) => x[1])) + 2]);
+  const tl8fmt = (m) => "[" + m.map((x) => `[${x[0]}, ${x[1]}]`).join(", ") + "]";
+
+  function tl8A(input, strict) {
+    const ivs = input.map((x) => x.slice()).sort((a, b) => a[0] - b[0]), merged = [], steps = [], rows = [];
+    const view = (i, grow) => tl8iv(ivs, Object.fromEntries(ivs.map((_, k) => [k, k === i ? "active" : k < i ? "" : "dim"]))) + (merged.length ? tl8iv(merged, Object.fromEntries(merged.map((_, k) => [k, k === merged.length - 1 && grow ? "found" : "window"]))) : Viz.chips([], "merged"));
+    steps.push({ line: "init", vars: { sorted: tl8fmt(ivs) }, view: view(-1), analogy: "Planks sorted by where they start; no run laid yet.", note: `Sorted: <code>${tl8fmt(ivs)}</code>.` });
+    ivs.forEach(([s, e], i) => {
+      const last = merged[merged.length - 1], touch = !!last && (strict ? s < last[1] : s <= last[1]);
+      steps.push({ line: ["loop", "touch"], vars: { start: s, end: e, last_end: last ? last[1] : "none" }, view: view(i), analogy: last ? `Plank [${s},${e}] ${touch ? "touches" : "doesn't touch"} the run ending at ${last[1]}.` : `First plank [${s},${e}].`,
+        note: last ? `<code>${s} ${strict ? "&lt;" : "&lt;="} ${last[1]}</code>? ${touch ? "yes" : "no"}.` : "No blocks yet.",
+        ask: last ? { q: "Stretch the run or start a new one?", options: ["stretch", "new"], answer: touch ? "stretch" : "new", why: `start ${s} vs last end ${last[1]}.` } : undefined });
+      if (touch) { const old = last[1]; last[1] = Math.max(last[1], e);
+        steps.push({ line: "stretch", vars: { last_block: `[${last[0]}, ${last[1]}]` }, view: view(i, true), analogy: `Stretch the run: end = max(${old}, ${e}) = ${last[1]}.`, note: `<code>merged[-1][1] = ${last[1]}</code>.` }); }
+      else { merged.push([s, e]); steps.push({ line: "new", vars: { new_block: `[${s}, ${e}]` }, view: view(i, true), analogy: "A gap: start a new run.", note: `Append <code>[${s}, ${e}]</code>.` }); }
+      rows.push([`[${s}, ${e}]`, last && touch ? `stretch to ${last[1]}` : "new block", tl8fmt(merged)]);
+    });
+    steps.push({ line: "ret", vars: { merged: tl8fmt(merged) }, view: view(ivs.length), analogy: `${merged.length} run${merged.length > 1 ? "s" : ""}.`, note: `Return <code>${tl8fmt(merged)}</code>.` });
+    return { steps, table: { head: ["Interval", "Action", "merged after"], rows } };
+  }
+
+  function tl8B(input) {
+    const ivs = input.map((x) => x.slice()).sort((a, b) => a[0] - b[0]), h = new TLHeap((a, b) => a < b), steps = [], rows = [];
+    const view = (i) => tl8iv(ivs, Object.fromEntries(ivs.map((_, k) => [k, k === i ? "active" : k < i ? "window" : "dim"]))) + Viz.chips([...h.a].sort((a, b) => a - b).map((x, k) => (k === 0 ? `${x} ◀ first free` : String(x))), "room end times (heap)");
+    steps.push({ line: "init", vars: { rooms: 0 }, view: view(-1), analogy: "No rooms booked yet.", note: `Sorted by start: <code>${tl8fmt(ivs)}</code>.` });
+    ivs.forEach(([s, e], i) => {
+      const top = h.size ? h.a[0] : null, free = top !== null && top <= s;
+      steps.push({ line: ["loop", "free"], vars: { start: s, end: e, first_free: top === null ? "none" : top }, view: view(i), analogy: top === null ? "No rooms yet." : `Earliest room frees at ${top}; meeting starts at ${s}: ${free ? "free in time" : "still busy"}.`,
+        note: top === null ? "Heap empty." : `<code>${top} &lt;= ${s}</code>? ${free ? "yes" : "no"}.`, ask: top === null ? undefined : { q: "Reuse a room or open a new one?", options: ["reuse", "open new"], answer: free ? "reuse" : "open new", why: `First free at ${top}, start ${s}.` } });
+      if (free) h.pop(); h.push(e);
+      steps.push({ line: free ? ["reuse", "book"] : "book", vars: { rooms: h.size }, view: view(i), analogy: free ? `Reuse that room until ${e}.` : `Open room #${h.size}, busy until ${e}.`, note: `Push end ${e}; rooms = ${h.size}.` });
+      rows.push([`[${s}, ${e}]`, top === null ? "—" : top, free ? "reuse" : "open new", "[" + [...h.a].sort((a, b) => a - b).join(", ") + "]", h.size]);
+    });
+    steps.push({ line: "ret", vars: { result: h.size }, view: view(ivs.length), analogy: `${h.size} rooms were needed.`, note: `Return <code>${h.size}</code>.` });
+    return { steps, table: { head: ["Meeting", "First free at", "Decision", "Room ends after", "Rooms"], rows } };
+  }
+
+  function tl8C(input, byStart) {
+    const ivs = input.map((x) => x.slice()).sort(byStart ? (a, b) => a[0] - b[0] : (a, b) => a[1] - b[1]), st = {}, steps = [], rows = [];
+    let count = 0, last = -Infinity;
+    const view = (i) => tl8iv(ivs, Object.fromEntries(ivs.map((_, k) => [k, k === i ? "active" : st[k] || "dim"])));
+    steps.push({ line: "init", vars: { count, last_kept_end: "-inf" }, view: view(-1), analogy: `Meetings sorted by ${byStart ? "start" : "end"}. You're free from the start of the day.`, note: `Sorted: <code>${tl8fmt(ivs)}</code>.` });
+    ivs.forEach(([s, e], i) => {
+      const fits = s >= last;
+      steps.push({ line: ["loop", "fits"], vars: { start: s, end: e, last_kept_end: last === -Infinity ? "-inf" : last }, view: view(i), analogy: fits ? `[${s},${e}] starts after you're free: attend.` : `[${s},${e}] starts before ${last}: skip.`,
+        note: `<code>${s} &gt;= ${last === -Infinity ? "-inf" : last}</code>? ${fits ? "yes" : "no"}.`, ask: { q: "Keep it?", options: ["keep", "skip"], answer: fits ? "keep" : "skip", why: `start ${s} vs last end ${last === -Infinity ? "-inf" : last}.` } });
+      if (fits) { count++; last = e; st[i] = "found"; steps.push({ line: "keep", vars: { count, last_kept_end: last }, view: view(-1), analogy: `Busy until ${e}.`, note: `<code>count = ${count}</code>.` }); }
+      else st[i] = "bad";
+      rows.push([`[${s}, ${e}]`, fits ? "keep" : "skip", count, last]);
+    });
+    steps.push({ line: "ret", vars: { result: count }, view: view(-1), analogy: `Attended ${count} meetings.`, note: `Return <code>${count}</code>.` });
+    return { steps, table: { head: ["Interval (sorted by end)", "Decision", "count", "last_kept_end"], rows } };
+  }
+
+  { const run = tl8A([[8, 10], [1, 3], [2, 6], [15, 18]], false);
+    Viz.tlab("#tl-08a", { title: "Template A \u00b7 [[8,10], [1,3], [2,6], [15,18]]", sub: "Top bars: the input sorted by start (blue = current). Bottom: merged blocks (green = the run being stretched).", code: {"py": [[null, "def merge(intervals):"], ["init", "    merged = []"], ["loop", "    for start, end in sorted(intervals):"], ["touch", "        if merged and start <= merged[-1][1]:"], ["stretch", "            merged[-1][1] = max(merged[-1][1], end)"], [null, "        else:"], ["new", "            merged.append([start, end])"], ["ret", "    return merged"]], "ts": [[null, "function merge(intervals: number[][]): number[][] {"], ["init", "  const merged: number[][] = [];"], ["loop", "  for (const [start, end] of [...intervals].sort((a, b) => a[0] - b[0])) {"], [null, "    const last = merged[merged.length - 1];"], ["touch", "    if (last && start <= last[1]) {"], ["stretch", "      last[1] = Math.max(last[1], end);"], [null, "    } else {"], ["new", "      merged.push([start, end]);"], [null, "    }"], [null, "  }"], ["ret", "  return merged;"], [null, "}"]], "java": [[null, "static List<int[]> merge(int[][] intervals) {"], [null, "    int[][] sorted = intervals.clone();"], [null, "    Arrays.sort(sorted, (a, b) -> Integer.compare(a[0], b[0]));"], ["init", "    List<int[]> merged = new ArrayList<>();"], ["loop", "    for (int[] iv : sorted) {"], [null, "        int start = iv[0], end = iv[1];"], [null, "        int[] last = merged.isEmpty() ? null : merged.get(merged.size() - 1);"], ["touch", "        if (last != null && start <= last[1]) {"], ["stretch", "            last[1] = Math.max(last[1], end);"], [null, "        } else {"], ["new", "            merged.add(new int[]{start, end});"], [null, "        }"], [null, "    }"], ["ret", "    return merged;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-08a-table").innerHTML = TL.table(run.table); }
+  { const run = tl8A([[1, 4], [4, 5]], false);
+    Viz.tlab("#tl-08a-bug", { title: "Touching intervals \u00b7 [[1,4], [4,5]]", sub: "Switch between <= and <.", code: {"py": [[null, "def merge(intervals):"], ["init", "    merged = []"], ["loop", "    for start, end in sorted(intervals):"], ["touch", "        if merged and start <= merged[-1][1]:"], ["stretch", "            merged[-1][1] = max(merged[-1][1], end)"], [null, "        else:"], ["new", "            merged.append([start, end])"], ["ret", "    return merged"]], "ts": [[null, "function merge(intervals: number[][]): number[][] {"], ["init", "  const merged: number[][] = [];"], ["loop", "  for (const [start, end] of [...intervals].sort((a, b) => a[0] - b[0])) {"], [null, "    const last = merged[merged.length - 1];"], ["touch", "    if (last && start <= last[1]) {"], ["stretch", "      last[1] = Math.max(last[1], end);"], [null, "    } else {"], ["new", "      merged.push([start, end]);"], [null, "    }"], [null, "  }"], ["ret", "  return merged;"], [null, "}"]], "java": [[null, "static List<int[]> merge(int[][] intervals) {"], [null, "    int[][] sorted = intervals.clone();"], [null, "    Arrays.sort(sorted, (a, b) -> Integer.compare(a[0], b[0]));"], ["init", "    List<int[]> merged = new ArrayList<>();"], ["loop", "    for (int[] iv : sorted) {"], [null, "        int start = iv[0], end = iv[1];"], [null, "        int[] last = merged.isEmpty() ? null : merged.get(merged.size() - 1);"], ["touch", "        if (last != null && start <= last[1]) {"], ["stretch", "            last[1] = Math.max(last[1], end);"], [null, "        } else {"], ["new", "            merged.add(new int[]{start, end});"], [null, "        }"], [null, "    }"], ["ret", "    return merged;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: start < last end", code: {"py": [[null, "def merge(intervals):"], ["init", "    merged = []"], ["loop", "    for start, end in sorted(intervals):"], ["touch", "        if merged and start < merged[-1][1]:"], ["stretch", "            merged[-1][1] = max(merged[-1][1], end)"], [null, "        else:"], ["new", "            merged.append([start, end])"], ["ret", "    return merged"]]}, steps: tl8A([[1, 4], [4, 5]], true).steps, diverge: undefined, why: "4 &lt; 4 is false, so touching intervals aren't merged." } });
+     }
+  { const run = tl8B([[1, 5], [2, 6], [3, 7], [6, 8]]);
+    Viz.tlab("#tl-08b", { title: "Template B \u00b7 [[1,5], [2,6], [3,7], [6,8]]", sub: "Bars: meetings (blue = current). Chips: end times of rooms in use; gold = the first to free up.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def min_rooms(intervals):"], ["init", "    room_ends = []"], ["loop", "    for start, end in sorted(intervals):"], ["free", "        if room_ends and room_ends[0] <= start:"], ["reuse", "            heapq.heappop(room_ends)"], ["book", "        heapq.heappush(room_ends, end)"], ["ret", "    return len(room_ends)"]], "ts": [[null, "function minRooms(intervals: number[][]): number {"], ["init", "  const roomEnds = new MinHeap<number>((a, b) => a < b);"], ["loop", "  for (const [start, end] of [...intervals].sort((a, b) => a[0] - b[0])) {"], ["free", "    if (roomEnds.size > 0 && roomEnds.peek()! <= start) {"], ["reuse", "      roomEnds.pop();"], [null, "    }"], ["book", "    roomEnds.push(end);"], [null, "  }"], ["ret", "  return roomEnds.size;"], [null, "}"]], "java": [[null, "static int minRooms(int[][] intervals) {"], [null, "    int[][] sorted = intervals.clone();"], [null, "    Arrays.sort(sorted, (a, b) -> Integer.compare(a[0], b[0]));"], ["init", "    PriorityQueue<Integer> roomEnds = new PriorityQueue<>();"], ["loop", "    for (int[] iv : sorted) {"], ["free", "        if (!roomEnds.isEmpty() && roomEnds.peek() <= iv[0]) {"], ["reuse", "            roomEnds.poll();"], [null, "        }"], ["book", "        roomEnds.offer(iv[1]);"], [null, "    }"], ["ret", "    return roomEnds.size();"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-08b-table").innerHTML = TL.table(run.table); }
+  { const run = tl8C([[1, 2], [2, 3], [3, 4], [1, 3]], false);
+    Viz.tlab("#tl-08c", { title: "Template C \u00b7 [[1,2], [2,3], [3,4], [1,3]]", sub: "Bars sorted by end. Green = kept, red = skipped, blue = current.", code: {"py": [[null, "def max_non_overlapping(intervals):"], ["init", "    count, last_kept_end = 0, float(\"-inf\")"], ["loop", "    for start, end in sorted(intervals, key=lambda iv: iv[1]):"], ["fits", "        if start >= last_kept_end:"], ["keep", "            count += 1"], ["keep", "            last_kept_end = end"], ["ret", "    return count"]], "ts": [[null, "function maxNonOverlapping(intervals: number[][]): number {"], ["init", "  let count = 0, lastKeptEnd = -Infinity;"], ["loop", "  for (const [start, end] of [...intervals].sort((a, b) => a[1] - b[1])) {"], ["fits", "    if (start >= lastKeptEnd) {"], ["keep", "      count++;"], ["keep", "      lastKeptEnd = end;"], [null, "    }"], [null, "  }"], ["ret", "  return count;"], [null, "}"]], "java": [[null, "static int maxNonOverlapping(int[][] intervals) {"], [null, "    int[][] sorted = intervals.clone();"], [null, "    Arrays.sort(sorted, (a, b) -> Integer.compare(a[1], b[1]));"], ["init", "    int count = 0;"], ["init", "    long lastKeptEnd = Long.MIN_VALUE;"], ["loop", "    for (int[] iv : sorted) {"], ["fits", "        if (iv[0] >= lastKeptEnd) {"], ["keep", "            count++;"], ["keep", "            lastKeptEnd = iv[1];"], [null, "        }"], [null, "    }"], ["ret", "    return count;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-08c-table").innerHTML = TL.table(run.table); }
+  { const run = tl8C([[1, 10], [2, 3], [4, 5]], false);
+    Viz.tlab("#tl-08c-bug", { title: "Why sort by end \u00b7 [[1,10], [2,3], [4,5]]", sub: "Switch between sorting by end and by start.", code: {"py": [[null, "def max_non_overlapping(intervals):"], ["init", "    count, last_kept_end = 0, float(\"-inf\")"], ["loop", "    for start, end in sorted(intervals, key=lambda iv: iv[1]):"], ["fits", "        if start >= last_kept_end:"], ["keep", "            count += 1"], ["keep", "            last_kept_end = end"], ["ret", "    return count"]], "ts": [[null, "function maxNonOverlapping(intervals: number[][]): number {"], ["init", "  let count = 0, lastKeptEnd = -Infinity;"], ["loop", "  for (const [start, end] of [...intervals].sort((a, b) => a[1] - b[1])) {"], ["fits", "    if (start >= lastKeptEnd) {"], ["keep", "      count++;"], ["keep", "      lastKeptEnd = end;"], [null, "    }"], [null, "  }"], ["ret", "  return count;"], [null, "}"]], "java": [[null, "static int maxNonOverlapping(int[][] intervals) {"], [null, "    int[][] sorted = intervals.clone();"], [null, "    Arrays.sort(sorted, (a, b) -> Integer.compare(a[1], b[1]));"], ["init", "    int count = 0;"], ["init", "    long lastKeptEnd = Long.MIN_VALUE;"], ["loop", "    for (int[] iv : sorted) {"], ["fits", "        if (iv[0] >= lastKeptEnd) {"], ["keep", "            count++;"], ["keep", "            lastKeptEnd = iv[1];"], [null, "        }"], [null, "    }"], ["ret", "    return count;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: sort by start", code: {"py": [[null, "def max_non_overlapping(intervals):"], ["init", "    count, last_kept_end = 0, float(\"-inf\")"], ["loop", "    for start, end in sorted(intervals):"], ["fits", "        if start >= last_kept_end:"], ["keep", "            count += 1"], ["keep", "            last_kept_end = end"], ["ret", "    return count"]]}, steps: tl8C([[1, 10], [2, 3], [4, 5]], true).steps, diverge: undefined, why: "the first meeting taken is the one that <em>starts</em> first, not the one that frees you first." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

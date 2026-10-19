@@ -417,7 +417,13 @@
         vars: st.vars,
       }));
     }
+    function fit() {
+      // A view too wide to sit beside the code moves below it (once stacked, the lab stays stacked).
+      const side = root.querySelector(".tl-side");
+      if (side && !root.classList.contains("tl-stack") && side.scrollWidth > side.clientWidth + 2) root.classList.add("tl-stack");
+    }
     function showAsk(i) {
+      fit();
       if (!pred.checked) { ask.hidden = true; return; }
       const nx = src().steps[i + 1];
       ask.hidden = false;

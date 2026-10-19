@@ -518,6 +518,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
 .tl-side > * { max-width: 100%; }
+.tlab.tl-stack .tl-grid { grid-template-columns: minmax(0, 1fr); }
 .tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
@@ -1094,7 +1095,13 @@ svg.flow .fn { transition: opacity .35s ease; }
         vars: st.vars,
       }));
     }
+    function fit() {
+      // A view too wide to sit beside the code moves below it (once stacked, the lab stays stacked).
+      const side = root.querySelector(".tl-side");
+      if (side && !root.classList.contains("tl-stack") && side.scrollWidth > side.clientWidth + 2) root.classList.add("tl-stack");
+    }
     function showAsk(i) {
+      fit();
       if (!pred.checked) { ask.hidden = true; return; }
       const nx = src().steps[i + 1];
       ask.hidden = false;
@@ -2307,104 +2314,213 @@ condition true?  :  F  F  F  F  T  T  T  T     ← find the FIRST T</code></pre>
     <p><strong>Cost:</strong> <code>O(log n)</code> comparisons on an array, <code>O(1)</code> space. Binary search on the answer: <code>O(log(range) × cost of check)</code>, e.g. <code>O(n log(max))</code> for Koko and Split Array.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <p>One template covers almost everything: <strong>find the first index (or value) where a condition becomes True</strong>, with a half-open window <code>[low, high)</code>.</p>
-    <pre><code class="python"># A) Lower bound: the first index whose value is &gt;= target.
-#    If every value is smaller than target, the answer is len(nums).
-def lower_bound(nums, target):
-    # The window [low, high) is "half-open": low is still a possible answer,
-    # high is one step PAST the last candidate (it starts at len(nums),
-    # which stands for "no such index").
-    low = 0
-    high = len(nums)
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Binary search has three templates. All halve a range each step; they differ in what the range means. <strong>A</strong> (lower bound) finds the first index whose value is ≥ target in a sorted array, using a half-open range <code>[low, high)</code>. <strong>B</strong> (first true) is A with the array replaced by any yes/no test that flips from no to yes once: "binary search on the answer". <strong>C</strong> searches a rotated sorted array, using the fact that at least one half is always sorted.</p>
 
-    # Keep going while the window still holds at least one candidate.
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Lower bound: first index with nums[i] ≥ target</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Where is the first value ≥ target (also: where would target be inserted)?</div><div><b>What it keeps</b>A half-open range <code>[low, high)</code> that always contains the answer.</div><div><b>When it checks for an answer</b>Ends when <code>low == high</code>: that's the answer.</div><div><b>Use it when</b>First/last position of a value, insert position, count of values < x, floor/ceiling.</div><div><b>Not for</b>Unsorted data; "any index that matches" is fine with this too, but it doesn't stop early.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Too small → the answer is to the right of mid; otherwise mid might be it"</strong>Guessing a page in a dictionary: if the word on the page comes before yours, every page up to it is out (<code>low = mid + 1</code>). Otherwise this page could be the first one with your word, so keep it (<code>high = mid</code>).</div>
+    <p><strong>The story, mapped to the code.</strong> The array is a sorted dictionary; the answer is the first page that isn't before your word.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Pages still possible</td><td data-h="In the code"><code>[low, high)</code></td><td data-h="What it means">Half-open: high itself is a valid answer ("after the end").</td></tr><tr><td data-h="In the story">Open the middle page</td><td data-h="In the code"><code>mid = (low + high) // 2</code></td><td data-h="What it means">Always < high, so it's a real index.</td></tr><tr><td data-h="In the story">Page is before my word</td><td data-h="In the code"><code>nums[mid] &lt; target → low = mid + 1</code></td><td data-h="What it means">mid and everything left of it are out.</td></tr><tr><td data-h="In the story">Page might be the first</td><td data-h="In the code"><code>else high = mid</code></td><td data-h="What it means">Keep mid as a candidate.</td></tr><tr><td data-h="In the story">One page left</td><td data-h="In the code"><code>low == high</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Note <code>high = len(nums)</code> and <code>while low &lt; high</code>: the two choices go together.</p>
+    <pre><code class="python">def lower_bound(nums, target):
+    low, high = 0, len(nums)
     while low &lt; high:
-        # Look at the element in the middle of the window.
-        middle = (low + high) // 2
-
-        if nums[middle] &lt; target:
-            # Too small: the answer must be strictly to the RIGHT of middle.
-            low = middle + 1
+        mid = (low + high) // 2
+        if nums[mid] &lt; target:
+            low = mid + 1
         else:
-            # Big enough: middle COULD be the answer, so keep it in the
-            # window, but throw away everything to its right.
-            high = middle
-
-    # The window is empty (low == high): low is the first index with
-    # nums[i] &gt;= target. Python's bisect.bisect_left(nums, target) gives
-    # exactly the same number.
-    return low
-
-
-# B) Binary search on the ANSWER: the smallest x in [low, high] for which
-#    is_ok(x) is True. is_ok must look like False ... False True ... True.
-def first_true(low, high, is_ok):
-    # Add one extra spot, high + 1, which means "is_ok was never True".
-    high = high + 1
-
+            high = mid
+    return low</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function lowerBound(nums: number[], target: number): number {
+  let low = 0, high = nums.length;
+  while (low &lt; high) {
+    const mid = (low + high) &gt;&gt; 1;
+    if (nums[mid] &lt; target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int lowerBound(int[] nums, int target) {
+    int low = 0, high = nums.length;
+    while (low &lt; high) {
+        int mid = low + (high - low) / 2;
+        if (nums[mid] &lt; target) {
+            low = mid + 1;
+        } else {
+            high = mid;
+        }
+    }
+    return low;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>low, high = 0, len(nums)</code></td><td data-h="What it does">The answer can be any index 0..n (n = "after everything").</td><td data-h="In the story">All pages, plus "after the last page".</td><td data-h="Why here, and what breaks if it moves"><code>high = len - 1</code> can never answer "insert at the end".</td></tr><tr><td data-h="Line"><code>while low &lt; high</code></td><td data-h="What it does">Stop when one candidate is left.</td><td data-h="In the story">One page left.</td><td data-h="Why here, and what breaks if it moves"><code>&lt;=</code> with <code>high = mid</code> loops forever when low == high.</td></tr><tr><td data-h="Line"><code>mid = (low + high) // 2</code></td><td data-h="What it does">Rounds down, so <code>mid &lt; high</code>.</td><td data-h="In the story">Open the middle page.</td><td data-h="Why here, and what breaks if it moves">In Java/C++ write <code>low + (high - low) / 2</code> to avoid overflow.</td></tr><tr><td data-h="Line"><code>low = mid + 1</code></td><td data-h="What it does">mid is too small; drop it.</td><td data-h="In the story">This page and earlier are out.</td><td data-h="Why here, and what breaks if it moves"><code>low = mid</code> can loop forever when high = low + 1.</td></tr><tr><td data-h="Line"><code>high = mid</code></td><td data-h="What it does">mid could be the answer; keep it.</td><td data-h="In the story">Keep this page.</td><td data-h="Why here, and what breaks if it moves"><code>high = mid - 1</code> throws away a valid answer (see the bug player).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [1, 3, 5, 5, 8]</code>, <code>target = 5</code>. The second player mixes in <code>high = mid - 1</code>.</p>
+    <div id="tl-09a"></div><div id="tl-09a-bug"></div><p><code>high = mid - 1</code> belongs to the closed-range style. Mixed into this template, it throws away index 2 (the answer) and returns 1.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-09a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Everything before <code>low</code> is &lt; target; everything at or after <code>high</code> is ≥ target. When they meet, <code>low</code> is the first index ≥ target.</p>
+    <p><strong>Complexity.</strong> O(log n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Mixing closed and half-open styles.</strong> Half-open: <code>high = len</code>, <code>low &lt; high</code>, <code>high = mid</code>.</li><li><strong><code>low = mid</code>.</strong> mid was checked and is too small: <code>mid + 1</code>.</li><li><strong>Assuming the target exists.</strong> Check <code>low &lt; len and nums[low] == target</code>.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Too small → right of mid; otherwise mid might be it.</dd>
+      <dt>Choose this template when</dt><dd>First position / insert position / count less than → lower bound.</dd>
+      <dt>Invariant</dt><dd>Left of low: &lt; target. From high on: ≥ target.</dd>
+      <dt>The line people get wrong</dt><dd><code>high = mid</code> (not mid − 1).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>lower_bound([1,3,5,5,8], 9)?</summary><p>5 (after the end).</p></details><details><summary>Last position of 5?</summary><p>lower_bound(nums, 6) − 1 = 3.</p></details><details><summary>Count of values &lt; 5?</summary><p>lower_bound(nums, 5) = 2.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · First true (binary search on the answer)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What's the smallest x in <code>[low, high]</code> for which <code>is_ok(x)</code> is true, if is_ok flips from false to true once?</div><div><b>What it keeps</b>A half-open range of candidate answers.</div><div><b>When it checks for an answer</b>Each step asks is_ok(mid) once.</div><div><b>Use it when</b>Minimum capacity/speed/time that works (Koko, ship packages), smallest x with x² ≥ n, first bad version.</div><div><b>Not for</b>Tests that flip more than once (not monotonic).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Find the first yes on a no-no-no-yes-yes line"</strong>Lay out every possible answer on a line. The test says no, no, no… then yes forever. Binary search finds the first yes: a yes means the answer is here or to the left; a no means it's to the right.</div>
+    <p><strong>The story, mapped to the code.</strong> Each candidate answer is a door; behind the first door that opens is the answer.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Candidate answers</td><td data-h="In the code"><code>low..high</code></td><td data-h="What it means">All possible values of x.</td></tr><tr><td data-h="In the story">Try a door</td><td data-h="In the code"><code>is_ok(mid)</code></td><td data-h="What it means">One test per step.</td></tr><tr><td data-h="In the story">Opens</td><td data-h="In the code"><code>high = mid</code></td><td data-h="What it means">Answer is mid or smaller.</td></tr><tr><td data-h="In the story">Stays shut</td><td data-h="In the code"><code>low = mid + 1</code></td><td data-h="What it means">Answer is bigger.</td></tr><tr><td data-h="In the story">First door that opens</td><td data-h="In the code"><code>return low</code></td><td data-h="What it means">Smallest x with is_ok(x).</td></tr></tbody></table>
+    <p><strong>The template.</strong> Exactly A, with <code>nums[mid] &lt; target</code> replaced by <code>not is_ok(mid)</code>.</p>
+    <pre><code class="python">def first_true(low, high, is_ok):
+    high += 1
     while low &lt; high:
-        # Try the candidate in the middle of the window.
-        middle = (low + high) // 2
-
-        if is_ok(middle):
-            # middle works. Maybe something smaller works too, so keep
-            # middle and look to the left.
-            high = middle
+        mid = (low + high) // 2
+        if is_ok(mid):
+            high = mid
         else:
-            # middle fails, so every smaller value fails too: go right.
-            low = middle + 1
-
-    # low is the first candidate where is_ok is True (or high + 1).
-    return low
-
-
-# C) Rotated sorted array: one half is ALWAYS sorted, so test the target against it
-def search_rotated(nums, target):
-    # Closed window [low, high]: both ends are still candidates.
-    low = 0
-    high = len(nums) - 1
-
+            low = mid + 1
+    return low</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function firstTrue(low: number, high: number, isOk: (x: number) =&gt; boolean): number {
+  high += 1;
+  while (low &lt; high) {
+    const mid = Math.floor((low + high) / 2);
+    if (isOk(mid)) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+  return low;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int firstTrue(int low, int high, IntPredicate isOk) {
+    high += 1;
+    while (low &lt; high) {
+        int mid = low + (high - low) / 2;
+        if (isOk.test(mid)) {
+            high = mid;
+        } else {
+            low = mid + 1;
+        }
+    }
+    return low;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>high += 1</code></td><td data-h="What it does">Makes the range half-open; returning high + 1 means "no x works".</td><td data-h="In the story">An extra door meaning "none opened".</td><td data-h="Why here, and what breaks if it moves">Without it, a range where nothing works returns <code>high</code> as if it worked.</td></tr><tr><td data-h="Line"><code>if is_ok(mid): high = mid</code></td><td data-h="What it does">mid works; maybe something smaller does too.</td><td data-h="In the story">The door opens; look left.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>else: low = mid + 1</code></td><td data-h="What it does">mid fails, so everything ≤ mid fails.</td><td data-h="In the story">Shut; look right.</td><td data-h="Why here, and what breaks if it moves">This relies on monotonicity: no → all smaller are no.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the smallest <code>x</code> in 1..10 with <code>x * x &gt;= 30</code>.</p>
+    <div id="tl-09b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-09b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Every candidate before <code>low</code> fails; every candidate from <code>high</code> on passes (with high = original high + 1 as "none").</p>
+    <p><strong>Complexity.</strong> O(log(range) × cost of is_ok).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Non-monotonic test.</strong> It must be no…no, yes…yes.</li><li><strong>Wrong range.</strong> low = smallest possible answer, high = largest possible (e.g., max(piles) for Koko).</li><li><strong>Forgetting the "none" case.</strong> If the result is high + 1, nothing worked.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Find the first yes on a no-no-yes-yes line.</dd>
+      <dt>Choose this template when</dt><dd>"Minimum X such that it works" with a monotonic check → B.</dd>
+      <dt>Invariant</dt><dd>Left of low: no. From high on: yes.</dd>
+      <dt>The line people get wrong</dt><dd><code>high = mid</code> on yes.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Smallest x with x² ≥ 30 in 1..10?</summary><p>6.</p></details><details><summary>Koko: what's is_ok(speed)?</summary><p>Hours needed at that speed ≤ h.</p></details><details><summary>What does a result of high + 1 mean?</summary><p>No candidate passed.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Search in a rotated sorted array</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Find target's index in a sorted array that was rotated (no duplicates), in O(log n).</div><div><b>What it keeps</b>A closed range <code>[low, high]</code>.</div><div><b>When it checks for an answer</b>Each step: is mid the target? Which half is sorted? Is target inside it?</div><div><b>Use it when</b>LC 33 (and with care, LC 81 with duplicates); min of a rotated array is a cousin.</div><div><b>Not for</b>Plain sorted arrays (A is simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "One half is always sorted: check if the target lives there"</strong>A clock face rotated: cut it at the middle and at least one half reads in order. If target is inside that ordered half's range, search there; otherwise search the other half.</div>
+    <p><strong>The story, mapped to the code.</strong> The array is a sorted bookshelf that someone rotated.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The ordered half</td><td data-h="In the code"><code>nums[low] &lt;= nums[mid] → left half sorted</code></td><td data-h="What it means">Otherwise the right half is.</td></tr><tr><td data-h="In the story">Target inside the ordered half</td><td data-h="In the code"><code>nums[low] &lt;= target &lt; nums[mid]</code></td><td data-h="What it means">Range check on a sorted half is safe.</td></tr><tr><td data-h="In the story">Go there</td><td data-h="In the code"><code>high = mid - 1</code></td><td data-h="What it means">Or low = mid + 1 for the right half.</td></tr><tr><td data-h="In the story">Found</td><td data-h="In the code"><code>nums[mid] == target</code></td><td data-h="What it means">Return mid.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Closed range (<code>high = len - 1</code>, <code>low &lt;= high</code>) because we return as soon as we see the target.</p>
+    <pre><code class="python">def search_rotated(nums, target):
+    low, high = 0, len(nums) - 1
     while low &lt;= high:
-        middle = (low + high) // 2
-
-        # Lucky case: the middle element IS the target.
-        if nums[middle] == target:
-            return middle
-
-        if nums[low] &lt;= nums[middle]:
-            # The LEFT half nums[low..middle] is sorted.
-            if nums[low] &lt;= target and target &lt; nums[middle]:
-                # Target is inside the sorted left half: go left.
-                high = middle - 1
+        mid = (low + high) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[low] &lt;= nums[mid]:
+            if nums[low] &lt;= target &lt; nums[mid]:
+                high = mid - 1
             else:
-                # Otherwise it can only be in the right half.
-                low = middle + 1
+                low = mid + 1
         else:
-            # The RIGHT half nums[middle..high] is sorted.
-            if nums[middle] &lt; target and target &lt;= nums[high]:
-                # Target is inside the sorted right half: go right.
-                low = middle + 1
+            if nums[mid] &lt; target &lt;= nums[high]:
+                low = mid + 1
             else:
-                # Otherwise it can only be in the left half.
-                high = middle - 1
-
-    # The window became empty: target is not in the array.
+                high = mid - 1
     return -1</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><strong>A) <code>lower_bound</code>.</strong> <code>low = 0</code> and <code>high = len(nums)</code> set up a half-open window: indexes <code>low</code> up to (but not including) <code>high</code> are still possible. <code>high</code> starts one past the end because "no value is big enough" is a valid answer, written as <code>len(nums)</code>.</li>
-      <li><code>while low &lt; high</code>: keep going while at least one candidate is left.</li>
-      <li><code>middle = (low + high) // 2</code>: the index halfway between, rounded down.</li>
-      <li>If <code>nums[middle] &lt; target</code>, middle (and everything left of it) is too small, so <code>low = middle + 1</code>. Otherwise middle is big enough and might be the first one, so <code>high = middle</code> keeps it but drops everything to its right.</li>
-      <li>When <code>low == high</code>, the window is empty and <code>low</code> is the first index with <code>nums[i] &gt;= target</code>.</li>
-      <li><strong>B) <code>first_true</code>.</strong> Same idea, but the candidates are numbers (possible answers) rather than array positions, and the question is a function <code>is_ok</code> you write yourself. <code>high = high + 1</code> adds a "never true" slot so the answer always exists.</li>
-      <li>If <code>is_ok(middle)</code> is True, the first True is middle or smaller: <code>high = middle</code>. If False, it is bigger: <code>low = middle + 1</code>. Return <code>low</code> at the end.</li>
-      <li><strong>C) <code>search_rotated</code>.</strong> A closed window <code>[low, high]</code> (note <code>high = len(nums) - 1</code> and <code>while low &lt;= high</code>), because here we return as soon as we see the target.</li>
-      <li>If <code>nums[low] &lt;= nums[middle]</code>, the left half is sorted. Check whether target lies between its ends; if yes, move <code>high</code> left of middle, otherwise move <code>low</code> right of middle.</li>
-      <li>Otherwise the right half is sorted: same check against <code>nums[middle]</code> and <code>nums[high]</code>, moving the opposite way. If the window empties, return -1.</li>
-    </ol>
-    <div class="callout tip"><strong>Last position trick</strong>The last index of <code>target</code> = <code>lower_bound(nums, target + 1) − 1</code>. For "maximize x such that ok(x)", search for the first x where ok is False and subtract 1.</div>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function searchRotated(nums: number[], target: number): number {
+  let low = 0, high = nums.length - 1;
+  while (low &lt;= high) {
+    const mid = (low + high) &gt;&gt; 1;
+    if (nums[mid] === target) {
+      return mid;
+    }
+    if (nums[low] &lt;= nums[mid]) {
+      if (nums[low] &lt;= target &amp;&amp; target &lt; nums[mid]) {
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    } else {
+      if (nums[mid] &lt; target &amp;&amp; target &lt;= nums[high]) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+  }
+  return -1;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int searchRotated(int[] nums, int target) {
+    int low = 0, high = nums.length - 1;
+    while (low &lt;= high) {
+        int mid = low + (high - low) / 2;
+        if (nums[mid] == target) {
+            return mid;
+        }
+        if (nums[low] &lt;= nums[mid]) {
+            if (nums[low] &lt;= target &amp;&amp; target &lt; nums[mid]) {
+                high = mid - 1;
+            } else {
+                low = mid + 1;
+            }
+        } else {
+            if (nums[mid] &lt; target &amp;&amp; target &lt;= nums[high]) {
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+    }
+    return -1;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if nums[low] &lt;= nums[mid]</code></td><td data-h="What it does">Is the left half sorted?</td><td data-h="In the story">Does the left half read in order?</td><td data-h="Why here, and what breaks if it moves"><code>&lt;</code> fails when low == mid (two elements left), e.g. [3, 1] searching 1.</td></tr><tr><td data-h="Line"><code>if nums[low] &lt;= target &lt; nums[mid]</code></td><td data-h="What it does">Is target inside the sorted left half?</td><td data-h="In the story">Is the book on the ordered shelf?</td><td data-h="Why here, and what breaks if it moves">Checking only <code>target &lt; nums[mid]</code> ignores the rotation.</td></tr><tr><td data-h="Line"><code>if nums[mid] &lt; target &lt;= nums[high]</code></td><td data-h="What it does">Same check for the sorted right half.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return -1</code></td><td data-h="What it does">Range empty: not present.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [4, 5, 6, 7, 0, 1, 2]</code>, <code>target = 0</code>.</p>
+    <div id="tl-09c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-09c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> If target is in the array, its index is in <code>[low, high]</code>. Each step drops a half that provably doesn't contain it.</p>
+    <p><strong>Complexity.</strong> O(log n) time, O(1) space (without duplicates; duplicates can force O(n)).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong><code>nums[low] &lt; nums[mid]</code>.</strong> Use <code>&lt;=</code>: low == mid makes a one-element sorted half.</li><li><strong>Range-checking the unsorted half.</strong> Only the sorted half's range check is reliable.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>One half is always sorted: check if target lives there.</dd>
+      <dt>Choose this template when</dt><dd>Rotated sorted array → C.</dd>
+      <dt>Invariant</dt><dd>Target (if present) stays within [low, high].</dd>
+      <dt>The line people get wrong</dt><dd><code>nums[low] &lt;= nums[mid]</code> with <=.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Which half is sorted for low=0, mid=3 in [4,5,6,7,0,1,2]?</summary><p>The left half [4,5,6,7].</p></details><details><summary>Why closed range here?</summary><p>We return as soon as nums[mid] == target.</p></details><details><summary>Duplicates?</summary><p>When nums[low] == nums[mid] == nums[high], shrink both ends by one.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · lower bound</th><th>B · first true</th><th>C · rotated</th></tr></thead><tbody><tr><td data-h="Question">Range style</td><td data-h="A · lower bound">Half-open [low, high)</td><td data-h="B · first true">Half-open (high + 1)</td><td data-h="C · rotated">Closed [low, high]</td></tr><tr><td data-h="Question">Loop</td><td data-h="A · lower bound"><code>low &lt; high</code></td><td data-h="B · first true"><code>low &lt; high</code></td><td data-h="C · rotated"><code>low &lt;= high</code></td></tr><tr><td data-h="Question">Moves</td><td data-h="A · lower bound">low = mid + 1 / high = mid</td><td data-h="B · first true">low = mid + 1 / high = mid</td><td data-h="C · rotated">low = mid + 1 / high = mid − 1</td></tr><tr><td data-h="Question">Returns</td><td data-h="A · lower bound">First index ≥ target</td><td data-h="B · first true">First x with is_ok(x)</td><td data-h="C · rotated">Index of target or −1</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · lower bound">LC 35, LC 34</td><td data-h="B · first true">LC 875, 1011, 69, 278</td><td data-h="C · rotated">LC 33, 153</td></tr></tbody></table>
+    <p>Default to the half-open style (A/B): it never loses an answer and returns a position even when the target is missing. Use the closed style (C) when you stop as soon as you hit the target. Never mix the two in one function.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -9362,6 +9478,99 @@ class Solution:
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl9View(vals, low, high, mid, hlx, closed) {
+    const hl = {}; vals.forEach((_, i) => { hl[i] = i >= low && (closed ? i <= high : i < high) ? "window" : "dim"; });
+    if (mid !== null && mid !== undefined && mid < vals.length) hl[mid] = "active"; Object.assign(hl, hlx || {});
+    const ptrs = {}; const add = (i, s) => { if (i >= 0 && i < vals.length) ptrs[i] = ptrs[i] ? ptrs[i] + "," + s : s; };
+    add(low, "low"); add(closed ? high : high, closed ? "high" : "high"); if (mid !== null && mid !== undefined) add(mid, "mid");
+    return Viz.array(vals, { label: "nums", ptrs, hl }) + (!closed && high >= vals.length ? `<p class="idx">high = ${high} (just past the end)</p>` : "");
+  }
+
+  function tl9A(nums, target, bug) {
+    let low = 0, high = nums.length; const steps = [], rows = [];
+    steps.push({ line: "init", vars: { low, high }, view: tl9View(nums, low, high), analogy: `All pages are possible, plus \"after the end\" (${high}).`, note: `<code>low = 0</code>, <code>high = ${high}</code>.` });
+    while (low < high) {
+      const mid = (low + high) >> 1, small = nums[mid] < target;
+      steps.push({ line: ["loop", "mid", "cmp"], vars: { low, high, mid, "nums[mid]": nums[mid] }, view: tl9View(nums, low, high, mid), analogy: `Open page ${mid}: ${nums[mid]} ${small ? "comes before" : "is not before"} ${target}.`,
+        note: `<code>mid = (${low} + ${high}) // 2 = ${mid}</code>; <code>${nums[mid]} &lt; ${target}</code>? ${small ? "yes" : "no"}.`,
+        ask: { q: "Which way?", options: ["low = mid + 1", bug ? "high = mid - 1" : "high = mid"], answer: small ? "low = mid + 1" : bug ? "high = mid - 1" : "high = mid", why: small ? "mid is too small." : "mid might be the answer." } });
+      const was = [low, high];
+      if (small) low = mid + 1; else high = bug ? mid - 1 : mid;
+      steps.push({ line: small ? "right" : "left", vars: { low, high }, view: tl9View(nums, low, high), analogy: small ? `Pages ${was[0]}..${mid} are out.` : bug ? `⚠ Page ${mid} (a valid answer) was thrown out too.` : `Keep page ${mid}; pages after it are out.`, note: small ? `<code>low = ${low}</code>.` : `<code>high = ${high}</code>.` });
+      rows.push([was[0], was[1], mid, nums[mid], small ? "&lt; target" : "≥ target", low, high]);
+    }
+    steps.push({ line: "ret", vars: { result: low }, view: tl9View(nums, low, low + 1, null, low < nums.length ? { [low]: "found" } : {}), analogy: `One candidate left: index ${low}.`, note: `Return <code>${low}</code>.` });
+    return { steps, table: { head: ["low", "high", "mid", "nums[mid]", "Compare", "low after", "high after"], rows } };
+  }
+
+  function tl9B(lo, hi, n) {
+    const cands = []; for (let x = lo; x <= hi; x++) cands.push(x);
+    const tested = {}; let low = lo, high = hi + 1; const steps = [], rows = [];
+    const view = (mid, extra) => Viz.array(cands.map((x) => (tested[x] === undefined ? x : `${x}${tested[x] ? "✓" : "✗"}`)), { label: "x", showIdx: false, small: true,
+      ptrs: Object.fromEntries([[low - lo, "low"], ...(high - lo < cands.length ? [[high - lo, "high"]] : []), ...(mid !== undefined ? [[mid - lo, "mid"]] : [])].reduce((m, [i, s]) => { m.set(i, m.has(i) ? m.get(i) + "," + s : s); return m; }, new Map())),
+      hl: Object.assign(Object.fromEntries(cands.map((x, i) => [i, x >= low && x < high ? "window" : tested[x] === false ? "bad" : tested[x] ? "found" : "dim"])), mid !== undefined ? { [mid - lo]: "active" } : {}, extra || {}) });
+    steps.push({ line: "init", vars: { low, high }, view: view(), analogy: `Doors ${lo}..${hi}; door ${hi + 1} means \"none opened\".`, note: `<code>high = ${hi} + 1 = ${high}</code>.` });
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2), ok = mid * mid >= n; tested[mid] = ok;
+      steps.push({ line: ["loop", "mid", "test"], vars: { low, high, mid, "mid²": mid * mid, is_ok: ok }, view: view(mid), analogy: `Try door ${mid}: ${mid}² = ${mid * mid} ${ok ? "≥" : "<"} ${n}: ${ok ? "opens" : "stays shut"}.`, note: `<code>is_ok(${mid})</code> = ${ok}.`,
+        ask: { q: `is_ok(${mid})?`, options: ["true", "false"], answer: ok ? "true" : "false", why: `${mid}² = ${mid * mid}.` } });
+      const was = [low, high]; if (ok) high = mid; else low = mid + 1;
+      steps.push({ line: ok ? "left" : "right", vars: { low, high }, view: view(), analogy: ok ? "The answer is this door or one to the left." : "The answer is to the right.", note: ok ? `<code>high = ${high}</code>.` : `<code>low = ${low}</code>.` });
+      rows.push([was[0], was[1], mid, mid * mid, ok ? "true" : "false", low, high]);
+    }
+    steps.push({ line: "ret", vars: { result: low }, view: view(undefined, low - lo < cands.length ? { [low - lo]: "found" } : {}), analogy: `The first door that opens: ${low}.`, note: `Return <code>${low}</code>.` });
+    return { steps, table: { head: ["low", "high", "mid", "mid²", "is_ok", "low after", "high after"], rows } };
+  }
+
+  function tl9C(nums, target) {
+    let low = 0, high = nums.length - 1; const steps = [], rows = [];
+    steps.push({ line: "init", vars: { low, high }, view: tl9View(nums, low, high, null, {}, true), analogy: "The whole rotated shelf.", note: `<code>low = 0</code>, <code>high = ${high}</code>.` });
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (nums[mid] === target) {
+        rows.push([low, high, mid, nums[mid], "—", "found"]);
+        steps.push({ line: ["loop", "mid", "hit"], vars: { low, high, mid, "nums[mid]": nums[mid] }, view: tl9View(nums, low, high, mid, { [mid]: "found" }, true), analogy: `Found ${target} at ${mid}.`, note: `Return <code>${mid}</code>.` });
+        return { steps, table: { head: ["low", "high", "mid", "nums[mid]", "Sorted half", "Move"], rows } };
+      }
+      const leftSorted = nums[low] <= nums[mid];
+      const sortedHl = {}; for (let i = leftSorted ? low : mid; i <= (leftSorted ? mid : high); i++) sortedHl[i] = "gold"; sortedHl[mid] = "active";
+      const inside = leftSorted ? nums[low] <= target && target < nums[mid] : nums[mid] < target && target <= nums[high];
+      const goLeft = leftSorted ? inside : !inside;
+      steps.push({ line: ["loop", "mid", "sorted", "inside"], vars: { low, high, mid, "nums[mid]": nums[mid], sorted_half: leftSorted ? "left" : "right" }, view: tl9View(nums, low, high, mid, sortedHl, true),
+        analogy: `The ${leftSorted ? "left" : "right"} half [${leftSorted ? nums[low] : nums[mid]} … ${leftSorted ? nums[mid] : nums[high]}] is in order. Is ${target} inside it? ${inside ? "yes" : "no"}.`,
+        note: leftSorted ? `<code>${nums[low]} &lt;= ${target} &lt; ${nums[mid]}</code>? ${inside}.` : `<code>${nums[mid]} &lt; ${target} &lt;= ${nums[high]}</code>? ${inside}.`,
+        ask: { q: "Search which half next?", options: ["left", "right"], answer: goLeft ? "left" : "right", why: inside ? "Target is inside the sorted half." : "Target isn't in the sorted half, so it's in the other one." } });
+      const was = [low, high]; if (goLeft) high = mid - 1; else low = mid + 1;
+      steps.push({ line: goLeft ? "left" : "right", vars: { low, high }, view: tl9View(nums, low, high, null, {}, true), analogy: `Search the ${goLeft ? "left" : "right"} part.`, note: goLeft ? `<code>high = ${high}</code>.` : `<code>low = ${low}</code>.` });
+      rows.push([was[0], was[1], mid, nums[mid], leftSorted ? "left" : "right", goLeft ? `high = ${high}` : `low = ${low}`]);
+    }
+    steps.push({ line: "none", vars: { result: -1 }, view: tl9View(nums, low, high, null, {}, true), analogy: "Range empty.", note: "Return <code>-1</code>." });
+    return { steps, table: { head: ["low", "high", "mid", "nums[mid]", "Sorted half", "Move"], rows } };
+  }
+
+  { const run = tl9A([1, 3, 5, 5, 8], 5, false);
+    Viz.tlab("#tl-09a", { title: "Template A \u00b7 nums = [1, 3, 5, 5, 8], target = 5", sub: "Teal = still possible; blue = mid; faded = ruled out.", code: {"py": [[null, "def lower_bound(nums, target):"], ["init", "    low, high = 0, len(nums)"], ["loop", "    while low < high:"], ["mid", "        mid = (low + high) // 2"], ["cmp", "        if nums[mid] < target:"], ["right", "            low = mid + 1"], [null, "        else:"], ["left", "            high = mid"], ["ret", "    return low"]], "ts": [[null, "function lowerBound(nums: number[], target: number): number {"], ["init", "  let low = 0, high = nums.length;"], ["loop", "  while (low < high) {"], ["mid", "    const mid = (low + high) >> 1;"], ["cmp", "    if (nums[mid] < target) {"], ["right", "      low = mid + 1;"], [null, "    } else {"], ["left", "      high = mid;"], [null, "    }"], [null, "  }"], ["ret", "  return low;"], [null, "}"]], "java": [[null, "static int lowerBound(int[] nums, int target) {"], ["init", "    int low = 0, high = nums.length;"], ["loop", "    while (low < high) {"], ["mid", "        int mid = low + (high - low) / 2;"], ["cmp", "        if (nums[mid] < target) {"], ["right", "            low = mid + 1;"], [null, "        } else {"], ["left", "            high = mid;"], [null, "        }"], [null, "    }"], ["ret", "    return low;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-09a-table").innerHTML = TL.table(run.table); }
+  { const run = tl9A([1, 3, 5, 5, 8], 5, false);
+    Viz.tlab("#tl-09a-bug", { title: "Mixed styles \u00b7 nums = [1, 3, 5, 5, 8], target = 5", sub: "Switch between high = mid and high = mid - 1.", code: {"py": [[null, "def lower_bound(nums, target):"], ["init", "    low, high = 0, len(nums)"], ["loop", "    while low < high:"], ["mid", "        mid = (low + high) // 2"], ["cmp", "        if nums[mid] < target:"], ["right", "            low = mid + 1"], [null, "        else:"], ["left", "            high = mid"], ["ret", "    return low"]], "ts": [[null, "function lowerBound(nums: number[], target: number): number {"], ["init", "  let low = 0, high = nums.length;"], ["loop", "  while (low < high) {"], ["mid", "    const mid = (low + high) >> 1;"], ["cmp", "    if (nums[mid] < target) {"], ["right", "      low = mid + 1;"], [null, "    } else {"], ["left", "      high = mid;"], [null, "    }"], [null, "  }"], ["ret", "  return low;"], [null, "}"]], "java": [[null, "static int lowerBound(int[] nums, int target) {"], ["init", "    int low = 0, high = nums.length;"], ["loop", "    while (low < high) {"], ["mid", "        int mid = low + (high - low) / 2;"], ["cmp", "        if (nums[mid] < target) {"], ["right", "            low = mid + 1;"], [null, "        } else {"], ["left", "            high = mid;"], [null, "        }"], [null, "    }"], ["ret", "    return low;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: high = mid - 1", code: {"py": [[null, "def lower_bound(nums, target):"], ["init", "    low, high = 0, len(nums)"], ["loop", "    while low < high:"], ["mid", "        mid = (low + high) // 2"], ["cmp", "        if nums[mid] < target:"], ["right", "            low = mid + 1"], [null, "        else:"], ["left", "            high = mid - 1"], ["ret", "    return low"]]}, steps: tl9A([1, 3, 5, 5, 8], 5, true).steps, diverge: undefined, why: "mid (value 5) was a valid answer, but <code>high = mid - 1</code> removed it from the range." } });
+     }
+  { const run = tl9B(1, 10, 30);
+    Viz.tlab("#tl-09b", { title: "Template B \u00b7 smallest x in 1..10 with x\u00b2 \u2265 30", sub: "Cells show each candidate with its test result once tested (\u2713 / \u2717).", code: {"py": [[null, "def first_true(low, high, is_ok):"], ["init", "    high += 1"], ["loop", "    while low < high:"], ["mid", "        mid = (low + high) // 2"], ["test", "        if is_ok(mid):"], ["left", "            high = mid"], [null, "        else:"], ["right", "            low = mid + 1"], ["ret", "    return low"]], "ts": [[null, "function firstTrue(low: number, high: number, isOk: (x: number) => boolean): number {"], ["init", "  high += 1;"], ["loop", "  while (low < high) {"], ["mid", "    const mid = Math.floor((low + high) / 2);"], ["test", "    if (isOk(mid)) {"], ["left", "      high = mid;"], [null, "    } else {"], ["right", "      low = mid + 1;"], [null, "    }"], [null, "  }"], ["ret", "  return low;"], [null, "}"]], "java": [[null, "static int firstTrue(int low, int high, IntPredicate isOk) {"], ["init", "    high += 1;"], ["loop", "    while (low < high) {"], ["mid", "        int mid = low + (high - low) / 2;"], ["test", "        if (isOk.test(mid)) {"], ["left", "            high = mid;"], [null, "        } else {"], ["right", "            low = mid + 1;"], [null, "        }"], [null, "    }"], ["ret", "    return low;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-09b-table").innerHTML = TL.table(run.table); }
+  { const run = tl9C([4, 5, 6, 7, 0, 1, 2], 0);
+    Viz.tlab("#tl-09c", { title: "Template C \u00b7 nums = [4, 5, 6, 7, 0, 1, 2], target = 0", sub: "Teal = range; gold = the sorted half; blue = mid.", code: {"py": [[null, "def search_rotated(nums, target):"], ["init", "    low, high = 0, len(nums) - 1"], ["loop", "    while low <= high:"], ["mid", "        mid = (low + high) // 2"], ["hit", "        if nums[mid] == target:"], ["hit", "            return mid"], ["sorted", "        if nums[low] <= nums[mid]:"], ["inside", "            if nums[low] <= target < nums[mid]:"], ["left", "                high = mid - 1"], [null, "            else:"], ["right", "                low = mid + 1"], [null, "        else:"], ["inside", "            if nums[mid] < target <= nums[high]:"], ["right", "                low = mid + 1"], [null, "            else:"], ["left", "                high = mid - 1"], ["none", "    return -1"]], "ts": [[null, "function searchRotated(nums: number[], target: number): number {"], ["init", "  let low = 0, high = nums.length - 1;"], ["loop", "  while (low <= high) {"], ["mid", "    const mid = (low + high) >> 1;"], ["hit", "    if (nums[mid] === target) {"], ["hit", "      return mid;"], [null, "    }"], ["sorted", "    if (nums[low] <= nums[mid]) {"], ["inside", "      if (nums[low] <= target && target < nums[mid]) {"], ["left", "        high = mid - 1;"], [null, "      } else {"], ["right", "        low = mid + 1;"], [null, "      }"], [null, "    } else {"], ["inside", "      if (nums[mid] < target && target <= nums[high]) {"], ["right", "        low = mid + 1;"], [null, "      } else {"], ["left", "        high = mid - 1;"], [null, "      }"], [null, "    }"], [null, "  }"], ["none", "  return -1;"], [null, "}"]], "java": [[null, "static int searchRotated(int[] nums, int target) {"], ["init", "    int low = 0, high = nums.length - 1;"], ["loop", "    while (low <= high) {"], ["mid", "        int mid = low + (high - low) / 2;"], ["hit", "        if (nums[mid] == target) {"], ["hit", "            return mid;"], [null, "        }"], ["sorted", "        if (nums[low] <= nums[mid]) {"], ["inside", "            if (nums[low] <= target && target < nums[mid]) {"], ["left", "                high = mid - 1;"], [null, "            } else {"], ["right", "                low = mid + 1;"], [null, "            }"], [null, "        } else {"], ["inside", "            if (nums[mid] < target && target <= nums[high]) {"], ["right", "                low = mid + 1;"], [null, "            } else {"], ["left", "                high = mid - 1;"], [null, "            }"], [null, "        }"], [null, "    }"], ["none", "    return -1;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-09c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

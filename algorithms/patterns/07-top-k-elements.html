@@ -518,6 +518,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
 .tl-side > * { max-width: 100%; }
+.tlab.tl-stack .tl-grid { grid-template-columns: minmax(0, 1fr); }
 .tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
@@ -1094,7 +1095,13 @@ svg.flow .fn { transition: opacity .35s ease; }
         vars: st.vars,
       }));
     }
+    function fit() {
+      // A view too wide to sit beside the code moves below it (once stacked, the lab stays stacked).
+      const side = root.querySelector(".tl-side");
+      if (side && !root.classList.contains("tl-stack") && side.scrollWidth > side.clientWidth + 2) root.classList.add("tl-stack");
+    }
     function showAsk(i) {
+      fit();
       if (!pred.checked) { ask.hidden = true; return; }
       const nx = src().steps[i + 1];
       ask.hidden = false;
@@ -2309,91 +2316,213 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>heapify</code> is <code>O(n)</code>. Each push/pop is <code>O(log size)</code>. The size-k trick: <code>O(n log k)</code> time, <code>O(k)</code> space. Two-heap median: <code>O(log n)</code> per insert, <code>O(1)</code> per query.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Top K has three templates built on one trick: keep a heap of size <code>k</code> whose top is the <em>weakest</em> member, and kick the weakest out whenever the heap grows past k. <strong>A</strong> keeps the k largest numbers (a <em>min</em>-heap). <strong>B</strong> keeps the k smallest (a <em>max</em>-heap, which in Python means negating). <strong>C</strong> ranks arbitrary items by a score.</p><details><summary><strong>TypeScript has no built-in heap.</strong> The TypeScript templates on this page use this small <code>MinHeap</code> class (Python has <code>heapq</code>, Java has <code>PriorityQueue</code>).</summary>
+<pre><code class="typescript">class MinHeap&lt;T&gt; {
+  items: T[] = [];
+  less: (x: T, y: T) =&gt; boolean;
+  constructor(less: (x: T, y: T) =&gt; boolean) { this.less = less; }
+  get size(): number { return this.items.length; }
+  peek(): T | undefined { return this.items[0]; }
+  push(x: T): void {
+    const a = this.items;
+    a.push(x);
+    for (let i = a.length - 1; i &gt; 0; ) {            // bubble up
+      const p = (i - 1) &gt;&gt; 1;
+      if (!this.less(a[i], a[p])) break;
+      [a[i], a[p]] = [a[p], a[i]];
+      i = p;
+    }
+  }
+  pop(): T | undefined {
+    const a = this.items, top = a[0], last = a.pop()!;
+    if (a.length &gt; 0) {
+      a[0] = last;
+      for (let i = 0; ; ) {                            // sink down
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l &lt; a.length &amp;&amp; this.less(a[l], a[m])) m = l;
+        if (r &lt; a.length &amp;&amp; this.less(a[r], a[m])) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+}</code></pre>
+<p>Pass a "less than" function: <code>new MinHeap&lt;number&gt;((a, b) =&gt; a &lt; b)</code> is a min-heap, <code>(a, b) =&gt; a &gt; b</code> a max-heap. Push and pop are O(log n), peek is O(1).</p></details>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · k largest numbers (min-heap of size k)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What are the k largest values?</div><div><b>What it keeps</b>A min-heap holding the best k seen so far; its top is the weakest of them.</div><div><b>When it checks for an answer</b>After each push: if the heap holds k + 1, drop the top.</div><div><b>Use it when</b>k largest / kth largest / top k frequent, especially with a stream or huge n.</div><div><b>Not for</b>k = n or one-off small inputs (just sort); the single max (just track it).</div></div>
+    <div class="callout memory"><strong>Memory hook: "The club has k seats; the weakest member is at the door, and gets bounced"</strong>A club with k seats keeps its weakest member by the door. Every newcomer walks in; if the club is over capacity, the weakest one (at the door) is bounced. At the end, the k strongest are inside.</div>
+    <p><strong>The story, mapped to the code.</strong> Numbers are people's strengths; the heap is the club.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The club</td><td data-h="In the code"><code>heap (min-heap)</code></td><td data-h="What it means">The best k seen so far.</td></tr><tr><td data-h="In the story">The weakest member, by the door</td><td data-h="In the code"><code>heap[0]</code></td><td data-h="What it means">The smallest in the heap; the kth largest so far.</td></tr><tr><td data-h="In the story">Over capacity</td><td data-h="In the code"><code>len(heap) &gt; k</code></td><td data-h="What it means">k + 1 members.</td></tr><tr><td data-h="In the story">Bounce the weakest</td><td data-h="In the code"><code>heappop(heap)</code></td><td data-h="What it means">Remove the top.</td></tr><tr><td data-h="In the story">The members at closing</td><td data-h="In the code"><code>sorted(heap, reverse=True)</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Push, then trim. A <em>min</em>-heap, because the one to throw out is the smallest.</p>
     <pre><code class="python">import heapq
 
-# heapq quick guide (read this once):
-#   heapq.heappush(heap, item)  adds item to the list `heap` and keeps the
-#                               smallest item at heap[0].          O(log n)
-#   heapq.heappop(heap)         removes and returns the smallest item. O(log n)
-#   heap[0]                     peeks at the smallest item without removing it.
-# Python only has a MIN-heap. To get a MAX-heap, push the NEGATIVE of each
-# number: the biggest number becomes the most negative, so it sits at heap[0].
-
-
-# A) k LARGEST: keep a min-heap of size k (its root is the "bouncer")
 def k_largest(nums, k):
     heap = []
-    for i in range(len(nums)):
-        number = nums[i]
-        # Let the new number into the club.
+    for number in nums:
         heapq.heappush(heap, number)
-        # Too many people? Throw out the smallest one (heappop removes heap[0]).
-        # The smallest of k+1 numbers can never be one of the k largest.
         if len(heap) &gt; k:
             heapq.heappop(heap)
-    # The heap now holds exactly the k largest numbers, and heap[0] is the
-    # k-th largest. The heap list is NOT fully sorted, so we make a sorted
-    # copy, biggest first, to return a tidy answer.
-    result = sorted(heap, reverse=True)
-    return result
+    return sorted(heap, reverse=True)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function kLargest(nums: number[], k: number): number[] {
+  const heap = new MinHeap&lt;number&gt;((a, b) =&gt; a &lt; b);
+  for (const number of nums) {
+    heap.push(number);
+    if (heap.size &gt; k) {
+      heap.pop();
+    }
+  }
+  return [...heap.items].sort((a, b) =&gt; b - a);
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; kLargest(int[] nums, int k) {
+    PriorityQueue&lt;Integer&gt; heap = new PriorityQueue&lt;&gt;();
+    for (int number : nums) {
+        heap.offer(number);
+        if (heap.size() &gt; k) {
+            heap.poll();
+        }
+    }
+    List&lt;Integer&gt; result = new ArrayList&lt;&gt;(heap);
+    result.sort(Collections.reverseOrder());
+    return result;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>heapq.heappush(heap, number)</code></td><td data-h="What it does">Everyone gets in first.</td><td data-h="In the story">The newcomer walks in.</td><td data-h="Why here, and what breaks if it moves">Comparing with heap[0] first is a valid optimisation but easy to get wrong when the heap isn't full yet.</td></tr><tr><td data-h="Line"><code>if len(heap) &gt; k</code></td><td data-h="What it does">Over capacity?</td><td data-h="In the story">More than k members?</td><td data-h="Why here, and what breaks if it moves"><code>>= k</code> keeps only k − 1.</td></tr><tr><td data-h="Line"><code>heapq.heappop(heap)</code></td><td data-h="What it does">Drops the smallest.</td><td data-h="In the story">Bounce the weakest.</td><td data-h="Why here, and what breaks if it moves">With a <em>max</em>-heap this throws out the biggest, leaving the k smallest (see the bug player).</td></tr><tr><td data-h="Line"><code>return sorted(heap, reverse=True)</code></td><td data-h="What it does">A heap isn't sorted; sort the k survivors.</td><td data-h="In the story">Line the members up.</td><td data-h="Why here, and what breaks if it moves">Returning <code>heap</code> directly gives heap order, not sorted order.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [3, 1, 5, 12, 2, 11]</code>, <code>k = 3</code>. The heap is drawn as a tree (top = root). The second player uses a max-heap by mistake.</p>
+    <div id="tl-07a"></div><div id="tl-07a-bug"></div><p>A max-heap's top is the <em>largest</em>, so trimming it throws away the strongest members: the result is the 2 smallest, <code>[3, 1]</code>, not <code>[12, 5]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-07a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After processing each number, the heap holds the k largest numbers seen so far (or all of them, if fewer than k), and its top is the smallest of those.</p>
+    <p><strong>Complexity.</strong> O(n log k) time, O(k) space. Better than sorting (O(n log n)) when k ≪ n, and works on a stream.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Max-heap for k largest.</strong> The one at the door is the one you throw out: the weakest.</li><li><strong>Returning the heap unsorted.</strong> Sort the k survivors.</li><li><strong>Off-by-one on the size check.</strong> Trim when it's <em>more than</em> k.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>k seats; the weakest is at the door and gets bounced.</dd>
+      <dt>Choose this template when</dt><dd>k largest → min-heap of size k.</dd>
+      <dt>Invariant</dt><dd>The heap holds the best k so far; top = kth largest.</dd>
+      <dt>The line people get wrong</dt><dd><code>if len(heap) > k: heappop</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Where is the kth largest after the loop?</summary><p>heap[0], the top of the min-heap.</p></details><details><summary>Time for n = 10⁶, k = 10?</summary><p>O(n log k) ≈ 10⁶ × 3.3 operations.</p></details><details><summary>Why not a max-heap of all n?</summary><p>O(n) memory; the min-heap keeps only k.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · k smallest numbers (max-heap of size k)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What are the k smallest values?</div><div><b>What it keeps</b>A max-heap of the best (smallest) k; its top is the <em>largest</em> of them.</div><div><b>When it checks for an answer</b>After each push: if over k, drop the top.</div><div><b>Use it when</b>k smallest / kth smallest / k closest points.</div><div><b>Not for</b>k largest (A).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Same club, flipped: the biggest is at the door"</strong>Now the club wants the <em>smallest</em> k. The member at the door is the biggest one inside, so that's who gets bounced. Python's heap is a min-heap, so store <code>-number</code> to make the biggest float to the top.</div>
+    <p><strong>The story, mapped to the code.</strong> Same club; the rule for who's weakest is flipped.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Biggest member at the door</td><td data-h="In the code"><code>-heap[0]</code></td><td data-h="What it means">The largest of the k smallest.</td></tr><tr><td data-h="In the story">Flipping signs</td><td data-h="In the code"><code>heappush(heap, -number)</code></td><td data-h="What it means">Turns Python's min-heap into a max-heap.</td></tr><tr><td data-h="In the story">Bounce the biggest</td><td data-h="In the code"><code>heappop(heap)</code></td><td data-h="What it means">Removes the most negative = the largest.</td></tr><tr><td data-h="In the story">Unflip at the end</td><td data-h="In the code"><code>-x for x in heap</code></td><td data-h="What it means">Back to real values.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Identical to A except the signs (Python) or the comparator (TypeScript, Java).</p>
+    <pre><code class="python">import heapq
 
-
-# B) k SMALLEST: keep a max-heap of size k (store negatives, heapq is a min-heap)
 def k_smallest(nums, k):
     heap = []
-    for i in range(len(nums)):
-        number = nums[i]
-        # Store the NEGATIVE, so the biggest real number sits at heap[0].
+    for number in nums:
         heapq.heappush(heap, -number)
         if len(heap) &gt; k:
-            # This pops the most negative value = the LARGEST real number,
-            # which can't be one of the k smallest.
             heapq.heappop(heap)
-    # Undo the negation to get the real numbers back.
-    result = []
-    for i in range(len(heap)):
-        result.append(-heap[i])
-    # Sort smallest first for a tidy answer.
-    result.sort()
-    return result
+    return sorted(-x for x in heap)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function kSmallest(nums: number[], k: number): number[] {
+  const heap = new MinHeap&lt;number&gt;((a, b) =&gt; a &gt; b);
+  for (const number of nums) {
+    heap.push(number);
+    if (heap.size &gt; k) {
+      heap.pop();
+    }
+  }
+  return [...heap.items].sort((a, b) =&gt; a - b);
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; kSmallest(int[] nums, int k) {
+    PriorityQueue&lt;Integer&gt; heap = new PriorityQueue&lt;&gt;(Collections.reverseOrder());
+    for (int number : nums) {
+        heap.offer(number);
+        if (heap.size() &gt; k) {
+            heap.poll();
+        }
+    }
+    List&lt;Integer&gt; result = new ArrayList&lt;&gt;(heap);
+    Collections.sort(result);
+    return result;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>heapq.heappush(heap, -number)</code></td><td data-h="What it does">Stores the negated value.</td><td data-h="In the story">Flip so the biggest floats up.</td><td data-h="Why here, and what breaks if it moves">Forgetting the minus turns this back into Template A.</td></tr><tr><td data-h="Line"><code>heapq.heappop(heap)</code></td><td data-h="What it does">Removes the largest real value.</td><td data-h="In the story">Bounce the biggest.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return sorted(-x for x in heap)</code></td><td data-h="What it does">Unflips and sorts.</td><td data-h="In the story">Back to real values.</td><td data-h="Why here, and what breaks if it moves">Forgetting to negate back returns negative numbers.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [7, 10, 4, 3, 20, 15]</code>, <code>k = 3</code>. The tree shows real values; Python stores them negated.</p>
+    <div id="tl-07b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-07b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The heap holds the k smallest values seen so far; its top is the largest of them (the current kth smallest).</p>
+    <p><strong>Complexity.</strong> O(n log k) time, O(k) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting to negate back.</strong> Flip in, flip out.</li><li><strong>Negating tuples in Python.</strong> Negate only the score: <code>(-dist, i, point)</code>.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Same club, flipped: the biggest is at the door.</dd>
+      <dt>Choose this template when</dt><dd>k smallest / k closest → max-heap of size k.</dd>
+      <dt>Invariant</dt><dd>Top = kth smallest so far.</dd>
+      <dt>The line people get wrong</dt><dd>Negate on push and on output (Python).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>How do you make a max-heap with heapq?</summary><p>Push −x and negate when reading.</p></details><details><summary>Which heap for the kth smallest?</summary><p>A max-heap of size k; its top is the answer.</p></details><details><summary>Java's max-heap?</summary><p>new PriorityQueue<>(Collections.reverseOrder()).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · top k items by a score (tuples)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Which k items have the highest score (frequency, distance, rating…)?</div><div><b>What it keeps</b>A min-heap of <code>(score, index, item)</code> tuples.</div><div><b>When it checks for an answer</b>Same push-then-trim as A.</div><div><b>Use it when</b>Top k frequent words/elements, k closest points, top k by any key.</div><div><b>Not for</b>Plain numbers (A/B are simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Wear a name badge: (score, ticket number, item)"</strong>Members wear a badge with their score first, so the heap compares scores. A unique ticket number breaks ties, so Python never has to compare two items directly.</div>
+    <p><strong>The story, mapped to the code.</strong> Same club, but members are items with a score.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Badge</td><td data-h="In the code"><code>(score, i, item)</code></td><td data-h="What it means">What the heap compares.</td></tr><tr><td data-h="In the story">Score on the badge</td><td data-h="In the code"><code>key(item)</code></td><td data-h="What it means">Decides who's weakest.</td></tr><tr><td data-h="In the story">Ticket number</td><td data-h="In the code"><code>i</code></td><td data-h="What it means">Breaks ties; items themselves may not be comparable.</td></tr><tr><td data-h="In the story">Read the name off the badge</td><td data-h="In the code"><code>entry[2]</code></td><td data-h="What it means">The item.</td></tr></tbody></table>
+    <p><strong>The template.</strong> A with tuples.</p>
+    <pre><code class="python">import heapq
 
-
-# C) Rank by any score: push tuples (score, tiebreak, item)
 def top_k_by_key(items, k, key):
     heap = []
-    for i in range(len(items)):
-        item = items[i]
-        score = key(item)
-        # Python compares tuples left to right: first by score, then by i
-        # when scores tie. Every i is different, so Python never has to
-        # compare the items themselves (they might not be comparable).
-        entry = (score, i, item)
-        heapq.heappush(heap, entry)
+    for i, item in enumerate(items):
+        heapq.heappush(heap, (key(item), i, item))
         if len(heap) &gt; k:
-            heapq.heappop(heap)            # drop the entry with the lowest score
-    # Sort the survivors from highest score to lowest.
-    survivors = sorted(heap, reverse=True)
-    result = []
-    for i in range(len(survivors)):
-        entry = survivors[i]
-        result.append(entry[2])            # field 2 of the tuple is the item
-    return result
-
-# Handy built-ins:  heapq.heapify(lst)  turns a list into a heap in O(n)
-#                   heapq.nlargest(k, lst)   heapq.nsmallest(k, lst)</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><strong>The quick guide comment.</strong> <code>heapq</code> works on an ordinary Python list. <code>heappush</code> adds an item and <code>heappop</code> removes the smallest; both reshuffle only a few items so <code>heap[0]</code> stays the smallest. There's no built-in max-heap, so we store negatives when we need the biggest on top.</li>
-      <li><strong>A) <code>k_largest</code>, the loop.</strong> For each <code>number</code>: push it, then if the heap holds <code>k + 1</code> numbers, pop the smallest. The heap never grows past <code>k</code>, and the numbers that survive are always the k largest seen so far.</li>
-      <li><strong>A) the ending.</strong> <code>heap[0]</code> is the k-th largest. The rest of the list is in "heap order", not sorted, so <code>sorted(heap, reverse=True)</code> makes a sorted copy, biggest first.</li>
-      <li><strong>B) <code>k_smallest</code>.</strong> The mirror image. We push <code>-number</code>, so the biggest real number becomes the most negative and sits at <code>heap[0]</code>. Popping when over <code>k</code> therefore removes the <em>largest</em> real number, leaving the k smallest.</li>
-      <li><strong>B) the ending.</strong> Walk over the heap and append <code>-heap[i]</code> to undo the negation, then <code>result.sort()</code> for smallest-first order.</li>
-      <li><strong>C) <code>top_k_by_key</code>, building the entry.</strong> <code>score = key(item)</code> computes the ranking value (for example <code>len</code> of a word). The tuple <code>(score, i, item)</code> sorts by score first; the index <code>i</code> is a unique tie-breaker so two items are never compared directly.</li>
-      <li><strong>C) push and pop.</strong> Exactly like A: push, and if there are more than <code>k</code> entries, pop the lowest-scored one.</li>
-      <li><strong>C) the ending.</strong> Sort the survivors highest score first, then read field <code>[2]</code> of each tuple (the original item) into <code>result</code>.</li>
-      <li><strong>Handy built-ins.</strong> <code>heapify</code> turns an existing list into a heap in <code>O(n)</code>; <code>nlargest</code>/<code>nsmallest</code> do the whole pattern in one call once you understand it.</li>
-    </ol>
+            heapq.heappop(heap)
+    return [entry[2] for entry in sorted(heap, reverse=True)]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function topKByKey&lt;T&gt;(items: T[], k: number, key: (x: T) =&gt; number): T[] {
+  const heap = new MinHeap&lt;[number, number, T]&gt;((a, b) =&gt; a[0] &lt; b[0] || (a[0] === b[0] &amp;&amp; a[1] &lt; b[1]));
+  items.forEach((item, i) =&gt; {
+    heap.push([key(item), i, item]);
+    if (heap.size &gt; k) {
+      heap.pop();
+    }
+  });
+  return [...heap.items].sort((a, b) =&gt; b[0] - a[0] || b[1] - a[1]).map((e) =&gt; e[2]);
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static &lt;T&gt; List&lt;T&gt; topKByKey(List&lt;T&gt; items, int k, ToIntFunction&lt;T&gt; key) {
+    PriorityQueue&lt;int[]&gt; heap = new PriorityQueue&lt;&gt;((a, b) -&gt; a[0] != b[0] ? Integer.compare(a[0], b[0]) : Integer.compare(a[1], b[1]));
+    for (int i = 0; i &lt; items.size(); i++) {
+        heap.offer(new int[]{key.applyAsInt(items.get(i)), i});
+        if (heap.size() &gt; k) {
+            heap.poll();
+        }
+    }
+    List&lt;int[]&gt; kept = new ArrayList&lt;&gt;(heap);
+    kept.sort((a, b) -&gt; a[0] != b[0] ? Integer.compare(b[0], a[0]) : Integer.compare(b[1], a[1]));
+    List&lt;T&gt; result = new ArrayList&lt;&gt;();
+    for (int[] e : kept) result.add(items.get(e[1]));
+    return result;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>heapq.heappush(heap, (key(item), i, item))</code></td><td data-h="What it does">Compares by score, then by index.</td><td data-h="In the story">Pin on the badge.</td><td data-h="Why here, and what breaks if it moves">Without <code>i</code>, two equal scores make Python compare the items: a TypeError for dicts or objects.</td></tr><tr><td data-h="Line"><code>if len(heap) &gt; k: heapq.heappop(heap)</code></td><td data-h="What it does">Drops the lowest score.</td><td data-h="In the story">Bounce the weakest badge.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>[entry[2] for entry in sorted(heap, reverse=True)]</code></td><td data-h="What it does">Best first; keep only the items.</td><td data-h="In the story">Read names off the badges.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through fruit counts <code>apple 5, kiwi 2, fig 9, pear 4</code> with <code>k = 2</code>.</p>
+    <div id="tl-07c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-07c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The heap holds the k highest-scoring items seen so far; ties are broken by index, so the heap never compares items.</p>
+    <p><strong>Complexity.</strong> O(n log k) time, O(k) space (plus O(n) to count frequencies first, for "top k frequent").</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>No tie-breaker.</strong> Badge = (score, ticket, item).</li><li><strong>Sorting by item instead of score.</strong> Score comes first on the badge.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Wear a badge: (score, ticket number, item).</dd>
+      <dt>Choose this template when</dt><dd>Top k of anything with a score → tuple min-heap.</dd>
+      <dt>Invariant</dt><dd>Heap = best k badges.</dd>
+      <dt>The line people get wrong</dt><dd>The index in the tuple.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why include <code>i</code> in the tuple?</summary><p>Ties would compare items, which may not be comparable.</p></details><details><summary>Top k frequent words: what's the score?</summary><p>The word's count.</p></details><details><summary>Result for fig 9, apple 5, pear 4, kiwi 2, k = 2?</summary><p>[fig, apple].</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · k largest</th><th>B · k smallest</th><th>C · top k by score</th></tr></thead><tbody><tr><td data-h="Question">Heap type</td><td data-h="A · k largest">Min-heap</td><td data-h="B · k smallest">Max-heap (negate in Python)</td><td data-h="C · top k by score">Min-heap on the score</td></tr><tr><td data-h="Question">Top of the heap</td><td data-h="A · k largest">Smallest kept = kth largest</td><td data-h="B · k smallest">Largest kept = kth smallest</td><td data-h="C · top k by score">Lowest score kept</td></tr><tr><td data-h="Question">What's stored</td><td data-h="A · k largest">Numbers</td><td data-h="B · k smallest">Negated numbers (Python)</td><td data-h="C · top k by score">(score, index, item)</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · k largest">Kth Largest (LC 215)</td><td data-h="B · k smallest">K Closest Points (LC 973)</td><td data-h="C · top k by score">Top K Frequent (LC 347, 692)</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · k largest">O(n log k) / O(k)</td><td data-h="B · k smallest">O(n log k) / O(k)</td><td data-h="C · top k by score">O(n log k) / O(k)</td></tr></tbody></table>
+    <p>One template, three dressings. Ask "who should be thrown out?" and make that element the heap's top: the smallest for k largest, the largest for k smallest, the lowest score for top-k-by-score.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -9430,6 +9559,77 @@ class Heap&lt;T&gt; {
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  class TLHeap {
+    constructor(less) { this.a = []; this.less = less; }
+    push(x) { const a = this.a; a.push(x); for (let i = a.length - 1; i > 0;) { const p = (i - 1) >> 1; if (!this.less(a[i], a[p])) break; [a[i], a[p]] = [a[p], a[i]]; i = p; } }
+    pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; for (let i = 0; ;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && this.less(a[l], a[m])) m = l; if (r < a.length && this.less(a[r], a[m])) m = r; if (m === i) break; [a[i], a[m]] = [a[m], a[i]]; i = m; } } return top; }
+    get size() { return this.a.length; }
+  }
+
+  function tl7A(nums, k, maxHeap, desc) {
+    const h = new TLHeap(maxHeap ? (a, b) => a > b : (a, b) => a < b), steps = [], rows = [];
+    const view = (hl, extra) => Viz.array(nums, { label: "nums", hl: hl || {} }) + Viz.tree(h.a, { hl: h.a.length ? { 0: "gold" } : {} }) + (extra || "");
+    steps.push({ line: "init", vars: { heap: "[]" }, view: view(), analogy: `An empty club with ${k} seats.`, note: maxHeap ? "Max-heap: the biggest sits at the top." : "Min-heap: the smallest sits at the top." });
+    nums.forEach((x, i) => {
+      h.push(x);
+      steps.push({ line: ["loop", "push"], vars: { number: x, size: h.size, top: h.a[0] }, view: view({ [i]: "active" }), analogy: `${x} walks in. Members: ${h.size}.`, note: `Push ${x}; the top is now ${h.a[0]}.`,
+        ask: { q: "Is the club over capacity?", options: ["yes", "no"], answer: h.size > k ? "yes" : "no", why: `${h.size} members, ${k} seats.` } });
+      let out = "—";
+      if (h.size > k) {
+        out = h.pop();
+        steps.push({ line: ["over", "pop"], vars: { bounced: out, top: h.a[0] }, view: view({ [i]: "active" }, Viz.chips([String(out)], "bounced", "bad")),
+          analogy: `Over capacity: ${out}, at the door, is bounced.`, note: `Pop ${out}.`,
+          ask: { q: "Who gets bounced?", options: [...new Set([out, Math.max(...h.a, out), Math.min(...h.a, out)])].map(String), answer: out, why: maxHeap ? "The top of a max-heap is the largest." : "The top of a min-heap is the smallest." } });
+      }
+      rows.push([i, x, out, "[" + [...h.a].sort((a, b) => a - b).join(", ") + "]", h.a[0]]);
+    });
+    const res = [...h.a].sort((a, b) => (maxHeap && !desc ? a - b : b - a));
+    steps.push({ line: "ret", vars: { result: "[" + res.join(", ") + "]" }, view: view(), analogy: `Members at closing: ${res.join(", ")}.`, note: `Return <code>[${res.join(", ")}]</code>.` });
+    return { steps, table: { head: ["i", "Number", "Bounced", "Heap contents (sorted)", "Top"], rows } };
+  }
+
+  function tl7C(items, k) {
+    const h = new TLHeap((a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])), steps = [], rows = [];
+    const lab = (e) => `${e[0]}:${e[2]}`;
+    const view = (hl, extra) => Viz.array(items.map(([n, c]) => `${n} ${c}`), { label: "items", hl: hl || {} }) + Viz.tree(h.a.map(lab), { hl: h.a.length ? { 0: "gold" } : {} }) + (extra || "");
+    steps.push({ line: "init", vars: { heap: "[]" }, view: view(), analogy: `${k} seats; badges are (score, ticket, item).`, note: "Empty min-heap." });
+    items.forEach(([name, c], i) => {
+      h.push([c, i, name]);
+      steps.push({ line: ["loop", "push"], vars: { badge: `(${c}, ${i}, ${name})`, size: h.size }, view: view({ [i]: "active" }), analogy: `${name} pins on badge (${c}, ${i}).`, note: `Push <code>(${c}, ${i}, '${name}')</code>.` });
+      let out = "—";
+      if (h.size > k) { const e = h.pop(); out = e[2];
+        steps.push({ line: ["over", "pop"], vars: { bounced: `(${e[0]}, ${e[1]}, ${e[2]})` }, view: view({ [i]: "active" }, Viz.chips([lab(e)], "bounced", "bad")), analogy: `Over capacity: ${e[2]} (score ${e[0]}) is bounced.`, note: `Pop the lowest score: ${e[0]}.`,
+          ask: { q: "Who is bounced?", options: [...new Set([e[2], ...h.a.map((x) => x[2])])], answer: e[2], why: "Lowest score on the heap." } }); }
+      rows.push([i, `${name} (${c})`, out, h.a.map((e) => e[2]).sort().join(", ")]);
+    });
+    const res = [...h.a].sort((a, b) => b[0] - a[0] || b[1] - a[1]).map((e) => e[2]);
+    steps.push({ line: "ret", vars: { result: "[" + res.join(", ") + "]" }, view: view(), analogy: `Top ${k}: ${res.join(", ")}.`, note: `Return <code>[${res.map((r) => `'${r}'`).join(", ")}]</code>.` });
+    return { steps, table: { head: ["i", "Item (score)", "Bounced", "In the heap"], rows } };
+  }
+
+  { const run = tl7A([3, 1, 5, 12, 2, 11], 3, false);
+    Viz.tlab("#tl-07a", { title: "Template A \u00b7 nums = [3, 1, 5, 12, 2, 11], k = 3", sub: "Gold = heap top (the weakest member); red = bounced.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def k_largest(nums, k):"], ["init", "    heap = []"], ["loop", "    for number in nums:"], ["push", "        heapq.heappush(heap, number)"], ["over", "        if len(heap) > k:"], ["pop", "            heapq.heappop(heap)"], ["ret", "    return sorted(heap, reverse=True)"]], "ts": [[null, "function kLargest(nums: number[], k: number): number[] {"], ["init", "  const heap = new MinHeap<number>((a, b) => a < b);"], ["loop", "  for (const number of nums) {"], ["push", "    heap.push(number);"], ["over", "    if (heap.size > k) {"], ["pop", "      heap.pop();"], [null, "    }"], [null, "  }"], ["ret", "  return [...heap.items].sort((a, b) => b - a);"], [null, "}"]], "java": [[null, "static List<Integer> kLargest(int[] nums, int k) {"], ["init", "    PriorityQueue<Integer> heap = new PriorityQueue<>();"], ["loop", "    for (int number : nums) {"], ["push", "        heap.offer(number);"], ["over", "        if (heap.size() > k) {"], ["pop", "            heap.poll();"], [null, "        }"], [null, "    }"], ["ret", "    List<Integer> result = new ArrayList<>(heap);"], ["ret", "    result.sort(Collections.reverseOrder());"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-07a-table").innerHTML = TL.table(run.table); }
+  { const run = tl7A([3, 1, 5, 12], 2, false);
+    Viz.tlab("#tl-07a-bug", { title: "Why a min-heap \u00b7 nums = [3, 1, 5, 12], k = 2", sub: "Switch between a min-heap and a max-heap.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def k_largest(nums, k):"], ["init", "    heap = []"], ["loop", "    for number in nums:"], ["push", "        heapq.heappush(heap, number)"], ["over", "        if len(heap) > k:"], ["pop", "            heapq.heappop(heap)"], ["ret", "    return sorted(heap, reverse=True)"]], "ts": [[null, "function kLargest(nums: number[], k: number): number[] {"], ["init", "  const heap = new MinHeap<number>((a, b) => a < b);"], ["loop", "  for (const number of nums) {"], ["push", "    heap.push(number);"], ["over", "    if (heap.size > k) {"], ["pop", "      heap.pop();"], [null, "    }"], [null, "  }"], ["ret", "  return [...heap.items].sort((a, b) => b - a);"], [null, "}"]], "java": [[null, "static List<Integer> kLargest(int[] nums, int k) {"], ["init", "    PriorityQueue<Integer> heap = new PriorityQueue<>();"], ["loop", "    for (int number : nums) {"], ["push", "        heap.offer(number);"], ["over", "        if (heap.size() > k) {"], ["pop", "            heap.poll();"], [null, "        }"], [null, "    }"], ["ret", "    List<Integer> result = new ArrayList<>(heap);"], ["ret", "    result.sort(Collections.reverseOrder());"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: max-heap", code: {"py": [[null, "import heapq"], [null, ""], [null, "def k_largest(nums, k):"], ["init", "    heap = []"], ["loop", "    for number in nums:"], ["push", "        heapq.heappush(heap, -number)"], ["over", "        if len(heap) > k:"], ["pop", "            heapq.heappop(heap)"], ["ret", "    return sorted((-x for x in heap), reverse=True)"]]}, steps: tl7A([3, 1, 5, 12], 2, true, true).steps, diverge: undefined, why: "the heap's top is now the biggest number, so the trim bounces the strongest member." } });
+     }
+  { const run = tl7A([7, 10, 4, 3, 20, 15], 3, true);
+    Viz.tlab("#tl-07b", { title: "Template B \u00b7 nums = [7, 10, 4, 3, 20, 15], k = 3", sub: "Gold = heap top (the biggest kept); red = bounced.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def k_smallest(nums, k):"], ["init", "    heap = []"], ["loop", "    for number in nums:"], ["push", "        heapq.heappush(heap, -number)"], ["over", "        if len(heap) > k:"], ["pop", "            heapq.heappop(heap)"], ["ret", "    return sorted(-x for x in heap)"]], "ts": [[null, "function kSmallest(nums: number[], k: number): number[] {"], ["init", "  const heap = new MinHeap<number>((a, b) => a > b);"], ["loop", "  for (const number of nums) {"], ["push", "    heap.push(number);"], ["over", "    if (heap.size > k) {"], ["pop", "      heap.pop();"], [null, "    }"], [null, "  }"], ["ret", "  return [...heap.items].sort((a, b) => a - b);"], [null, "}"]], "java": [[null, "static List<Integer> kSmallest(int[] nums, int k) {"], ["init", "    PriorityQueue<Integer> heap = new PriorityQueue<>(Collections.reverseOrder());"], ["loop", "    for (int number : nums) {"], ["push", "        heap.offer(number);"], ["over", "        if (heap.size() > k) {"], ["pop", "            heap.poll();"], [null, "        }"], [null, "    }"], ["ret", "    List<Integer> result = new ArrayList<>(heap);"], ["ret", "    Collections.sort(result);"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-07b-table").innerHTML = TL.table(run.table); }
+  { const run = tl7C([['apple', 5], ['kiwi', 2], ['fig', 9], ['pear', 4]], 2);
+    Viz.tlab("#tl-07c", { title: "Template C \u00b7 apple 5, kiwi 2, fig 9, pear 4; k = 2", sub: "Nodes show score:name. Gold = the weakest badge.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def top_k_by_key(items, k, key):"], ["init", "    heap = []"], ["loop", "    for i, item in enumerate(items):"], ["push", "        heapq.heappush(heap, (key(item), i, item))"], ["over", "        if len(heap) > k:"], ["pop", "            heapq.heappop(heap)"], ["ret", "    return [entry[2] for entry in sorted(heap, reverse=True)]"]], "ts": [[null, "function topKByKey<T>(items: T[], k: number, key: (x: T) => number): T[] {"], ["init", "  const heap = new MinHeap<[number, number, T]>((a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]));"], ["loop", "  items.forEach((item, i) => {"], ["push", "    heap.push([key(item), i, item]);"], ["over", "    if (heap.size > k) {"], ["pop", "      heap.pop();"], [null, "    }"], [null, "  });"], ["ret", "  return [...heap.items].sort((a, b) => b[0] - a[0] || b[1] - a[1]).map((e) => e[2]);"], [null, "}"]], "java": [[null, "static <T> List<T> topKByKey(List<T> items, int k, ToIntFunction<T> key) {"], ["init", "    PriorityQueue<int[]> heap = new PriorityQueue<>((a, b) -> a[0] != b[0] ? Integer.compare(a[0], b[0]) : Integer.compare(a[1], b[1]));"], ["loop", "    for (int i = 0; i < items.size(); i++) {"], ["push", "        heap.offer(new int[]{key.applyAsInt(items.get(i)), i});"], ["over", "        if (heap.size() > k) {"], ["pop", "            heap.poll();"], [null, "        }"], [null, "    }"], ["ret", "    List<int[]> kept = new ArrayList<>(heap);"], ["ret", "    kept.sort((a, b) -> a[0] != b[0] ? Integer.compare(b[0], a[0]) : Integer.compare(b[1], a[1]));"], ["ret", "    List<T> result = new ArrayList<>();"], ["ret", "    for (int[] e : kept) result.add(items.get(e[1]));"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-07c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 
