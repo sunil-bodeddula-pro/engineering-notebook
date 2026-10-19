@@ -2322,6 +2322,36 @@ svg.flow .fn { transition: opacity .35s ease; }
       </ul></div>
     </section>
 
+        <section class="tech" id="t-fallacies">
+      <div class="tech-h"><h3>The eight fallacies of distributed computing</h3><span class="tech-status s-default">The mindset · assume the opposite</span></div>
+      <p>Eight assumptions newcomers make about networks, all false. Designs that rely on any of them fail in production.</p>
+      <h4>How it works</h4>
+      <ol class="steps-list"><li>The network is reliable → retries, idempotency, timeouts.</li><li>Latency is zero → fewer round trips, batching, caching near users.</li><li>Bandwidth is infinite → compress, paginate, send IDs not blobs.</li><li>The network is secure → TLS everywhere, authenticate every call.</li><li>Topology doesn't change → service discovery, no hard-coded addresses.</li><li>There is one administrator → many teams and providers, each with their own changes.</li><li>Transport cost is zero → serialisation and egress cost CPU and money.</li><li>The network is homogeneous → different clients, protocols and versions.</li></ol>
+      <h4>Status today</h4>
+      <p>Listed by Peter Deutsch and colleagues at Sun Microsystems in the 1990s; still the best one-page checklist for reviewing a design.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Reviewing any arrow on your diagram: what if this call fails, is slow, or is attacked?</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Reciting the list; apply it to your own arrows instead</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>This call crosses the network, so it gets a timeout, retries with backoff, and an idempotency key.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Drawing arrows as if they always succeed instantly.</strong> The interviewer's next question will be "what if it doesn't?"</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-rpc">
+      <div class="tech-h"><h3>RPC: why a remote call isn't a local call</h3><span class="tech-status s-default">The default abstraction · know its limits</span></div>
+      <p>Remote procedure call frameworks (gRPC, Thrift, REST clients) make a network request look like a function call. The look is convenient and misleading.</p>
+      <h4>How it works</h4>
+      <ul><li>A local call either returns or throws. A remote call can also <strong>time out with an unknown outcome</strong>: the server may have done the work and lost the reply (Module 07's retry scene).</li><li>It takes milliseconds, not nanoseconds, so chatty loops of small calls are slow (the N+1 pattern).</li><li>Arguments are serialised; versions on each side must stay compatible.</li></ul>
+      <h4>Status today</h4>
+      <p>Universal inside companies (gRPC, Thrift, HTTP/JSON clients); service meshes add retries and timeouts around it.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Service-to-service calls, with timeouts, retries and idempotency</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Pretending it's local: no loops of hundreds of small calls per request</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>If the call times out we don't know whether it happened, so it carries an idempotency key and we retry safely.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Treating a timeout as "it didn't happen"</strong> and retrying a payment without a key.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "TCP queues the line, QUIC gives each order its own line"</strong>TCP delivers everything in order, so one lost packet holds up all that follows. QUIC keeps streams separate, so a loss only delays its own stream.</div>
@@ -2408,6 +2438,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Where should the API take the caller's user ID from?</p>
         <div class="opts"><button>A field in the JSON body, since HTTPS encrypts it</button><button>From the authenticated token</button><button>A query parameter</button></div>
         <div class="why">HTTPS protects against eavesdroppers, not against the client itself: anyone can put any ID in a body. Identity comes from the verified token.</div>
+      </div>
+      <div class="quiz-q" data-answer="It may or may not have happened">
+        <p>A call to the payment service times out. What do you know?</p>
+        <div class="opts"><button>It failed, so retry freely</button><button>It may or may not have happened</button><button>It succeeded</button></div>
+        <div class="why">The work may be done and only the reply lost. Retry only with an idempotency key.</div>
       </div>
     </div>
 

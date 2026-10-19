@@ -2222,6 +2222,54 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Durability is a separate goal.</strong> It's protected by replicas, backups you've actually restored, and point-in-time recovery, measured as RPO (how much data you can lose) and RTO (how long recovery takes). Module 27 covers disaster recovery.</li>
     </ul>
 
+        <h3 id="up-close">The techniques up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>State availability as a number per feature (<q>99.9% for reads, 99.99% for checkout</q>), name the failure domains you spread across (<q>two zones</q>), and say how failover happens. Reliability comes from redundancy, automatic recovery and safe changes, not from hoping components don't fail.</div>
+
+    <section class="tech" id="t-redundancy">
+      <div class="tech-h"><h3>Redundancy across failure domains</h3><span class="tech-status s-default">The default fault-tolerance technique</span></div>
+      <p>Run spare copies of every component on hardware that fails independently, and switch to them automatically.</p>
+      <h4>How it works</h4>
+      <p>Two copies only add nines if they fail separately (section 2). Spread them across hosts, racks and availability zones; across regions only when the product must survive a regional outage. Pair each copy with automatic detection and failover, or the spare sits idle while users wait for a human.</p>
+      <h4>Status today</h4>
+      <p>Built into managed cloud services (multi-zone load balancers, Multi-AZ databases, S3); your own services need at least two instances in two zones.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every component on the critical path</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Copies in the same rack or zone and calling it redundancy</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Every tier runs in at least two zones, with health checks and automatic failover.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Redundancy without failover</strong>: a standby nobody switches to.</li><li><strong>Correlated copies</strong> (same rack, same deploy, same config push): they fail together.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-checkpoint">
+      <div class="tech-h"><h3>Checkpointing and restartable work</h3><span class="tech-status s-situational">Situational · long-running work</span></div>
+      <p>Save progress regularly so a crash resumes from the last checkpoint instead of starting over.</p>
+      <h4>How it works</h4>
+      <p>Stream processors (Flink) snapshot state and source offsets together; batch jobs write intermediate results; workflow engines record each step (Module 22); Kafka consumers commit offsets after the work is safe. Combined with idempotent steps, a restart redoes at most the work since the last checkpoint.</p>
+      <h4>Status today</h4>
+      <p>Standard in stream processing, batch frameworks and workflow engines.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Jobs that run for minutes to days</li><li>Stateful stream processing</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Short requests: just retry them</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The import checkpoints every 10,000 rows, so a crash costs at most one batch.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A six-hour job with no checkpoints</strong>, restarted from zero by every failure.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-maintain">
+      <div class="tech-h"><h3>Maintainability</h3><span class="tech-status s-situational">The forgotten requirement · mention it once</span></div>
+      <p>How easily people can operate, understand and change the system. Most of a system's cost comes after launch.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Operability:</strong> good monitoring, runbooks, safe deploys and rollbacks, sensible defaults.</li><li><strong>Simplicity:</strong> fewer moving parts and clear boundaries; every extra technology is something to run at 3 a.m.</li><li><strong>Evolvability:</strong> versioned APIs, expand-and-contract schema changes, feature flags.</li></ul>
+      <h4>Status today</h4>
+      <p>Rarely listed in interviews, but it's the honest reason for choosing "boring" technology and fewer components.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Justifying a simpler design over a cleverer one</li><li>Senior and staff interviews, where operating cost matters</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Listing it as a top non-functional requirement for a small prompt</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'd keep this as one service and one database for now: fewer moving parts to operate, and we can split it when a team boundary or a scaling limit demands it.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Five technologies for a problem one database solves</strong>, with no word on who operates them.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Chains multiply down, spares add nines"</strong>Things you need in a row multiply your availability down. Independent copies of the same thing add nines. Recovery speed counts as much as rarity.</div>
@@ -2300,6 +2348,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>What's the difference between an SLO and an SLA?</p>
         <div class="opts"><button>They are the same thing</button><button>The internal target; SLAs are contracts with penalties</button><button>SLOs are only for databases</button></div>
         <div class="why">The SLO is your own goal; the SLA is what you promise customers, set looser than the SLO so you have a safety margin.</div>
+      </div>
+      <div class="quiz-q" data-answer="Not against rack failures: they fail together">
+        <p>Two app servers run on the same rack. Do they make the tier highly available?</p>
+        <div class="opts"><button>Yes, two copies are enough</button><button>Not against rack failures: they fail together</button><button>Only with a bigger load balancer</button></div>
+        <div class="why">Copies add nines only when they fail independently. Spread them across zones.</div>
       </div>
     </div>
 
@@ -2451,8 +2504,9 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-av", title: "3 · Adding nines", text: "Raise a small web app's availability one change at a time." },
     { el: "#comp-widget", title: "4 · Availability composer", text: "Add copies or take dependencies off the critical path." },
     { el: "#eb-widget", title: "5 · Error budget", text: "Turn an SLO into minutes and requests you're allowed to lose." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The techniques up close", text: "Redundancy, checkpointing and maintainability, with the red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
 })();
 </script>

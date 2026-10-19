@@ -2223,7 +2223,62 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Databases run consensus inside:</strong> CockroachDB, TiDB/TiKV and YugabyteDB run a Raft group per range of data; Spanner uses Paxos per split. Managed failover tools for PostgreSQL (Patroni) use etcd or Consul to elect the primary.</li>
       <li><strong>Redis-based locks</strong> (<code>SET key value NX PX 30000</code>) are fine as an efficiency optimisation ("don't do this job twice, usually"), but Redis isn't a consensus system; for correctness, use fencing tokens checked by the storage, or a consensus-backed lock.</li>
     </ul>
-    <p><strong>In an interview</strong>, you rarely explain Raft. You do say: "leader election through etcd with a lease", "the storage checks a fencing token", "three or five nodes across zones". In infrastructure interviews (design a distributed lock, a key-value store, a job scheduler), expect to explain majorities, terms and fencing.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong><q>Leader election through etcd with a lease; the storage checks a fencing token; three or five nodes across zones.</q> State the failure model you assume (crash-recovery and an unreliable network), and don't explain Raft unless it's an infrastructure interview.</div>
+
+    <section class="tech" id="t-failmodels">
+      <div class="tech-h"><h3>Failure models</h3><span class="tech-status s-default">The vocabulary · say which one you assume</span></div>
+      <p>A failure model states how components are allowed to fail. Every distributed algorithm is correct only under the model it assumes.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Model</th><th>What a node may do</th><th>Nodes needed to tolerate f faults</th></tr></thead><tbody>
+        <tr><td>Crash-stop</td><td>Works correctly, then stops forever</td><td>f + 1 for replication; 2f + 1 for consensus (a majority must survive)</td></tr>
+        <tr><td>Crash-recovery</td><td>Stops, then comes back, possibly having lost what wasn't on disk</td><td>2f + 1; durable logs decide what survives a restart</td></tr>
+        <tr><td>Omission</td><td>Drops some messages it should send or receive</td><td>Handled by retries, acknowledgements and timeouts</td></tr>
+        <tr><td>Timing (performance)</td><td>Answers, but too late: GC pauses, overload, a slow network</td><td>Timeouts, leases with fencing; you can't tell slow from dead</td></tr>
+        <tr><td>Byzantine</td><td>Anything at all, including lying or sending conflicting messages</td><td>3f + 1 (blockchains, some aerospace systems)</td></tr>
+      </tbody></table>
+      <p>Real data-centre systems assume <strong>crash-recovery with timing failures</strong> over an unreliable network, and use checksums to turn corrupted data into detectable crashes. Byzantine tolerance is reserved for nodes that don't trust each other.</p>
+      <div id="sc-faults"></div>
+      <h4>Status today</h4>
+      <p>The standard taxonomy from distributed-systems research; Raft, Paxos and ZAB tolerate crash-recovery faults with 2f + 1 nodes, not Byzantine ones.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Explaining why a cluster has 3 or 5 nodes</li><li>Infrastructure interviews: locks, key-value stores, consensus</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Product designs where "nodes can crash and the network can drop or delay messages" is all that needs saying</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I assume nodes can crash and recover and the network can drop or delay messages, so five nodes tolerate two failures; nobody is malicious, so no Byzantine tolerance.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing Byzantine fault tolerance</strong> for servers you run yourself: it triples the cost for a threat you don't have.</li><li><strong>Treating a timeout as proof a node is dead.</strong> It may only be slow; that's why leases need fencing tokens.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-phi">
+      <div class="tech-h"><h3>Failure detection: heartbeats and phi accrual</h3><span class="tech-status s-situational">Situational · infrastructure designs</span></div>
+      <p>How nodes decide that another node has failed: by missing heartbeats, either against a fixed timeout or as a growing level of suspicion.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Fixed timeout:</strong> no heartbeat for 10 s → dead. Too short and a GC pause causes a needless failover; too long and real failures linger.</li><li><strong>Phi accrual detector:</strong> each node learns the normal gaps between another node's heartbeats and outputs a suspicion level (phi) that rises the longer one is late compared with that history. Each application picks its own threshold: act early for cheap decisions, wait for high phi for expensive ones like failover.</li><li>Randomised election timeouts (Raft's 150–300 ms) stop every follower from starting an election at once.</li></ul>
+      <h4>Status today</h4>
+      <p>Phi accrual (Hayashibara et al., 2004) is used by Cassandra and Akka; Raft-based systems use heartbeats with randomised timeouts; Kubernetes uses liveness probes and node leases.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Cluster membership in databases, caches and coordination services</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Application-level designs, where the load balancer's health checks are enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Nodes gossip heartbeats and use a phi accrual detector, so a GC pause raises suspicion without triggering an immediate failover.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>One fixed, short timeout</strong> for an expensive action like failover: a slow node becomes a split-brain risk.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-coord">
+      <div class="tech-h"><h3>Coordination services: etcd, ZooKeeper, Consul</h3><span class="tech-status s-default">The default · don't build consensus yourself</span></div>
+      <p>Small, strongly consistent stores built on consensus, used for leader election, locks with leases, configuration and service discovery.</p>
+      <h4>How it works</h4>
+      <p>Clients create a key with a lease (etcd) or an ephemeral node (ZooKeeper); it disappears when the client stops renewing, which hands leadership or a lock to someone else. Watches notify clients of changes. Every write goes through the leader to a majority, so they're built for small, important data, not high-volume traffic.</p>
+      <h4>Status today</h4>
+      <p>etcd runs Kubernetes; ZooKeeper coordinated Hadoop, HBase and (until Kafka 4.0) Kafka; Consul adds service discovery and health checks. Run 3 or 5 members across zones.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Leader election, distributed locks for correctness (with fencing), cluster membership, configuration</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Storing application data or anything high-volume</li><li>Locks that only save duplicate work (a Redis lock is fine there)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The scheduler elects a leader through an etcd lease; the database rejects writes with an older fencing token.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Implementing Paxos or Raft yourself</strong> in a product interview.</li><li><strong>Putting high-volume data in ZooKeeper or etcd</strong>: every write needs a majority.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2302,6 +2357,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Is a 4-node consensus cluster more fault-tolerant than a 3-node one?</p>
         <div class="opts"><button>Yes, it tolerates two failures</button><button>No, it tolerates the same single failure</button><button>Yes, but only for reads</button></div>
         <div class="why">A majority of 4 is 3, so only 1 can fail, and each write needs one more vote.</div>
+      </div>
+      <div class="quiz-q" data-answer="5">
+        <p>How many nodes does a crash-tolerant consensus cluster need to survive 2 failures?</p>
+        <div class="opts"><button>3</button><button>5</button><button>7</button></div>
+        <div class="why">Consensus needs a surviving majority: 2f + 1 = 5. Byzantine tolerance would need 3f + 1 = 7.</div>
+      </div>
+      <div class="quiz-q" data-answer="Nothing certain: slow and dead look the same from outside">
+        <p>A node's reply arrives after 30 seconds. What can the sender conclude?</p>
+        <div class="opts"><button>The node crashed</button><button>Nothing certain: slow and dead look the same from outside</button><button>The node is Byzantine</button></div>
+        <div class="why">That's a timing failure. Timeouts guess; leases with fencing tokens make the guess safe.</div>
       </div>
     </div>
 
@@ -2404,9 +2469,26 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-raft", title: "3 · Step through Raft", text: "Election, replication and failure, frame by frame." },
     { el: "#cs", title: "4 · Cluster size", text: "How many nodes, how many failures, how much latency." },
     { el: "#fen", title: "5 · Fencing tokens", text: "A paused client wakes with an expired lease. What stops its write?" },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Failure models, failure detection, coordination services: when each matters, and the red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-faults", {
+    title: "Four ways a node can fail", sub: "<b>Blue</b> = requests, <b>green</b> = correct replies, <b>red</b> = the failure.",
+    nodes: [{ id: "c", x: 90, y: 110, w: 120, label: "Sender" }, { id: "n", x: 500, y: 110, w: 140, label: "Replica" }],
+    edges: [["c", "n"]],
+    width: 620, height: 200,
+    steps: [
+      { hl: { c: "active", n: "bad" }, moves: [{ e: "c>n", t: "write x", k: "req" }, { e: "c>n", t: "write y", k: "req", delay: 1.2 }], pops: [{ n: "n", t: "crash: silent forever", k: "bad", at: 1.0 }], hold: 3.6,
+        note: "<b>Crash:</b> the node works, then stops. Nothing more ever comes back." },
+      { hl: { c: "active", n: "warm" }, moves: [{ e: "c>n", t: "msg 1", k: "req" }, { e: "c>n", t: "ack 1", k: "ok", back: true, delay: 1.0 }, { e: "c>n", t: "msg 2", k: "bad", delay: 2.0 }], pops: [{ n: "n", t: "omission: msg 2 dropped", k: "bad", at: 2.8 }], hold: 4,
+        note: "<b>Omission:</b> some messages are simply lost. Acks, retries and idempotency handle it." },
+      { hl: { c: "warm", n: "active" }, moves: [{ e: "c>n", t: "read", k: "req" }, { e: "c>n", t: "reply… 30 s later", k: "ok", back: true, delay: 1.0, dur: 3.6 }], pops: [{ n: "c", t: "slow or dead?", k: "bad", at: 2.2 }], hold: 5.2,
+        note: "<b>Timing:</b> the answer comes, but far too late (a GC pause, overload). From outside you can't tell slow from dead." },
+      { hl: { c: "active", n: "bad" }, moves: [{ e: "c>n", t: "balance?", k: "req" }, { e: "c>n", t: "$1,000,000", k: "bad", back: true, delay: 1.0 }], pops: [{ n: "n", t: "Byzantine: a confident lie", k: "bad", at: 2.2 }], hold: 3.8,
+        note: "<b>Byzantine:</b> the node replies with anything, even lies. Tolerating this needs 3f + 1 nodes; data-centre systems assume it away." },
+    ],
+  });
 })();
 </script>
 </body>
