@@ -506,9 +506,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tlab { margin: 14px 0; }
 .tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
 .tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
-.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
-.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
-.tl-code code { display: block; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .78rem; line-height: 1.55; max-height: none; overflow-x: auto; }
+.tl-code code { display: inline-block; min-width: 100%; }
 .tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
 .tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
 .tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
@@ -516,7 +516,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button + button { border-left: 1px solid var(--line); }
 .tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
+.tl-side > * { max-width: 100%; }
+.tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
 .tlab.tl-noexpl .note { display: none; }
@@ -1070,6 +1072,10 @@ svg.flow .fn { transition: opacity .35s ease; }
     try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
     if (!cfg.code[lang]) lang = "py";
     root.classList.add("tlab");
+    if (cfg.bug && cfg.bug.diverge === undefined) {
+      const key = (st) => st ? JSON.stringify([st.line, st.vars]) : "";
+      cfg.bug.diverge = cfg.bug.steps.findIndex((st, k) => key(st) !== key(cfg.steps[k]));
+    }
     root.innerHTML = `<div class="tl-bar">
         <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
@@ -2300,67 +2306,139 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(n)</code> time (each index is pushed and popped at most once) and <code>O(n)</code> extra space for the stack in the worst case (an already-sorted input never pops).</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Next GREATER element to the right: keep a DECREASING stack of indices
-def next_greater(nums):
-    # answer[i] starts as -1, meaning "nobody bigger shows up to the right"
-    answer = [-1] * len(nums)
-    # stack holds INDICES whose answer we do not know yet.
-    # Their values are decreasing from bottom to top.
-    stack = []
-    for i in range(len(nums)):
-        current = nums[i]
-        # While the value on top of the stack is smaller than current,
-        # current is the FIRST bigger value that index has seen.
-        while len(stack) &gt; 0 and nums[stack[-1]] &lt; current:
-            top_index = stack.pop()        # remove the waiting index...
-            answer[top_index] = current    # ...and give it its answer
-        # i now waits on the stack for its own next greater element
-        stack.append(i)
-    # Indices still on the stack never found anything bigger: they keep -1
-    return answer
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Monotonic Stack has two templates that mirror each other. Both keep a stack of <em>indices</em> whose values stay sorted, and both pop whatever the new value makes useless. <strong>A</strong> answers "what's the next greater value to my right?": answers are written when an index is <em>popped</em>. <strong>B</strong> answers "what's the nearest smaller value to my left?": the answer is whatever <em>survives</em> on top after popping.</p>
 
-# B) Previous SMALLER element to the left: keep an INCREASING stack
-def previous_smaller(nums):
-    # answer[i] = index of the nearest smaller value to the LEFT of i (-1 if none)
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Next greater element (decreasing stack, answer on pop)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>For every index, what's the first bigger value to its right (−1 if none)?</div><div><b>What it keeps</b>A stack of indices still waiting for an answer; their values decrease from bottom to top.</div><div><b>When it checks for an answer</b>Each new value answers every smaller value waiting on top.</div><div><b>Use it when</b>Next greater/warmer/taller to the right: Daily Temperatures, stock span, Next Greater Element.</div><div><b>Not for</b>"Max over a sliding window" (monotonic deque) or any comparison that isn't "nearest".</div></div>
+    <div class="callout memory"><strong>Memory hook: "A taller person arrives; everyone shorter in front of them finally sees someone taller"</strong>People wait in a line facing right, each hoping to see someone taller. When a new person arrives, every shorter person at the back of the line gets their answer and leaves. The waiting line is always tallest-to-shortest.</div>
+    <p><strong>The story, mapped to the code.</strong> Each number is a person's height; the stack is the queue of people still waiting.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">People still waiting</td><td data-h="In the code"><code>stack (indices)</code></td><td data-h="What it means">No bigger value seen yet.</td></tr><tr><td data-h="In the story">The newcomer</td><td data-h="In the code"><code>current = nums[i]</code></td><td data-h="What it means">Can answer shorter people.</td></tr><tr><td data-h="In the story">Shorter person at the back sees the newcomer</td><td data-h="In the code"><code>nums[stack[-1]] &lt; current</code></td><td data-h="What it means">Pop and answer.</td></tr><tr><td data-h="In the story">Record who they saw</td><td data-h="In the code"><code>answer[top_index] = current</code></td><td data-h="What it means">Answer written on pop.</td></tr><tr><td data-h="In the story">Newcomer joins the wait</td><td data-h="In the code"><code>stack.append(i)</code></td><td data-h="What it means">Waits for their own answer.</td></tr><tr><td data-h="In the story">Still waiting at the end</td><td data-h="In the code"><code>answer stays -1</code></td><td data-h="What it means">Nobody taller came.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The <code>while</code> pops everyone the newcomer answers; then the newcomer waits.</p>
+    <pre><code class="python">def next_greater(nums):
     answer = [-1] * len(nums)
-    # stack holds indices whose values are increasing from bottom to top
     stack = []
     for i in range(len(nums)):
         current = nums[i]
-        # Values that are &gt;= current can never be the "previous smaller"
-        # for current or for anyone after it, so throw them away.
-        while len(stack) &gt; 0 and nums[stack[-1]] &gt;= current:
-            stack.pop()
-        # Whatever survives on top is smaller than current: that is the answer
-        if len(stack) &gt; 0:
-            answer[i] = stack[-1]
-        else:
-            answer[i] = -1
-        # current may be the "previous smaller" for someone later
+        while stack and nums[stack[-1]] &lt; current:
+            top_index = stack.pop()
+            answer[top_index] = current
         stack.append(i)
     return answer</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><strong>Template A, setup:</strong> <code>answer = [-1] * len(nums)</code> makes a list with one -1 per element (the default "no bigger value" answer). <code>stack = []</code> is a plain Python list used as a stack: <code>append</code> pushes on top, <code>pop()</code> removes the top, <code>stack[-1]</code> reads the top without removing it.</li>
-      <li><strong>Template A, loop:</strong> <code>for i in range(len(nums))</code> visits every index from left to right, and <code>current = nums[i]</code> is the newcomer.</li>
-      <li><strong>Template A, the <code>while</code>:</strong> <code>len(stack) &gt; 0</code> makes sure the stack isn't empty before we peek at <code>stack[-1]</code>. If the top's value is smaller than <code>current</code>, then <code>current</code> is that index's next greater element, so we pop the index and write the answer. We repeat until the top is not smaller.</li>
-      <li><strong>Template A, push:</strong> <code>stack.append(i)</code> puts the newcomer on the stack, where it waits for its own answer. Because every smaller top was removed first, the stack stays decreasing.</li>
-      <li><strong>Template B, setup:</strong> same shape, but here the answer is an <em>index</em> on the left, and the stack is kept increasing.</li>
-      <li><strong>Template B, the <code>while</code>:</strong> pop every index whose value is <code>&gt;= current</code>. Such a value is no use as a "previous smaller" for <code>current</code>, and <code>current</code> blocks it for everyone further right too.</li>
-      <li><strong>Template B, record:</strong> after popping, the top (if the stack isn't empty) is the nearest strictly smaller value to the left, so <code>answer[i] = stack[-1]</code>; otherwise the answer is -1. Then push <code>i</code>.</li>
-      <li>Both functions touch each index at most twice (one push, at most one pop), so the total work is <code>O(n)</code> even though there is a loop inside a loop.</li>
-    </ol>
-    <p>The four variants differ only in the comparison and in <em>when</em> you record the answer:</p>
-    <table>
-      <thead><tr><th>Want</th><th>Stack order</th><th>Pop while top is…</th><th>Answer recorded…</th></tr></thead>
-      <tbody>
-        <tr><td>Next greater</td><td>decreasing</td><td><code>&lt; x</code></td><td>for the <em>popped</em> index</td></tr>
-        <tr><td>Next smaller</td><td>increasing</td><td><code>&gt; x</code></td><td>for the <em>popped</em> index</td></tr>
-        <tr><td>Previous greater</td><td>decreasing</td><td><code>&lt;= x</code></td><td>for <code>i</code>, from the top after popping</td></tr>
-        <tr><td>Previous smaller</td><td>increasing</td><td><code>&gt;= x</code></td><td>for <code>i</code>, from the top after popping</td></tr>
-      </tbody>
-    </table>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function nextGreater(nums: number[]): number[] {
+  const answer: number[] = new Array(nums.length).fill(-1);
+  const stack: number[] = [];
+  for (let i = 0; i &lt; nums.length; i++) {
+    const current = nums[i];
+    while (stack.length &gt; 0 &amp;&amp; nums[stack[stack.length - 1]] &lt; current) {
+      const topIndex = stack.pop()!;
+      answer[topIndex] = current;
+    }
+    stack.push(i);
+  }
+  return answer;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int[] nextGreater(int[] nums) {
+    int[] answer = new int[nums.length];
+    Arrays.fill(answer, -1);
+    Deque&lt;Integer&gt; stack = new ArrayDeque&lt;&gt;();
+    for (int i = 0; i &lt; nums.length; i++) {
+        int current = nums[i];
+        while (!stack.isEmpty() &amp;&amp; nums[stack.peek()] &lt; current) {
+            int topIndex = stack.pop();
+            answer[topIndex] = current;
+        }
+        stack.push(i);
+    }
+    return answer;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>answer = [-1] * len(nums)</code></td><td data-h="What it does">Default answer: nobody bigger.</td><td data-h="In the story">Everyone starts with "never saw anyone taller".</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>while stack and nums[stack[-1]] &lt; current</code></td><td data-h="What it does">Pop every waiting value smaller than current.</td><td data-h="In the story">Every shorter person at the back sees the newcomer.</td><td data-h="Why here, and what breaks if it moves">An <code>if</code> answers only one person per newcomer (see the bug player). <code>&lt;=</code> would treat equal heights as taller.</td></tr><tr><td data-h="Line"><code>top_index = stack.pop(); answer[top_index] = current</code></td><td data-h="What it does">The popped index's answer is current.</td><td data-h="In the story">They leave with their answer.</td><td data-h="Why here, and what breaks if it moves">Storing values instead of indices makes it impossible to know <em>whose</em> answer it is.</td></tr><tr><td data-h="Line"><code>stack.append(i)</code></td><td data-h="What it does">Current waits for its own answer.</td><td data-h="In the story">The newcomer joins the line.</td><td data-h="Why here, and what breaks if it moves">Pushing before the while makes current compare with itself.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [2, 1, 2, 4, 3]</code>. The stack shows <em>index:value</em>, bottom first. The second player swaps <code>while</code> for <code>if</code>.</p>
+    <div id="tl-06a"></div><div id="tl-06a-bug"></div><p>With <code>if</code>, the 5 answers only the 1 on top; the 3 below it is never answered and keeps −1. Correct: <code>[5, 5, -1]</code>; buggy: <code>[-1, 5, -1]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-06a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Values of the indices on the stack never increase from bottom to top, and every index on the stack hasn't yet seen a bigger value. Every index is pushed once and popped at most once.</p>
+    <p><strong>Complexity.</strong> O(n) time (each index is pushed and popped at most once), O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong><code>if</code> instead of <code>while</code>.</strong> Everyone shorter at the back sees the newcomer.</li><li><strong>Pushing values instead of indices.</strong> You need to know where to write the answer.</li><li><strong><code>&lt;=</code> vs <code>&lt;</code>.</strong> Decide whether equal counts as greater; the prompt says "strictly" for next greater.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>A taller newcomer answers everyone shorter waiting at the back.</dd>
+      <dt>Choose this template when</dt><dd>"Next greater/warmer to the right" → decreasing stack, answer on pop.</dd>
+      <dt>Invariant</dt><dd>Stack values decrease bottom → top; all are unanswered.</dd>
+      <dt>The line people get wrong</dt><dd><code>while</code> (not <code>if</code>) and pushing the <em>index</em>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why is it O(n) with a nested loop?</summary><p>Each index is popped at most once overall.</p></details><details><summary>What's left on the stack at the end?</summary><p>Indices with no greater value to the right; they keep −1.</p></details><details><summary>How do you get distances (Daily Temperatures)?</summary><p>answer[top] = i − top instead of the value.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Previous smaller element (increasing stack, answer = survivor)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>For every index, which is the nearest index to its left with a smaller value (−1 if none)?</div><div><b>What it keeps</b>A stack of indices with increasing values: the candidates that could still be someone's "previous smaller".</div><div><b>When it checks for an answer</b>After popping everything ≥ current, the top (if any) is current's answer.</div><div><b>Use it when</b>Nearest smaller to the left: histogram areas, "sum of subarray minimums", stock span variants.</div><div><b>Not for</b>Next-to-the-right questions (A, or B run from the right).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Clear the taller ones away; the first shorter one left standing is your answer"</strong>You look back over your left shoulder for the nearest shorter person. Anyone at least as tall as you blocks nobody later and helps nobody later, so they're removed. Whoever is left on top is shorter: your answer. Then you join.</div>
+    <p><strong>The story, mapped to the code.</strong> Same line of people, but now each newcomer looks back to the left.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Candidates still worth remembering</td><td data-h="In the code"><code>stack (increasing values)</code></td><td data-h="What it means">Possible "previous smaller" for someone.</td></tr><tr><td data-h="In the story">Taller-or-equal people removed</td><td data-h="In the code"><code>while nums[stack[-1]] &gt;= current: pop</code></td><td data-h="What it means">They can't be anyone's answer later.</td></tr><tr><td data-h="In the story">The survivor on top</td><td data-h="In the code"><code>answer[i] = stack[-1]</code></td><td data-h="What it means">Nearest shorter to the left.</td></tr><tr><td data-h="In the story">Newcomer joins</td><td data-h="In the code"><code>stack.append(i)</code></td><td data-h="What it means">A candidate for later people.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Pop first, read the survivor, then push.</p>
+    <pre><code class="python">def previous_smaller(nums):
+    answer = [-1] * len(nums)
+    stack = []
+    for i in range(len(nums)):
+        current = nums[i]
+        while stack and nums[stack[-1]] &gt;= current:
+            stack.pop()
+        if stack:
+            answer[i] = stack[-1]
+        stack.append(i)
+    return answer</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function previousSmaller(nums: number[]): number[] {
+  const answer: number[] = new Array(nums.length).fill(-1);
+  const stack: number[] = [];
+  for (let i = 0; i &lt; nums.length; i++) {
+    const current = nums[i];
+    while (stack.length &gt; 0 &amp;&amp; nums[stack[stack.length - 1]] &gt;= current) {
+      stack.pop();
+    }
+    if (stack.length &gt; 0) {
+      answer[i] = stack[stack.length - 1];
+    }
+    stack.push(i);
+  }
+  return answer;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int[] previousSmaller(int[] nums) {
+    int[] answer = new int[nums.length];
+    Arrays.fill(answer, -1);
+    Deque&lt;Integer&gt; stack = new ArrayDeque&lt;&gt;();
+    for (int i = 0; i &lt; nums.length; i++) {
+        int current = nums[i];
+        while (!stack.isEmpty() &amp;&amp; nums[stack.peek()] &gt;= current) {
+            stack.pop();
+        }
+        if (!stack.isEmpty()) {
+            answer[i] = stack.peek();
+        }
+        stack.push(i);
+    }
+    return answer;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>while stack and nums[stack[-1]] &gt;= current</code></td><td data-h="What it does">Removes candidates that are not smaller.</td><td data-h="In the story">Clear away taller-or-equal people.</td><td data-h="Why here, and what breaks if it moves">Using <code>&gt;</code> keeps equal values, so an equal value would be reported as "smaller".</td></tr><tr><td data-h="Line"><code>if stack: answer[i] = stack[-1]</code></td><td data-h="What it does">The survivor is the nearest smaller to the left.</td><td data-h="In the story">The first shorter person still standing.</td><td data-h="Why here, and what breaks if it moves">Reading the top before popping gives a taller person.</td></tr><tr><td data-h="Line"><code>stack.append(i)</code></td><td data-h="What it does">Current becomes a candidate for later indices.</td><td data-h="In the story">Join the line.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [3, 1, 4, 2, 5]</code>. Answers are <em>indices</em> here.</p>
+    <div id="tl-06b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-06b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Stack values strictly increase from bottom to top, and the stack holds exactly the indices that could be the previous smaller of some future index.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Reading the answer before popping.</strong> Clear the taller ones first, then look.</li><li><strong>Wrong comparison for equals.</strong> "Smaller" means strictly smaller: pop on <code>&gt;=</code>.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Clear the taller ones away; the shorter one left standing is your answer.</dd>
+      <dt>Choose this template when</dt><dd>"Nearest smaller to the left" → increasing stack, answer = survivor.</dd>
+      <dt>Invariant</dt><dd>Stack values strictly increase bottom → top.</dd>
+      <dt>The line people get wrong</dt><dd>Pop on <code>&gt;=</code>, then read the top.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Where is the answer read in A vs B?</summary><p>A: on pop (for the popped index). B: after popping (for the current index).</p></details><details><summary>Previous smaller of the 2 in [3, 1, 4, 2, 5]?</summary><p>Index 1 (value 1).</p></details><details><summary>How to get next smaller to the right with B?</summary><p>Run B from right to left.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · next greater (right)</th><th>B · previous smaller (left)</th></tr></thead><tbody><tr><td data-h="Question">Stack order (bottom → top)</td><td data-h="A · next greater (right)">Decreasing values</td><td data-h="B · previous smaller (left)">Increasing values</td></tr><tr><td data-h="Question">Pop condition</td><td data-h="A · next greater (right)"><code>nums[top] &lt; current</code></td><td data-h="B · previous smaller (left)"><code>nums[top] &gt;= current</code></td></tr><tr><td data-h="Question">Whose answer is written</td><td data-h="A · next greater (right)">The <em>popped</em> index's</td><td data-h="B · previous smaller (left)">The <em>current</em> index's</td></tr><tr><td data-h="Question">Answer value</td><td data-h="A · next greater (right)">current</td><td data-h="B · previous smaller (left)">The survivor on top</td></tr><tr><td data-h="Question">Left on the stack at the end</td><td data-h="A · next greater (right)">Indices with no answer (−1)</td><td data-h="B · previous smaller (left)">Doesn't matter (answers were written already)</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · next greater (right)">LC 496/503, Daily Temperatures (LC 739)</td><td data-h="B · previous smaller (left)">Largest Rectangle in Histogram (LC 84), Sum of Subarray Minimums (LC 907)</td></tr></tbody></table>
+    <p>Rule of thumb: "next … to the right" → answers are written on pop. "Previous … to the left" → the answer is the survivor. Flip the comparison to switch between greater and smaller.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -6495,6 +6573,70 @@ class Solution:
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl6A(nums, buggy) {
+    const ans = nums.map(() => -1), st = [], steps = [], rows = [];
+    const view = (i, hl) => Viz.array(nums, { label: "nums", ptrs: i >= 0 ? { [i]: "i" } : {}, hl: Object.assign(Object.fromEntries(ans.map((a, k) => [k, a !== -1 ? "found" : ""])), hl || {}) })
+      + Viz.array(ans, { label: "answer", hl: Object.fromEntries(ans.map((a, k) => [k, a !== -1 ? "found" : ""])) }) + Viz.chips(st.map((k) => `${k}:${nums[k]}`), "stack (bottom → top)");
+    steps.push({ line: "init", vars: { stack: "[]" }, view: view(-1), analogy: "Nobody is waiting yet.", note: "<code>answer</code> all −1, empty stack." });
+    nums.forEach((cur, i) => {
+      const popped = [];
+      steps.push({ line: ["loop", "check"], vars: { i, current: cur, top: st.length ? `${st[st.length - 1]}:${nums[st[st.length - 1]]}` : "none" }, view: view(i, { [i]: "active" }),
+        analogy: `Newcomer of height ${cur} arrives.`, note: `Compare with the top of the stack.`,
+        ask: { q: "How many indices does this newcomer pop?", options: ["0", "1", "2", "3"], answer: (() => { let c = 0; for (let k = st.length - 1; k >= 0 && nums[st[k]] < cur; k--) { c++; if (buggy) break; } return c; })(), why: buggy ? "With if, at most one." : "Every smaller value on top." } });
+      while (st.length && nums[st[st.length - 1]] < cur) {
+        const t = st.pop(); ans[t] = cur; popped.push(t);
+        steps.push({ line: ["pop", "answer"], vars: { top_index: t, [`answer[${t}]`]: cur }, view: view(i, { [i]: "active", [t]: "found" }), analogy: `${nums[t]} (index ${t}) finally sees someone taller: ${cur}.`, note: `<code>answer[${t}] = ${cur}</code>.` });
+        if (buggy) break;
+      }
+      if (buggy && st.length && nums[st[st.length - 1]] < cur) steps.push({ line: "push", vars: { "still smaller on top": `${st[st.length - 1]}:${nums[st[st.length - 1]]}` }, view: view(i, { [st[st.length - 1]]: "bad" }), analogy: `⚠ ${nums[st[st.length - 1]]} is also shorter than ${cur} but never gets answered.`, note: "<code>if</code> already finished." });
+      st.push(i);
+      steps.push({ line: "push", vars: { stack: "[" + st.map((k) => `${k}:${nums[k]}`).join(", ") + "]" }, view: view(i), analogy: `${cur} joins the waiting line.`, note: `Push index ${i}.` });
+      rows.push([i, cur, popped.length ? popped.map((t) => `${t} (${nums[t]})`).join(", ") : "—", "[" + st.map((k) => `${k}:${nums[k]}`).join(", ") + "]", "[" + ans.join(", ") + "]"]);
+    });
+    steps.push({ line: "ret", vars: { answer: "[" + ans.join(", ") + "]" }, view: view(-1), analogy: st.length ? `Still waiting (no one taller came): ${st.map((k) => nums[k]).join(", ")}.` : "Everyone got an answer.", note: `Return <code>[${ans.join(", ")}]</code>.` });
+    return { steps, table: { head: ["i", "current", "Popped (answered)", "Stack after push", "answer"], rows } };
+  }
+
+  function tl6B(nums) {
+    const ans = nums.map(() => -1), st = [], steps = [], rows = [];
+    const view = (i, hl) => Viz.array(nums, { label: "nums", ptrs: i >= 0 ? { [i]: "i" } : {}, hl: hl || {} }) + Viz.array(ans, { label: "answer" }) + Viz.chips(st.map((k) => `${k}:${nums[k]}`), "stack (bottom → top)");
+    steps.push({ line: "init", vars: { stack: "[]" }, view: view(-1), analogy: "No candidates yet.", note: "<code>answer</code> all −1, empty stack." });
+    nums.forEach((cur, i) => {
+      const popped = [];
+      while (st.length && nums[st[st.length - 1]] >= cur) popped.push(st.pop());
+      steps.push({ line: ["loop", "check", "pop"], vars: { i, current: cur, popped: popped.length ? popped.join(", ") : "none" }, view: view(i, { [i]: "active" }),
+        analogy: popped.length ? `Remove ${popped.map((k) => nums[k]).join(", ")}: not shorter than ${cur}.` : `Nobody on top is as tall as ${cur}.`, note: `Pop indices with value ≥ ${cur}.` });
+      const surv = st.length ? st[st.length - 1] : -1; ans[i] = surv;
+      steps.push({ line: surv >= 0 ? ["survivor", "answer"] : "survivor", vars: { [`answer[${i}]`]: surv }, view: view(i, Object.assign({ [i]: "active" }, surv >= 0 ? { [surv]: "gold" } : {})),
+        analogy: surv >= 0 ? `The first shorter person to the left: ${nums[surv]} at index ${surv}.` : "No one shorter to the left.", note: `<code>answer[${i}] = ${surv}</code>.`,
+        ask: { q: `answer[${i}] = ?`, options: [...new Set([surv, -1, i - 1 >= 0 ? i - 1 : 0, 0])].map(String), answer: surv, why: surv >= 0 ? `Index ${surv} survives on top.` : "The stack is empty." } });
+      st.push(i);
+      rows.push([i, cur, popped.length ? popped.join(", ") : "—", surv, "[" + st.map((k) => `${k}:${nums[k]}`).join(", ") + "]"]);
+    });
+    steps.push({ line: "ret", vars: { answer: "[" + ans.join(", ") + "]" }, view: view(-1), analogy: "Every newcomer found their nearest shorter neighbour (or none).", note: `Return <code>[${ans.join(", ")}]</code>.` });
+    return { steps, table: { head: ["i", "current", "Popped", "answer[i]", "Stack after push"], rows } };
+  }
+
+  { const run = tl6A([2, 1, 2, 4, 3], false);
+    Viz.tlab("#tl-06a", { title: "Template A \u00b7 nums = [2, 1, 2, 4, 3]", sub: "Blue = newcomer; green = answers written; the stack is drawn bottom \u2192 top.", code: {"py": [[null, "def next_greater(nums):"], ["init", "    answer = [-1] * len(nums)"], ["init", "    stack = []"], ["loop", "    for i in range(len(nums)):"], ["loop", "        current = nums[i]"], ["check", "        while stack and nums[stack[-1]] < current:"], ["pop", "            top_index = stack.pop()"], ["answer", "            answer[top_index] = current"], ["push", "        stack.append(i)"], ["ret", "    return answer"]], "ts": [[null, "function nextGreater(nums: number[]): number[] {"], ["init", "  const answer: number[] = new Array(nums.length).fill(-1);"], ["init", "  const stack: number[] = [];"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["loop", "    const current = nums[i];"], ["check", "    while (stack.length > 0 && nums[stack[stack.length - 1]] < current) {"], ["pop", "      const topIndex = stack.pop()!;"], ["answer", "      answer[topIndex] = current;"], [null, "    }"], ["push", "    stack.push(i);"], [null, "  }"], ["ret", "  return answer;"], [null, "}"]], "java": [[null, "static int[] nextGreater(int[] nums) {"], ["init", "    int[] answer = new int[nums.length];"], ["init", "    Arrays.fill(answer, -1);"], ["init", "    Deque<Integer> stack = new ArrayDeque<>();"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["loop", "        int current = nums[i];"], ["check", "        while (!stack.isEmpty() && nums[stack.peek()] < current) {"], ["pop", "            int topIndex = stack.pop();"], ["answer", "            answer[topIndex] = current;"], [null, "        }"], ["push", "        stack.push(i);"], [null, "    }"], ["ret", "    return answer;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-06a-table").innerHTML = TL.table(run.table); }
+  { const run = tl6A([3, 1, 5], false);
+    Viz.tlab("#tl-06a-bug", { title: "Why while, not if \u00b7 nums = [3, 1, 5]", sub: "Switch between while and if.", code: {"py": [[null, "def next_greater(nums):"], ["init", "    answer = [-1] * len(nums)"], ["init", "    stack = []"], ["loop", "    for i in range(len(nums)):"], ["loop", "        current = nums[i]"], ["check", "        while stack and nums[stack[-1]] < current:"], ["pop", "            top_index = stack.pop()"], ["answer", "            answer[top_index] = current"], ["push", "        stack.append(i)"], ["ret", "    return answer"]], "ts": [[null, "function nextGreater(nums: number[]): number[] {"], ["init", "  const answer: number[] = new Array(nums.length).fill(-1);"], ["init", "  const stack: number[] = [];"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["loop", "    const current = nums[i];"], ["check", "    while (stack.length > 0 && nums[stack[stack.length - 1]] < current) {"], ["pop", "      const topIndex = stack.pop()!;"], ["answer", "      answer[topIndex] = current;"], [null, "    }"], ["push", "    stack.push(i);"], [null, "  }"], ["ret", "  return answer;"], [null, "}"]], "java": [[null, "static int[] nextGreater(int[] nums) {"], ["init", "    int[] answer = new int[nums.length];"], ["init", "    Arrays.fill(answer, -1);"], ["init", "    Deque<Integer> stack = new ArrayDeque<>();"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["loop", "        int current = nums[i];"], ["check", "        while (!stack.isEmpty() && nums[stack.peek()] < current) {"], ["pop", "            int topIndex = stack.pop();"], ["answer", "            answer[topIndex] = current;"], [null, "        }"], ["push", "        stack.push(i);"], [null, "    }"], ["ret", "    return answer;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: if instead of while", code: {"py": [[null, "def next_greater(nums):"], ["init", "    answer = [-1] * len(nums)"], ["init", "    stack = []"], ["loop", "    for i in range(len(nums)):"], ["loop", "        current = nums[i]"], ["check", "        if stack and nums[stack[-1]] < current:"], ["pop", "            top_index = stack.pop()"], ["answer", "            answer[top_index] = current"], ["push", "        stack.append(i)"], ["ret", "    return answer"]]}, steps: tl6A([3, 1, 5], true).steps, diverge: undefined, why: "after popping one index, <code>if</code> stops even though the next waiting value is still smaller." } });
+     }
+  { const run = tl6B([3, 1, 4, 2, 5]);
+    Viz.tlab("#tl-06b", { title: "Template B \u00b7 nums = [3, 1, 4, 2, 5]", sub: "Blue = newcomer; gold = the survivor that becomes the answer.", code: {"py": [[null, "def previous_smaller(nums):"], ["init", "    answer = [-1] * len(nums)"], ["init", "    stack = []"], ["loop", "    for i in range(len(nums)):"], ["loop", "        current = nums[i]"], ["check", "        while stack and nums[stack[-1]] >= current:"], ["pop", "            stack.pop()"], ["survivor", "        if stack:"], ["answer", "            answer[i] = stack[-1]"], ["push", "        stack.append(i)"], ["ret", "    return answer"]], "ts": [[null, "function previousSmaller(nums: number[]): number[] {"], ["init", "  const answer: number[] = new Array(nums.length).fill(-1);"], ["init", "  const stack: number[] = [];"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["loop", "    const current = nums[i];"], ["check", "    while (stack.length > 0 && nums[stack[stack.length - 1]] >= current) {"], ["pop", "      stack.pop();"], [null, "    }"], ["survivor", "    if (stack.length > 0) {"], ["answer", "      answer[i] = stack[stack.length - 1];"], [null, "    }"], ["push", "    stack.push(i);"], [null, "  }"], ["ret", "  return answer;"], [null, "}"]], "java": [[null, "static int[] previousSmaller(int[] nums) {"], ["init", "    int[] answer = new int[nums.length];"], ["init", "    Arrays.fill(answer, -1);"], ["init", "    Deque<Integer> stack = new ArrayDeque<>();"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["loop", "        int current = nums[i];"], ["check", "        while (!stack.isEmpty() && nums[stack.peek()] >= current) {"], ["pop", "            stack.pop();"], [null, "        }"], ["survivor", "        if (!stack.isEmpty()) {"], ["answer", "            answer[i] = stack.peek();"], [null, "        }"], ["push", "        stack.push(i);"], [null, "    }"], ["ret", "    return answer;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-06b-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

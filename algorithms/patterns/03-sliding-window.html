@@ -506,9 +506,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tlab { margin: 14px 0; }
 .tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
 .tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
-.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
-.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
-.tl-code code { display: block; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .78rem; line-height: 1.55; max-height: none; overflow-x: auto; }
+.tl-code code { display: inline-block; min-width: 100%; }
 .tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
 .tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
 .tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
@@ -516,7 +516,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button + button { border-left: 1px solid var(--line); }
 .tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
+.tl-side > * { max-width: 100%; }
+.tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
 .tlab.tl-noexpl .note { display: none; }
@@ -1070,6 +1072,10 @@ svg.flow .fn { transition: opacity .35s ease; }
     try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
     if (!cfg.code[lang]) lang = "py";
     root.classList.add("tlab");
+    if (cfg.bug && cfg.bug.diverge === undefined) {
+      const key = (st) => st ? JSON.stringify([st.line, st.vars]) : "";
+      cfg.bug.diverge = cfg.bug.steps.findIndex((st, k) => key(st) !== key(cfg.steps[k]));
+    }
     root.innerHTML = `<div class="tl-bar">
         <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
@@ -2303,135 +2309,188 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(n)</code> time (each index enters and leaves once). Space is <code>O(1)</code> for a sum, or <code>O(σ)</code> for a count map over an alphabet of size σ (often 26 or 128, so effectively constant).</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Fixed size k: every window holds exactly k numbers
-def max_sum_fixed(nums, k):
-    # Build the very first window by adding up the first k numbers
-    window_sum = 0
-    for i in range(k):
-        window_sum = window_sum + nums[i]
-    best_sum = window_sum              # the first window is the best one seen so far
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Sliding Window has three templates. All keep a contiguous window <code>[left, right]</code> and a small summary of what's inside, and update the summary as numbers enter and leave instead of recomputing it. They differ in <strong>who decides the window's size</strong>: <strong>A</strong> fixes it at <code>k</code>; <strong>B</strong> grows it and shrinks only when it breaks a rule (longest valid window); <strong>C</strong> shrinks it while it still satisfies a rule (shortest valid window).</p>
 
-    # Slide the window one step at a time: one number in, one number out
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Fixed size k (best sum of k consecutive numbers)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Over every run of exactly <code>k</code> consecutive numbers, what's the best (max) sum?</div><div><b>What it keeps</b><code>window_sum</code> of the current k numbers and the best seen.</div><div><b>When it checks for an answer</b>After every slide: one number in, one out.</div><div><b>Use it when</b>The window length is given ("k consecutive", "every window of size k").</div><div><b>Not for</b>"Longest/shortest subarray such that…" (B or C); sums equal to k with negatives (Prefix Sum B).</div></div>
+    <div class="callout memory"><strong>Memory hook: "One in on the right, one out on the left"</strong>A train window of fixed width moves along the track. Each move, one new house appears on the right and one disappears on the left. You never re-count the whole view.</div>
+    <p><strong>The story, mapped to the code.</strong> You look out of a train window that always shows exactly k houses; each number is a house's value.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The view through the window</td><td data-h="In the code"><code>nums[right-k+1 .. right]</code></td><td data-h="What it means">The current k numbers.</td></tr><tr><td data-h="In the story">Total value in view</td><td data-h="In the code"><code>window_sum</code></td><td data-h="What it means">Updated, never recomputed.</td></tr><tr><td data-h="In the story">House appearing on the right</td><td data-h="In the code"><code>entering = nums[right]</code></td><td data-h="What it means">Added.</td></tr><tr><td data-h="In the story">House disappearing on the left</td><td data-h="In the code"><code>leaving = nums[right - k]</code></td><td data-h="What it means">Subtracted.</td></tr><tr><td data-h="In the story">Best view so far</td><td data-h="In the code"><code>best_sum</code></td><td data-h="What it means">Max over all windows.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Build the first window, then slide.</p>
+    <pre><code class="python">def max_sum_fixed(nums, k):
+    window_sum = sum(nums[:k])
+    best_sum = window_sum
     for right in range(k, len(nums)):
-        entering = nums[right]         # new number sliding in on the right
-        leaving = nums[right - k]      # old number sliding out on the left
-        window_sum = window_sum + entering - leaving
-        # Keep the bigger of "best so far" and "this window"
-        if window_sum &gt; best_sum:
-            best_sum = window_sum
-    return best_sum
-
-
-# B) Variable size, LONGEST valid window (the rule here: no repeated characters)
-def longest_valid(s):
-    counts = {}                        # window state: character -&gt; how many times it is in the window
-    left = 0                           # left edge of the window
-    best_length = 0                    # longest valid window found so far
+        window_sum += nums[right] - nums[right - k]
+        best_sum = max(best_sum, window_sum)
+    return best_sum</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function maxSumFixed(nums: number[], k: number): number {
+  let windowSum = 0;
+  for (let i = 0; i &lt; k; i++) windowSum += nums[i];
+  let bestSum = windowSum;
+  for (let right = k; right &lt; nums.length; right++) {
+    windowSum += nums[right] - nums[right - k];
+    bestSum = Math.max(bestSum, windowSum);
+  }
+  return bestSum;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int maxSumFixed(int[] nums, int k) {
+    int windowSum = 0;
+    for (int i = 0; i &lt; k; i++) windowSum += nums[i];
+    int bestSum = windowSum;
+    for (int right = k; right &lt; nums.length; right++) {
+        windowSum += nums[right] - nums[right - k];
+        bestSum = Math.max(bestSum, windowSum);
+    }
+    return bestSum;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>window_sum = sum(nums[:k])</code></td><td data-h="What it does">Adds up the first k numbers once.</td><td data-h="In the story">The first view.</td><td data-h="Why here, and what breaks if it moves">Skipping it means the first window is never counted.</td></tr><tr><td data-h="Line"><code>best_sum = window_sum</code></td><td data-h="What it does">The first window is the best so far.</td><td data-h="In the story">Remember the first view.</td><td data-h="Why here, and what breaks if it moves">Starting best at 0 is wrong when all sums are negative.</td></tr><tr><td data-h="Line"><code>for right in range(k, len(nums))</code></td><td data-h="What it does"><code>right</code> is the house entering.</td><td data-h="In the story">The train moves one house.</td><td data-h="Why here, and what breaks if it moves">Starting at 0 double-counts the first window.</td></tr><tr><td data-h="Line"><code>window_sum += nums[right] - nums[right - k]</code></td><td data-h="What it does">One in, one out.</td><td data-h="In the story">New house appears, old one disappears.</td><td data-h="Why here, and what breaks if it moves"><code>nums[right - k + 1]</code> removes the wrong house: an off-by-one.</td></tr><tr><td data-h="Line"><code>best_sum = max(best_sum, window_sum)</code></td><td data-h="What it does">Keeps the best window.</td><td data-h="In the story">Is this the best view yet?</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [2, 1, 5, 1, 3, 2]</code>, <code>k = 3</code>.</p>
+    <div id="tl-03a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-03a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the top of each iteration, <code>window_sum</code> is the sum of exactly the k numbers ending at <code>right − 1</code>, and <code>best_sum</code> is the best over all windows seen.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space: each number enters once and leaves once.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Removing <code>nums[right - k + 1]</code>.</strong> The leaving house is the one k positions behind the new one.</li><li><strong><code>best_sum = 0</code>.</strong> Start from the first real window.</li><li><strong>Recomputing <code>sum()</code> every slide.</strong> That's O(n·k): the whole point is one in, one out.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>One in on the right, one out on the left.</dd>
+      <dt>Choose this template when</dt><dd>Fixed k given → fixed window.</dd>
+      <dt>Invariant</dt><dd>window_sum = sum of the current k numbers.</dd>
+      <dt>The line people get wrong</dt><dd><code>nums[right - k]</code> leaves.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Which index leaves when <code>right = 5</code>, <code>k = 3</code>?</summary><p>Index 2.</p></details><details><summary>Why initialise best with the first window?</summary><p>Sums may be negative; 0 might not be any window's sum.</p></details><details><summary>How many windows does an array of n have?</summary><p>n − k + 1.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Variable size, LONGEST valid window (no repeated characters)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What's the longest stretch that obeys a rule (here: no character repeats)?</div><div><b>What it keeps</b>Counts of what's in the window, plus <code>left</code> and the best length.</div><div><b>When it checks for an answer</b>After expanding and repairing: the window is valid, so record its length.</div><div><b>Use it when</b>"Longest substring/subarray such that…", where adding items can only break the rule and removing items can only fix it.</div><div><b>Not for</b>Shortest windows (C); rules that aren't monotonic (sums with negatives → Prefix Sum).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Grow the right; when it breaks, shrink the left until it's fixed; then measure"</strong>An accordion: pull the right hand out to add a note. If two notes clash, push the left hand in until the clash is gone. After every repair, measure how wide it is.</div>
+    <p><strong>The story, mapped to the code.</strong> The window is an accordion of characters; the rule is "no two notes the same".</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Right hand pulling out</td><td data-h="In the code"><code>right / counts[ch] += 1</code></td><td data-h="What it means">Expand by one character.</td></tr><tr><td data-h="In the story">A clash</td><td data-h="In the code"><code>counts[ch] &gt; 1</code></td><td data-h="What it means">The new character is already inside.</td></tr><tr><td data-h="In the story">Left hand pushing in</td><td data-h="In the code"><code>counts[s[left]] -= 1; left += 1</code></td><td data-h="What it means">Remove from the left until the clash is gone.</td></tr><tr><td data-h="In the story">Width after repair</td><td data-h="In the code"><code>right - left + 1</code></td><td data-h="What it means">A valid window's length.</td></tr><tr><td data-h="In the story">Widest so far</td><td data-h="In the code"><code>best_length</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Expand, repair with a <code>while</code>, then record.</p>
+    <pre><code class="python">def longest_valid(s):
+    counts = {}
+    left = best_length = 0
     for right in range(len(s)):
         ch = s[right]
-        # 1. EXPAND: put s[right] into the window
-        if ch not in counts:
-            counts[ch] = 0
-        counts[ch] = counts[ch] + 1
-        # 2. SHRINK WHILE INVALID: ch now appears twice, so the window breaks the rule
+        counts[ch] = counts.get(ch, 0) + 1
         while counts[ch] &gt; 1:
-            left_ch = s[left]
-            counts[left_ch] = counts[left_ch] - 1   # take s[left] out of the window
-            left = left + 1                          # move the left edge forward
-        # 3. RECORD: the window s[left..right] is valid again
-        window_length = right - left + 1
-        if window_length &gt; best_length:
-            best_length = window_length
-    return best_length
-
-
-# C) Variable size, SHORTEST valid window (the rule here: sum &gt;= target)
-def shortest_valid(nums, target):
-    left = 0                           # left edge of the window
-    window_sum = 0                     # sum of nums[left..right]
-    best_length = float("inf")         # "infinity" means "no valid window found yet"
+            counts[s[left]] -= 1
+            left += 1
+        best_length = max(best_length, right - left + 1)
+    return best_length</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function longestValid(s: string): number {
+  const counts = new Map&lt;string, number&gt;();
+  let left = 0, bestLength = 0;
+  for (let right = 0; right &lt; s.length; right++) {
+    const ch = s[right];
+    counts.set(ch, (counts.get(ch) ?? 0) + 1);
+    while (counts.get(ch)! &gt; 1) {
+      counts.set(s[left], counts.get(s[left])! - 1);
+      left++;
+    }
+    bestLength = Math.max(bestLength, right - left + 1);
+  }
+  return bestLength;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int longestValid(String s) {
+    Map&lt;Character, Integer&gt; counts = new HashMap&lt;&gt;();
+    int left = 0, bestLength = 0;
+    for (int right = 0; right &lt; s.length(); right++) {
+        char ch = s.charAt(right);
+        counts.merge(ch, 1, Integer::sum);
+        while (counts.get(ch) &gt; 1) {
+            counts.merge(s.charAt(left), -1, Integer::sum);
+            left++;
+        }
+        bestLength = Math.max(bestLength, right - left + 1);
+    }
+    return bestLength;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>counts[ch] = counts.get(ch, 0) + 1</code></td><td data-h="What it does">Puts the new character in the window.</td><td data-h="In the story">Pull the right hand out.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>while counts[ch] &gt; 1</code></td><td data-h="What it does">Repairs until the rule holds again.</td><td data-h="In the story">Push in while there's a clash.</td><td data-h="Why here, and what breaks if it moves">An <code>if</code> removes only one character; the clash may still be there.</td></tr><tr><td data-h="Line"><code>counts[s[left]] -= 1; left += 1</code></td><td data-h="What it does">Removes the leftmost character.</td><td data-h="In the story">Left hand moves in by one note.</td><td data-h="Why here, and what breaks if it moves">Moving <code>left</code> without decrementing leaves a ghost count, so the window never looks valid.</td></tr><tr><td data-h="Line"><code>best_length = max(best_length, right - left + 1)</code></td><td data-h="What it does">Records the valid window's length.</td><td data-h="In the story">Measure after the repair.</td><td data-h="Why here, and what breaks if it moves">Measuring before the repair counts an invalid window.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>s = "abcabcbb"</code>.</p>
+    <div id="tl-03b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-03b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After the <code>while</code> loop, <code>s[left..right]</code> has no repeated character and is the longest such window ending at <code>right</code>.</p>
+    <p><strong>Complexity.</strong> O(n) time: <code>left</code> and <code>right</code> each move at most n times. O(alphabet) space for counts.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong><code>if</code> instead of <code>while</code> for the repair.</strong> "Shrink <em>until</em> it's fixed".</li><li><strong>Recording before repairing.</strong> Measure only valid windows.</li><li><strong>Forgetting to decrement the leaving character.</strong> The left hand must actually take the note out.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Grow the right; shrink the left until fixed; then measure.</dd>
+      <dt>Choose this template when</dt><dd>"Longest … such that" with a rule that only breaks when growing → B.</dd>
+      <dt>Invariant</dt><dd>After the repair loop, the window is valid.</dd>
+      <dt>The line people get wrong</dt><dd>Recording after (not before) the <code>while</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>For "abcabcbb", what's the window after reading the second 'a'?</summary><p>"bca": left moves past the first 'a'.</p></details><details><summary>Why is this O(n) despite the nested while?</summary><p>left only moves forward; total moves ≤ n.</p></details><details><summary>What changes for "at most 2 distinct"?</summary><p>The repair condition: while len(counts with >0) > 2.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Variable size, SHORTEST valid window (sum ≥ target)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>What's the shortest stretch whose sum is at least <code>target</code> (positive numbers)?</div><div><b>What it keeps</b><code>window_sum</code>, <code>left</code>, and the best (smallest) length.</div><div><b>When it checks for an answer</b>Inside the shrinking loop: every time the window is valid, record, then try smaller.</div><div><b>Use it when</b>"Minimum length subarray such that…" when growing helps the rule and shrinking hurts it (positive numbers).</div><div><b>Not for</b>Arrays with negative numbers (the sum isn't monotonic; use Prefix Sum + monotonic deque).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Grow until it's good enough, then squeeze while it stays good"</strong>Filling a bucket with cups of water: keep pouring until it reaches the line. Then pour cups back out from the oldest side, recording the size each time it's still at the line.</div>
+    <p><strong>The story, mapped to the code.</strong> Each number is a cup of water; the window is the bucket.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Pour a cup in</td><td data-h="In the code"><code>window_sum += nums[right]</code></td><td data-h="What it means">Expand.</td></tr><tr><td data-h="In the story">Water reached the line</td><td data-h="In the code"><code>window_sum &gt;= target</code></td><td data-h="What it means">The window is valid.</td></tr><tr><td data-h="In the story">Record the bucket's cup count</td><td data-h="In the code"><code>best_length = min(best_length, right - left + 1)</code></td><td data-h="What it means">A candidate answer.</td></tr><tr><td data-h="In the story">Pour the oldest cup out</td><td data-h="In the code"><code>window_sum -= nums[left]; left += 1</code></td><td data-h="What it means">Try a shorter window.</td></tr><tr><td data-h="In the story">No bucket ever filled</td><td data-h="In the code"><code>best_length == inf → 0</code></td><td data-h="What it means">No valid window.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Notice the order inside the <code>while</code>: record first, then shrink.</p>
+    <pre><code class="python">def shortest_valid(nums, target):
+    left, window_sum = 0, 0
+    best_length = float("inf")
     for right in range(len(nums)):
-        # 1. EXPAND: put nums[right] into the window
-        window_sum = window_sum + nums[right]
-        # 2. SHRINK WHILE VALID: record first, then try to make it shorter
+        window_sum += nums[right]
         while window_sum &gt;= target:
-            window_length = right - left + 1
-            if window_length &lt; best_length:
-                best_length = window_length
-            window_sum = window_sum - nums[left]    # take nums[left] out
-            left = left + 1
-    # Never valid? The convention is to return 0
-    if best_length == float("inf"):
-        return 0
-    else:
-        return best_length</code></pre>
-        <!-- explain:template:start -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<p><em>A) Fixed size <code>k</code></em></p>
-<ol>
-  <li><code>window_sum = 0</code> and the first <code>for i in range(k)</code> loop add up <code>nums[0]</code> … <code>nums[k-1]</code>: that is the very first window.</li>
-  <li><code>best_sum = window_sum</code>: the first window is automatically the best one we have seen so far.</li>
-  <li><code>for right in range(k, len(nums))</code>: <code>right</code> is the index of the number that slides <em>in</em>. The number that slides <em>out</em> is exactly <code>k</code> places behind it, at <code>right - k</code>.</li>
-  <li><code>window_sum = window_sum + entering - leaving</code>: instead of re-adding all <code>k</code> numbers, we add one and subtract one. That's the whole trick.</li>
-  <li><code>if window_sum &gt; best_sum</code>: remember the biggest window sum. At the end, return it.</li>
-</ol>
-<p><em>B) Variable size, LONGEST valid window</em></p>
-<ol>
-  <li><code>counts</code> is the window's state: for every character, how many copies are inside <code>s[left..right]</code>. <code>left</code> starts at 0 and <code>best_length</code> at 0.</li>
-  <li><code>for right in range(len(s))</code>: every loop step grows the window by one character on the right.</li>
-  <li><code>if ch not in counts: counts[ch] = 0</code> then <code>counts[ch] = counts[ch] + 1</code>: the standard two-step way to count with a plain dict (make the key exist, then add 1).</li>
-  <li><code>while counts[ch] &gt; 1</code>: the new character is now a duplicate, so the window breaks the rule. Remove <code>s[left]</code> from the counts and move <code>left</code> forward, again and again, until the duplicate is gone. It's a <code>while</code>, not an <code>if</code>, because one step may not be enough.</li>
-  <li>After the loop the window is valid again, so measure <code>right - left + 1</code> and keep it if it's the longest so far.</li>
-</ol>
-<p><em>C) Variable size, SHORTEST valid window</em></p>
-<ol>
-  <li><code>best_length = float("inf")</code>: "infinity" is a placeholder meaning "no valid window found yet"; any real length is smaller.</li>
-  <li>Each step adds <code>nums[right]</code> to <code>window_sum</code> (grow).</li>
-  <li><code>while window_sum &gt;= target</code>: the window is valid. Record its length <em>first</em> (it might be the shortest), then subtract <code>nums[left]</code> and move <code>left</code> to try an even shorter window.</li>
-  <li>At the end, if <code>best_length</code> is still infinity no window ever worked, so return 0; otherwise return <code>best_length</code>.</li>
-</ol>
-<p><strong>Dry run</strong> of template A on the example: <code>nums = [2, 1, 5, 1, 3, 2]</code>, <code>k = 3</code> → returns <code>9</code></p>
-<table>
-  <thead><tr>
-<th>Step</th>
-<th>Window</th>
-<th>entering</th>
-<th>leaving</th>
-<th>window_sum</th>
-<th>best_sum</th>
-</tr></thead>
-  <tbody>
-    <tr><td>first window</td><td>[2, 1, 5]</td><td>–</td><td>–</td><td>8</td><td>8</td></tr>
-    <tr><td>right = 3</td><td>[1, 5, 1]</td><td>1</td><td>2</td><td>7</td><td>8</td></tr>
-    <tr><td>right = 4</td><td>[5, 1, 3]</td><td>3</td><td>1</td><td>9</td><td>9</td></tr>
-    <tr><td>right = 5</td><td>[1, 3, 2]</td><td>2</td><td>5</td><td>6</td><td>9</td></tr>
-  </tbody>
-</table>
-<p><strong>Dry run</strong> of template B on the example: <code>s = "abcabcbb"</code> → returns <code>3</code></p>
-<table>
-  <thead><tr>
-<th>right</th>
-<th>ch</th>
-<th>removed while shrinking</th>
-<th>left</th>
-<th>window</th>
-<th>best_length</th>
-</tr></thead>
-  <tbody>
-    <tr><td>0</td><td>'a'</td><td>–</td><td>0</td><td>'a'</td><td>1</td></tr>
-    <tr><td>1</td><td>'b'</td><td>–</td><td>0</td><td>'ab'</td><td>2</td></tr>
-    <tr><td>2</td><td>'c'</td><td>–</td><td>0</td><td>'abc'</td><td>3</td></tr>
-    <tr><td>3</td><td>'a'</td><td>'a'</td><td>1</td><td>'bca'</td><td>3</td></tr>
-    <tr><td>4</td><td>'b'</td><td>'b'</td><td>2</td><td>'cab'</td><td>3</td></tr>
-    <tr><td>5</td><td>'c'</td><td>'c'</td><td>3</td><td>'abc'</td><td>3</td></tr>
-    <tr><td>6</td><td>'b'</td><td>'a', 'b'</td><td>5</td><td>'cb'</td><td>3</td></tr>
-    <tr><td>7</td><td>'b'</td><td>'c', 'b'</td><td>7</td><td>'b'</td><td>3</td></tr>
-  </tbody>
-</table>
-<p>Template C is traced step by step in problem 209 below.</p>
-        <!-- explain:template:end -->
-        <!-- 6 -->
+            best_length = min(best_length, right - left + 1)
+            window_sum -= nums[left]
+            left += 1
+    return 0 if best_length == float("inf") else best_length</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function shortestValid(nums: number[], target: number): number {
+  let left = 0, windowSum = 0;
+  let bestLength = Infinity;
+  for (let right = 0; right &lt; nums.length; right++) {
+    windowSum += nums[right];
+    while (windowSum &gt;= target) {
+      bestLength = Math.min(bestLength, right - left + 1);
+      windowSum -= nums[left];
+      left++;
+    }
+  }
+  return bestLength === Infinity ? 0 : bestLength;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int shortestValid(int[] nums, int target) {
+    int left = 0, windowSum = 0;
+    int bestLength = Integer.MAX_VALUE;
+    for (int right = 0; right &lt; nums.length; right++) {
+        windowSum += nums[right];
+        while (windowSum &gt;= target) {
+            bestLength = Math.min(bestLength, right - left + 1);
+            windowSum -= nums[left];
+            left++;
+        }
+    }
+    return bestLength == Integer.MAX_VALUE ? 0 : bestLength;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>window_sum += nums[right]</code></td><td data-h="What it does">Pours the next cup in.</td><td data-h="In the story">Expand.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>while window_sum &gt;= target</code></td><td data-h="What it does">Keeps squeezing while still valid.</td><td data-h="In the story">Is the water still at the line?</td><td data-h="Why here, and what breaks if it moves">An <code>if</code> squeezes only once and misses shorter windows (see the bug player).</td></tr><tr><td data-h="Line"><code>best_length = min(best_length, right - left + 1)</code></td><td data-h="What it does">Records the valid window.</td><td data-h="In the story">Count the cups.</td><td data-h="Why here, and what breaks if it moves">Recording after shrinking measures a window that may no longer be valid.</td></tr><tr><td data-h="Line"><code>window_sum -= nums[left]; left += 1</code></td><td data-h="What it does">Removes the oldest cup.</td><td data-h="In the story">Pour out from the old side.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return 0 if best_length == inf else best_length</code></td><td data-h="What it does">Handles "never valid".</td><td data-h="In the story">The bucket never filled.</td><td data-h="Why here, and what breaks if it moves">Returning inf fails the judge's expected 0.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [2, 3, 1, 2, 4, 3]</code>, <code>target = 7</code>. The second player shows what <code>if</code> instead of <code>while</code> does.</p>
+    <div id="tl-03c"></div><div id="tl-03c-bug"></div><p>With <code>if</code>, the window drops only one cup after the 5 arrives, so it never reaches the window <code>[5]</code> alone: the answer becomes 4 instead of 1.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-03c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When the <code>while</code> loop exits, <code>nums[left..right]</code> sums to less than target, and every valid window ending at <code>right</code> has already been recorded.</p>
+    <p><strong>Complexity.</strong> O(n) time (each index enters and leaves once), O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong><code>if</code> instead of <code>while</code>.</strong> "Squeeze <em>while</em> it stays good".</li><li><strong>Record after shrinking.</strong> Record, then pour out.</li><li><strong>Using it with negative numbers.</strong> Pouring out a negative cup raises the water: the story breaks.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Grow until good enough, squeeze while it stays good.</dd>
+      <dt>Choose this template when</dt><dd>"Shortest … with sum ≥ target", positive numbers → C.</dd>
+      <dt>Invariant</dt><dd>After the loop, the window is just below the target.</dd>
+      <dt>The line people get wrong</dt><dd><code>while window_sum >= target</code> with record-then-shrink inside.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Difference between B and C in one line?</summary><p>B shrinks while invalid and records after; C shrinks while valid and records inside.</p></details><details><summary>Answer for [2,3,1,2,4,3], target 7?</summary><p>2 ([4, 3]).</p></details><details><summary>Why must numbers be positive?</summary><p>So adding always grows the sum and removing always shrinks it.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · fixed k</th><th>B · longest valid</th><th>C · shortest valid</th></tr></thead><tbody><tr><td data-h="Question">Window size decided by</td><td data-h="A · fixed k">Given k</td><td data-h="B · longest valid">Grows; shrinks when the rule breaks</td><td data-h="C · shortest valid">Grows; shrinks while the rule still holds</td></tr><tr><td data-h="Question">Shrink condition</td><td data-h="A · fixed k">Always one out per one in</td><td data-h="B · longest valid"><code>while</code> invalid</td><td data-h="C · shortest valid"><code>while</code> valid</td></tr><tr><td data-h="Question">When the answer is recorded</td><td data-h="A · fixed k">After each slide</td><td data-h="B · longest valid">After the repair loop</td><td data-h="C · shortest valid">Inside the shrink loop, before shrinking</td></tr><tr><td data-h="Question">State kept</td><td data-h="A · fixed k">Running sum</td><td data-h="B · longest valid">Counts / last positions</td><td data-h="C · shortest valid">Running sum</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · fixed k">Max sum of k consecutive (LC 643)</td><td data-h="B · longest valid">Longest substring without repeats (LC 3)</td><td data-h="C · shortest valid">Minimum size subarray sum (LC 209)</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · fixed k">O(n) / O(1)</td><td data-h="B · longest valid">O(n) / O(alphabet)</td><td data-h="C · shortest valid">O(n) / O(1)</td></tr></tbody></table>
+    <p>Find the word in the prompt: "k consecutive" → A; "longest" → B; "shortest/minimum length" → C. B and C mirror each other: B records after fixing a broken window, C records while squeezing a good one.</p>
+
+    <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
     <div class="callout memory"><strong>Memory hook: "Caterpillar crawl"</strong>The head (right) always stretches forward; the tail (left) scrunches up only when it has to. The caterpillar never walks backwards.</div>
     <!-- hookx:start -->
@@ -8714,6 +8773,97 @@ abs(nums[i] - nums[j]) &lt;= valueDiff --&gt; abs(1 - 1) &lt;= 0</span></div></d
   if (typeof location !== "undefined") openTarget(location.hash);
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl3A(nums, k) {
+    let ws = 0; for (let i = 0; i < k; i++) ws += nums[i];
+    let best = ws; const steps = [], rows = [[k - 1, "—", "—", ws, best]];
+    const view = (l, r, hl) => Viz.array(nums, { label: "nums", ptrs: { [l]: "left", [r]: l === r ? "L=R" : "right" }, hl: Object.assign(Object.fromEntries(nums.map((_, i) => [i, i >= l && i <= r ? "window" : ""])), hl || {}) });
+    steps.push({ line: ["first", "best0"], vars: { window_sum: ws, best_sum: best }, view: view(0, k - 1), analogy: `First view: ${nums.slice(0, k).join(" + ")} = <b>${ws}</b>.`, note: `<code>window_sum = ${ws}</code>, <code>best_sum = ${ws}</code>.` });
+    for (let right = k; right < nums.length; right++) {
+      const inn = nums[right], out = nums[right - k]; ws += inn - out; const nb = Math.max(best, ws);
+      steps.push({ line: ["loop", "slide"], vars: { right, entering: inn, leaving: out, window_sum: ws }, view: view(right - k + 1, right, { [right]: "active", [right - k]: "bad" }),
+        analogy: `House ${inn} appears, house ${out} disappears: ${ws - inn + out} + ${inn} − ${out} = <b>${ws}</b>.`, note: `<code>window_sum += nums[${right}] − nums[${right - k}]</code> → ${ws}.`,
+        ask: { q: "New window_sum?", options: [...new Set([ws, ws + out, ws - inn + out, ws + 1])].map(String), answer: ws, why: `+${inn} −${out}.` } });
+      steps.push({ line: "best", vars: { window_sum: ws, best_sum: nb }, view: view(right - k + 1, right, nb === ws && ws > best ? Object.fromEntries(nums.map((_, i) => [i, i > right - k && i <= right ? "found" : ""])) : {}),
+        analogy: ws > best ? `Best view yet: <b>${ws}</b>.` : `Not better than ${best}.`, note: `<code>best_sum = max(${best}, ${ws}) = ${nb}</code>.` });
+      best = nb; rows.push([right, inn, out, ws, best]);
+    }
+    steps.push({ line: "ret", vars: { best_sum: best }, view: view(nums.length - k, nums.length - 1), analogy: `Best view: <b>${best}</b>.`, note: `Return <code>${best}</code>.` });
+    return { steps, table: { head: ["right", "Entering", "Leaving", "window_sum", "best_sum"], rows } };
+  }
+
+  function tl3B(s) {
+    const chars = [...s], counts = new Map(), steps = [], rows = []; let left = 0, best = 0;
+    const view = (r, hl) => Viz.array(chars, { label: "s", ptrs: Object.assign({ [left]: left === r ? "L=R" : "left" }, r !== left ? { [r]: "right" } : {}), hl: Object.assign(Object.fromEntries(chars.map((_, i) => [i, i >= left && i <= r ? "window" : ""])), hl || {}) })
+      + Viz.chips([...counts.entries()].filter(([, c]) => c > 0).map(([ch, c]) => `${ch}: ${c}`), "counts in window");
+    steps.push({ line: "init", vars: { left, best_length: 0 }, view: view(-1), analogy: "The accordion is closed.", note: "<code>counts = {}</code>, <code>left = 0</code>, <code>best_length = 0</code>." });
+    chars.forEach((ch, r) => {
+      counts.set(ch, (counts.get(ch) || 0) + 1);
+      const clash = counts.get(ch) > 1;
+      steps.push({ line: ["loop", "expand", "check"], vars: { right: r, ch, [`counts[${ch}]`]: counts.get(ch), left }, view: view(r, { [r]: clash ? "bad" : "active" }),
+        analogy: clash ? `'${ch}' is already inside: a clash.` : `Pull out: '${ch}' joins, no clash.`, note: `Add <code>'${ch}'</code>; <code>counts['${ch}'] = ${counts.get(ch)}</code>.`,
+        ask: { q: "Is there a clash (counts[ch] > 1)?", options: ["yes", "no"], answer: clash ? "yes" : "no", why: clash ? `'${ch}' was already in the window.` : `'${ch}' is new.` } });
+      let removed = [];
+      while (counts.get(ch) > 1) { removed.push(chars[left]); counts.set(chars[left], counts.get(chars[left]) - 1); left++; }
+      if (removed.length) steps.push({ line: ["check", "shrink"], vars: { left, removed: removed.join("") }, view: view(r), analogy: `Push the left hand in past ${removed.map((c) => `'${c}'`).join(", ")}: clash gone.`, note: `Removed <code>${removed.join("")}</code>; <code>left = ${left}</code>.` });
+      const len = r - left + 1, nb = Math.max(best, len);
+      steps.push({ line: "record", vars: { window: chars.slice(left, r + 1).join(""), length: len, best_length: nb }, view: view(r, nb > best ? Object.fromEntries(chars.map((_, i) => [i, i >= left && i <= r ? "found" : ""])) : {}),
+        analogy: `Width ${len}${nb > best ? ": the widest so far." : "."}`, note: `<code>best_length = max(${best}, ${len}) = ${nb}</code>.`,
+        ask: { q: "Window length right − left + 1?", options: [...new Set([len, len + 1, r + 1])].map(String), answer: len, why: `${r} − ${left} + 1.` } });
+      best = nb; rows.push([r, ch, removed.length ? removed.join("") : "—", left, `"${chars.slice(left, r + 1).join("")}"`, best]);
+    });
+    steps.push({ line: "ret", vars: { best_length: best }, view: view(chars.length - 1), analogy: `Widest valid window: <b>${best}</b>.`, note: `Return <code>${best}</code>.` });
+    return { steps, table: { head: ["right", "Char in", "Removed from left", "left", "Window", "best_length"], rows } };
+  }
+
+  function tl3C(nums, target, buggy) {
+    let left = 0, ws = 0, best = Infinity; const steps = [], rows = [];
+    const B = () => best === Infinity ? "inf" : best;
+    const view = (r, hl) => Viz.array(nums, { label: "nums", ptrs: r >= 0 ? Object.assign({ [left]: left === r ? "L=R" : "left" }, r !== left ? { [r]: "right" } : {}) : {}, hl: Object.assign(Object.fromEntries(nums.map((_, i) => [i, i >= left && i <= r ? "window" : ""])), hl || {}) });
+    steps.push({ line: "init", vars: { left, window_sum: 0, best_length: "inf" }, view: view(-1), analogy: `Empty bucket; the line is at <b>${target}</b>.`, note: "Start empty; <code>best_length = inf</code> means \"none yet\"." });
+    nums.forEach((v, r) => {
+      ws += v;
+      steps.push({ line: ["loop", "expand"], vars: { right: r, window_sum: ws }, view: view(r, { [r]: "active" }), analogy: `Pour in ${v}: water at <b>${ws}</b>${ws >= target ? " (at or above the line)" : ""}.`, note: `<code>window_sum = ${ws}</code>.`,
+        ask: { q: `Is window_sum ≥ ${target}?`, options: ["yes", "no"], answer: ws >= target ? "yes" : "no", why: `${ws} vs ${target}.` } });
+      const recs = [];
+      let go = ws >= target;
+      while (go) {
+        const len = r - left + 1; best = Math.min(best, len); recs.push(len);
+        steps.push({ line: ["check", "record"], vars: { window: `[${nums.slice(left, r + 1).join(", ")}]`, length: len, best_length: B() }, view: view(r, Object.fromEntries(nums.map((_, i) => [i, i >= left && i <= r ? "found" : ""]))),
+          analogy: `Still at the line with ${len} cup${len > 1 ? "s" : ""}: record it.`, note: `<code>best_length = ${B()}</code>.` });
+        ws -= nums[left]; left++;
+        steps.push({ line: "shrink", vars: { left, window_sum: ws }, view: view(r), analogy: `Pour out the oldest cup (${nums[left - 1]}): water at ${ws}.`, note: `<code>window_sum = ${ws}</code>, <code>left = ${left}</code>.` });
+        go = !buggy && ws >= target;
+      }
+      rows.push([r, v, recs.length ? recs.join(", ") : "—", left, ws, B()]);
+    });
+    const ans = best === Infinity ? 0 : best;
+    steps.push({ line: "ret", vars: { result: ans }, view: view(nums.length - 1), analogy: `Smallest bucket that reached the line: <b>${ans}</b>.`, note: `Return <code>${ans}</code>.` });
+    return { steps, table: { head: ["right", "Number in", "Lengths recorded", "left after", "window_sum after", "best_length"], rows } };
+  }
+
+  { const run = tl3A([2, 1, 5, 1, 3, 2], 3);
+    Viz.tlab("#tl-03a", { title: "Template A \u00b7 nums = [2, 1, 5, 1, 3, 2], k = 3", sub: "Teal = the window; blue = entering; red = leaving.", code: {"py": [[null, "def max_sum_fixed(nums, k):"], ["first", "    window_sum = sum(nums[:k])"], ["best0", "    best_sum = window_sum"], ["loop", "    for right in range(k, len(nums)):"], ["slide", "        window_sum += nums[right] - nums[right - k]"], ["best", "        best_sum = max(best_sum, window_sum)"], ["ret", "    return best_sum"]], "ts": [[null, "function maxSumFixed(nums: number[], k: number): number {"], [null, "  let windowSum = 0;"], ["first", "  for (let i = 0; i < k; i++) windowSum += nums[i];"], ["best0", "  let bestSum = windowSum;"], ["loop", "  for (let right = k; right < nums.length; right++) {"], ["slide", "    windowSum += nums[right] - nums[right - k];"], ["best", "    bestSum = Math.max(bestSum, windowSum);"], [null, "  }"], ["ret", "  return bestSum;"], [null, "}"]], "java": [[null, "static int maxSumFixed(int[] nums, int k) {"], [null, "    int windowSum = 0;"], ["first", "    for (int i = 0; i < k; i++) windowSum += nums[i];"], ["best0", "    int bestSum = windowSum;"], ["loop", "    for (int right = k; right < nums.length; right++) {"], ["slide", "        windowSum += nums[right] - nums[right - k];"], ["best", "        bestSum = Math.max(bestSum, windowSum);"], [null, "    }"], ["ret", "    return bestSum;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-03a-table").innerHTML = TL.table(run.table); }
+  { const run = tl3B('abcabcbb');
+    Viz.tlab("#tl-03b", { title: "Template B \u00b7 s = \"abcabcbb\"", sub: "Teal = window; blue = entering; red = a clash.", code: {"py": [[null, "def longest_valid(s):"], ["init", "    counts = {}"], ["init", "    left = best_length = 0"], ["loop", "    for right in range(len(s)):"], ["expand", "        ch = s[right]"], ["expand", "        counts[ch] = counts.get(ch, 0) + 1"], ["check", "        while counts[ch] > 1:"], ["shrink", "            counts[s[left]] -= 1"], ["shrink", "            left += 1"], ["record", "        best_length = max(best_length, right - left + 1)"], ["ret", "    return best_length"]], "ts": [[null, "function longestValid(s: string): number {"], ["init", "  const counts = new Map<string, number>();"], ["init", "  let left = 0, bestLength = 0;"], ["loop", "  for (let right = 0; right < s.length; right++) {"], ["expand", "    const ch = s[right];"], ["expand", "    counts.set(ch, (counts.get(ch) ?? 0) + 1);"], ["check", "    while (counts.get(ch)! > 1) {"], ["shrink", "      counts.set(s[left], counts.get(s[left])! - 1);"], ["shrink", "      left++;"], [null, "    }"], ["record", "    bestLength = Math.max(bestLength, right - left + 1);"], [null, "  }"], ["ret", "  return bestLength;"], [null, "}"]], "java": [[null, "static int longestValid(String s) {"], ["init", "    Map<Character, Integer> counts = new HashMap<>();"], ["init", "    int left = 0, bestLength = 0;"], ["loop", "    for (int right = 0; right < s.length(); right++) {"], ["expand", "        char ch = s.charAt(right);"], ["expand", "        counts.merge(ch, 1, Integer::sum);"], ["check", "        while (counts.get(ch) > 1) {"], ["shrink", "            counts.merge(s.charAt(left), -1, Integer::sum);"], ["shrink", "            left++;"], [null, "        }"], ["record", "        bestLength = Math.max(bestLength, right - left + 1);"], [null, "    }"], ["ret", "    return bestLength;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-03b-table").innerHTML = TL.table(run.table); }
+  { const run = tl3C([2, 3, 1, 2, 4, 3], 7, false);
+    Viz.tlab("#tl-03c", { title: "Template C \u00b7 nums = [2, 3, 1, 2, 4, 3], target = 7", sub: "Teal = window; green = valid window recorded.", code: {"py": [[null, "def shortest_valid(nums, target):"], ["init", "    left, window_sum = 0, 0"], ["init", "    best_length = float(\"inf\")"], ["loop", "    for right in range(len(nums)):"], ["expand", "        window_sum += nums[right]"], ["check", "        while window_sum >= target:"], ["record", "            best_length = min(best_length, right - left + 1)"], ["shrink", "            window_sum -= nums[left]"], ["shrink", "            left += 1"], ["ret", "    return 0 if best_length == float(\"inf\") else best_length"]], "ts": [[null, "function shortestValid(nums: number[], target: number): number {"], ["init", "  let left = 0, windowSum = 0;"], ["init", "  let bestLength = Infinity;"], ["loop", "  for (let right = 0; right < nums.length; right++) {"], ["expand", "    windowSum += nums[right];"], ["check", "    while (windowSum >= target) {"], ["record", "      bestLength = Math.min(bestLength, right - left + 1);"], ["shrink", "      windowSum -= nums[left];"], ["shrink", "      left++;"], [null, "    }"], [null, "  }"], ["ret", "  return bestLength === Infinity ? 0 : bestLength;"], [null, "}"]], "java": [[null, "static int shortestValid(int[] nums, int target) {"], ["init", "    int left = 0, windowSum = 0;"], ["init", "    int bestLength = Integer.MAX_VALUE;"], ["loop", "    for (int right = 0; right < nums.length; right++) {"], ["expand", "        windowSum += nums[right];"], ["check", "        while (windowSum >= target) {"], ["record", "            bestLength = Math.min(bestLength, right - left + 1);"], ["shrink", "            windowSum -= nums[left];"], ["shrink", "            left++;"], [null, "        }"], [null, "    }"], ["ret", "    return bestLength == Integer.MAX_VALUE ? 0 : bestLength;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-03c-table").innerHTML = TL.table(run.table); }
+  { const run = tl3C([1, 1, 1, 5], 5, false);
+    Viz.tlab("#tl-03c-bug", { title: "Why while, not if \u00b7 nums = [1, 1, 1, 5], target = 5", sub: "Switch between while and if.", code: {"py": [[null, "def shortest_valid(nums, target):"], ["init", "    left, window_sum = 0, 0"], ["init", "    best_length = float(\"inf\")"], ["loop", "    for right in range(len(nums)):"], ["expand", "        window_sum += nums[right]"], ["check", "        while window_sum >= target:"], ["record", "            best_length = min(best_length, right - left + 1)"], ["shrink", "            window_sum -= nums[left]"], ["shrink", "            left += 1"], ["ret", "    return 0 if best_length == float(\"inf\") else best_length"]], "ts": [[null, "function shortestValid(nums: number[], target: number): number {"], ["init", "  let left = 0, windowSum = 0;"], ["init", "  let bestLength = Infinity;"], ["loop", "  for (let right = 0; right < nums.length; right++) {"], ["expand", "    windowSum += nums[right];"], ["check", "    while (windowSum >= target) {"], ["record", "      bestLength = Math.min(bestLength, right - left + 1);"], ["shrink", "      windowSum -= nums[left];"], ["shrink", "      left++;"], [null, "    }"], [null, "  }"], ["ret", "  return bestLength === Infinity ? 0 : bestLength;"], [null, "}"]], "java": [[null, "static int shortestValid(int[] nums, int target) {"], ["init", "    int left = 0, windowSum = 0;"], ["init", "    int bestLength = Integer.MAX_VALUE;"], ["loop", "    for (int right = 0; right < nums.length; right++) {"], ["expand", "        windowSum += nums[right];"], ["check", "        while (windowSum >= target) {"], ["record", "            bestLength = Math.min(bestLength, right - left + 1);"], ["shrink", "            windowSum -= nums[left];"], ["shrink", "            left++;"], [null, "        }"], [null, "    }"], ["ret", "    return bestLength == Integer.MAX_VALUE ? 0 : bestLength;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: if instead of while", code: {"py": [[null, "def shortest_valid(nums, target):"], ["init", "    left, window_sum = 0, 0"], ["init", "    best_length = float(\"inf\")"], ["loop", "    for right in range(len(nums)):"], ["expand", "        window_sum += nums[right]"], ["check", "        if window_sum >= target:"], ["record", "            best_length = min(best_length, right - left + 1)"], ["shrink", "            window_sum -= nums[left]"], ["shrink", "            left += 1"], ["ret", "    return 0 if best_length == float(\"inf\") else best_length"]]}, steps: tl3C([1, 1, 1, 5], 5, true).steps, diverge: undefined, why: "the window is still valid, but <code>if</code> stops squeezing after one cup." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

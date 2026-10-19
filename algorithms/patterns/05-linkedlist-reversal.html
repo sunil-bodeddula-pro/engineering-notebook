@@ -506,9 +506,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tlab { margin: 14px 0; }
 .tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
 .tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
-.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
-.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
-.tl-code code { display: block; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .78rem; line-height: 1.55; max-height: none; overflow-x: auto; }
+.tl-code code { display: inline-block; min-width: 100%; }
 .tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
 .tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
 .tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
@@ -516,7 +516,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button + button { border-left: 1px solid var(--line); }
 .tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
+.tl-side > * { max-width: 100%; }
+.tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
 .tlab.tl-noexpl .note { display: none; }
@@ -1070,6 +1072,10 @@ svg.flow .fn { transition: opacity .35s ease; }
     try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
     if (!cfg.code[lang]) lang = "py";
     root.classList.add("tlab");
+    if (cfg.bug && cfg.bug.diverge === undefined) {
+      const key = (st) => st ? JSON.stringify([st.line, st.vars]) : "";
+      cfg.bug.diverge = cfg.bug.steps.findIndex((st, k) => key(st) !== key(cfg.steps[k]));
+    }
     root.innerHTML = `<div class="tl-bar">
         <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
@@ -2296,93 +2302,130 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(n)</code> time (each node's arrow is flipped once), <code>O(1)</code> extra space. The recursive version is also <code>O(n)</code> time but uses <code>O(n)</code> call-stack space.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Reverse the whole list with three pointers.
-def reverse(head):
-    # prev_node = the front of the part we have ALREADY reversed.
-    # Nothing is reversed yet, so it starts as None
-    # (the old head becomes the new tail, and a tail points at None).
-    prev_node = None
-    # current = the node whose arrow we are about to flip.
-    current = head
-    # Keep going until we walk off the end of the list.
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>In-place reversal has two templates. <strong>A</strong> flips every arrow in the list using three pointers. <strong>B</strong> reverses only positions <code>left..right</code>: a dummy node stands in front, and nodes are moved one at a time to the front of the section ("head insertion"). Both change arrows, never values, and both use O(1) extra space.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Reverse the whole list (three pointers)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Reverse a singly linked list and return the new head.</div><div><b>What it keeps</b><code>prev_node</code> (front of the reversed part), <code>current</code> (node to flip), <code>next_node</code> (saved rest).</div><div><b>When it checks for an answer</b>Ends when <code>current</code> walks off the end; <code>prev_node</code> is the new head.</div><div><b>Use it when</b>Reverse a list, or a building block for palindrome checks, reorder list, add two numbers.</div><div><b>Not for</b>Reversing only part of the list in place (B), or when you may build a new list.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Save, flip, step, step"</strong>Turning a conga line around one person at a time: before you turn someone, grab the shoulder of the next person (save), turn them to face the line behind (flip), then you step forward (prev) and move to the next person (current).</div>
+    <p><strong>The story, mapped to the code.</strong> Each node is a person holding the shoulder of the person ahead (<code>next</code>).</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">People already turned around</td><td data-h="In the code"><code>prev_node</code></td><td data-h="What it means">Front of the reversed part (starts as None).</td></tr><tr><td data-h="In the story">The person being turned</td><td data-h="In the code"><code>current</code></td><td data-h="What it means">Node whose arrow flips now.</td></tr><tr><td data-h="In the story">Hand on the next person's shoulder</td><td data-h="In the code"><code>next_node = current.next</code></td><td data-h="What it means">Saved before the flip, or the rest is lost.</td></tr><tr><td data-h="In the story">Turn them around</td><td data-h="In the code"><code>current.next = prev_node</code></td><td data-h="What it means">Flip the arrow.</td></tr><tr><td data-h="In the story">Everyone turned</td><td data-h="In the code"><code>current is None → return prev_node</code></td><td data-h="What it means">The old tail is the new head.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Four lines inside the loop, always in this order.</p>
+    <pre><code class="python">def reverse(head):
+    prev_node, current = None, head
     while current is not None:
-        # 1. SAVE the rest of the list. The next line overwrites
-        #    current.next, and without this we would lose the rest forever.
         next_node = current.next
-        # 2. FLIP the arrow: current now points backwards.
         current.next = prev_node
-        # 3. STEP prev_node forward: current is the new front of the reversed part.
         prev_node = current
-        # 4. STEP current forward: move on to the saved rest of the list.
         current = next_node
-    # current is None now. prev_node is the old tail, which is the new head.
-    return prev_node
-
-
-# B) Reverse only positions left..right (1-indexed) with a dummy node
-#    and "head insertion".
-def reverse_between(head, left, right):
-    # A dummy node in front of head guarantees that a node BEFORE the part
-    # always exists, even when left == 1.
+    return prev_node</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function reverse(head: ListNode | null): ListNode | null {
+  let prevNode: ListNode | null = null, current = head;
+  while (current !== null) {
+    const nextNode = current.next;
+    current.next = prevNode;
+    prevNode = current;
+    current = nextNode;
+  }
+  return prevNode;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static ListNode reverse(ListNode head) {
+    ListNode prevNode = null, current = head;
+    while (current != null) {
+        ListNode nextNode = current.next;
+        current.next = prevNode;
+        prevNode = current;
+        current = nextNode;
+    }
+    return prevNode;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>prev_node, current = None, head</code></td><td data-h="What it does">Nothing reversed yet; start at the head.</td><td data-h="In the story">No one has turned yet.</td><td data-h="Why here, and what breaks if it moves">Starting prev at head makes the old head point to itself: a cycle.</td></tr><tr><td data-h="Line"><code>next_node = current.next</code></td><td data-h="What it does">Saves the rest of the list.</td><td data-h="In the story">Grab the next shoulder.</td><td data-h="Why here, and what breaks if it moves">Skip it and the flip below loses the rest of the list (see the bug player).</td></tr><tr><td data-h="Line"><code>current.next = prev_node</code></td><td data-h="What it does">Flips one arrow.</td><td data-h="In the story">Turn this person around.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>prev_node = current</code></td><td data-h="What it does">The reversed part now starts here.</td><td data-h="In the story">The turned group grows.</td><td data-h="Why here, and what breaks if it moves">Swapping this with the next line moves prev to the wrong node.</td></tr><tr><td data-h="Line"><code>current = next_node</code></td><td data-h="What it does">Moves to the saved rest.</td><td data-h="In the story">Walk to the next person.</td><td data-h="Why here, and what breaks if it moves"><code>current = current.next</code> follows the <em>flipped</em> arrow backwards.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>1 → 2 → 3 → 4</code>. Arrows pointing left (orange) have been flipped. The second player removes the <em>save</em> line.</p>
+    <div id="tl-05a"></div><div id="tl-05a-bug"></div><p>Without <code>next_node</code>, after flipping node 1 its <code>next</code> is None, so <code>current = current.next</code> ends the loop. The result is just <code>[1]</code>: nodes 2 and 3 are lost.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-05a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the top of each loop, <code>prev_node</code> heads the reversed copy of everything before <code>current</code>, and <code>current</code> heads the untouched rest. No node belongs to both and none is lost.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Not saving <code>current.next</code>.</strong> Save, flip, step, step.</li><li><strong>Returning <code>head</code>.</strong> The old head is now the tail; return <code>prev_node</code>.</li><li><strong>Starting <code>prev_node = head</code>.</strong> Nobody has turned yet: None.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Save, flip, step, step.</dd>
+      <dt>Choose this template when</dt><dd>Reverse a list or a run of nodes in place → A.</dd>
+      <dt>Invariant</dt><dd>prev heads the reversed part, current heads the rest.</dd>
+      <dt>The line people get wrong</dt><dd><code>next_node = current.next</code> must come before the flip.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>What does <code>prev_node</code> hold after the loop?</summary><p>The old tail, which is the new head.</p></details><details><summary>Why is <code>prev_node</code> None at the start?</summary><p>The old head becomes the tail, which must point to None.</p></details><details><summary>Space used?</summary><p>O(1): three pointers.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Reverse positions left..right (dummy node + head insertion)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Reverse only nodes <code>left..right</code> (1-indexed) in one pass.</div><div><b>What it keeps</b><code>dummy</code> before head; <code>before</code> = node just before the section; <code>tail</code> = the section's first node, which slides to its end.</div><div><b>When it checks for an answer</b>After exactly <code>right − left</code> moves, the section is reversed.</div><div><b>Use it when</b>Partial reversal (LC 92), reverse in groups of k (LC 25), swap pairs.</div><div><b>Not for</b>Whole-list reversal (A is simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "The tail stays put; whoever is behind it cuts to the front"</strong>In a queue section, the first person (tail) stands still. Each round, the person right behind the tail steps out and cuts to the front of the section. After right − left rounds the section is reversed.</div>
+    <p><strong>The story, mapped to the code.</strong> The section is a queue; <code>before</code> is the rope in front of it.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">A rope barrier before the list</td><td data-h="In the code"><code>dummy</code></td><td data-h="What it means">Makes "before the section" exist even when left = 1.</td></tr><tr><td data-h="In the story">The rope in front of the section</td><td data-h="In the code"><code>before</code></td><td data-h="What it means">Fixed for the whole run.</td></tr><tr><td data-h="In the story">The person who stays still</td><td data-h="In the code"><code>tail = before.next</code></td><td data-h="What it means">Ends up last in the section.</td></tr><tr><td data-h="In the story">The person who cuts in</td><td data-h="In the code"><code>moved = tail.next</code></td><td data-h="What it means">Moves to the front each round.</td></tr><tr><td data-h="In the story">Cut to the front</td><td data-h="In the code"><code>moved.next = before.next; before.next = moved</code></td><td data-h="What it means">Head insertion.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Walk to <code>before</code>, then make <code>right − left</code> moves.</p>
+    <pre><code class="python">def reverse_between(head, left, right):
     dummy = ListNode(0, head)
-    # Walk left - 1 steps so that 'before' stops just before position left.
     before = dummy
-    for step in range(left - 1):
+    for _ in range(left - 1):
         before = before.next
-    # tail = the first node of the part. It never moves itself;
-    # the other nodes jump over it, so it ends up LAST in the part.
     tail = before.next
-    # right - left moves are enough to reverse the part.
-    for move in range(right - left):
-        # The node right after tail is the one we move this time.
+    for _ in range(right - left):
         moved = tail.next
-        # Unhook it: tail now skips over it.
         tail.next = moved.next
-        # Insert it at the FRONT of the part, right after 'before'.
         moved.next = before.next
         before.next = moved
-    # dummy.next is the real head (it changed if left was 1).
     return dummy.next</code></pre>
-        <!-- explain:template -->
-    <p>The same template, explained for a beginner:</p>
-        <p><strong>What the code is doing, line by line:</strong></p>
-        <ol>
-          <li><strong>Template A, set up:</strong> <code>prev_node = None</code> because nothing has been reversed yet (and the old head, which becomes the new tail, must point at <code>None</code>). <code>current = head</code> is the first node whose arrow we will flip.</li>
-          <li><code>while current is not None:</code> repeat until we have walked off the end of the list.</li>
-          <li><strong>Save:</strong> <code>next_node = current.next</code> remembers the rest of the list. This must come first, because the next line overwrites <code>current.next</code>.</li>
-          <li><strong>Flip:</strong> <code>current.next = prev_node</code> turns the arrow around, so <code>current</code> now points back at the already-reversed part.</li>
-          <li><strong>Step, step:</strong> <code>prev_node = current</code> (the reversed part grew by one node) and <code>current = next_node</code> (move on to the saved rest).</li>
-          <li><code>return prev_node</code>: when <code>current</code> is <code>None</code>, <code>prev_node</code> is the old last node, which is the new head.</li>
-          <li><strong>Template B, set up:</strong> <code>dummy = ListNode(0, head)</code> puts a fake node in front, so there is always a node <em>before</em> the part, even when <code>left == 1</code>.</li>
-          <li><code>for step in range(left - 1): before = before.next</code> walks to the node just before position <code>left</code>.</li>
-          <li><code>tail = before.next</code> is the first node of the part. It never moves itself: the other nodes jump in front of it, so it ends up last.</li>
-          <li><code>for move in range(right - left):</code> each move takes <code>moved = tail.next</code>, unhooks it (<code>tail.next = moved.next</code>) and inserts it at the front of the part (<code>moved.next = before.next</code>, then <code>before.next = moved</code>).</li>
-          <li><code>return dummy.next</code>: the real head (it is a different node if <code>left</code> was 1).</li>
-        </ol>
-        <p><strong>Dry run</strong> of template A on <code>head = 1 → 2 → 3</code> (each row is the state after one save/flip/step/step round):</p>
-        <table>
-          <thead><tr><th>Step</th><th>current (flipped)</th><th>next_node (saved)</th><th>reversed part (from prev_node)</th><th>rest (from current)</th></tr></thead>
-          <tbody>
-          <tr><td>start</td><td>—</td><td>—</td><td>None</td><td>1 → 2 → 3</td></tr>
-          <tr><td>1</td><td>1</td><td>2</td><td>1</td><td>2 → 3</td></tr>
-          <tr><td>2</td><td>2</td><td>3</td><td>2 → 1</td><td>3</td></tr>
-          <tr><td>3</td><td>3</td><td>None</td><td>3 → 2 → 1</td><td>None</td></tr>
-          <tr><td>end</td><td>None</td><td>—</td><td>3 → 2 → 1</td><td>None → loop stops, return prev_node = 3</td></tr>
-          </tbody>
-        </table>
-        <p><strong>Dry run</strong> of template B on <code>head = 1 → 2 → 3 → 4 → 5 → 6</code>, <code>left = 2</code>, <code>right = 5</code> (the same input as the second animation in section 2):</p>
-        <table>
-          <thead><tr><th>Step</th><th>before</th><th>tail</th><th>moved</th><th>list (from dummy.next)</th></tr></thead>
-          <tbody>
-          <tr><td>setup</td><td>1</td><td>2</td><td>—</td><td>1 → 2 → 3 → 4 → 5 → 6</td></tr>
-          <tr><td>move 1</td><td>1</td><td>2</td><td>3</td><td>1 → 3 → 2 → 4 → 5 → 6</td></tr>
-          <tr><td>move 2</td><td>1</td><td>2</td><td>4</td><td>1 → 4 → 3 → 2 → 5 → 6</td></tr>
-          <tr><td>move 3</td><td>1</td><td>2</td><td>5</td><td>1 → 5 → 4 → 3 → 2 → 6</td></tr>
-          <tr><td>return</td><td></td><td></td><td></td><td>dummy.next → 1 → 5 → 4 → 3 → 2 → 6</td></tr>
-          </tbody>
-        </table>
-        <!-- /explain:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function reverseBetween(head: ListNode | null, left: number, right: number): ListNode | null {
+  const dummy = new ListNode(0, head);
+  let before: ListNode = dummy;
+  for (let i = 0; i &lt; left - 1; i++) {
+    before = before.next!;
+  }
+  const tail = before.next!;
+  for (let i = 0; i &lt; right - left; i++) {
+    const moved = tail.next!;
+    tail.next = moved.next;
+    moved.next = before.next;
+    before.next = moved;
+  }
+  return dummy.next;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static ListNode reverseBetween(ListNode head, int left, int right) {
+    ListNode dummy = new ListNode(0, head);
+    ListNode before = dummy;
+    for (int i = 0; i &lt; left - 1; i++) {
+        before = before.next;
+    }
+    ListNode tail = before.next;
+    for (int i = 0; i &lt; right - left; i++) {
+        ListNode moved = tail.next;
+        tail.next = moved.next;
+        moved.next = before.next;
+        before.next = moved;
+    }
+    return dummy.next;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>dummy = ListNode(0, head)</code></td><td data-h="What it does">A fake node before head.</td><td data-h="In the story">The rope barrier.</td><td data-h="Why here, and what breaks if it moves">Without it, <code>left = 1</code> has no "before" node and needs a special case.</td></tr><tr><td data-h="Line"><code>for _ in range(left - 1): before = before.next</code></td><td data-h="What it does">Stops just before position left.</td><td data-h="In the story">Walk to the rope.</td><td data-h="Why here, and what breaks if it moves"><code>range(left)</code> lands <em>on</em> position left, one too far.</td></tr><tr><td data-h="Line"><code>tail = before.next</code></td><td data-h="What it does">The section's first node; it never moves itself.</td><td data-h="In the story">The person who stays still.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>moved = tail.next; tail.next = moved.next</code></td><td data-h="What it does">Unhooks the node after tail.</td><td data-h="In the story">The next person steps out.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>moved.next = before.next; before.next = moved</code></td><td data-h="What it does">Inserts it at the section's front.</td><td data-h="In the story">They cut to the front.</td><td data-h="Why here, and what breaks if it moves">Swapping these two lines makes <code>moved</code> point to itself.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>1 → 2 → 3 → 4 → 5</code> with <code>left = 2</code>, <code>right = 4</code>. The list is redrawn in its current order after each move.</p>
+    <div id="tl-05b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-05b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After m moves, the section reads: the m nodes that followed <code>tail</code>, in reverse, then <code>tail</code>, then the untouched rest. After right − left moves the whole section is reversed.</p>
+    <p><strong>Complexity.</strong> O(n) time (one walk plus right − left moves), O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>No dummy node.</strong> The rope barrier makes left = 1 normal.</li><li><strong>Doing right − left + 1 moves.</strong> The tail never moves, so one fewer move than the section's length.</li><li><strong>Returning <code>head</code>.</strong> Return <code>dummy.next</code>: head may have moved.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>The tail stays put; whoever is behind it cuts to the front.</dd>
+      <dt>Choose this template when</dt><dd>Reverse only part of a list in one pass → B.</dd>
+      <dt>Invariant</dt><dd>The reversed part grows at the front; tail slides to the end.</dd>
+      <dt>The line people get wrong</dt><dd><code>moved.next = before.next</code> then <code>before.next = moved</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>How many moves for left = 2, right = 4?</summary><p>2.</p></details><details><summary>Why return <code>dummy.next</code>?</summary><p>If left = 1 the head changes.</p></details><details><summary>Which node ends up last in the section?</summary><p>tail, the section's original first node.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · three pointers</th><th>B · dummy + head insertion</th></tr></thead><tbody><tr><td data-h="Question">Reverses</td><td data-h="A · three pointers">The whole list</td><td data-h="B · dummy + head insertion">Positions left..right</td></tr><tr><td data-h="Question">Pointers kept</td><td data-h="A · three pointers">prev, current, next</td><td data-h="B · dummy + head insertion">dummy, before, tail, moved</td></tr><tr><td data-h="Question">Moves</td><td data-h="A · three pointers">n arrow flips</td><td data-h="B · dummy + head insertion">right − left node moves</td></tr><tr><td data-h="Question">Head can change?</td><td data-h="A · three pointers">Always (returns old tail)</td><td data-h="B · dummy + head insertion">Only if left = 1 (dummy handles it)</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · three pointers">LC 206, palindrome list (LC 234)</td><td data-h="B · dummy + head insertion">LC 92, LC 25 (k-group)</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · three pointers">O(n) / O(1)</td><td data-h="B · dummy + head insertion">O(n) / O(1)</td></tr></tbody></table>
+    <p>Whole list → A. A slice of the list, or repeated slices (k-groups) → B, because the dummy and the fixed <code>before</code> keep the surrounding list connected for free.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -6405,6 +6448,79 @@ The maximum distance is between the third and the sixth node. maxDistance = 6 - 
   if (typeof location !== "undefined") openTarget(location.hash);
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl5A(vals, buggy) {
+    const n = vals.length, nxt = vals.map((_, i) => (i + 1 < n ? i + 1 : null)), steps = [], rows = [];
+    let prev = null, cur = 0, save = null;
+    const arrows = () => vals.slice(0, -1).map((_, i) => (nxt[i] === i + 1 ? "next" : nxt[i + 1] === i ? "prev" : "none"));
+    const view = (hl) => { const ptrs = {}; const add = (i, s) => { if (i !== null && i !== undefined) ptrs[i] = ptrs[i] ? ptrs[i] + "," + s : s; };
+      add(prev, "prev"); add(cur, "cur"); add(save, "next");
+      return Viz.list(vals, { ptrs, hl: hl || {}, arrows: arrows() }) + `<p class="idx">${[prev === null ? "prev = None" : "", cur === null ? "current = None" : ""].filter(Boolean).join(" · ") || "&nbsp;"}</p>`; };
+    const lst = (h) => { const o = []; const seen = new Set(); for (let i = h; i !== null && !seen.has(i); i = nxt[i]) { seen.add(i); o.push(vals[i]); } return "[" + o.join(", ") + "]"; };
+    steps.push({ line: "init", vars: { prev_node: "None", current: vals[0] }, view: view(), analogy: "Nobody has turned around yet.", note: "<code>prev_node = None</code>, <code>current = head</code>." });
+    while (cur !== null) {
+      if (!buggy) {
+        save = nxt[cur];
+        steps.push({ line: ["loop", "save"], vars: { current: vals[cur], next_node: save === null ? "None" : vals[save] }, view: view({ [cur]: "active" }), analogy: `Grab the shoulder of ${save === null ? "nobody (end of line)" : vals[save]} before turning ${vals[cur]}.`, note: `<code>next_node = ${save === null ? "None" : vals[save]}</code>.` });
+      }
+      nxt[cur] = prev;
+      steps.push({ line: buggy ? ["loop", "flip"] : "flip", vars: { current: vals[cur], "current.next": prev === null ? "None" : vals[prev] }, view: view({ [cur]: "active" }), analogy: `${vals[cur]} turns to face ${prev === null ? "nobody" : vals[prev]}.`, note: `<code>current.next = prev_node</code> (${prev === null ? "None" : vals[prev]}).`,
+        ask: { q: `After the flip, what does ${vals[cur]}.next point to?`, options: [...new Set([prev === null ? "None" : String(vals[prev]), cur + 1 < n ? String(vals[cur + 1]) : "None", "None"])], answer: prev === null ? "None" : vals[prev], why: "It now points back at prev_node." } });
+      prev = cur; cur = buggy ? nxt[prev] : save;
+      steps.push({ line: ["prev", "cur"], vars: { prev_node: vals[prev], current: cur === null ? "None" : vals[cur] }, view: view(Object.fromEntries(vals.map((_, i) => [i, i === prev ? "found" : ""]))),
+        analogy: buggy ? `Following ${vals[prev]}'s arrow now goes <b>backwards</b> (to ${cur === null ? "None" : vals[cur]}): the rest of the line is lost.` : `Step forward: reversed part starts at ${vals[prev]}; next to turn: ${cur === null ? "nobody" : vals[cur]}.`,
+        note: `<code>prev_node = ${vals[prev]}</code>, <code>current = ${cur === null ? "None" : vals[cur]}</code>.` });
+      rows.push([vals[prev], save === null ? "None" : vals[save], lst(prev), cur === null ? "None" : lst(cur)]);
+      save = null;
+    }
+    steps.push({ line: "ret", vars: { result: lst(prev) }, view: view(), analogy: `Everyone turned: the new front is ${vals[prev]}.`, note: `Return <code>prev_node</code>: <code>${lst(prev)}</code>.` });
+    return { steps, table: { head: ["Node flipped", "Saved next", "Reversed part (from prev)", "Remaining (from current)"], rows } };
+  }
+
+  function tl5B(vals, left, right) {
+    const nxt = { D: 0 }; vals.forEach((_, i) => (nxt[i] = i + 1 < vals.length ? i + 1 : null));
+    const order = () => { const o = []; for (let i = nxt.D; i !== null; i = nxt[i]) o.push(i); return o; };
+    const steps = [], rows = [];
+    let before = "D";
+    const view = (hl, ps) => { const o = ["D", ...order()], ptrs = {}; Object.entries(ps || {}).forEach(([k, v]) => { const j = o.indexOf(v); if (j >= 0) ptrs[j] = ptrs[j] ? ptrs[j] + "," + k : k; });
+      const sec = new Set(); let x = nxt[before]; for (let m = 0; m <= right - left && x !== null; m++) { sec.add(x); x = nxt[x]; }
+      return Viz.list(o.map((i) => (i === "D" ? "D" : vals[i])), { ptrs, hl: Object.fromEntries(o.map((i, j) => [j, (hl || {})[i] || (sec.has(i) ? "window" : "")])) }); };
+    const lst = () => "[" + order().map((i) => vals[i]).join(", ") + "]";
+    steps.push({ line: "dummy", vars: { list: lst() }, view: view({}, {}), analogy: "Put a rope barrier (D) before the first person.", note: "<code>dummy = ListNode(0, head)</code>." });
+    for (let s = 0; s < left - 1; s++) before = nxt[before];
+    const tail = nxt[before];
+    steps.push({ line: ["walk", "tail"], vars: { before: before === "D" ? "dummy" : vals[before], tail: vals[tail] }, view: view({}, { before, tail }), analogy: `Walk to the rope in front of the section (${before === "D" ? "the dummy" : vals[before]}). ${vals[tail]} will stay still.`, note: `<code>before</code> = ${before === "D" ? "dummy" : vals[before]}, <code>tail</code> = ${vals[tail]}.` });
+    for (let m = 1; m <= right - left; m++) {
+      const moved = nxt[tail];
+      steps.push({ line: ["loop", "pick"], vars: { move: m, moved: vals[moved] }, view: view({ [moved]: "active" }, { before, tail, moved }), analogy: `${vals[moved]} is right behind the tail: they'll cut to the front.`, note: `<code>moved = tail.next</code> = ${vals[moved]}.`,
+        ask: { q: "Which node moves this round?", options: [...new Set([vals[moved], vals[tail], vals[nxt[before]]])].map(String), answer: vals[moved], why: "Always the node right after tail." } });
+      nxt[tail] = nxt[moved]; nxt[moved] = nxt[before]; nxt[before] = moved;
+      steps.push({ line: ["unhook", "link", "front"], vars: { move: m, list: lst() }, view: view({ [moved]: "found" }, { before, tail }), analogy: `${vals[moved]} now stands at the front of the section.`, note: `List is now <code>${lst()}</code>.` });
+      rows.push([m, vals[moved], lst()]);
+    }
+    steps.push({ line: "ret", vars: { result: lst() }, view: view({}, {}), analogy: "Section reversed; the rope never moved.", note: `Return <code>dummy.next</code>: <code>${lst()}</code>.` });
+    return { steps, table: { head: ["Move", "Node moved to the front", "List after the move"], rows } };
+  }
+
+  { const run = tl5A([1, 2, 3, 4], false);
+    Viz.tlab("#tl-05a", { title: "Template A \u00b7 1 \u2192 2 \u2192 3 \u2192 4", sub: "Orange \u2190 = flipped arrows; labels show prev, current and next.", code: {"py": [[null, "def reverse(head):"], ["init", "    prev_node, current = None, head"], ["loop", "    while current is not None:"], ["save", "        next_node = current.next"], ["flip", "        current.next = prev_node"], ["prev", "        prev_node = current"], ["cur", "        current = next_node"], ["ret", "    return prev_node"]], "ts": [[null, "function reverse(head: ListNode | null): ListNode | null {"], ["init", "  let prevNode: ListNode | null = null, current = head;"], ["loop", "  while (current !== null) {"], ["save", "    const nextNode = current.next;"], ["flip", "    current.next = prevNode;"], ["prev", "    prevNode = current;"], ["cur", "    current = nextNode;"], [null, "  }"], ["ret", "  return prevNode;"], [null, "}"]], "java": [[null, "static ListNode reverse(ListNode head) {"], ["init", "    ListNode prevNode = null, current = head;"], ["loop", "    while (current != null) {"], ["save", "        ListNode nextNode = current.next;"], ["flip", "        current.next = prevNode;"], ["prev", "        prevNode = current;"], ["cur", "        current = nextNode;"], [null, "    }"], ["ret", "    return prevNode;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-05a-table").innerHTML = TL.table(run.table); }
+  { const run = tl5A([1, 2, 3], false);
+    Viz.tlab("#tl-05a-bug", { title: "Why save first \u00b7 1 \u2192 2 \u2192 3", sub: "Switch between the correct order and no save.", code: {"py": [[null, "def reverse(head):"], ["init", "    prev_node, current = None, head"], ["loop", "    while current is not None:"], ["save", "        next_node = current.next"], ["flip", "        current.next = prev_node"], ["prev", "        prev_node = current"], ["cur", "        current = next_node"], ["ret", "    return prev_node"]], "ts": [[null, "function reverse(head: ListNode | null): ListNode | null {"], ["init", "  let prevNode: ListNode | null = null, current = head;"], ["loop", "  while (current !== null) {"], ["save", "    const nextNode = current.next;"], ["flip", "    current.next = prevNode;"], ["prev", "    prevNode = current;"], ["cur", "    current = nextNode;"], [null, "  }"], ["ret", "  return prevNode;"], [null, "}"]], "java": [[null, "static ListNode reverse(ListNode head) {"], ["init", "    ListNode prevNode = null, current = head;"], ["loop", "    while (current != null) {"], ["save", "        ListNode nextNode = current.next;"], ["flip", "        current.next = prevNode;"], ["prev", "        prevNode = current;"], ["cur", "        current = nextNode;"], [null, "    }"], ["ret", "    return prevNode;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: no save", code: {"py": [[null, "def reverse(head):"], ["init", "    prev_node, current = None, head"], ["loop", "    while current is not None:"], ["flip", "        current.next = prev_node"], ["prev", "        prev_node = current"], ["cur", "        current = current.next"], ["ret", "    return prev_node"]]}, steps: tl5A([1, 2, 3], true).steps, diverge: undefined, why: "the arrow was flipped before the rest was saved, so <code>current.next</code> now points backwards (to None)." } });
+     }
+  { const run = tl5B([1, 2, 3, 4, 5], 2, 4);
+    Viz.tlab("#tl-05b", { title: "Template B \u00b7 1 \u2192 2 \u2192 3 \u2192 4 \u2192 5, left = 2, right = 4", sub: "D = dummy. Teal = the section; blue = the node that moves.", code: {"py": [[null, "def reverse_between(head, left, right):"], ["dummy", "    dummy = ListNode(0, head)"], ["walk", "    before = dummy"], ["walk", "    for _ in range(left - 1):"], ["walk", "        before = before.next"], ["tail", "    tail = before.next"], ["loop", "    for _ in range(right - left):"], ["pick", "        moved = tail.next"], ["unhook", "        tail.next = moved.next"], ["link", "        moved.next = before.next"], ["front", "        before.next = moved"], ["ret", "    return dummy.next"]], "ts": [[null, "function reverseBetween(head: ListNode | null, left: number, right: number): ListNode | null {"], ["dummy", "  const dummy = new ListNode(0, head);"], ["walk", "  let before: ListNode = dummy;"], ["walk", "  for (let i = 0; i < left - 1; i++) {"], ["walk", "    before = before.next!;"], [null, "  }"], ["tail", "  const tail = before.next!;"], ["loop", "  for (let i = 0; i < right - left; i++) {"], ["pick", "    const moved = tail.next!;"], ["unhook", "    tail.next = moved.next;"], ["link", "    moved.next = before.next;"], ["front", "    before.next = moved;"], [null, "  }"], ["ret", "  return dummy.next;"], [null, "}"]], "java": [[null, "static ListNode reverseBetween(ListNode head, int left, int right) {"], ["dummy", "    ListNode dummy = new ListNode(0, head);"], ["walk", "    ListNode before = dummy;"], ["walk", "    for (int i = 0; i < left - 1; i++) {"], ["walk", "        before = before.next;"], [null, "    }"], ["tail", "    ListNode tail = before.next;"], ["loop", "    for (int i = 0; i < right - left; i++) {"], ["pick", "        ListNode moved = tail.next;"], ["unhook", "        tail.next = moved.next;"], ["link", "        moved.next = before.next;"], ["front", "        before.next = moved;"], [null, "    }"], ["ret", "    return dummy.next;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-05b-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

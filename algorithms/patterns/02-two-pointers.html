@@ -506,9 +506,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tlab { margin: 14px 0; }
 .tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
 .tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
-.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
-.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
-.tl-code code { display: block; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .78rem; line-height: 1.55; max-height: none; overflow-x: auto; }
+.tl-code code { display: inline-block; min-width: 100%; }
 .tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
 .tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
 .tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
@@ -516,7 +516,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button + button { border-left: 1px solid var(--line); }
 .tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
+.tl-side > * { max-width: 100%; }
+.tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
 .tlab.tl-noexpl .note { display: none; }
@@ -1070,6 +1072,10 @@ svg.flow .fn { transition: opacity .35s ease; }
     try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
     if (!cfg.code[lang]) lang = "py";
     root.classList.add("tlab");
+    if (cfg.bug && cfg.bug.diverge === undefined) {
+      const key = (st) => st ? JSON.stringify([st.line, st.vars]) : "";
+      cfg.bug.diverge = cfg.bug.steps.findIndex((st, k) => key(st) !== key(cfg.steps[k]));
+    }
     root.innerHTML = `<div class="tl-bar">
         <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
@@ -2299,99 +2305,136 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> one pass, <code>O(n)</code> time, <code>O(1)</code> extra space. If you must sort first, it's <code>O(n log n)</code>. k-Sum with "fix k−2, two-pointer the rest" is <code>O(n^(k−1))</code>.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Opposite ends on a SORTED array
-def pair_with_sum(nums, target):
-    # "left" starts at the smallest number, "right" at the biggest number
-    left = 0
-    right = len(nums) - 1
-    # keep going while the two pointers have not met
-    # (if left == right they point at the SAME number, which is not a pair)
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Two Pointers has two templates. Both keep two indices into one array, but they move differently. <strong>Template A</strong> starts the pointers at <em>opposite ends</em> of a sorted array and walks them toward each other, throwing away one end on every step. <strong>Template B</strong> walks a <em>reader</em> and a <em>writer</em> in the same direction to compact an array in place. For each: question → hook → story → code → watch it run → invariant.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Opposite ends on a sorted array (pair with a target sum)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Is there a pair <code>nums[left] + nums[right] == target</code> in a <em>sorted</em> array? Which one?</div><div><b>What it keeps</b>Two indices: <code>left</code> at the smallest candidate, <code>right</code> at the biggest.</div><div><b>When it checks for an answer</b>Every step: compare the pair's sum with the target, then drop one end.</div><div><b>Use it when</b>The array is sorted (or you can sort it) and you need a pair/triple meeting a sum or a comparison.</div><div><b>Not for</b>Unsorted input where you must return original indices (use a hash map, page 16); subarray sums (Prefix Sum or Sliding Window).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Too small → move the small end up; too big → move the big end down"</strong>Picture two friends at the ends of a seesaw lined up by weight. If together they're too light, the light one is useless even with the heaviest partner, so they leave. Too heavy: the heavy one leaves. Each step removes one person who can never be in the answer.</div>
+    <p><strong>The story, mapped to the code.</strong> People stand in a line sorted by weight; we want two whose total weight is exactly the target.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The lightest person still in line</td><td data-h="In the code"><code>left</code></td><td data-h="What it means">Smallest remaining candidate.</td></tr><tr><td data-h="In the story">The heaviest person still in line</td><td data-h="In the code"><code>right</code></td><td data-h="What it means">Biggest remaining candidate.</td></tr><tr><td data-h="In the story">Their combined weight</td><td data-h="In the code"><code>pair_sum = nums[left] + nums[right]</code></td><td data-h="What it means">The only number we compare.</td></tr><tr><td data-h="In the story">Too light: the light one leaves</td><td data-h="In the code"><code>left += 1</code></td><td data-h="What it means">nums[left] is too small even with the biggest partner.</td></tr><tr><td data-h="In the story">Too heavy: the heavy one leaves</td><td data-h="In the code"><code>right -= 1</code></td><td data-h="What it means">nums[right] is too big even with the smallest partner.</td></tr><tr><td data-h="In the story">They meet: nobody left to pair</td><td data-h="In the code"><code>left &lt; right fails</code></td><td data-h="What it means">No pair exists.</td></tr></tbody></table>
+    <p><strong>The template.</strong> One loop, one comparison, one pointer move per step.</p>
+    <pre><code class="python">def pair_with_sum(nums, target):
+    left, right = 0, len(nums) - 1
     while left &lt; right:
         pair_sum = nums[left] + nums[right]
         if pair_sum == target:
-            # found it: return the two positions
             return [left, right]
         if pair_sum &lt; target:
-            # too small: even the biggest partner (nums[right]) is not enough
-            # for nums[left], so nums[left] can never be in the answer. Drop it.
-            left = left + 1
+            left += 1
         else:
-            # too big: even the smallest partner (nums[left]) is too much
-            # for nums[right], so nums[right] can never be in the answer. Drop it.
-            right = right - 1
-    # the pointers met and no pair was found
-    return []
-
-
-# B) Same direction: reader / writer (compact in place)
-def dedupe_sorted(nums):
-    # an empty list has nothing to keep
+            right -= 1
+    return []</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function pairWithSum(nums: number[], target: number): number[] {
+  let left = 0, right = nums.length - 1;
+  while (left &lt; right) {
+    const pairSum = nums[left] + nums[right];
+    if (pairSum === target) {
+      return [left, right];
+    }
+    if (pairSum &lt; target) {
+      left++;
+    } else {
+      right--;
+    }
+  }
+  return [];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int[] pairWithSum(int[] nums, int target) {
+    int left = 0, right = nums.length - 1;
+    while (left &lt; right) {
+        int pairSum = nums[left] + nums[right];
+        if (pairSum == target) {
+            return new int[]{left, right};
+        }
+        if (pairSum &lt; target) {
+            left++;
+        } else {
+            right--;
+        }
+    }
+    return new int[0];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>left, right = 0, len(nums) - 1</code></td><td data-h="What it does">Puts the pointers on the smallest and biggest values.</td><td data-h="In the story">The lightest and heaviest people step forward.</td><td data-h="Why here, and what breaks if it moves">Starting both at 0 loses the "drop one end" logic: you'd be back to checking every pair.</td></tr><tr><td data-h="Line"><code>while left &lt; right</code></td><td data-h="What it does">Stops when the pointers meet.</td><td data-h="In the story">Two different people are needed.</td><td data-h="Why here, and what breaks if it moves"><code>left <= right</code> lets one element pair with itself (see the bug player).</td></tr><tr><td data-h="Line"><code>pair_sum = nums[left] + nums[right]</code></td><td data-h="What it does">The one value we decide on.</td><td data-h="In the story">Weigh the pair together.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if pair_sum &lt; target: left += 1</code></td><td data-h="What it does">Too small: drop the small end.</td><td data-h="In the story">Too light: the light person leaves.</td><td data-h="Why here, and what breaks if it moves">Moving <code>right</code> here makes the sum even smaller and skips the answer.</td></tr><tr><td data-h="Line"><code>else: right -= 1</code></td><td data-h="What it does">Too big: drop the big end.</td><td data-h="In the story">Too heavy: the heavy person leaves.</td><td data-h="Why here, and what breaks if it moves">Moving <code>left</code> here makes the sum bigger.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [1, 2, 4, 7, 11, 15]</code>, <code>target = 15</code>. Tick <em>Predict each step</em> to choose which pointer moves before the player does it. The second player shows the <code>&lt;=</code> bug.</p>
+    <div id="tl-02a"></div><div id="tl-02a-bug"></div><p>With <code>left &lt;= right</code> the loop runs once more when both pointers sit on the 4, and 4 + 4 = 8 "finds" a pair made of one element. The correct answer is no pair.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-02a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> If an answer pair exists, both of its indices are still inside <code>[left, right]</code>. Each move only throws away a value that can't be in any answer, so the invariant survives every step.</p>
+    <p><strong>Complexity.</strong> O(n) time: every step moves one pointer inward, at most n − 1 steps. O(1) extra space. (Add O(n log n) if you must sort first.)</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Using it on an unsorted array.</strong> The seesaw story only works if the line is sorted by weight.</li><li><strong><code>left <= right</code>.</strong> "Two different people": the pointers must not meet.</li><li><strong>Moving the wrong pointer.</strong> Too light → the light end moves; too heavy → the heavy end moves.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Too small → move the small end up; too big → move the big end down.</dd>
+      <dt>Choose this template when</dt><dd>Sorted array + "find a pair/triple with sum or difference X" → opposite-end pointers.</dd>
+      <dt>Invariant</dt><dd>Any answer still lies inside <code>[left, right]</code>.</dd>
+      <dt>The line people get wrong</dt><dd><code>while left &lt; right</code>, strictly less.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why can we drop <code>nums[left]</code> when the sum is too small?</summary><p>Its biggest possible partner is nums[right]; if even that is too small, no partner works.</p></details><details><summary>With <code>[1, 2, 4, 7, 11, 15]</code>, target 15, what is the first move?</summary><p>1 + 15 = 16 > 15, so right moves to 11.</p></details><details><summary>How many steps at most for n numbers?</summary><p>n − 1: each step removes one candidate.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Same direction: reader and writer (compact in place)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Remove unwanted values in place and return the new length (e.g. drop duplicates from a sorted array).</div><div><b>What it keeps</b><code>write</code>: the next free slot; everything before it is the clean, kept part. <code>read</code>: the next value to inspect.</div><div><b>When it checks for an answer</b>Each value the reader visits is tested against the keep rule once.</div><div><b>Use it when</b>Filter / dedupe / move zeros in place with O(1) extra space, keeping the original order.</div><div><b>Not for</b>Pair sums (Template A); when you may use extra memory, a new list is simpler.</div></div>
+    <div class="callout memory"><strong>Memory hook: "The reader inspects every item; the writer only copies keepers"</strong>A librarian reads every book on the cart (the reader). An assistant shelves only the ones worth keeping, into the next empty shelf slot (the writer). The writer never gets ahead of the reader.</div>
+    <p><strong>The story, mapped to the code.</strong> The array is a shelf. Slots before <code>write</code> hold the books we kept, in order.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The librarian's current book</td><td data-h="In the code"><code>read</code></td><td data-h="What it means">Visits every index once.</td></tr><tr><td data-h="In the story">The next empty slot on the clean shelf</td><td data-h="In the code"><code>write</code></td><td data-h="What it means">Count of kept items so far.</td></tr><tr><td data-h="In the story">The last book shelved</td><td data-h="In the code"><code>nums[write - 1]</code></td><td data-h="What it means">What a new book is compared with (sorted input).</td></tr><tr><td data-h="In the story">Shelve the book</td><td data-h="In the code"><code>nums[write] = nums[read]; write += 1</code></td><td data-h="What it means">Copy a keeper into the clean part.</td></tr><tr><td data-h="In the story">How many books were kept</td><td data-h="In the code"><code>return write</code></td><td data-h="What it means">The new length.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The first value is always kept, so the clean shelf starts with one book.</p>
+    <pre><code class="python">def dedupe_sorted(nums):
     if len(nums) == 0:
         return 0
-    # nums[0] is always kept, so the next free slot is position 1.
-    # Everything before position "write" is the clean, kept part.
     write = 1
-    # "read" visits every other position, from left to right
     for read in range(1, len(nums)):
-        last_kept = nums[write - 1]
-        # keep rule: the list is sorted, so a NEW value differs from the last kept one
-        if nums[read] != last_kept:
-            nums[write] = nums[read]    # copy the new value into the next free slot
-            write = write + 1           # the kept part just grew by one
-    # "write" is now the number of kept values, i.e. the new length
+        if nums[read] != nums[write - 1]:
+            nums[write] = nums[read]
+            write += 1
     return write</code></pre>
-    <!-- explain:start template -->
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <p><em>A) <code>pair_with_sum</code> (opposite ends)</em></p>
-    <ol>
-      <li><code>left = 0</code> and <code>right = len(nums) - 1</code>: put one finger on the smallest number (the start) and one on the biggest number (the end). Every pair is still possible.</li>
-      <li><code>while left &lt; right:</code> repeat as long as the two fingers point at two <em>different</em> numbers. When they meet, every pair has been ruled out.</li>
-      <li><code>pair_sum = nums[left] + nums[right]</code>: add the two numbers we are pointing at.</li>
-      <li><code>if pair_sum == target: return [left, right]</code>: found the pair, hand back the two positions.</li>
-      <li><code>if pair_sum &lt; target: left = left + 1</code>: the sum is too small. <code>nums[right]</code> is the biggest number still in play, so <code>nums[left]</code> cannot reach the target with <em>any</em> partner. Throw it away by stepping <code>left</code> one place to the right.</li>
-      <li><code>else: right = right - 1</code>: the sum is too big. <code>nums[left]</code> is the smallest number still in play, so <code>nums[right]</code> is too big for every partner. Throw it away.</li>
-      <li><code>return []</code>: the loop ended without a match, so no pair exists.</li>
-    </ol>
-    <p><em>B) <code>dedupe_sorted</code> (reader / writer)</em></p>
-    <ol>
-      <li><code>if len(nums) == 0: return 0</code>: an empty list keeps nothing.</li>
-      <li><code>write = 1</code>: the first value is always kept, so the next free slot is position 1. <code>write</code> is <em>also</em> the number of values kept so far.</li>
-      <li><code>for read in range(1, len(nums)):</code> the reader visits every other position, left to right.</li>
-      <li><code>last_kept = nums[write - 1]</code>: the last value in the kept part.</li>
-      <li><code>if nums[read] != last_kept:</code> the list is sorted, so copies sit next to each other. A value that differs from the last kept one must be new.</li>
-      <li><code>nums[write] = nums[read]</code> then <code>write = write + 1</code>: copy the new value into the next free slot and grow the kept part by one. Duplicates are simply skipped (the writer does not move).</li>
-      <li><code>return write</code>: the new length. The first <code>write</code> slots hold the unique values.</li>
-    </ol>
-    <p><strong>Dry run</strong> on the example:</p>
-    <p>A) <code>nums = [1, 2, 4, 6, 8, 11, 15]</code>, <code>target = 14</code> (the same input as the first visualizer). Returns <code>[3, 4]</code>.</p>
-    <table>
-      <thead><tr><th>step</th><th>left</th><th>right</th><th>nums[left]</th><th>nums[right]</th><th>pair_sum</th><th>decision</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td>0</td><td>6</td><td>1</td><td>15</td><td>16</td><td>too big → <code>right = right - 1</code></td></tr>
-        <tr><td>2</td><td>0</td><td>5</td><td>1</td><td>11</td><td>12</td><td>too small → <code>left = left + 1</code></td></tr>
-        <tr><td>3</td><td>1</td><td>5</td><td>2</td><td>11</td><td>13</td><td>too small → <code>left = left + 1</code></td></tr>
-        <tr><td>4</td><td>2</td><td>5</td><td>4</td><td>11</td><td>15</td><td>too big → <code>right = right - 1</code></td></tr>
-        <tr><td>5</td><td>2</td><td>4</td><td>4</td><td>8</td><td>12</td><td>too small → <code>left = left + 1</code></td></tr>
-        <tr><td>6</td><td>3</td><td>4</td><td>6</td><td>8</td><td>14</td><td>equal to target → return [3, 4]</td></tr>
-      </tbody>
-    </table>
-    <p>B) <code>nums = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4]</code> (the same input as the second visualizer). Returns <code>5</code>; the first 5 slots become <code>[0, 1, 2, 3, 4]</code>.</p>
-    <table>
-      <thead><tr><th>read</th><th>nums[read]</th><th>write</th><th>last_kept</th><th>action</th><th>write after</th><th>kept part after</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td>0</td><td>1</td><td>0</td><td>duplicate → skip</td><td>1</td><td><code>[0]</code></td></tr>
-        <tr><td>2</td><td>1</td><td>1</td><td>0</td><td>new value → copy to slot 1</td><td>2</td><td><code>[0, 1]</code></td></tr>
-        <tr><td>3</td><td>1</td><td>2</td><td>1</td><td>duplicate → skip</td><td>2</td><td><code>[0, 1]</code></td></tr>
-        <tr><td>4</td><td>1</td><td>2</td><td>1</td><td>duplicate → skip</td><td>2</td><td><code>[0, 1]</code></td></tr>
-        <tr><td>5</td><td>2</td><td>2</td><td>1</td><td>new value → copy to slot 2</td><td>3</td><td><code>[0, 1, 2]</code></td></tr>
-        <tr><td>6</td><td>2</td><td>3</td><td>2</td><td>duplicate → skip</td><td>3</td><td><code>[0, 1, 2]</code></td></tr>
-        <tr><td>7</td><td>3</td><td>3</td><td>2</td><td>new value → copy to slot 3</td><td>4</td><td><code>[0, 1, 2, 3]</code></td></tr>
-        <tr><td>8</td><td>3</td><td>4</td><td>3</td><td>duplicate → skip</td><td>4</td><td><code>[0, 1, 2, 3]</code></td></tr>
-        <tr><td>9</td><td>4</td><td>4</td><td>3</td><td>new value → copy to slot 4</td><td>5</td><td><code>[0, 1, 2, 3, 4]</code></td></tr>
-      </tbody>
-    </table>
-    <!-- explain:end template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function dedupeSorted(nums: number[]): number {
+  if (nums.length === 0) {
+    return 0;
+  }
+  let write = 1;
+  for (let read = 1; read &lt; nums.length; read++) {
+    if (nums[read] !== nums[write - 1]) {
+      nums[write] = nums[read];
+      write++;
+    }
+  }
+  return write;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int dedupeSorted(int[] nums) {
+    if (nums.length == 0) {
+        return 0;
+    }
+    int write = 1;
+    for (int read = 1; read &lt; nums.length; read++) {
+        if (nums[read] != nums[write - 1]) {
+            nums[write] = nums[read];
+            write++;
+        }
+    }
+    return write;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>write = 1</code></td><td data-h="What it does">The first value is always kept.</td><td data-h="In the story">One book is already on the clean shelf.</td><td data-h="Why here, and what breaks if it moves">Starting at 0 makes <code>nums[write - 1]</code> read index −1 (the last element in Python).</td></tr><tr><td data-h="Line"><code>for read in range(1, len(nums))</code></td><td data-h="What it does">The reader visits every remaining value.</td><td data-h="In the story">The librarian picks up each book.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if nums[read] != nums[write - 1]</code></td><td data-h="What it does">Keep rule: a new value differs from the last kept one.</td><td data-h="In the story">Is this a book we don't have yet?</td><td data-h="Why here, and what breaks if it moves">Comparing with <code>nums[read - 1]</code> also works for this rule, but not for "keep at most two" variants; the kept part is the safe reference.</td></tr><tr><td data-h="Line"><code>nums[write] = nums[read]</code></td><td data-h="What it does">Copies the keeper into the next free slot.</td><td data-h="In the story">Shelve it.</td><td data-h="Why here, and what breaks if it moves">Copying before checking overwrites values the reader still needs.</td></tr><tr><td data-h="Line"><code>write += 1</code></td><td data-h="What it does">The clean part grows by one.</td><td data-h="In the story">The next empty slot moves right.</td><td data-h="Why here, and what breaks if it moves">Forgetting it makes every keeper overwrite the same slot.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [1, 1, 2, 2, 2, 3]</code>. Green cells are the clean shelf; the reader is blue.</p>
+    <div id="tl-02b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-02b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> <code>nums[0..write-1]</code> holds the distinct values from <code>nums[0..read-1]</code>, in order. When the reader finishes, that prefix is the answer.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) extra space: one pass, writes in place.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Starting <code>write</code> at 0 for dedupe.</strong> The first book is always kept: start at 1.</li><li><strong>Returning the list instead of the length.</strong> Most judges read only <code>nums[:write]</code>; return the count.</li><li><strong>Moving the writer when skipping.</strong> Only keepers move the writer.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>The reader inspects every item; the writer only copies keepers.</dd>
+      <dt>Choose this template when</dt><dd>"In place", "O(1) extra space", "return the new length" → reader/writer.</dd>
+      <dt>Invariant</dt><dd>Everything before <code>write</code> is the clean answer so far.</dd>
+      <dt>The line people get wrong</dt><dd>Compare with <code>nums[write - 1]</code> (the last <em>kept</em> value).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why can't the writer overtake the reader?</summary><p>It moves at most once per reader step, and both start at 1.</p></details><details><summary>After <code>[1, 1, 2]</code>, what are <code>write</code> and the kept part?</summary><p>write = 2, kept part [1, 2].</p></details><details><summary>How would you "keep at most two copies"?</summary><p>Start write = 2 and compare nums[read] with nums[write − 2].</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>Template A · opposite ends</th><th>Template B · reader / writer</th></tr></thead><tbody><tr><td data-h="Question">Main purpose</td><td data-h="Template A · opposite ends">Find a pair meeting a condition</td><td data-h="Template B · reader / writer">Filter or compact in place</td></tr><tr><td data-h="Question">Needs sorted input?</td><td data-h="Template A · opposite ends">Yes</td><td data-h="Template B · reader / writer">Only for the dedupe rule; filters like "remove zeros" don't</td></tr><tr><td data-h="Question">Pointer directions</td><td data-h="Template A · opposite ends">Toward each other</td><td data-h="Template B · reader / writer">Same direction, writer ≤ reader</td></tr><tr><td data-h="Question">What each step does</td><td data-h="Template A · opposite ends">Drops one end that can't be in any answer</td><td data-h="Template B · reader / writer">Inspects one value; copies it if kept</td></tr><tr><td data-h="Question">Ends when</td><td data-h="Template A · opposite ends"><code>left</code> meets <code>right</code></td><td data-h="Template B · reader / writer">The reader reaches the end</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="Template A · opposite ends">Two Sum II (LC 167), 3Sum (LC 15), Container With Most Water (LC 11)</td><td data-h="Template B · reader / writer">Remove Duplicates (LC 26), Move Zeroes (LC 283)</td></tr><tr><td data-h="Question">Time / space</td><td data-h="Template A · opposite ends">O(n) / O(1)</td><td data-h="Template B · reader / writer">O(n) / O(1)</td></tr></tbody></table>
+    <p>Ask: am I <em>searching for a pair</em> (A) or <em>rewriting the array</em> (B)? Pairs on sorted data → ends move inward. Rewriting in place → reader and writer move together.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -8936,6 +8979,79 @@ class Solution:
   if (typeof location !== "undefined") openTarget(location.hash);
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl2A(nums, target, buggy) {
+    let left = 0, right = nums.length - 1; const steps = [], rows = [];
+    const view = (hl) => Viz.array(nums, { label: "nums", ptrs: Object.assign({}, left < nums.length ? { [left]: left === right ? "L=R" : "left" } : {}, right >= 0 && left !== right ? { [right]: "right" } : {}),
+      hl: Object.assign(Object.fromEntries(nums.map((_, i) => [i, i < left || i > right ? "dim" : ""])), hl || {}) });
+    steps.push({ line: "init", vars: { left, right }, view: view(), analogy: `Lightest (${nums[left]}) and heaviest (${nums[right]}) step forward. Target weight: <b>${target}</b>.`, note: `<code>left = 0</code>, <code>right = ${right}</code>.` });
+    while (buggy ? left <= right : left < right) {
+      const s = nums[left] + nums[right];
+      steps.push({ line: ["loop", "sum"], vars: { left, right, pair_sum: s }, view: view({ [left]: left === right ? "bad" : "active", [right]: left === right ? "bad" : "active" }),
+        analogy: left === right ? `⚠ Both pointers are on the same person: ${nums[left]} is being weighed twice.` : `Weigh ${nums[left]} + ${nums[right]} = <b>${s}</b>.`,
+        note: `<code>pair_sum = nums[${left}] + nums[${right}] = ${nums[left]} + ${nums[right]} = ${s}</code>.`,
+        ask: { q: "What is pair_sum?", options: [...new Set([s, s + 1, s - 1, nums[left] * 2])].map(String), answer: s, why: `${nums[left]} + ${nums[right]}.` } });
+      if (s === target) {
+        rows.push([left, right, `${nums[left]} + ${nums[right]} = ${s}`, "equal", "return"]);
+        steps.push({ line: ["eq", "found"], vars: { left, right, result: `[${left}, ${right}]` }, view: view({ [left]: left === right ? "bad" : "found", [right]: left === right ? "bad" : "found" }),
+          analogy: left === right ? "\"Found\" a pair made of one person. Wrong." : `Exactly ${target}: this pair is the answer.`, note: `Return <code>[${left}, ${right}]</code>.`,
+          ask: { q: "Which branch runs?", options: ["return", "left += 1", "right -= 1"], answer: "return", why: `${s} == ${target}.` } });
+        return { steps, table: { head: ["left", "right", "Pair sum", "Compared with target", "Move"], rows } };
+      }
+      const mv = s < target ? "left += 1" : "right -= 1";
+      rows.push([left, right, `${nums[left]} + ${nums[right]} = ${s}`, s < target ? "too small" : "too big", mv]);
+      if (s < target) left++; else right--;
+      steps.push({ line: s < target ? ["lt", "left"] : ["lt", "right"], vars: { left, right }, view: view(),
+        analogy: s < target ? `Too light: ${nums[left - 1]} can't reach ${target} even with the heaviest, so it leaves.` : `Too heavy: ${nums[right + 1]} overshoots even with the lightest, so it leaves.`,
+        note: `${s} ${s < target ? "<" : ">"} ${target} → <code>${mv}</code>.`,
+        ask: { q: "Which pointer moves?", options: ["left += 1", "right -= 1", "return"], answer: mv, why: s < target ? "Too small: the small end is useless." : "Too big: the big end is useless." } });
+    }
+    rows.push([left, right, "—", "pointers crossed", "return []"]);
+    steps.push({ line: "none", vars: { left, right, result: "[]" }, view: view(), analogy: "Nobody left to pair: no answer.", note: "The pointers met; return <code>[]</code>." });
+    return { steps, table: { head: ["left", "right", "Pair sum", "Compared with target", "Move"], rows } };
+  }
+
+  function tl2B(src) {
+    const nums = src.slice(), steps = [], rows = [];
+    let write = 1;
+    const view = (read, hl) => Viz.array(nums, { label: "nums", ptrs: Object.assign({}, read !== undefined && read < nums.length ? { [read]: read === write ? "read=write" : "read" } : {}, read !== write || read === undefined ? { [write]: "write" } : {}),
+      hl: Object.assign(Object.fromEntries(nums.map((_, i) => [i, i < write ? "found" : ""])), hl || {}) });
+    steps.push({ line: "init", vars: { write }, view: view(undefined), analogy: `The first book (${nums[0]}) is always kept: the clean shelf has 1 book.`, note: "<code>write = 1</code>." });
+    for (let read = 1; read < nums.length; read++) {
+      const v = nums[read], last = nums[write - 1], keep = v !== last;
+      steps.push({ line: ["loop", "keep"], vars: { read, write, "nums[read]": v, "nums[write-1]": last }, view: view(read, { [read]: "active", [write - 1]: "gold" }),
+        analogy: keep ? `Book ${v} differs from the last shelved (${last}): keep it.` : `Book ${v} is the same as the last shelved (${last}): skip it.`,
+        note: `<code>nums[${read}] = ${v}</code> vs <code>nums[write − 1] = ${last}</code> → ${keep ? "keep" : "skip"}.`,
+        ask: { q: `Keep nums[${read}] = ${v}?`, options: ["keep", "skip"], answer: keep ? "keep" : "skip", why: `The last kept value is ${last}.` } });
+      if (keep) {
+        nums[write] = v; write++;
+        steps.push({ line: ["copy", "grow"], vars: { read, write }, view: view(read, { [write - 1]: "found" }), analogy: `Shelved ${v} in slot ${write - 1}; next empty slot: ${write}.`, note: `<code>nums[${write - 1}] = ${v}</code>, <code>write = ${write}</code>.` });
+      }
+      rows.push([read, v, last, keep ? "keep" : "skip", write, `[${nums.slice(0, write).join(", ")}]`]);
+    }
+    steps.push({ line: "ret", vars: { write }, view: view(undefined), analogy: `${write} books kept.`, note: `Return <code>${write}</code>; the answer is <code>nums[:${write}] = [${nums.slice(0, write).join(", ")}]</code>.` });
+    return { steps, table: { head: ["read", "nums[read]", "Last kept", "Decision", "write after", "Kept part"], rows } };
+  }
+
+  { const run = tl2A([1, 2, 4, 7, 11, 15], 15, false);
+    Viz.tlab("#tl-02a", { title: "Template A \u00b7 nums = [1, 2, 4, 7, 11, 15], target = 15", sub: "Blue = the two people being weighed; faded = people who have left.", code: {"py": [[null, "def pair_with_sum(nums, target):"], ["init", "    left, right = 0, len(nums) - 1"], ["loop", "    while left < right:"], ["sum", "        pair_sum = nums[left] + nums[right]"], ["eq", "        if pair_sum == target:"], ["found", "            return [left, right]"], ["lt", "        if pair_sum < target:"], ["left", "            left += 1"], [null, "        else:"], ["right", "            right -= 1"], ["none", "    return []"]], "ts": [[null, "function pairWithSum(nums: number[], target: number): number[] {"], ["init", "  let left = 0, right = nums.length - 1;"], ["loop", "  while (left < right) {"], ["sum", "    const pairSum = nums[left] + nums[right];"], ["eq", "    if (pairSum === target) {"], ["found", "      return [left, right];"], [null, "    }"], ["lt", "    if (pairSum < target) {"], ["left", "      left++;"], [null, "    } else {"], ["right", "      right--;"], [null, "    }"], [null, "  }"], ["none", "  return [];"], [null, "}"]], "java": [[null, "static int[] pairWithSum(int[] nums, int target) {"], ["init", "    int left = 0, right = nums.length - 1;"], ["loop", "    while (left < right) {"], ["sum", "        int pairSum = nums[left] + nums[right];"], ["eq", "        if (pairSum == target) {"], ["found", "            return new int[]{left, right};"], [null, "        }"], ["lt", "        if (pairSum < target) {"], ["left", "            left++;"], [null, "        } else {"], ["right", "            right--;"], [null, "        }"], [null, "    }"], ["none", "    return new int[0];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-02a-table").innerHTML = TL.table(run.table); }
+  { const run = tl2A([1, 3, 4, 6], 8, false);
+    Viz.tlab("#tl-02a-bug", { title: "Why left < right \u00b7 nums = [1, 3, 4, 6], target = 8", sub: "Switch between the correct loop and <= .", code: {"py": [[null, "def pair_with_sum(nums, target):"], ["init", "    left, right = 0, len(nums) - 1"], ["loop", "    while left < right:"], ["sum", "        pair_sum = nums[left] + nums[right]"], ["eq", "        if pair_sum == target:"], ["found", "            return [left, right]"], ["lt", "        if pair_sum < target:"], ["left", "            left += 1"], [null, "        else:"], ["right", "            right -= 1"], ["none", "    return []"]], "ts": [[null, "function pairWithSum(nums: number[], target: number): number[] {"], ["init", "  let left = 0, right = nums.length - 1;"], ["loop", "  while (left < right) {"], ["sum", "    const pairSum = nums[left] + nums[right];"], ["eq", "    if (pairSum === target) {"], ["found", "      return [left, right];"], [null, "    }"], ["lt", "    if (pairSum < target) {"], ["left", "      left++;"], [null, "    } else {"], ["right", "      right--;"], [null, "    }"], [null, "  }"], ["none", "  return [];"], [null, "}"]], "java": [[null, "static int[] pairWithSum(int[] nums, int target) {"], ["init", "    int left = 0, right = nums.length - 1;"], ["loop", "    while (left < right) {"], ["sum", "        int pairSum = nums[left] + nums[right];"], ["eq", "        if (pairSum == target) {"], ["found", "            return new int[]{left, right};"], [null, "        }"], ["lt", "        if (pairSum < target) {"], ["left", "            left++;"], [null, "        } else {"], ["right", "            right--;"], [null, "        }"], [null, "    }"], ["none", "    return new int[0];"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: left <= right", code: {"py": [[null, "def pair_with_sum(nums, target):"], ["init", "    left, right = 0, len(nums) - 1"], ["loop", "    while left <= right:"], ["sum", "        pair_sum = nums[left] + nums[right]"], ["eq", "        if pair_sum == target:"], ["found", "            return [left, right]"], ["lt", "        if pair_sum < target:"], ["left", "            left += 1"], [null, "        else:"], ["right", "            right -= 1"], ["none", "    return []"]]}, steps: tl2A([1, 3, 4, 6], 8, true).steps, diverge: 7, why: "the pointers are on the same index, but <code>&lt;=</code> lets the loop weigh one person twice." } });
+     }
+  { const run = tl2B([1, 1, 2, 2, 2, 3]);
+    Viz.tlab("#tl-02b", { title: "Template B \u00b7 nums = [1, 1, 2, 2, 2, 3]", sub: "Green = kept part (before write); blue = the reader; pointers are labelled.", code: {"py": [[null, "def dedupe_sorted(nums):"], ["empty", "    if len(nums) == 0:"], [null, "        return 0"], ["init", "    write = 1"], ["loop", "    for read in range(1, len(nums)):"], ["keep", "        if nums[read] != nums[write - 1]:"], ["copy", "            nums[write] = nums[read]"], ["grow", "            write += 1"], ["ret", "    return write"]], "ts": [[null, "function dedupeSorted(nums: number[]): number {"], ["empty", "  if (nums.length === 0) {"], [null, "    return 0;"], [null, "  }"], ["init", "  let write = 1;"], ["loop", "  for (let read = 1; read < nums.length; read++) {"], ["keep", "    if (nums[read] !== nums[write - 1]) {"], ["copy", "      nums[write] = nums[read];"], ["grow", "      write++;"], [null, "    }"], [null, "  }"], ["ret", "  return write;"], [null, "}"]], "java": [[null, "static int dedupeSorted(int[] nums) {"], ["empty", "    if (nums.length == 0) {"], [null, "        return 0;"], [null, "    }"], ["init", "    int write = 1;"], ["loop", "    for (int read = 1; read < nums.length; read++) {"], ["keep", "        if (nums[read] != nums[write - 1]) {"], ["copy", "            nums[write] = nums[read];"], ["grow", "            write++;"], [null, "        }"], [null, "    }"], ["ret", "    return write;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-02b-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

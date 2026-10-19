@@ -395,6 +395,10 @@
     try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
     if (!cfg.code[lang]) lang = "py";
     root.classList.add("tlab");
+    if (cfg.bug && cfg.bug.diverge === undefined) {
+      const key = (st) => st ? JSON.stringify([st.line, st.vars]) : "";
+      cfg.bug.diverge = cfg.bug.steps.findIndex((st, k) => key(st) !== key(cfg.steps[k]));
+    }
     root.innerHTML = `<div class="tl-bar">
         <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}

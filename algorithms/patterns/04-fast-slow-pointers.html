@@ -506,9 +506,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tlab { margin: 14px 0; }
 .tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
 .tl-opt { font: 600 .82rem var(--sans); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
-.tl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
-.tl-code { margin: 0; font-size: .8rem; line-height: 1.55; max-height: none; }
-.tl-code code { display: block; }
+.tl-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; width: 100%; align-items: start; text-align: left; }
+.tl-code { margin: 0; font-size: .78rem; line-height: 1.55; max-height: none; overflow-x: auto; }
+.tl-code code { display: inline-block; min-width: 100%; }
 .tl-ln { display: block; padding: 0 6px; border-left: 3px solid transparent; border-radius: 3px; white-space: pre; }
 .tl-ln.on { background: rgba(120, 200, 255, .2); border-left-color: #7dd3fc; box-shadow: inset 0 0 0 1px rgba(125, 211, 252, .35); }
 .tl-bar .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
@@ -516,7 +516,9 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tl-bar .seg button + button { border-left: 1px solid var(--line); }
 .tl-bar .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .tl-bar .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tl-side { display: grid; gap: 10px; justify-items: center; }
+.tl-side { display: grid; gap: 10px; justify-items: center; min-width: 0; overflow-x: auto; padding-bottom: 4px; }
+.tl-side > * { max-width: 100%; }
+.tl-side .row { flex-wrap: nowrap; }
 .tl-analogy { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; font-size: .88rem; width: 100%; }
 .tl-warn { color: var(--red); }
 .tlab.tl-noexpl .note { display: none; }
@@ -1070,6 +1072,10 @@ svg.flow .fn { transition: opacity .35s ease; }
     try { lang = localStorage.getItem("ik-code-lang") || "py"; } catch (e) { /* storage unavailable */ }
     if (!cfg.code[lang]) lang = "py";
     root.classList.add("tlab");
+    if (cfg.bug && cfg.bug.diverge === undefined) {
+      const key = (st) => st ? JSON.stringify([st.line, st.vars]) : "";
+      cfg.bug.diverge = cfg.bug.steps.findIndex((st, k) => key(st) !== key(cfg.steps[k]));
+    }
     root.innerHTML = `<div class="tl-bar">
         <span class="seg tl-lang" role="group" aria-label="Code language">${Object.keys(cfg.code).map((l) => `<button type="button" data-l="${l}">${LN[l] || l}</button>`).join("")}</span>
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
@@ -2301,87 +2307,180 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(n)</code> time. Fast covers at most ~2n steps before falling off or meeting, and phase 2 is at most n more. <code>O(1)</code> extra space.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Middle of a list (the second middle when the length is even)
-def middle_node(head):
-    # Both runners start on the first node.
-    slow = head
-    fast = head
-    # fast jumps 2 nodes per round, so BOTH fast and fast.next must exist.
-    while fast is not None and fast.next is not None:
-        slow = slow.next              # tortoise: 1 step
-        fast = fast.next.next         # hare: 2 steps
-    # fast has walked twice as far as slow, so slow is halfway.
-    return slow
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Fast &amp; Slow Pointers has three templates built on one move: a <em>tortoise</em> takes one step while a <em>hare</em> takes two. <strong>A</strong> uses the fact that the hare covers twice the distance (so the tortoise ends halfway). <strong>B</strong> uses the fact that a faster runner on a loop always laps a slower one. <strong>C</strong> adds a second phase that finds where the loop starts.</p>
 
-
-# B) Cycle detection
-def has_cycle(head):
-    slow = head
-    fast = head
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Middle of a linked list</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Which node is in the middle (the second middle when the length is even)?</div><div><b>What it keeps</b>Two references, <code>slow</code> and <code>fast</code>, both starting at <code>head</code>.</div><div><b>When it checks for an answer</b>When <code>fast</code> can't take two more steps, <code>slow</code> is the middle.</div><div><b>Use it when</b>You need the middle in one pass without knowing the length (split a list, palindrome check).</div><div><b>Not for</b>Arrays (just use <code>len // 2</code>).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Twice as fast, so half as far"</strong>Two runners leave the start together; the hare runs twice as fast. When the hare reaches the finish, the tortoise is exactly halfway.</div>
+    <p><strong>The story, mapped to the code.</strong> The list is a running track of nodes from the start line to the end.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The tortoise</td><td data-h="In the code"><code>slow = slow.next</code></td><td data-h="What it means">One node per round.</td></tr><tr><td data-h="In the story">The hare</td><td data-h="In the code"><code>fast = fast.next.next</code></td><td data-h="What it means">Two nodes per round.</td></tr><tr><td data-h="In the story">The hare can't finish another stride</td><td data-h="In the code"><code>fast is None or fast.next is None</code></td><td data-h="What it means">Stop.</td></tr><tr><td data-h="In the story">Where the tortoise stands</td><td data-h="In the code"><code>return slow</code></td><td data-h="What it means">The middle node.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The loop condition checks both <code>fast</code> and <code>fast.next</code> because the hare needs two nodes to land.</p>
+    <pre><code class="python">def middle_node(head):
+    slow = fast = head
     while fast is not None and fast.next is not None:
         slow = slow.next
         fast = fast.next.next
-        # Compare NODES with "is", not values: two nodes may hold equal values.
-        if slow is fast:
-            return True               # the hare lapped the tortoise: a loop
-    return False                      # the hare fell off the end: no loop
-
-
-# C) Start of the cycle (LeetCode 142)
-def cycle_start(head):
-    slow = head
-    fast = head
+    return slow</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function middleNode(head: ListNode | null): ListNode | null {
+  let slow = head, fast = head;
+  while (fast !== null &amp;&amp; fast.next !== null) {
+    slow = slow!.next;
+    fast = fast.next.next;
+  }
+  return slow;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static ListNode middleNode(ListNode head) {
+    ListNode slow = head, fast = head;
+    while (fast != null &amp;&amp; fast.next != null) {
+        slow = slow.next;
+        fast = fast.next.next;
+    }
+    return slow;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>slow = fast = head</code></td><td data-h="What it does">Both start on the first node.</td><td data-h="In the story">Runners on the start line.</td><td data-h="Why here, and what breaks if it moves">Starting fast at head.next gives the <em>first</em> middle on even lengths: fine if that's what you want, but know which one you get.</td></tr><tr><td data-h="Line"><code>while fast is not None and fast.next is not None:</code></td><td data-h="What it does">Continue only if the hare can land two nodes ahead.</td><td data-h="In the story">Can the hare take another full stride?</td><td data-h="Why here, and what breaks if it moves">Checking only <code>fast.next</code> crashes when fast is None; checking only <code>fast</code> crashes on <code>fast.next.next</code>.</td></tr><tr><td data-h="Line"><code>slow = slow.next</code></td><td data-h="What it does">Tortoise: one step.</td><td data-h="In the story">One stride.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>fast = fast.next.next</code></td><td data-h="What it does">Hare: two steps.</td><td data-h="In the story">Two strides.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the list <code>1 → 2 → 3 → 4 → 5</code>.</p>
+    <div id="tl-04a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-04a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After r rounds, <code>slow</code> is at index r and <code>fast</code> at index 2r. The loop stops when 2r reaches the end, so r is half the length.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Loop condition missing <code>fast.next</code>.</strong> The hare needs two nodes for one stride.</li><li><strong>Not knowing which middle you get.</strong> Both at head → second middle on even lengths.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Twice as fast, so half as far.</dd>
+      <dt>Choose this template when</dt><dd>Middle of a linked list in one pass → A.</dd>
+      <dt>Invariant</dt><dd>fast is always at twice slow's index.</dd>
+      <dt>The line people get wrong</dt><dd><code>while fast and fast.next</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Middle of 1→2→3→4→5→6 with this template?</summary><p>4 (the second middle).</p></details><details><summary>Why check <code>fast.next</code>?</summary><p>fast.next.next would crash if fast.next were None.</p></details><details><summary>How many rounds for 5 nodes?</summary><p>2.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Detect a cycle (Floyd)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Does following <code>next</code> ever loop back?</div><div><b>What it keeps</b><code>slow</code> and <code>fast</code> again.</div><div><b>When it checks for an answer</b>After every round: are they on the <em>same node</em>?</div><div><b>Use it when</b>Cycle detection in a linked list or in any "next state" function (Happy Number, find the duplicate number).</div><div><b>Not for</b>Finding <em>all</em> cycles in a graph (DFS with colours, page 11).</div></div>
+    <div class="callout memory"><strong>Memory hook: "On a circular track, the faster runner always laps the slower one"</strong>If the track is a straight road, the hare just falls off the end. If it loops, the hare gains one node per round and must eventually land on the tortoise.</div>
+    <p><strong>The story, mapped to the code.</strong> Same runners. This time the track might end in a loop.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Hare falls off the end</td><td data-h="In the code"><code>fast is None or fast.next is None</code></td><td data-h="What it means">No cycle.</td></tr><tr><td data-h="In the story">Hare lands on the tortoise</td><td data-h="In the code"><code>slow is fast</code></td><td data-h="What it means">There's a loop.</td></tr><tr><td data-h="In the story">Gap closes by one per round</td><td data-h="In the code"><code>fast moves 2, slow moves 1</code></td><td data-h="What it means">Why they must meet.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Same loop as A, plus a meeting check after every move.</p>
+    <pre><code class="python">def has_cycle(head):
+    slow = fast = head
     while fast is not None and fast.next is not None:
         slow = slow.next
         fast = fast.next.next
         if slow is fast:
-            # Phase 1 is done: they met somewhere inside the loop.
-            # Phase 2: send one runner back to the start ...
+            return True
+    return False</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function hasCycle(head: ListNode | null): boolean {
+  let slow = head, fast = head;
+  while (fast !== null &amp;&amp; fast.next !== null) {
+    slow = slow!.next;
+    fast = fast.next.next;
+    if (slow === fast) {
+      return true;
+    }
+  }
+  return false;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static boolean hasCycle(ListNode head) {
+    ListNode slow = head, fast = head;
+    while (fast != null &amp;&amp; fast.next != null) {
+        slow = slow.next;
+        fast = fast.next.next;
+        if (slow == fast) {
+            return true;
+        }
+    }
+    return false;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>slow = slow.next; fast = fast.next.next</code></td><td data-h="What it does">Move both runners first.</td><td data-h="In the story">One round of running.</td><td data-h="Why here, and what breaks if it moves">Checking <code>slow is fast</code> <em>before</em> moving returns True immediately (they start together).</td></tr><tr><td data-h="Line"><code>if slow is fast</code></td><td data-h="What it does">Same node object?</td><td data-h="In the story">Did the hare land on the tortoise?</td><td data-h="Why here, and what breaks if it moves">Comparing <code>.val</code> gives false positives when two nodes hold equal values. In Java use <code>==</code> on references, not <code>.equals</code> on values.</td></tr><tr><td data-h="Line"><code>return False</code></td><td data-h="What it does">The hare reached the end.</td><td data-h="In the story">The road ended: no loop.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>3 → 2 → 0 → −4</code>, with the tail pointing back to the node holding 2.</p>
+    <div id="tl-04b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-04b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Once both runners are inside the loop, the distance from fast to slow (going forward) shrinks by exactly one each round, so it reaches 0 within one lap.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space (versus O(n) space for a visited set).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Checking for a meeting before moving.</strong> Run first, then look.</li><li><strong>Comparing values.</strong> Compare nodes (<code>is</code>, <code>===</code>, Java <code>==</code>).</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>On a loop, the faster runner always laps the slower one.</dd>
+      <dt>Choose this template when</dt><dd>"Is there a cycle?" with O(1) memory → B.</dd>
+      <dt>Invariant</dt><dd>Inside the loop, the gap shrinks by one per round.</dd>
+      <dt>The line people get wrong</dt><dd><code>if slow is fast</code> after the moves.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why can't the hare jump over the tortoise?</summary><p>The gap shrinks by exactly 1 per round, so it hits 0.</p></details><details><summary>What does the hare do on a list without a cycle?</summary><p>Reaches None and the loop ends.</p></details><details><summary>Space with a visited set vs Floyd?</summary><p>O(n) vs O(1).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Where does the cycle start?</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Return the node where the loop begins (or None).</div><div><b>What it keeps</b>Phase 1: <code>slow</code>/<code>fast</code> until they meet. Phase 2: one pointer from <code>head</code>, one from the meeting point.</div><div><b>When it checks for an answer</b>Phase 2 stops when the two one-step walkers meet: that's the entrance.</div><div><b>Use it when</b>LC 142, Find the Duplicate Number (LC 287) on the index → value graph.</div><div><b>Not for</b>Just detecting a cycle (B is enough).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Meet, then one goes home; walk together at the same speed, meet at the gate"</strong>After the runners meet inside the park, send one back to the entrance road's start. Both now walk one step at a time; they arrive at the park gate together.</div>
+    <p><strong>The story, mapped to the code.</strong> The list is a road (length a) leading to a gate, then a circular park.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Length of the road before the gate</td><td data-h="In the code"><code>a</code></td><td data-h="What it means">Nodes from head to the cycle start.</td></tr><tr><td data-h="In the story">Runners meet in the park</td><td data-h="In the code"><code>slow is fast</code></td><td data-h="What it means">End of phase 1.</td></tr><tr><td data-h="In the story">One runner goes back to the start</td><td data-h="In the code"><code>slow = head</code></td><td data-h="What it means">Phase 2 begins.</td></tr><tr><td data-h="In the story">Both walk one step</td><td data-h="In the code"><code>slow = slow.next; fast = fast.next</code></td><td data-h="What it means">Same speed now.</td></tr><tr><td data-h="In the story">They meet at the gate</td><td data-h="In the code"><code>return slow</code></td><td data-h="What it means">The cycle's first node.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Phase 1 is Template B. Phase 2 runs only after a meeting.</p>
+    <pre><code class="python">def cycle_start(head):
+    slow = fast = head
+    while fast is not None and fast.next is not None:
+        slow = slow.next
+        fast = fast.next.next
+        if slow is fast:
             slow = head
-            # ... and move BOTH one step at a time until they meet again.
             while slow is not fast:
                 slow = slow.next
                 fast = fast.next
-            return slow               # the node where they meet is the entrance
-    return None                       # no loop, so no entrance</code></pre>
-<!-- explain-04:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><code>slow = head</code> and <code>fast = head</code>: both runners start on the first node. (We write two separate lines instead of the shortcut <code>slow = fast = head</code>.)</li>
-  <li><code>while fast is not None and fast.next is not None:</code> the hare is about to take <em>two</em> steps, so the node it stands on and the node after it must both exist. The order matters: Python checks <code>fast is not None</code> first and stops right there if it is false, so <code>fast.next</code> is never read on <code>None</code>. This is the long way of writing <code>while fast and fast.next</code>.</li>
-  <li><code>slow = slow.next</code> moves the tortoise one node; <code>fast = fast.next.next</code> moves the hare two nodes.</li>
-  <li><strong>Template A</strong> just returns <code>slow</code> when the loop stops. The hare walked twice as far, so the tortoise is halfway.</li>
-  <li><strong>Template B</strong> adds <code>if slow is fast: return True</code> <em>after</em> moving. <code>is</code> asks "is this the very same node object?", which is what we want. Two different nodes can hold the same number. If the loop ends without a meeting, the hare found the end of the list, so we return <code>False</code>.</li>
-  <li><strong>Template C</strong> does the same as B, but when they meet it starts phase 2: <code>slow = head</code> puts one runner back at the start, and the inner <code>while slow is not fast:</code> moves both runners <strong>one</strong> step at a time. The node where they meet again is the first node of the loop.</li>
-</ol>
-<p><strong>Dry run</strong> on the example: Template A on <code>1 → 2 → 3 → 4 → 5</code> (values shown for each node), then template C on LeetCode 142's list <code>3 → 2 → 0 → -4</code> whose tail points back to the node <code>2</code>.</p>
-<table>
-  <thead><tr>
-<th>Round</th><th>slow</th><th>fast</th><th>Can fast take 2 more steps?</th>
-</tr></thead>
-  <tbody>
-    <tr><td>start</td><td>1</td><td>1</td><td>yes</td></tr>
-    <tr><td>1</td><td>2</td><td>3</td><td>yes</td></tr>
-    <tr><td>2</td><td>3</td><td>5</td><td>no → stop, return slow</td></tr>
-  </tbody>
-</table>
-<p>Template A returns the node <code>3</code>. Template C:</p>
-<table>
-  <thead><tr>
-<th>Phase</th><th>Round</th><th>slow</th><th>fast</th><th>What happened</th>
-</tr></thead>
-  <tbody>
-    <tr><td>1</td><td>start</td><td>3</td><td>3</td><td>both at the head</td></tr>
-    <tr><td>1</td><td>1</td><td>2</td><td>0</td><td>different nodes</td></tr>
-    <tr><td>1</td><td>2</td><td>0</td><td>2</td><td>different nodes</td></tr>
-    <tr><td>1</td><td>3</td><td>-4</td><td>-4</td><td>same node: they met</td></tr>
-    <tr><td>2</td><td>reset</td><td>3</td><td>-4</td><td>slow back to the head</td></tr>
-    <tr><td>2</td><td>1</td><td>2</td><td>2</td><td>same node: the entrance</td></tr>
-  </tbody>
-</table>
-<p>Template C returns the node <code>2</code>, the entrance of the loop.</p>
-<!-- /explain-04:template -->
+            return slow
+    return None</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function cycleStart(head: ListNode | null): ListNode | null {
+  let slow = head, fast = head;
+  while (fast !== null &amp;&amp; fast.next !== null) {
+    slow = slow!.next;
+    fast = fast.next.next;
+    if (slow === fast) {
+      slow = head;
+      while (slow !== fast) {
+        slow = slow!.next;
+        fast = fast!.next;
+      }
+      return slow;
+    }
+  }
+  return null;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static ListNode cycleStart(ListNode head) {
+    ListNode slow = head, fast = head;
+    while (fast != null &amp;&amp; fast.next != null) {
+        slow = slow.next;
+        fast = fast.next.next;
+        if (slow == fast) {
+            slow = head;
+            while (slow != fast) {
+                slow = slow.next;
+                fast = fast.next;
+            }
+            return slow;
+        }
+    }
+    return null;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>slow = head</code></td><td data-h="What it does">Phase 2: one runner goes back to the start.</td><td data-h="In the story">Back to the start of the road.</td><td data-h="Why here, and what breaks if it moves">Resetting <code>fast</code> instead works too (it's symmetric), but resetting <em>both</em> breaks it.</td></tr><tr><td data-h="Line"><code>while slow is not fast</code></td><td data-h="What it does">Walk until they meet.</td><td data-h="In the story">Walk together.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>slow = slow.next; fast = fast.next</code></td><td data-h="What it does">Both move <em>one</em> step.</td><td data-h="In the story">Same speed now.</td><td data-h="Why here, and what breaks if it moves">Keeping fast at two steps breaks the distance argument; they may never meet at the gate.</td></tr><tr><td data-h="Line"><code>return slow</code></td><td data-h="What it does">The meeting node is the cycle start.</td><td data-h="In the story">The gate.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>1 → 2 → 3 → 4 → 5 → 6</code>, with the tail pointing back to node 3 (index 2).</p>
+    <div id="tl-04c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-04c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> If the road has length a and they met k nodes into the loop of length L, then a ≡ L − k (mod L): walking a steps from the head and from the meeting point both end at the gate.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Phase 2 with fast still taking two steps.</strong> "Walk together at the same speed".</li><li><strong>Starting phase 2 without a meeting.</strong> No meeting means no cycle: return None.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Meet, one goes home, walk together, meet at the gate.</dd>
+      <dt>Choose this template when</dt><dd>"Where does the cycle start / which value is duplicated" with O(1) memory → C.</dd>
+      <dt>Invariant</dt><dd>Distance head→gate equals distance meeting point→gate (mod loop length).</dd>
+      <dt>The line people get wrong</dt><dd>Phase 2: both move one step.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>In phase 2, how fast does each pointer move?</summary><p>One step.</p></details><details><summary>Which pointer goes back to head?</summary><p>Either one, but only one.</p></details><details><summary>What does LC 287 use as "next"?</summary><p>next(i) = nums[i].</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · middle</th><th>B · has cycle</th><th>C · cycle start</th></tr></thead><tbody><tr><td data-h="Question">Question</td><td data-h="A · middle">Where is the middle?</td><td data-h="B · has cycle">Is there a loop?</td><td data-h="C · cycle start">Where does the loop begin?</td></tr><tr><td data-h="Question">Key fact</td><td data-h="A · middle">fast travels 2× slow's distance</td><td data-h="B · has cycle">On a loop, the gap closes by 1 per round</td><td data-h="C · cycle start">Head→gate = meeting point→gate (mod L)</td></tr><tr><td data-h="Question">Phases</td><td data-h="A · middle">1</td><td data-h="B · has cycle">1</td><td data-h="C · cycle start">2 (second one at equal speed)</td></tr><tr><td data-h="Question">Stops when</td><td data-h="A · middle">fast can't take 2 steps</td><td data-h="B · has cycle">slow is fast, or fast hits the end</td><td data-h="C · cycle start">Phase-2 walkers meet</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · middle">LC 876, LC 234 (palindrome)</td><td data-h="B · has cycle">LC 141, LC 202 (happy number)</td><td data-h="C · cycle start">LC 142, LC 287</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · middle">O(n) / O(1)</td><td data-h="B · has cycle">O(n) / O(1)</td><td data-h="C · cycle start">O(n) / O(1)</td></tr></tbody></table>
+    <p>All three share the same loop header. A ignores meetings, B returns on a meeting, C uses the meeting as the start of a second walk.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -4836,6 +4935,89 @@ Thus, the maximum twin sum of the linked list is max(7, 4) = 7.</span></div></di
   if (typeof location !== "undefined") openTarget(location.hash);
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl4View(vals, pos, ps, hl) {
+    const ptrs = {}; Object.entries(ps).forEach(([name, i]) => { if (i !== null && i !== undefined) ptrs[i] = ptrs[i] ? ptrs[i] + "," + name : name; });
+    return Viz.list(vals, { ptrs, hl: hl || {} }) + `<p class="idx">${pos >= 0 ? `tail → node ${vals[pos]} (index ${pos}): the loop` : "tail → None"}</p>`;
+  }
+  const tl4next = (n, pos) => (i) => (i === null ? null : i + 1 < n ? i + 1 : pos >= 0 ? pos : null);
+
+  function tl4A(vals) {
+    const nx = tl4next(vals.length, -1); let slow = 0, fast = 0, r = 0; const steps = [], rows = [[0, vals[slow], vals[fast]]];
+    steps.push({ line: "init", vars: { slow: vals[slow], fast: vals[fast] }, view: tl4View(vals, -1, { slow, fast }), analogy: "Both runners on the start line.", note: "<code>slow = fast = head</code>." });
+    while (fast !== null && nx(fast) !== null) {
+      slow = nx(slow); fast = nx(nx(fast)); r++;
+      steps.push({ line: ["loop", "slow", "fast"], vars: { round: r, slow: vals[slow], fast: fast === null ? "None" : vals[fast] }, view: tl4View(vals, -1, { slow, fast }, { [slow]: "active" }),
+        analogy: `Round ${r}: tortoise at ${vals[slow]}, hare ${fast === null ? "ran off the end" : "at " + vals[fast]}.`, note: `<code>slow</code> → ${vals[slow]}, <code>fast</code> → ${fast === null ? "None" : vals[fast]}.`,
+        ask: { q: "Where does fast land?", options: [...new Set([fast === null ? "None" : String(vals[fast]), String(vals[slow]), "None", String(vals[vals.length - 1])])], answer: fast === null ? "None" : vals[fast], why: "Two nodes ahead of where it was." } });
+      rows.push([r, vals[slow], fast === null ? "None" : vals[fast]]);
+    }
+    steps.push({ line: ["loop", "ret"], vars: { result: vals[slow] }, view: tl4View(vals, -1, { slow, fast }, { [slow]: "found" }), analogy: `The hare can't take another full stride: the tortoise (${vals[slow]}) is halfway.`, note: `Return the node with value <code>${vals[slow]}</code>.` });
+    return { steps, table: { head: ["Round", "slow at", "fast at"], rows } };
+  }
+
+  function tl4B(vals, pos) {
+    const nx = tl4next(vals.length, pos); let slow = 0, fast = 0, r = 0; const steps = [], rows = [];
+    steps.push({ line: "init", vars: { slow: vals[slow], fast: vals[fast] }, view: tl4View(vals, pos, { slow, fast }), analogy: "Both runners start together.", note: "<code>slow = fast = head</code>." });
+    while (fast !== null && nx(fast) !== null) {
+      slow = nx(slow); fast = nx(nx(fast)); r++;
+      const meet = slow === fast;
+      steps.push({ line: ["loop", "slow", "fast", "meet"], vars: { round: r, slow: vals[slow], fast: fast === null ? "None" : vals[fast], same_node: meet }, view: tl4View(vals, pos, { slow, fast }, meet ? { [slow]: "found" } : { [slow]: "active" }),
+        analogy: meet ? `The hare landed on the tortoise at ${vals[slow]}: there is a loop.` : `Tortoise at ${vals[slow]}, hare at ${fast === null ? "the end" : vals[fast]}.`,
+        note: `<code>slow is fast</code>? ${meet ? "yes" : "no"}.`, ask: { q: "Do they meet this round?", options: ["yes", "no"], answer: meet ? "yes" : "no", why: `slow at ${vals[slow]}, fast at ${fast === null ? "None" : vals[fast]}.` } });
+      rows.push([r, vals[slow], fast === null ? "None" : vals[fast], meet ? "yes" : "no"]);
+      if (meet) { steps.push({ line: "yes", vars: { result: "True" }, view: tl4View(vals, pos, { slow, fast }, { [slow]: "found" }), analogy: "Loop confirmed.", note: "Return <code>True</code>." }); return { steps, table: { head: ["Round", "slow at", "fast at", "Same node?"], rows } }; }
+    }
+    steps.push({ line: "no", vars: { result: "False" }, view: tl4View(vals, pos, { slow }), analogy: "The hare fell off the end.", note: "Return <code>False</code>." });
+    return { steps, table: { head: ["Round", "slow at", "fast at", "Same node?"], rows } };
+  }
+
+  function tl4C(vals, pos) {
+    const nx = tl4next(vals.length, pos); let slow = 0, fast = 0, r = 0; const steps = [], rows = [];
+    steps.push({ line: "init", vars: { slow: vals[slow], fast: vals[fast] }, view: tl4View(vals, pos, { slow, fast }), analogy: "Phase 1: run until they meet.", note: "<code>slow = fast = head</code>." });
+    while (fast !== null && nx(fast) !== null) {
+      slow = nx(slow); fast = nx(nx(fast)); r++;
+      const meet = slow === fast; rows.push(["1", r, vals[slow], vals[fast], meet ? "meet" : ""]);
+      steps.push({ line: ["slow", "fast", "meet"], vars: { phase: 1, slow: vals[slow], fast: vals[fast] }, view: tl4View(vals, pos, { slow, fast }, meet ? { [slow]: "gold" } : {}),
+        analogy: meet ? `They meet at ${vals[slow]}, inside the park.` : `Tortoise ${vals[slow]}, hare ${vals[fast]}.`, note: meet ? "Phase 1 done." : "Keep running.",
+        ask: { q: "Do they meet this round?", options: ["yes", "no"], answer: meet ? "yes" : "no", why: `slow ${vals[slow]}, fast ${vals[fast]}.` } });
+      if (meet) {
+        slow = 0; let k = 0;
+        steps.push({ line: "home", vars: { phase: 2, slow: vals[slow], fast: vals[fast] }, view: tl4View(vals, pos, { slow, fast }), analogy: "One runner goes back to the start of the road. Now both walk one step at a time.", note: "<code>slow = head</code>." });
+        while (slow !== fast) {
+          slow = nx(slow); fast = nx(fast); k++;
+          const at = slow === fast; rows.push(["2", k, vals[slow], vals[fast], at ? "gate" : ""]);
+          steps.push({ line: ["walk", "step"], vars: { phase: 2, slow: vals[slow], fast: vals[fast] }, view: tl4View(vals, pos, { slow, fast }, at ? { [slow]: "found" } : {}),
+            analogy: at ? `Together at ${vals[slow]}: the gate.` : `Walking: ${vals[slow]} and ${vals[fast]}.`, note: `Both moved one step.`,
+            ask: { q: "Where is slow now?", options: [...new Set([vals[slow], vals[nx(slow)], vals[0]])].map(String), answer: vals[slow], why: "One step forward." } });
+        }
+        steps.push({ line: "gate", vars: { result: vals[slow] }, view: tl4View(vals, pos, { slow }, { [slow]: "found" }), analogy: `The loop starts at ${vals[slow]}.`, note: `Return the node with value <code>${vals[slow]}</code>.` });
+        return { steps, table: { head: ["Phase", "Round", "slow at", "fast at", "Event"], rows } };
+      }
+    }
+    steps.push({ line: "none", vars: { result: "None" }, view: tl4View(vals, pos, {}), analogy: "No loop, no gate.", note: "Return <code>None</code>." });
+    return { steps, table: { head: ["Phase", "Round", "slow at", "fast at", "Event"], rows } };
+  }
+
+  { const run = tl4A([1, 2, 3, 4, 5]);
+    Viz.tlab("#tl-04a", { title: "Template A \u00b7 1 \u2192 2 \u2192 3 \u2192 4 \u2192 5", sub: "Labels above the nodes show where slow and fast stand.", code: {"py": [[null, "def middle_node(head):"], ["init", "    slow = fast = head"], ["loop", "    while fast is not None and fast.next is not None:"], ["slow", "        slow = slow.next"], ["fast", "        fast = fast.next.next"], ["ret", "    return slow"]], "ts": [[null, "function middleNode(head: ListNode | null): ListNode | null {"], ["init", "  let slow = head, fast = head;"], ["loop", "  while (fast !== null && fast.next !== null) {"], ["slow", "    slow = slow!.next;"], ["fast", "    fast = fast.next.next;"], [null, "  }"], ["ret", "  return slow;"], [null, "}"]], "java": [[null, "static ListNode middleNode(ListNode head) {"], ["init", "    ListNode slow = head, fast = head;"], ["loop", "    while (fast != null && fast.next != null) {"], ["slow", "        slow = slow.next;"], ["fast", "        fast = fast.next.next;"], [null, "    }"], ["ret", "    return slow;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-04a-table").innerHTML = TL.table(run.table); }
+  { const run = tl4B([3, 2, 0, -4], 1);
+    Viz.tlab("#tl-04b", { title: "Template B \u00b7 3 \u2192 2 \u2192 0 \u2192 \u22124 \u2192 (back to 2)", sub: "The note under the list shows where the tail points.", code: {"py": [[null, "def has_cycle(head):"], ["init", "    slow = fast = head"], ["loop", "    while fast is not None and fast.next is not None:"], ["slow", "        slow = slow.next"], ["fast", "        fast = fast.next.next"], ["meet", "        if slow is fast:"], ["yes", "            return True"], ["no", "    return False"]], "ts": [[null, "function hasCycle(head: ListNode | null): boolean {"], ["init", "  let slow = head, fast = head;"], ["loop", "  while (fast !== null && fast.next !== null) {"], ["slow", "    slow = slow!.next;"], ["fast", "    fast = fast.next.next;"], ["meet", "    if (slow === fast) {"], ["yes", "      return true;"], [null, "    }"], [null, "  }"], ["no", "  return false;"], [null, "}"]], "java": [[null, "static boolean hasCycle(ListNode head) {"], ["init", "    ListNode slow = head, fast = head;"], ["loop", "    while (fast != null && fast.next != null) {"], ["slow", "        slow = slow.next;"], ["fast", "        fast = fast.next.next;"], ["meet", "        if (slow == fast) {"], ["yes", "            return true;"], [null, "        }"], [null, "    }"], ["no", "    return false;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-04b-table").innerHTML = TL.table(run.table); }
+  { const run = tl4C([1, 2, 3, 4, 5, 6], 2);
+    Viz.tlab("#tl-04c", { title: "Template C \u00b7 1 \u2192 2 \u2192 3 \u2192 4 \u2192 5 \u2192 6 \u2192 (back to 3)", sub: "Phase 1 finds a meeting point; phase 2 walks both at one step.", code: {"py": [[null, "def cycle_start(head):"], ["init", "    slow = fast = head"], ["loop", "    while fast is not None and fast.next is not None:"], ["slow", "        slow = slow.next"], ["fast", "        fast = fast.next.next"], ["meet", "        if slow is fast:"], ["home", "            slow = head"], ["walk", "            while slow is not fast:"], ["step", "                slow = slow.next"], ["step", "                fast = fast.next"], ["gate", "            return slow"], ["none", "    return None"]], "ts": [[null, "function cycleStart(head: ListNode | null): ListNode | null {"], ["init", "  let slow = head, fast = head;"], ["loop", "  while (fast !== null && fast.next !== null) {"], ["slow", "    slow = slow!.next;"], ["fast", "    fast = fast.next.next;"], ["meet", "    if (slow === fast) {"], ["home", "      slow = head;"], ["walk", "      while (slow !== fast) {"], ["step", "        slow = slow!.next;"], ["step", "        fast = fast!.next;"], [null, "      }"], ["gate", "      return slow;"], [null, "    }"], [null, "  }"], ["none", "  return null;"], [null, "}"]], "java": [[null, "static ListNode cycleStart(ListNode head) {"], ["init", "    ListNode slow = head, fast = head;"], ["loop", "    while (fast != null && fast.next != null) {"], ["slow", "        slow = slow.next;"], ["fast", "        fast = fast.next.next;"], ["meet", "        if (slow == fast) {"], ["home", "            slow = head;"], ["walk", "            while (slow != fast) {"], ["step", "                slow = slow.next;"], ["step", "                fast = fast.next;"], [null, "            }"], ["gate", "            return slow;"], [null, "        }"], [null, "    }"], ["none", "    return null;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-04c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 
