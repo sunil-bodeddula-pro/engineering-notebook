@@ -2236,6 +2236,13 @@ svg.flow .fn { transition: opacity .35s ease; }
     </ul>
     <p><strong>In an interview</strong>, deployment rarely needs more than a sentence ("canary releases with automatic rollback on SLO metrics, feature flags for risky changes"). Multi-region comes up when the prompt says "global" or "must survive a region failure": state active-passive or active-active, how data replicates, the RPO you accept, and how users are routed.</p>
 
+    <h3 id="outages">Lessons from real outages</h3>
+    <p>Most big outages start with a change. Two well-documented ones show why rollouts and failover need care:</p>
+    <table><thead><tr><th>Incident</th><th>What happened</th><th>The lesson</th></tr></thead><tbody>
+      <tr><td><a href="https://github.blog/news-insights/company-news/oct21-post-incident-analysis/" target="_blank" rel="noopener">GitHub, 21 October 2018</a></td><td>A 43-second network partition during maintenance made the database failover tool promote primaries on the US West Coast. Both coasts then held writes the other lacked, and failing back safely took 24 hours of degraded service.</td><td>Automatic failover across regions can create split brain (<a href="21-consensus-coordination.html#fen">Module 21</a>); require quorum, prefer staying in-region, and practise failover with fault injection.</td></tr>
+      <tr><td><a href="https://www.crowdstrike.com/wp-content/uploads/2024/08/Channel-File-291-Incident-Root-Cause-Analysis-08.06.2024.pdf" target="_blank" rel="noopener">CrowdStrike, 19 July 2024</a></td><td>A security content update with a field-count mismatch made the Windows sensor read out of bounds and crash at boot. It went to all hosts at once; Microsoft estimated about 8.5 million Windows devices were affected.</td><td>Staged rollouts and canaries apply to data and configuration, not just code; validate inputs; let customers control rollout timing.</td></tr>
+    </tbody></table>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Taste in one branch; keep the recipes off-site"</strong>Release to a small slice first and roll back automatically; keep tested, off-site copies of data and decide in advance how much you can lose (RPO) and how long you can be closed (RTO).</div>
@@ -2313,6 +2320,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Why isn't a cross-region replica a backup?</p>
         <div class="opts"><button>It's too slow</button><button>Deletes and corruption replicate too</button><button>It's in another region</button></div>
         <div class="why">A replica faithfully copies mistakes. Backups and point-in-time recovery let you go back to before them.</div>
+      </div>
+      <div class="quiz-q" data-answer="Failover promoted primaries in the other region, so both coasts held writes the other lacked">
+        <p>Why did GitHub's 43-second network partition in 2018 become 24 hours of degraded service?</p>
+        <div class="opts"><button>The network stayed down for a day</button><button>Failover promoted primaries in the other region, so both coasts held writes the other lacked</button><button>Backups were missing</button></div>
+        <div class="why">Cross-region automatic failover created divergent writes; reconciling them safely took a day.</div>
       </div>
     </div>
 
