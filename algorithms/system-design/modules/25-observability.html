@@ -2208,7 +2208,91 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Logs:</strong> structured JSON, shipped by an agent to Elasticsearch/OpenSearch, Grafana Loki or a vendor; keep recent logs hot and searchable, older logs in cheap object storage.</li>
       <li><strong>On-call basics:</strong> every page links to a runbook; alerts are grouped and deduplicated; and every serious incident gets a blameless post-incident review that produces fixes, not blame.</li>
     </ul>
-    <p><strong>In an interview</strong>, close the design with a sentence on observability: "RED metrics per service, traces with OpenTelemetry across the request path, structured logs with trace IDs, and paging on SLO burn rate for checkout latency and errors." For a monitoring-system design, cardinality and alert evaluation are the deep dives.</p>
+
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong><q>RED metrics per service, traces with OpenTelemetry across the request path, structured logs with trace IDs, and paging on SLO burn rate for checkout latency and errors.</q> Add client-side monitoring for apps. For a monitoring or logging design, cardinality, cost and the pipeline are the deep dives.</div>
+
+    <section class="tech" id="t-otel">
+      <div class="tech-h"><h3>OpenTelemetry</h3><span class="tech-status s-default">The default way to instrument</span></div>
+      <p>One vendor-neutral set of APIs, SDKs and a collector for traces, metrics and logs.</p>
+      <h4>How it works</h4>
+      <p>Libraries auto-instrument common frameworks (HTTP servers, database clients, queues) and propagate the trace context between services. The <strong>Collector</strong> receives telemetry, samples, enriches and batches it, and exports it to any backend, so switching vendors doesn't mean re-instrumenting.</p>
+      <h4>Status today</h4>
+      <p>A CNCF project supported by every major observability vendor and cloud; profiles are being added as a fourth signal.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any new service; especially many services in several languages</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Rewriting working instrumentation just to switch</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Services are instrumented with OpenTelemetry; the collector samples traces and sends everything to our backend.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Vendor-specific agents everywhere</strong>, locking every service to one tool.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-prom">
+      <div class="tech-h"><h3>Prometheus and Grafana (metrics)</h3><span class="tech-status s-default">The default metrics stack</span></div>
+      <p>Prometheus scrapes numeric time series from services and evaluates alert rules; Grafana draws dashboards over it and other sources.</p>
+      <h4>How it works</h4>
+      <p>Services expose counters, gauges and histograms on an endpoint; Prometheus pulls them every 15–60 s into a local time-series database and evaluates PromQL alert rules; Alertmanager groups, deduplicates and routes alerts. Long-term, horizontally scaled storage comes from Thanos, Mimir or VictoriaMetrics (Design D18).</p>
+      <h4>Status today</h4>
+      <p>The de-facto open-source standard, also offered as managed services by the major clouds.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>RED and USE metrics, SLO dashboards and burn-rate alerts</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>High-cardinality data (per-user or per-request labels): that belongs in logs or traces</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>RED metrics per service in Prometheus, SLO burn-rate alerts through Alertmanager.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Labels with unbounded values</strong> (user ID, URL with IDs): cardinality explodes.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-logging">
+      <div class="tech-h"><h3>Distributed logging pipeline</h3><span class="tech-status s-situational">Situational · logging-system designs</span></div>
+      <p>Getting logs from thousands of machines into one searchable place, affordably.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Structured logs</strong> (JSON with <code>trace_id</code>, <code>user_id</code>, level) written to local files or stdout.</li>
+        <li><strong>Agents</strong> on each host (Fluent Bit, Vector, the OpenTelemetry Collector) tail, parse and batch them; they buffer locally if the pipeline is down.</li>
+        <li><strong>A buffer</strong> (usually Kafka) absorbs spikes and lets several consumers read: the search index, the archive, security analytics.</li>
+        <li><strong>Hot store</strong> for recent days (Elasticsearch/OpenSearch, Loki, ClickHouse); <strong>cold store</strong> in object storage for months or years.</li>
+        <li><strong>Cost control:</strong> sample or drop debug logs, keep every error, set retention per log type.</li>
+      </ul>
+      <div id="sc-logs"></div>
+      <h4>Status today</h4>
+      <p>Common stacks: Fluent Bit or Vector → Kafka → OpenSearch or Loki, with S3 archives; managed alternatives from every observability vendor and cloud.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>"Design a logging system"</li><li>Any large fleet where SSH-ing into machines doesn't scale</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Using logs for things metrics answer more cheaply (rates, latencies)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Agents ship structured logs to Kafka; an indexer keeps 7 days hot in OpenSearch and archives the rest to S3; debug logs are sampled.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Indexing every log line forever</strong>: the bill grows faster than traffic.</li><li><strong>Logs without trace IDs</strong>: you can't jump from a slow trace to what it logged.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-tracing">
+      <div class="tech-h"><h3>Distributed tracing backends</h3><span class="tech-status s-situational">Situational · many services</span></div>
+      <p>Stores and searches traces: the tree of timed spans one request made across services.</p>
+      <h4>How it works</h4>
+      <p>Trace context travels in the W3C <code>traceparent</code> header; each service sends its spans to the collector. <strong>Tail-based sampling</strong> keeps every error and slow trace and a fraction of the rest, decided after the whole trace is seen.</p>
+      <h4>Status today</h4>
+      <p>Jaeger, Grafana Tempo, Zipkin and vendor backends; the idea comes from Google's Dapper paper (2010).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Microservices, where a slow request could be anywhere</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A single service with one database: logs and metrics are enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Tail-sampled traces keep every error and slow request, so we can always find the cause of a bad p99.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Head sampling at 1%</strong>, then wondering why the one failing request isn't there.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-clientmon">
+      <div class="tech-h"><h3>Client-side monitoring: RUM, crash reports, synthetic checks</h3><span class="tech-status s-situational">Situational · what users actually see</span></div>
+      <p>Measuring the product from the user's device, because server metrics can look perfect while the app is broken.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Real-user monitoring (RUM):</strong> a small script or SDK reports page loads, Core Web Vitals (LCP, INP, CLS), API timings and JavaScript errors from real users, by device, country and release.</li><li><strong>Crash and error reporting:</strong> mobile and web SDKs (Sentry, Firebase Crashlytics) send stack traces with the app version and the user's last actions.</li><li><strong>Synthetic monitoring:</strong> scripted probes from many regions hit key flows (log in, check out) every minute, catching outages even when nobody is using that path.</li></ul>
+      <h4>Status today</h4>
+      <p>Standard practice: Sentry, Crashlytics, Datadog RUM and similar vendors; browsers expose the timing data through standard performance APIs.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Consumer apps, mobile apps, anything where the client does real work</li><li>Catching bad releases of the app itself</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Pure backend services with no user-facing client</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>RUM and crash reporting by app version, plus synthetic checkout probes from five regions, alerting on errors per release.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Only server-side metrics</strong>: a broken JavaScript bundle or a mobile crash loop never shows up as a 500.</li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2287,6 +2371,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>What does RED stand for?</p>
         <div class="opts"><button>Rate, errors, duration</button><button>Requests, events, disks</button><button>Reliability, efficiency, durability</button></div>
         <div class="why">The three per-service signals that describe what users experience.</div>
+      </div>
+      <div class="quiz-q" data-answer="Client-side monitoring: JavaScript errors by release, or a synthetic checkout probe">
+        <p>Server dashboards are green, but users report the checkout button does nothing. What would have caught it?</p>
+        <div class="opts"><button>More server metrics</button><button>Client-side monitoring: JavaScript errors by release, or a synthetic checkout probe</button><button>Longer log retention</button></div>
+        <div class="why">A broken bundle never reaches the server, so only client-side signals see it.</div>
       </div>
     </div>
 
@@ -2393,9 +2482,28 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-trace", title: "3 · One slow checkout", text: "The same trace as a waterfall, span by span." },
     { el: "#burn", title: "4 · Should this page someone?", text: "SLO burn rates over two windows." },
     { el: "#card", title: "5 · How many time series?", text: "Pick metric labels and watch the cardinality grow." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "OpenTelemetry, Prometheus, logging pipelines, tracing and client-side monitoring, with red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-logs", {
+    title: "A logging pipeline that survives spikes and stays affordable", sub: "<b>Blue</b> = log batches, <b>teal</b> = buffered, <b>green</b> = stored and searchable.",
+    nodes: [{ id: "svc", x: 80, y: 135, w: 120, label: "Services", sub: "+ agent per host" }, { id: "k", x: 270, y: 135, w: 120, label: "Kafka", sub: "buffer" },
+      { id: "hot", x: 480, y: 50, w: 150, label: "Hot index", sub: "7 days, searchable" }, { id: "cold", x: 480, y: 135, w: 150, label: "Object storage", sub: "1 year, cheap" },
+      { id: "sec", x: 480, y: 220, w: 150, label: "Security analytics" }],
+    edges: [["svc", "k"], ["k", "hot"], ["k", "cold"], ["k", "sec"]],
+    width: 610, height: 265,
+    steps: [
+      { hl: { svc: "active", k: "active" }, moves: [0, 1, 2].map((i) => ({ e: "svc>k", t: "batch", k: "req", delay: i * 0.4 })), pops: [{ n: "svc", t: "JSON + trace_id", k: "req", at: 0.3 }], hold: 3.2,
+        note: "Each host's agent tails structured logs, batches and compresses them, and sends them to Kafka." },
+      { hl: { k: "found", hot: "found", cold: "found", sec: "found" }, moves: [{ e: "k>hot", t: "index", k: "ok" }, { e: "k>cold", t: "archive", k: "ok", delay: 0.3 }, { e: "k>sec", t: "scan", k: "evt", delay: 0.6 }], hold: 3.4,
+        note: "Several consumers read the same stream: a hot, searchable index for recent days, a cheap archive, and security analytics." },
+      { hl: { svc: "active", k: "warm", hot: "bad" }, moves: [0, 1, 2, 3].map((i) => ({ e: "svc>k", t: "spike", k: "req", delay: i * 0.25 })), pops: [{ n: "hot", t: "indexer slow", k: "bad", at: 0.4 }, { n: "k", t: "buffered, nothing lost", k: "ok", at: 1.6 }], hold: 3.6,
+        note: "During an incident, log volume spikes just as the indexer struggles. Kafka holds the backlog; nothing is dropped, and the index catches up." },
+      { hl: { svc: "found" }, pops: [{ n: "svc", t: "sample debug, keep errors", k: "ok", at: 0.3 }],
+        note: "Cost control starts at the source: sample debug logs, keep every error, and set retention per log type." },
+    ],
+  });
 })();
 </script>
 </body>

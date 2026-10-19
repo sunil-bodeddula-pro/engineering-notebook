@@ -2334,6 +2334,28 @@ svg.flow .fn { transition: opacity .35s ease; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Choosing a hash index on disk for speed</strong> and losing range queries.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-dsearch">
+      <div class="tech-h"><h3>Distributed search</h3><span class="tech-status s-situational">Situational · "design search" questions</span></div>
+      <p>How a search engine indexes billions of documents and answers queries in milliseconds: a sharded inverted index, queried in parallel and merged.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Indexing pipeline:</strong> documents are tokenised (lower-cased, stemmed), and each term maps to the list of documents containing it (postings), with positions and scores. Bulk builds run as batch jobs (MapReduce-style); updates stream in near-real-time, becoming searchable after a refresh.</li>
+        <li><strong>Document-partitioned index</strong> (the common choice): each shard holds a full index for a subset of documents. A query goes to every shard (scatter), each returns its top K, a coordinator merges them (gather). Adding documents is easy; every query touches every shard.</li>
+        <li><strong>Term-partitioned index:</strong> each shard holds the postings for some terms. A query touches only the shards for its terms, but multi-term queries must join lists across machines, and popular terms make hot shards.</li>
+        <li><strong>Ranking:</strong> a cheap first pass (BM25 text relevance) over candidates, then a more expensive re-ranking of the top few hundred (freshness, popularity, personal signals, ML models).</li>
+        <li><strong>Replicas</strong> of each shard serve read traffic and failover.</li>
+      </ul>
+      <div id="sc-search"></div>
+      <h4>Status today</h4>
+      <p>Elasticsearch and OpenSearch (built on Lucene) are document-partitioned with replicas; web-scale engines add tiered indexes and heavy caching. Vector search (Module 29) is increasingly combined with text search.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>"Design search for X", product or document search at scale</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small datasets: PostgreSQL full-text search, or Elasticsearch as a service</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Documents are indexed by a pipeline into a document-partitioned index with replicas; queries scatter to all shards, each returns its top 100, and the coordinator merges and re-ranks.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A single index on one machine</strong> for billions of documents.</li><li><strong>Forgetting the tail:</strong> a query is as slow as its slowest shard, so replicas and hedged requests matter (Module 02).</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "B-trees edit the book, LSMs write a diary"</strong>A B-tree finds the right page and edits it in place: great for reading. An LSM only appends new entries and tidies up later: great for writing.</div>
@@ -2421,6 +2443,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>A geohash search returns the drivers in the rider's cell. What two steps are missing?</p>
         <div class="opts"><button>Add a cache, then sort by name</button><button>Search the 8 neighbouring cells, then filter by exact distance</button><button>Increase the geohash length, then retry</button></div>
         <div class="why">Nearby drivers can sit across a cell border, and cells are squares rather than circles.</div>
+      </div>
+      <div class="quiz-q" data-answer="Every shard, then the results are merged">
+        <p>In a document-partitioned search index, which shards does a query touch?</p>
+        <div class="opts"><button>Only the shard holding the query's first term</button><button>Every shard, then the results are merged</button><button>A random replica of one shard</button></div>
+        <div class="why">Each shard indexes a subset of documents, so any of them may hold matches: scatter to all, gather the top K from each.</div>
       </div>
     </div>
 
@@ -2558,6 +2585,22 @@ svg.flow .fn { transition: opacity .35s ease; }
         note: "So search the <b>3×3 block</b>: the rider's cell and its 8 neighbours. Nine cheap prefix scans." },
       { hl: { q: "found", c: "found", e: "found" }, pops: [{ n: "q", t: "keep those within 1 km", k: "ok", at: 0.4 }],
         note: "Cells are squares, not circles, so <b>post-filter</b> the candidates by exact distance and sort. A spatial index only narrows the search; the filter gives the answer." },
+    ],
+  });
+  Viz.scene("#sc-search", {
+    title: "Scatter, gather, re-rank", sub: "<b>Blue</b> = the query, <b>green</b> = top results per shard, <b>teal</b> = the merged answer.",
+    nodes: [{ id: "u", x: 70, y: 135, w: 100, label: "User" }, { id: "co", x: 250, y: 135, w: 130, label: "Coordinator" },
+      { id: "s1", x: 470, y: 45, w: 160, h: 40, label: "Shard 1", sub: "docs A–F" }, { id: "s2", x: 470, y: 105, w: 160, h: 40, label: "Shard 2", sub: "docs G–M" },
+      { id: "s3", x: 470, y: 165, w: 160, h: 40, label: "Shard 3", sub: "docs N–S" }, { id: "s4", x: 470, y: 225, w: 160, h: 40, label: "Shard 4", sub: "docs T–Z" }],
+    edges: [["u", "co"], ["co", "s1"], ["co", "s2"], ["co", "s3"], ["co", "s4"]],
+    width: 610, height: 270,
+    steps: [
+      { hl: { u: "active", co: "active", s1: "active", s2: "active", s3: "active", s4: "active" }, moves: [{ e: "u>co", t: "\"hiking boots\"", k: "req" }].concat([1, 2, 3, 4].map((i) => ({ e: "co>s" + i, t: "query", k: "req", delay: 0.9 + i * 0.12 }))), hold: 3.4,
+        note: "The query is scattered to every shard; each holds a full inverted index for its share of the documents." },
+      { hl: { co: "active", s1: "found", s2: "found", s3: "found", s4: "found" }, moves: [1, 2, 3, 4].map((i) => ({ e: "co>s" + i, t: "top 100", k: "ok", back: true, delay: i * 0.15 })), pops: [{ n: "co", t: "merge 400 candidates", k: "ok", at: 1.8 }], hold: 3.6,
+        note: "Each shard scores its matches with a cheap text-relevance score and returns only its top 100." },
+      { hl: { co: "found", u: "found" }, moves: [{ e: "u>co", t: "best 10", k: "evt", back: true, delay: 0.6 }], pops: [{ n: "co", t: "re-rank top 400", k: "evt", at: 0.2 }], hold: 3.2,
+        note: "The coordinator merges the candidates and re-ranks the best few hundred with richer signals (freshness, popularity, a model), then returns 10." },
     ],
   });
 })();

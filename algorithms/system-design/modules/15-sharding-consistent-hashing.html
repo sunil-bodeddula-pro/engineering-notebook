@@ -2314,6 +2314,21 @@ svg.flow .fn { transition: opacity .35s ease; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing 3PC as the fix</strong> for distributed transactions in a product design.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-shardedcounter">
+      <div class="tech-h"><h3>Sharded counters</h3><span class="tech-status s-situational">Situational · hot counts</span></div>
+      <p>One logical counter (likes on a viral post, views of a video) stored as N sub-counters, so writes spread out and reads add them up.</p>
+      <h4>How it works</h4>
+      <p>Each increment goes to a random sub-counter (<code>likes:42#0</code> … <code>#15</code>) on different shards (the scene in section 5). Reads sum all N, usually cached for a few seconds. Choose N from the peak write rate divided by what one shard handles; start small and add sub-counters only to hot items. Combine with batching (Module 18) to collapse many increments into one write.</p>
+      <h4>Status today</h4>
+      <p>A well-known pattern (Google's App Engine documentation popularised the name); Twitter, Instagram and YouTube-style counts work this way, often with approximate, eventually consistent totals.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Likes, views, votes, inventory counters under heavy write load</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Counters that must be exact at every read, or that change rarely</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Like counts are sharded counters, 16 sub-counters for hot posts, summed and cached for 5 seconds.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>One row per post updated 100,000 times a second.</strong></li><li><strong>Sharding every counter</strong>, including the millions that get one like an hour.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Split by how you ask; ring it so growth moves little"</strong>Choose the shard key from your most common query, and place shards on a hash ring (or slots) so adding capacity moves only a small slice.</div>
