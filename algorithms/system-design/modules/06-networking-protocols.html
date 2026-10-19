@@ -2352,6 +2352,22 @@ svg.flow .fn { transition: opacity .35s ease; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Treating a timeout as "it didn't happen"</strong> and retrying a payment without a key.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-dns">
+      <div class="tech-h"><h3>DNS: resolution, caching and failover</h3><span class="tech-status s-default">The default · usually one sentence</span></div>
+      <p>How a name becomes an address, where the answers are cached, and how DNS steers traffic away from failures.</p>
+      <h4>How it works</h4>
+      <ul><li><strong>Resolution:</strong> the device's stub resolver asks a <strong>recursive resolver</strong> (the ISP's, or 1.1.1.1 / 8.8.8.8). On a miss it walks the hierarchy: a <strong>root</strong> server points to the <code>.com</code> <strong>TLD</strong> servers, which point to the domain's <strong>authoritative</strong> servers, which return the address. The recursive resolver does the walking (recursive); each server only refers it onward (iterative).</li><li><strong>Caching:</strong> every layer (browser, OS, resolver) caches answers for their TTL, so most lookups never leave the first resolver.</li><li><strong>Steering and failover:</strong> authoritative DNS can answer by location (GeoDNS), latency or weight, and stop returning an unhealthy region's address. Changes take effect only as caches expire (the TTL), and some clients cache longer than told.</li></ul>
+      <div id="sc-dns"></div>
+      <h4>Status today</h4>
+      <p>Managed authoritative DNS (Route 53, Cloud DNS, Azure DNS, Cloudflare) with health checks is standard. DNS outages are rare but severe: when a provider's DNS fails, everything behind it disappears.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Pointing users at the nearest healthy region</li><li>Weighted moves of traffic between regions</li><li>A simple first layer of client-side load balancing</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Fast failover inside one region (load balancer health checks act in seconds; DNS waits for TTLs)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>GeoDNS sends users to the nearest region, with health checks and a 60-second TTL so a failed region drains within minutes.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Relying on DNS for instant failover</strong>: cached answers keep sending users to the dead region until they expire.</li><li><strong>One DNS provider and long TTLs</strong> for a critical domain, without saying what happens if it fails.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "TCP queues the line, QUIC gives each order its own line"</strong>TCP delivers everything in order, so one lost packet holds up all that follows. QUIC keeps streams separate, so a loss only delays its own stream.</div>
@@ -2443,6 +2459,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>A call to the payment service times out. What do you know?</p>
         <div class="opts"><button>It failed, so retry freely</button><button>It may or may not have happened</button><button>It succeeded</button></div>
         <div class="why">The work may be done and only the reply lost. Retry only with an idempotency key.</div>
+      </div>
+      <div class="quiz-q" data-answer="Resolvers and clients cache the old answer until its TTL expires">
+        <p>You remove a failed region from DNS. Why do some users keep reaching it for a while?</p>
+        <div class="opts"><button>DNS is eventually consistent by accident</button><button>Resolvers and clients cache the old answer until its TTL expires</button><button>The root servers are slow</button></div>
+        <div class="why">Every cache layer keeps the answer for its TTL (and some clients longer), so DNS failover takes at least that long.</div>
       </div>
     </div>
 
@@ -2572,6 +2593,23 @@ svg.flow .fn { transition: opacity .35s ease; }
         note: "Returning to a server it knows, the client can send the request in its first packet: <b>0-RTT</b>. A captured packet could be replayed, so it's only for idempotent requests." },
       { hl: { wifi: "bad", cell: "active", srv: "found" }, moves: [{ e: "cell>srv", t: "same connection ID", k: "ok", delay: 0.6 }], pops: [{ n: "wifi", t: "Wi-Fi lost", k: "bad", at: 0.2 }, { n: "srv", t: "connection survives", k: "ok", at: 2.0 }], hold: 3.6,
         note: "The user walks out of Wi-Fi range and the IP address changes. A TCP connection would die; QUIC recognises the <b>connection ID</b> and carries on." },
+    ],
+  });
+  Viz.scene("#sc-dns", {
+    title: "Resolving a name, the first time and the next", sub: "<b>Blue</b> = questions, <b>teal</b> = referrals, <b>green</b> = the answer.",
+    nodes: [{ id: "dev", x: 80, y: 130, w: 110, label: "Phone", sub: "stub resolver" }, { id: "rec", x: 285, y: 130, w: 165, label: "Recursive resolver", sub: "caches answers" },
+      { id: "root", x: 510, y: 40, w: 130, label: "Root server" }, { id: "tld", x: 510, y: 130, w: 130, label: ".com TLD" }, { id: "auth", x: 510, y: 220, w: 130, label: "Authoritative", sub: "example.com" }],
+    edges: [["dev", "rec"], ["rec", "root"], ["rec", "tld"], ["rec", "auth"]],
+    width: 610, height: 265,
+    steps: [
+      { hl: { dev: "active", rec: "active" }, moves: [{ e: "dev>rec", t: "api.example.com?", k: "req" }], pops: [{ n: "rec", t: "not cached", k: "bad", at: 1.3 }],
+        note: "The phone asks its recursive resolver. It has no cached answer." },
+      { hl: { rec: "active", root: "found", tld: "found" }, moves: [{ e: "rec>root", t: ".com?", k: "req" }, { e: "rec>root", t: "ask the .com servers", k: "evt", back: true, delay: 1.0 }, { e: "rec>tld", t: "example.com?", k: "req", delay: 2.0 }, { e: "rec>tld", t: "ask ns1.example.com", k: "evt", back: true, delay: 3.0 }], hold: 4.6,
+        note: "It walks the hierarchy: the root refers it to the <code>.com</code> servers, which refer it to the domain's authoritative servers." },
+      { hl: { rec: "found", auth: "found", dev: "found" }, moves: [{ e: "rec>auth", t: "api.example.com?", k: "req" }, { e: "rec>auth", t: "203.0.113.10, TTL 60", k: "ok", back: true, delay: 1.0 }, { e: "dev>rec", t: "203.0.113.10", k: "ok", back: true, delay: 2.0 }], hold: 3.8,
+        note: "The authoritative server answers with the address and a TTL. The resolver caches it." },
+      { hl: { dev: "active", rec: "found" }, moves: [{ e: "dev>rec", t: "api.example.com?", k: "req" }, { e: "dev>rec", t: "cached", k: "ok", back: true, delay: 0.8 }], pops: [{ n: "rec", t: "for the next 60 s", k: "ok", at: 1.0 }], hold: 3,
+        note: "Everyone else using this resolver gets the cached answer instantly until the TTL runs out. That's also why DNS failover is only as fast as the TTL." },
     ],
   });
 })();

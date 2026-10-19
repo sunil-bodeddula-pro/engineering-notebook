@@ -2306,6 +2306,49 @@ svg.flow .fn { transition: opacity .35s ease; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Ignoring egress cost:</strong> sending data out often costs far more than storing it.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-cdninside">
+      <div class="tech-h"><h3>How a CDN works inside</h3><span class="tech-status s-situational">Situational · CDN-heavy designs</span></div>
+      <p>The choices behind a CDN: who puts content at the edge, how many cache tiers, what can be cached, and how edges stay fresh.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Pull vs push:</strong> a <em>pull</em> CDN fetches from your origin on the first miss (the default for websites and most media); a <em>push</em> CDN is loaded ahead of time (large files, scheduled releases, video before a premiere).</li>
+        <li><strong>Request routing:</strong> anycast or DNS sends each user to a nearby, healthy edge.</li>
+        <li><strong>Tiers:</strong> edges ask regional caches, which ask an origin shield, which asks the origin, so a popular file is fetched from the origin once rather than by every edge.</li>
+        <li><strong>Dynamic content:</strong> personalised pages can still use the CDN's network (TLS near the user, connection reuse to the origin), and edge compute (Workers, Lambda@Edge) can assemble or authorise responses at the edge.</li>
+        <li><strong>Freshness:</strong> versioned URLs for static assets (best), short TTLs with stale-while-revalidate for things that change, purge APIs for urgent removals.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Cloudflare, Akamai, Fastly, CloudFront and the clouds' own CDNs all offer tiered caching, shields, signed URLs and edge compute; push-style prefetch exists for big releases.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Global audiences, media, software downloads, launches with predictable spikes (push or prefetch)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Personal data cached under shared keys</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A pull CDN with an origin shield; assets have versioned URLs and year-long TTLs, and the API sends short TTLs with stale-while-revalidate.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Purging the CDN on every change</strong> instead of versioning URLs.</li><li><strong>Assuming a CDN only helps static files</strong>: it also terminates TLS near users and keeps warm connections to the origin.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-blobinside">
+      <div class="tech-h"><h3>Inside a blob store</h3><span class="tech-status s-situational">Situational · "design S3" questions</span></div>
+      <p>How a service like S3 stores trillions of objects durably: a metadata service, chunk servers, and replication or erasure coding.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Front end:</strong> authenticates requests and routes them.</li>
+        <li><strong>Metadata service:</strong> maps bucket + key to the object's chunks and their locations; it's a sharded, replicated database, and the part that must be strongly consistent.</li>
+        <li><strong>Data (chunk) servers:</strong> store fixed-size chunks on disk, spread across racks and zones.</li>
+        <li><strong>Durability:</strong> three full replicas cost 3× the space. <strong>Erasure coding</strong> splits an object into, say, 6 data pieces plus 3 parity pieces: any 6 of the 9 rebuild it, for 1.5× the space. Replicas suit hot, small data; erasure coding suits large, colder data.</li>
+        <li><strong>Background work:</strong> scrubbing (re-reading data to catch silent corruption with checksums), repairing lost pieces, and garbage-collecting deleted objects.</li>
+      </ul>
+      <div id="sc-ec"></div>
+      <h4>Status today</h4>
+      <p>S3, Google Cloud Storage and Azure Blob Storage use variants of this; open-source equivalents include Ceph and MinIO. S3 is designed for 11 nines of durability.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Infrastructure interviews: "design a blob store", "design Dropbox's storage layer"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Product designs: there you use S3, you don't build it</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Metadata in a sharded, replicated store; data as erasure-coded chunks across three zones, so losing a whole zone loses nothing.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Storing three full copies of petabytes</strong> without considering erasure coding's cost savings.</li><li><strong>Forgetting scrubbing:</strong> disks corrupt data silently; checksums catch it.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Servers sign, storage carries, edges deliver"</strong>Your servers only sign permissions and record metadata; the bytes go straight to object storage; downloads come from the CDN edge nearest the user.</div>
@@ -2393,6 +2436,11 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>A 2 GB upload fails at 99%. What's the right design?</p>
         <div class="opts"><button>Retry the whole file</button><button>Multipart upload: list finished parts and resume</button><button>Upload through the API servers instead</button></div>
         <div class="why">Parts are retried individually; the client keeps the upload ID and sends only the missing parts.</div>
+      </div>
+      <div class="quiz-q" data-answer="Similar durability for about half the extra space">
+        <p>Why do large blob stores use erasure coding rather than three full copies for cold data?</p>
+        <div class="opts"><button>It's faster to read</button><button>Similar durability for about half the extra space</button><button>It avoids the metadata service</button></div>
+        <div class="why">6 + 3 coding stores 1.5× the data and survives any 3 lost pieces; three replicas store 3×. Reads and repairs cost more CPU and network.</div>
       </div>
     </div>
 
@@ -2549,6 +2597,21 @@ svg.flow .fn { transition: opacity .35s ease; }
         note: "Back online, the app lists the finished parts and uploads only the missing ones." },
       { hl: { ph: "found", s3: "found", db: "found" }, moves: [{ e: "ph>s3", t: "complete + checksums", k: "ok" }, { e: "s3>db", t: "object created", k: "evt", delay: 1.1 }], pops: [{ n: "db", t: "pending → ready", k: "ok", at: 2.3 }], hold: 3.6,
         note: "The <b>complete</b> call stitches the parts. Storage's event, not the client, flips the row to ready; a reconciliation job catches any lost events." },
+    ],
+  });
+  Viz.scene("#sc-ec", {
+    title: "Erasure coding: lose pieces, keep the object", sub: "6 data pieces + 3 parity pieces; any 6 rebuild the object. <b>Blue</b> = pieces, <b>red</b> = lost, <b>green</b> = rebuilt.",
+    nodes: [{ id: "obj", x: 90, y: 135, w: 120, label: "Object", sub: "60 MB" },
+      { id: "z1", x: 470, y: 50, w: 200, label: "Zone A", sub: "pieces 1, 2, 3" }, { id: "z2", x: 470, y: 135, w: 200, label: "Zone B", sub: "pieces 4, 5, 6" }, { id: "z3", x: 470, y: 220, w: 200, label: "Zone C", sub: "parity P1, P2, P3" }],
+    edges: [["obj", "z1"], ["obj", "z2"], ["obj", "z3"]],
+    width: 620, height: 265,
+    steps: [
+      { hl: { obj: "active", z1: "found", z2: "found", z3: "found" }, moves: [{ e: "obj>z1", t: "3 data pieces", k: "req" }, { e: "obj>z2", t: "3 data pieces", k: "req", delay: 0.3 }, { e: "obj>z3", t: "3 parity pieces", k: "evt", delay: 0.6 }], pops: [{ n: "obj", t: "1.5× the space", k: "ok", at: 2.2 }], hold: 3.6,
+        note: "The object is split into 6 data pieces of 10 MB, plus 3 parity pieces computed from them, spread over three zones." },
+      { hl: { z2: "bad" }, pops: [{ n: "z2", t: "zone lost", k: "bad", at: 0.3 }],
+        note: "A whole zone goes down, taking three pieces with it." },
+      { hl: { obj: "found", z1: "found", z3: "found", z2: "bad" }, moves: [{ e: "obj>z1", t: "3 pieces", k: "ok", back: true }, { e: "obj>z3", t: "3 parity", k: "ok", back: true, delay: 0.3 }], pops: [{ n: "obj", t: "any 6 of 9: rebuilt", k: "ok", at: 1.6 }], hold: 3.6,
+        note: "Any 6 of the 9 pieces rebuild the object. Three full replicas would give similar safety at 3× the space." },
     ],
   });
 })();
