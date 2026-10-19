@@ -2209,7 +2209,85 @@ Consequences: every query is protected by default; connection pooling must reset
       <li><strong>Event-driven</strong> systems usually centre on Kafka or a managed bus (EventBridge, Pub/Sub), with schemas managed in a registry so producers can't break consumers.</li>
       <li><strong>Hexagonal (ports and adapters) or clean architecture</strong> inside each service keeps business logic independent of frameworks and databases, which makes splitting and testing easier, whatever the overall style.</li>
     </ul>
-    <p><strong>In an interview</strong>, draw services along the main capabilities of the prompt (users, posts, feed, notifications), give each its own data store, and connect them with a mix of synchronous calls for what the user waits on and events for everything else. Say briefly why it isn't one service, or why it is.</p>
+
+        <h3 id="up-close">The patterns up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Draw services along the main capabilities of the prompt (users, posts, feed, notifications), each with its own store, connected by synchronous calls for what the user waits on and events for everything else. Say briefly why it isn't one service, or why it is. Reach for event sourcing or CQRS only when audit, replay or very different read and write needs are in the requirements.</div>
+
+    <section class="tech" id="t-modmono">
+      <div class="tech-h"><h3>Modular monolith</h3><span class="tech-status s-default">The default starting point</span></div>
+      <p>One deployable application with strict internal modules that own their data and talk through defined interfaces.</p>
+      <h4>How it works</h4>
+      <p>Modules (orders, payments, catalogue) can't read each other's tables; they call each other's public functions or publish in-process events. Calls are fast and transactions easy, and the boundaries are already drawn if one module later needs to become a service.</p>
+      <h4>Status today</h4>
+      <p>A deliberate, widely used choice (Shopify writes publicly about its modular Rails monolith); tooling exists to enforce module boundaries.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>New products, small to medium teams</li><li>Domains whose boundaries aren't settled yet</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Many teams that need independent deploys and scaling</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A modular monolith first, with modules along these capabilities; we'd extract a service when a team or scaling need demands it.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Calling it a monolith but letting modules share tables</strong>: the boundaries are fiction.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-micro">
+      <div class="tech-h"><h3>Microservices</h3><span class="tech-status s-situational">Situational · many teams, real scale</span></div>
+      <p>Independently deployed services, each owning its data, talking over the network.</p>
+      <h4>How it works</h4>
+      <p>Each service has its own store and API; synchronous calls for what the user waits on, events for everything else. The cost is the platform: service discovery, tracing, CI/CD per service, contract tests, sagas for cross-service workflows.</p>
+      <h4>Status today</h4>
+      <p>The norm at large companies (Netflix, Uber, Amazon), backed by heavy platform investment.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Many teams that must ship independently</li><li>Parts with very different scaling or reliability needs</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A small team or an early product: the operational cost outweighs the benefit</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Services along capabilities (users, posts, feed, notifications), each with its own store; the feed is updated from post events.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A distributed monolith:</strong> services that must deploy together or call each other on every request.</li><li><strong>Shared databases between services.</strong></li></ul></div>
+    </section>
+
+    <section class="tech" id="t-eventsourcing">
+      <div class="tech-h"><h3>Event sourcing</h3><span class="tech-status s-rare">Specialised · audit-heavy domains</span></div>
+      <p>Store every change as an immutable event, and derive the current state by replaying the events, instead of overwriting rows.</p>
+      <h4>How it works</h4>
+      <ul><li>An account isn't a <code>balance</code> column; it's <code>Opened</code>, <code>Deposited 100</code>, <code>Withdrew 30</code>… Current state = replay (with periodic <strong>snapshots</strong> so you don't replay from the start).</li><li>You get a complete audit trail, time travel ("what was the balance on 1 March?"), and new views built later by replaying history.</li><li>The costs: event schemas are forever (versioning them is real work), queries need separate read models, and deleting personal data needs care (crypto-shredding).</li></ul>
+      <div id="sc-es"></div>
+      <h4>Status today</h4>
+      <p>Used in finance, accounting ledgers, some booking and logistics systems; tools include EventStoreDB and Kafka with compaction, often paired with CQRS.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Audit is a core requirement (ledgers, compliance)</li><li>You need to rebuild state or new views from history</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Ordinary CRUD apps: it's more work for no gain</li><li>Most interview prompts unless audit or replay is explicit</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p>Only when audit or replay is a requirement: <q>The ledger is event-sourced: every movement is an immutable event, balances are projections, and we snapshot daily.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Event sourcing everything</strong> by default; interviewers will ask about schema evolution, replay time and deleting user data.</li><li><strong>Confusing it with event-driven architecture</strong>, which just means services communicate through events.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-cqrs">
+      <div class="tech-h"><h3>CQRS (command query responsibility segregation)</h3><span class="tech-status s-rare">Situational · very different read and write needs</span></div>
+      <p>Separate the model that handles writes (commands) from the models that serve reads (queries), keeping read models up to date from events.</p>
+      <h4>How it works</h4>
+      <p>Writes go to a normalised store that enforces the rules. Each change publishes an event (outbox or CDC), and projectors update read models shaped for each screen: a search index, a denormalised feed table, a cache. Reads are fast and simple; they're eventually consistent with the writes.</p>
+      <h4>Status today</h4>
+      <p>Common in practice even without the name: "Postgres for writes, Elasticsearch and Redis for reads, fed by CDC" is CQRS.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Reads and writes with very different shapes or scale</li><li>Several read views of the same data (search, feed, analytics)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple CRUD where one model serves both</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Writes go to PostgreSQL; CDC feeds the search index and the feed cache, so reads are fast and a few seconds behind.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>CQRS without saying reads are eventually consistent</strong>, then showing a user their own stale write.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-cells">
+      <div class="tech-h"><h3>Cell-based architecture</h3><span class="tech-status s-rare">Specialised · limiting blast radius</span></div>
+      <p>Many identical, independent copies of the whole stack, each serving a subset of customers, behind a thin router.</p>
+      <h4>How it works</h4>
+      <p>Customers are assigned to cells (by tenant or ID); a bad deploy or a poison request takes down one cell, not everyone. Deploys roll out cell by cell. Cross-cell features (global search, admin views) need separate handling.</p>
+      <h4>Status today</h4>
+      <p>Described in AWS's Well-Architected guidance; used by large SaaS and cloud providers.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Very large multi-tenant products where a global outage is unacceptable</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small and medium products: it multiplies the infrastructure</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>At this scale, tenants are spread over cells of the full stack, so an incident affects one cell's customers.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Cells for a startup-sized prompt.</strong></li></ul></div>
+    </section>
 
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
@@ -2288,6 +2366,16 @@ Consequences: every query is protected by default; connection pooling must reset
         <p>What's the main benefit of a cell-based architecture?</p>
         <div class="opts"><button>It removes the need for databases</button><button>It limits a failure to one cell's customers</button><button>It makes every request faster</button></div>
         <div class="why">Each cell is an independent copy of the stack; a bad deploy or failure in one doesn't reach the others.</div>
+      </div>
+      <div class="quiz-q" data-answer="Event sourcing stores state as events; event-driven means services communicate through events">
+        <p>What's the difference between event sourcing and event-driven architecture?</p>
+        <div class="opts"><button>They're the same thing</button><button>Event sourcing stores state as events; event-driven means services communicate through events</button><button>Event sourcing needs microservices</button></div>
+        <div class="why">You can have event-driven services with ordinary tables, and an event-sourced module inside a monolith.</div>
+      </div>
+      <div class="quiz-q" data-answer="CQRS">
+        <p>Postgres for writes, with CDC feeding Elasticsearch and a Redis feed cache for reads. What pattern is this?</p>
+        <div class="opts"><button>Event sourcing</button><button>CQRS</button><button>Two-phase commit</button></div>
+        <div class="why">Separate write and read models, kept in step by change events.</div>
       </div>
     </div>
 
@@ -2404,9 +2492,27 @@ Consequences: every query is protected by default; connection pooling must reset
     { el: "#viz-sf", title: "3 · Step through it", text: "The migration, frame by frame." },
     { el: "#chain", title: "4 · Cost of a call chain", text: "Add hops and watch latency and availability." },
     { el: "#pick", title: "5 · Which style fits?", text: "Answer a few questions and get a suggested architecture." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The patterns up close", text: "Modular monolith, microservices, event sourcing, CQRS and cells, with red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-es", {
+    title: "Event sourcing with CQRS: events in, views out", sub: "<b>Blue</b> = commands, <b>teal</b> = events, <b>green</b> = read models.",
+    nodes: [{ id: "cmd", x: 80, y: 130, w: 120, label: "Commands", sub: "deposit, withdraw" }, { id: "es", x: 290, y: 130, w: 150, label: "Event log", sub: "append-only" },
+      { id: "bal", x: 520, y: 45, w: 150, label: "Balance view" }, { id: "stm", x: 520, y: 130, w: 150, label: "Statement view" }, { id: "fraud", x: 520, y: 215, w: 150, label: "Fraud view", sub: "added later" }],
+    edges: [["cmd", "es"], ["es", "bal"], ["es", "stm"], ["es", "fraud"]],
+    width: 620, height: 260,
+    steps: [
+      { hl: { cmd: "active", es: "active" }, moves: [{ e: "cmd>es", t: "Deposited 100", k: "req" }, { e: "cmd>es", t: "Withdrew 30", k: "req", delay: 0.8 }], pops: [{ n: "es", t: "never updated, only appended", k: "evt", at: 1.8 }], hold: 3.4,
+        note: "Each change is stored as an immutable <b>event</b>. Nothing is overwritten." },
+      { hl: { es: "active", bal: "found", stm: "found" }, moves: [{ e: "es>bal", t: "events", k: "evt" }, { e: "es>stm", t: "events", k: "evt", delay: 0.3 }], pops: [{ n: "bal", t: "balance = 70", k: "ok", at: 1.4 }], hold: 3.2,
+        note: "<b>Projections</b> turn events into read models shaped for each screen (CQRS): a balance, a statement." },
+      { hl: { es: "active", fraud: "found" }, moves: [{ e: "es>fraud", t: "replay all history", k: "evt", dur: 2.0 }], pops: [{ n: "fraud", t: "built from day one", k: "ok", at: 2.4 }], hold: 3.8,
+        note: "A new view added a year later is built by <b>replaying</b> every event since the start: history isn't lost." },
+      { hl: { es: "warm" }, pops: [{ n: "es", t: "snapshots + versioned events", k: "evt", at: 0.3 }],
+        note: "The costs: snapshots so replay stays fast, event schemas you must version forever, and reads that lag writes slightly." },
+    ],
+  });
 })();
 </script>
 </body>
