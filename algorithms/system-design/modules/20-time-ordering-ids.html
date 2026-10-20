@@ -2397,6 +2397,136 @@ svg.flow .fn { transition: opacity .35s ease; }
     </ul>
     <p><strong>In an interview</strong>, choose IDs early: "posts get Snowflake-style 64-bit IDs, generated in the service, so they're unique across shards, sortable by time, and the cursor for pagination is just the last ID." And whenever ordering matters across machines, say what provides it: one partition, a sequence number, or consensus, not wall clocks.</p>
 
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Decide IDs and ordering explicitly: <q>posts get Snowflake-style IDs (or UUIDv7) generated in the service; ordering within a chat comes from a per-conversation sequence number; we never decide which write wins by comparing two machines' clocks.</q> Mention HLC or TrueTime only when the design uses a distributed SQL database.</div>
+
+    <section class="tech" id="t-ntp">
+      <div class="tech-h"><h3>Clock sync: NTP, chrony and PTP</h3><span class="tech-status s-default">The default · always on, never perfect</span></div>
+      <p>Every server's clock drifts (a quartz crystal gains or loses milliseconds a day), so a daemon keeps adjusting it against better clocks. Sync makes skew small; nothing makes it zero.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>NTP</strong> asks time servers, measures the round trip, and assumes the delay is symmetric to estimate the offset. Over the internet that's accurate to milliseconds; inside a data centre, well under a millisecond.</li>
+        <li><strong>chrony</strong> is the usual NTP client on Linux today: it converges quickly and slews the clock (speeds it up or slows it down slightly) rather than jumping it.</li>
+        <li><strong>PTP</strong> (Precision Time Protocol) uses hardware timestamps in network cards and switches to reach microseconds or better.</li>
+        <li><strong>Two clocks per machine:</strong> the wall clock (can jump backwards after a sync) and a <em>monotonic</em> clock (only moves forward). Measure durations and timeouts with the monotonic one.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Clouds provide local time sources: Amazon Time Sync Service (with microsecond-level accuracy through a PTP hardware clock on supported instances, and the open-source ClockBound daemon that reports an error bound), Google's internal NTP, and Azure's host time. Leap seconds are smeared over hours, and international timekeeping bodies have agreed to stop adding them by 2035.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every machine: timestamps in logs, certificates, token expiry, TTLs</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Ordering events across machines by timestamp alone</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Clocks are NTP-synced, so timestamps are good for display and rough ordering, but I won't rely on them to decide which write wins.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Measuring a timeout with the wall clock</strong>: an NTP step makes it fire early or never.</li><li><strong>"Clocks are synced, so last-write-wins is safe"</strong>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-snowflake">
+      <div class="tech-h"><h3>Snowflake-style 64-bit IDs</h3><span class="tech-status s-default">The default for sortable IDs at scale</span></div>
+      <p>A 64-bit integer built from a timestamp, a machine number and a counter, so every server can mint unique IDs on its own and they sort roughly by creation time.</p>
+      <h4>How it works</h4>
+      <p>Twitter's original layout: <strong>1 sign bit</strong> (unused) + <strong>41 bits of milliseconds</strong> since a custom epoch (about 69 years) + <strong>10 bits of machine ID</strong> (1,024 generators) + <strong>12 bits of sequence</strong> (4,096 IDs per millisecond per machine, about 4 million a second). Discord, Instagram and others use variations: Instagram, for example, put a shard number in the middle so the ID says where the row lives.</p>
+      <ul>
+        <li><strong>Machine IDs must be unique:</strong> assign them from configuration, ZooKeeper/etcd leases, or the pod's ordinal. Two generators with the same ID will collide.</li>
+        <li><strong>Clock going backwards:</strong> the generator must refuse or wait until time catches up, or it can reissue IDs.</li>
+        <li><strong>Fits in a BIGINT</strong>, indexes compactly, and works as a pagination cursor.</li>
+      </ul>
+      <style>#idx-lab code { word-break: break-all; } @media (max-width: 600px) { #idx-lab th:first-child, #idx-lab td:first-child { display: none; } #idx-lab td small { display: block; margin-bottom: 4px; } }</style>
+      <div class="card widget" id="idx-lab">
+        <div class="ctl"><span class="seg" id="ix-kind"></span><button class="btn primary" type="button" id="ix-go">Generate 3, one millisecond apart</button></div>
+        <div class="no-gl" id="ix-out"></div>
+        <div class="verdict no-gl" id="ix-why"></div>
+      </div>
+      <h4>Status today</h4>
+      <p>The pattern is widespread (Twitter, Discord, Instagram, Mastodon, many in-house services); libraries exist for every language. Sony's Sonyflake and similar variants trade sequence bits for longer lifetimes.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>High-volume entities (posts, messages, events) that need time order and compact keys</li><li>IDs minted on many servers without coordination</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Public IDs that shouldn't reveal creation time or volume</li><li>Small systems: a database sequence is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Messages get Snowflake IDs: time-ordered, unique across shards without coordination, and the last ID is the pagination cursor.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Reusing machine IDs</strong> after autoscaling or restarts.</li><li><strong>Ignoring clock rollback</strong> in the generator.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-uuids">
+      <div class="tech-h"><h3>UUIDv4, UUIDv7 and ULID</h3><span class="tech-status s-default">The default for 128-bit IDs</span></div>
+      <p>128-bit identifiers anyone can generate with no coordination. Version 4 is pure randomness; version 7 and ULID put a millisecond timestamp first, so new IDs sort after old ones.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Kind</th><th>Layout</th><th>Sorts by time?</th><th>Text form</th></tr></thead><tbody>
+        <tr><td>UUIDv4</td><td>122 random bits (+ 6 version/variant bits)</td><td>No</td><td>36 chars with dashes</td></tr>
+        <tr><td>UUIDv7 (RFC 9562, 2024)</td><td>48-bit Unix ms timestamp + 74 random bits (+ 6 version/variant bits)</td><td>Yes, by millisecond</td><td>36 chars with dashes</td></tr>
+        <tr><td>ULID</td><td>48-bit ms timestamp + 80 random bits</td><td>Yes</td><td>26 chars, Crockford base32</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>Why order matters for databases:</strong> B-tree indexes like inserts at the end. Random UUIDv4 keys land on random pages, so the working set is the whole index: more page splits, more cache misses, slower inserts as the table grows. UUIDv7 and ULID append like a sequence does.</li>
+        <li><strong>Collisions:</strong> with 74+ random bits per millisecond, collisions are not a practical concern.</li>
+        <li><strong>Storage:</strong> store as a 16-byte binary/UUID type, not 36-character text.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>RFC 9562 (May 2024) standardised UUIDv6, v7 and v8 and replaced RFC 4122. PostgreSQL 18 generates UUIDv7 natively with <code>uuidv7()</code>; most languages have libraries.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>IDs created on clients or in many services</li><li>Primary keys where you'd rather not expose a counter: prefer v7 over v4</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Tight storage or index budgets at huge scale: a 64-bit Snowflake ID is half the size</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Primary keys are UUIDv7: generated anywhere, no coordination, and they insert at the end of the index like a sequence.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>UUIDv4 as the clustered primary key</strong> of a huge, write-heavy table (InnoDB especially).</li><li><strong>UUIDs stored as text</strong>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-vclock">
+      <div class="tech-h"><h3>Vector clocks</h3><span class="tech-status s-rare">Rare · detecting concurrent writes</span></div>
+      <p>A list of counters, one per node, attached to each version of a value. Comparing two lists tells you whether one version came after the other, or whether they were written concurrently and conflict.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li>Node A writes: <code>[A:1]</code>. B reads that and writes: <code>[A:1, B:1]</code>, which is later because every counter is ≥. If C also wrote from <code>[A:1]</code>, giving <code>[A:1, C:1]</code>, neither dominates the other: a <strong>conflict</strong> the system keeps as two siblings for the application (or a merge rule) to resolve.</li>
+        <li><strong>Lamport clocks</strong> (one number) give an order but can't tell "later" from "concurrent"; vector clocks can, at the cost of one entry per writer.</li>
+        <li>Lists grow with the number of writers, so real systems prune or use <em>dotted version vectors</em>.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Amazon's 2007 Dynamo paper made them famous; Riak used them (later dotted version vectors). Most modern stores chose simpler options: last-write-wins with timestamps (Cassandra, DynamoDB) or CRDTs (Module 19, D19).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Multi-leader or leaderless stores where concurrent edits must be detected, not silently overwritten</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Single-leader databases: the leader already orders writes</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>If we allow writes in both regions, I need to detect conflicts: version vectors per item, or a CRDT for counters and sets.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Claiming vector clocks give a total order</strong>: they deliberately don't.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-hlc">
+      <div class="tech-h"><h3>Hybrid logical clocks (HLC)</h3><span class="tech-status s-situational">Situational · ordering in distributed SQL</span></div>
+      <p>A timestamp that is close to real time but also respects cause and effect: a physical time part plus a small logical counter. If event B happened because of event A, B's HLC is always larger, even if B's machine clock is a little behind.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li>Each node keeps <code>(wall, logical)</code>. On a local event or send: take the max of its own value and the physical clock; bump the counter if the wall part didn't move. On receive: take the max of local, physical and the message's timestamp.</li>
+        <li>Timestamps fit in 64 bits and stay within the clock-skew bound of real time, so they're readable and can be used for snapshots "as of" a time.</li>
+        <li>HLC doesn't remove uncertainty: databases still need a maximum clock offset, and transactions may restart when they see a value inside the uncertainty window.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Proposed by Kulkarni et al. (2014). Used by CockroachDB (nodes whose clocks drift beyond the configured maximum offset shut themselves down rather than risk anomalies), YugabyteDB and MongoDB's cluster time.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Distributed databases needing consistent snapshots without special hardware</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Application code: you get it inside the database, you don't build it</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>CockroachDB orders transactions with hybrid logical clocks, so it needs NTP within its maximum offset, not atomic clocks.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Assuming HLC makes clock sync unnecessary</strong>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-truetime">
+      <div class="tech-h"><h3>TrueTime and commit wait</h3><span class="tech-status s-rare">Rare · Spanner's clock</span></div>
+      <p>Google's clock API that returns an <em>interval</em> <code>[earliest, latest]</code> guaranteed to contain the true time, backed by GPS receivers and atomic clocks in every data centre. Spanner uses it to give globally consistent (externally consistent) transactions.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Commit wait:</strong> a transaction takes a timestamp at the top of the interval, then waits until <code>earliest</code> has passed that timestamp before making the commit visible. After that, every machine anywhere agrees the commit is in the past, so a later transaction always gets a larger timestamp.</li>
+        <li>The wait is about twice the uncertainty. The 2012 Spanner paper reported uncertainty of roughly 1–7 ms; smaller uncertainty means shorter waits, which is why the hardware matters.</li>
+      </ul>
+      <div id="sc-tt"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Available through Cloud Spanner. AWS's ClockBound exposes similar error-bounded time on EC2, and newer distributed databases use bounded clocks the same way.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Global transactions with strict ordering, when on Google Cloud (Spanner)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Anything you'd build yourself: it's a property of the database</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Spanner gives external consistency across regions by waiting out TrueTime's uncertainty at commit, a few milliseconds.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Spanner beats CAP"</strong>: it chooses consistency; it's just engineered so partitions are rare.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Clocks lie, counters don't"</strong>Timestamps from different machines can't be trusted to order events. Counters that travel with messages (Lamport, vector, sequence numbers) can. For IDs, put time first only to make them sortable, never to make them correct.</div>
@@ -2474,6 +2604,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Two events on different servers with no message between them are…</p>
         <div class="opts"><button>Concurrent</button><button>Ordered by their timestamps</button><button>Impossible</button></div>
         <div class="why">Neither could have influenced the other. Timestamps don't change that; vector clocks can detect it.</div>
+      </div>
+      <div class="quiz-q" data-answer="It starts with a timestamp, so inserts go to the end of the index">
+        <p>Why is UUIDv7 a better primary key than UUIDv4 for a large, write-heavy table?</p>
+        <div class="opts"><button>It's shorter</button><button>It starts with a timestamp, so inserts go to the end of the index</button><button>It can't collide</button></div>
+        <div class="why">Random v4 keys scatter inserts over the whole B-tree; time-ordered keys append like a sequence.</div>
+      </div>
+      <div class="quiz-q" data-answer="4,096">
+        <p>In a Snowflake ID with 12 sequence bits, how many IDs can one machine mint per millisecond?</p>
+        <div class="opts"><button>1,024</button><button>4,096</button><button>65,536</button></div>
+        <div class="why">2^12 = 4,096; with 10 machine bits that's 1,024 generators.</div>
       </div>
     </div>
 
@@ -2594,9 +2734,57 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-lam", title: "3 · Lamport clocks", text: "Counters that respect cause and effect, step by step." },
     { el: "#skew", title: "4 · Skew vs last-write-wins", text: "Change the skew and the gap; see which write survives." },
     { el: "#ids", title: "5 · Unique IDs", text: "Generate IDs and see which schemes keep their creation order." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Clock sync, Snowflake IDs, UUIDv7 and ULID, vector clocks, HLC and TrueTime." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-tt", {
+    title: "Commit wait with TrueTime", sub: "<b>Orange</b> = waiting out the clock uncertainty.",
+    nodes: [{ id: "t1", x: 100, y: 70, w: 140, label: "Transaction 1", sub: "region A" }, { id: "sp", x: 330, y: 135, w: 140, label: "Spanner leader" }, { id: "t2", x: 100, y: 200, w: 140, label: "Transaction 2", sub: "region B, later" }],
+    edges: [["t1", "sp"], ["t2", "sp"]],
+    width: 460, height: 250,
+    steps: [
+      { hl: { t1: "active", sp: "active" }, moves: [{ e: "t1>sp", t: "COMMIT", k: "req" }], pops: [{ n: "sp", t: "now = [10.000, 10.006]: ts = 10.006", k: "evt", at: 1.1 }], hold: 3.2, note: "TrueTime says the real time is somewhere in a 6 ms interval. The commit takes the latest possible time as its timestamp." },
+      { hl: { sp: "warm" }, pops: [{ n: "sp", t: "wait until earliest > 10.006", k: "evt", at: 0.2 }], hold: 3, note: "Commit wait: hold the result until even the earliest possible time is past the timestamp (about 6 ms)." },
+      { hl: { t1: "found", sp: "found" }, moves: [{ e: "t1>sp", t: "committed", k: "ok", back: true }], hold: 2.6, note: "Now every clock in the world is certainly past 10.006." },
+      { hl: { t2: "active", sp: "found" }, moves: [{ e: "t2>sp", t: "COMMIT", k: "req" }], pops: [{ n: "sp", t: "ts > 10.006, guaranteed", k: "ok", at: 1.1 }], hold: 3, note: "Any transaction that starts afterwards, anywhere, gets a larger timestamp: real-time order and timestamp order agree." },
+    ],
+  });
+  /* ---------- ID anatomy lab ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const rnd = (n) => crypto.getRandomValues(new Uint8Array(n));
+    const hex = (a) => [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const B32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+    let kind = 1, seq = 0, base = 0;
+    const KINDS = ["UUIDv4", "UUIDv7", "ULID", "Snowflake"];
+    const mk = (t) => {
+      if (kind === 0) { const b = rnd(16); b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80; const h = hex(b); return { s: `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`, parts: [["random", h.slice(0, 32)]] }; }
+      if (kind === 1) { const b = rnd(16); let x = BigInt(t); for (let i = 5; i >= 0; i--) { b[i] = Number(x & 0xffn); x >>= 8n; } b[6] = (b[6] & 0x0f) | 0x70; b[8] = (b[8] & 0x3f) | 0x80; const h = hex(b); return { s: `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`, parts: [["time", h.slice(0, 12)], ["random", h.slice(12)]] }; }
+      if (kind === 2) { let ts = "", x = t; for (let i = 0; i < 10; i++) { ts = B32[x % 32] + ts; x = Math.floor(x / 32); } const r = rnd(16); let rs = ""; for (let i = 0; i < 16; i++) rs += B32[r[i] % 32]; return { s: ts + rs, parts: [["time", ts], ["random", rs]] }; }
+      const epoch = 1288834974657, ms = BigInt(t - epoch), m = 37n, sq = BigInt(seq++ % 4096);
+      const v = (ms << 22n) | (m << 12n) | sq;
+      return { s: v.toString(), parts: [["time", (t - epoch).toString(2).padStart(41, "0")], ["machine", m.toString(2).padStart(10, "0")], ["sequence", sq.toString(2).padStart(12, "0")]] };
+    };
+    const NOTE = [
+      "Pure randomness: unique, but consecutive IDs land anywhere in a B-tree index, so inserts touch random pages.",
+      "The first 12 hex digits are the Unix time in milliseconds, so later IDs sort after earlier ones and inserts go to the end of the index.",
+      "The first 10 characters encode the millisecond timestamp in base32; the other 16 are random. Shorter than a UUID as text, same idea as v7.",
+      "41 bits of milliseconds since Twitter's epoch, 10 bits of machine ID (here 37), 12 bits of sequence: one 64-bit number that sorts by time.",
+    ];
+    g("ix-kind").innerHTML = KINDS.map((k, i) => `<button type="button" aria-pressed="${i === kind}">${k}</button>`).join("");
+    g("ix-kind").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; kind = [...g("ix-kind").children].indexOf(b); [...g("ix-kind").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === kind))); run(); };
+    function run() {
+      base = Date.now();
+      const ids = [0, 1, 2].map((d) => mk(base + d));
+      const sorted = ids.map((x) => x.s).slice().sort((a, b) => (kind === 3 ? (BigInt(a) < BigInt(b) ? -1 : 1) : a < b ? -1 : 1));
+      const inOrder = sorted.every((x, i) => x === ids[i].s);
+      g("ix-out").innerHTML = `<table><thead><tr><th>#</th><th>ID</th><th>Inside it</th></tr></thead><tbody>${ids.map((x, i) => `<tr><td>${i + 1}</td><td><code>${x.s}</code></td><td>${x.parts.map(([k, v]) => `<code title="${k}">${v.length > 18 ? v.slice(0, 18) + "…" : v}</code> <small>${k}</small>`).join(" ")}</td></tr>`).join("")}</tbody></table>`;
+      g("ix-why").innerHTML = `${NOTE[kind]} Sorted as ${kind === 3 ? "numbers" : "strings"}, these three are <b>${inOrder ? "in creation order" : "not in creation order"}</b>.`;
+      g("ix-why").className = "verdict no-gl" + (inOrder ? "" : " warn");
+    }
+    g("ix-go").onclick = run; run();
+  })();
 })();
 </script>
 </body>
