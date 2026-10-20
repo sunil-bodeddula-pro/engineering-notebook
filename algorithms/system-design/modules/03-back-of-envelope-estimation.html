@@ -2392,6 +2392,83 @@ svg.flow .fn { transition: opacity .35s ease; }
     </ul>
     <p><strong>Sizes worth memorising:</strong> an ID or timestamp 8 bytes; a UUID 16 bytes (36 as text); a typical row of user content a few hundred bytes to 1 KB; a resized image 100–300 KB; video at a few Mbit/s, or tens of MB per minute.</p>
 
+        <h3 id="up-close">The numbers up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Write each estimate as a chain with units: <q>100 million users × 10% daily active × 20 reads = 200 million reads a day ≈ 2,300 a second, ≈ 7,000 at peak</q>. Round freely, then <strong>say what the number decides</strong>: one machine or many, cache or not, database or object storage, affordable or not.</div>
+
+    <section class="tech" id="t-pow2">
+      <div class="tech-h"><h3>Powers of two and the units that trip people up</h3><span class="tech-status s-default">Know by heart</span></div>
+      <p>Most estimation slips are unit slips: bits vs bytes, thousand vs 1,024, per day vs per second. A small table removes them.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Power</th><th>Exact</th><th>Think of it as</th><th>Where it shows up</th></tr></thead><tbody>
+        <tr><td>2<sup>10</sup></td><td>1,024</td><td>a thousand (KB)</td><td>KiB vs KB: disks are sold in 1,000s, memory counted in 1,024s</td></tr>
+        <tr><td>2<sup>20</sup></td><td>1,048,576</td><td>a million (MB)</td><td></td></tr>
+        <tr><td>2<sup>30</sup></td><td>≈ 1.07 billion</td><td>a billion (GB)</td><td></td></tr>
+        <tr><td>2<sup>31</sup> − 1</td><td>2,147,483,647</td><td>2.1 billion</td><td>The largest signed 32-bit integer: a 32-bit ID column overflows here</td></tr>
+        <tr><td>2<sup>32</sup></td><td>≈ 4.3 billion</td><td>4 billion</td><td>All IPv4 addresses; unsigned 32-bit values</td></tr>
+        <tr><td>2<sup>40</sup> / 2<sup>50</sup></td><td>≈ 1.1 × 10<sup>12</sup> / 10<sup>15</sup></td><td>TB / PB</td><td></td></tr>
+        <tr><td>2<sup>64</sup></td><td>≈ 1.8 × 10<sup>19</sup></td><td>effectively unlimited</td><td>64-bit IDs never run out</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>Time:</strong> a day is 86,400 s ≈ 10<sup>5</sup>; a month ≈ 2.6 million s; a year ≈ 3.15 × 10<sup>7</sup> s. So 1 million a day ≈ 12 a second, 1 billion a day ≈ 12,000 a second.</li>
+        <li><strong>Bits vs bytes:</strong> networks are quoted in bits. A 10 Gbit/s link moves about 1.25 GB/s, before overheads.</li>
+        <li><strong>Base-62 and base-64:</strong> 62<sup>7</sup> ≈ 3.5 trillion, which is why a 7-character short URL is plenty (Design D01).</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Timeless. Interviewers accept rounding (86,400 → 100,000) as long as you say you're rounding.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every estimate: say the unit out loud at each step</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Precision beyond the first digit: it changes no decision</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A billion requests a day is about 12,000 a second on average; at 3× peak, roughly 35,000.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Mixing Gbit and GB</strong> (an 8× error).</li><li><strong>32-bit IDs</strong> for a table that will pass 2 billion rows.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-storagemath">
+      <div class="tech-h"><h3>Storage maths, end to end</h3><span class="tech-status s-default">The default storage estimate</span></div>
+      <p>Raw data is only the start. Real storage is raw size times replication, times index and format overhead, over the retention period, plus backups.</p>
+      <h4>How it works</h4>
+      <p><strong>Total ≈ items a day × size × 365 × years × replicas × overhead.</strong> Typical multipliers: 3 replicas (or about 1.5× for erasure-coded object storage), 1.3–2× for indexes, padding and free space in databases, and backups on top. Try a photo app:</p>
+      <div class="card widget" id="stor-lab">
+        <div class="ctl"><label for="sm-n">Items a day</label><input id="sm-n" type="range" min="4" max="10" step="0.5" value="7"><output id="sm-no"></output></div>
+        <div class="ctl"><label for="sm-s">Size each</label><input id="sm-s" type="range" min="2" max="8" step="0.5" value="5.5"><output id="sm-so"></output></div>
+        <div class="ctl"><label for="sm-y">Years kept</label><input id="sm-y" type="range" min="1" max="10" step="1" value="5"><output id="sm-yo"></output></div>
+        <div class="ctl"><span class="seg" id="sm-r"></span></div>
+        <div class="tiles no-gl" id="sm-tiles"></div>
+        <div class="verdict no-gl" id="sm-why"></div>
+      </div>
+      <h4>Status today</h4>
+      <p>Object stores (S3, Cloud Storage, Azure Blob) handle replication for you: S3 Standard, for example, stores data across at least three Availability Zones. You pay for the logical bytes; the provider absorbs the redundancy.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every design with user content, logs or events</li><li>Deciding between one database, sharding, or object storage plus metadata</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small metadata tables (a few GB): say "fits on one machine" and move on</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>10 million photos a day at 300 KB is 3 TB a day, about 1 PB a year: object storage for the files, and only the metadata in the database.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Forgetting replication and indexes</strong>, so the database is undersized by 3–6×.</li><li><strong>No retention policy</strong>: logs and events kept forever by default.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-cloudcost">
+      <div class="tech-h"><h3>Cloud cost, roughly</h3><span class="tech-status s-situational">Situational · when cost comes up</span></div>
+      <p>Cost is three meters: compute hours, storage per GB-month, and data moved (especially out to the internet). A few list prices let you sanity-check a design in an interview.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Item (AWS US East, on-demand list price)</th><th>Price</th><th>Rough feel</th></tr></thead><tbody>
+        <tr><td>General-purpose VM, 2 vCPU / 8 GB (m7g.large)</td><td>≈ $0.08 an hour</td><td>≈ $60 a month</td></tr>
+        <tr><td>S3 Standard storage</td><td>$0.023 per GB-month</td><td>1 PB ≈ $23,000 a month</td></tr>
+        <tr><td>S3 Glacier Deep Archive</td><td>$0.00099 per GB-month</td><td>about 23× cheaper; hours to restore</td></tr>
+        <tr><td>S3 requests</td><td>PUT $0.005, GET $0.0004 per 1,000</td><td>a billion GETs ≈ $400</td></tr>
+        <tr><td>Data out to the internet</td><td>≈ $0.09 per GB (first 100 GB a month free)</td><td>1 PB served from origin ≈ $90,000</td></tr>
+        <tr><td>Between regions</td><td>≈ $0.01–0.02 per GB</td><td>replication across regions adds up</td></tr>
+      </tbody></table>
+      <p>Other clouds are in the same range. Discounts (reserved or savings plans, spot, committed CDN contracts) commonly cut list prices by a third to well over half.</p>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Prices checked October 2026 on the providers' pricing pages; they change, so treat them as orders of magnitude.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>The interviewer asks about cost, or two options differ mainly in cost</li><li>Video, backups, logs or AI inference: workloads where cost decides the design</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Exact quotes: one significant figure is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Serving 1 PB a month straight from S3 would be about $90K in egress alone, so video goes through a CDN, and cold originals move to an archive tier after 30 days.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Ignoring data transfer out</strong>, often the largest line for media.</li><li><strong>Millions of tiny objects</strong> where request fees exceed storage fees.</li><li><strong>Cross-region replication of everything</strong> without asking what really needs it.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "A day is a hundred thousand seconds"</strong>Per day ÷ 10⁵ = per second. Then × peak, × bytes, and finish every number with "so we need…".</div>
@@ -2469,6 +2546,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>What should you size servers for?</p>
         <div class="opts"><button>The daily average</button><button>The peak, plus headroom</button><button>The theoretical maximum of the hardware</button></div>
         <div class="why">Failures happen at peak. Size for peak load running at ~50–70% utilization, so you can absorb spikes and lose a machine.</div>
+      </div>
+      <div class="quiz-q" data-answer="About 1.25 GB">
+        <p>A 10 Gbit/s network link moves about how many gigabytes a second?</p>
+        <div class="opts"><button>About 10 GB</button><button>About 1.25 GB</button><button>About 80 GB</button></div>
+        <div class="why">Divide bits by 8. Network speeds are quoted in bits.</div>
+      </div>
+      <div class="quiz-q" data-answer="About $90,000">
+        <p>Serving 1 PB a month directly from object storage to users costs roughly what in data transfer at list price?</p>
+        <div class="opts"><button>About $900</button><button>About $90,000</button><button>About $9 million</button></div>
+        <div class="why">About $0.09 per GB × 1,000,000 GB. That's why media goes through a CDN.</div>
       </div>
     </div>
 
@@ -2618,9 +2705,30 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-est", title: "3 · The full estimate", text: "Every line of the photo app's estimate, step by step." },
     { el: "#est-widget", title: "4 · Estimation calculator", text: "Pick a preset or type your own numbers." },
     { el: "#drill", title: "5 · Conversion drill", text: "Practise until the powers of ten are automatic." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The numbers up close", text: "Powers of two, storage maths with a calculator, and rough cloud prices." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  /* ---------- storage maths lab (up close) ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const sz = (b) => { const u = ["B", "KB", "MB", "GB", "TB", "PB", "EB"]; let i = 0; while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; } return (b < 10 ? b.toFixed(1) : Math.round(b)) + " " + u[i]; };
+    const num = (x) => x >= 1e9 ? (x / 1e9).toFixed(x >= 1e10 ? 0 : 1) + " billion" : x >= 1e6 ? (x / 1e6).toFixed(x >= 1e7 ? 0 : 1) + " million" : Math.round(x).toLocaleString("en-US");
+    const R = [["Database (3 replicas, 1.5× overhead)", 4.5], ["Object storage (provider handles copies)", 1], ["Logs, 1 copy + 1.2× index", 1.2]];
+    let r = 0;
+    g("sm-r").innerHTML = R.map((x, i) => `<button type="button" aria-pressed="${i === r}">${x[0]}</button>`).join("");
+    g("sm-r").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; r = [...g("sm-r").children].indexOf(b); [...g("sm-r").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === r))); run(); };
+    function run() {
+      const n = Math.pow(10, +g("sm-n").value), s = Math.pow(10, +g("sm-s").value), y = +g("sm-y").value, m = R[r][1];
+      g("sm-no").textContent = num(n); g("sm-so").textContent = sz(s); g("sm-yo").textContent = y + (y > 1 ? " years" : " year");
+      const day = n * s, raw = day * 365 * y, tot = raw * m;
+      g("sm-tiles").innerHTML = [["Per day (raw)", sz(day)], ["Raw over " + y + (y > 1 ? " years" : " year"), sz(raw)], ["Stored, with multiplier ×" + m, sz(tot)]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
+      const verdict = tot < 2e12 ? "fits on one database server comfortably" : tot < 3e13 ? "fits on one large database server; plan partitioning and archiving" : r === 0 ? "too big for one database: shard it, or move bulk content to object storage" : "object storage territory: cheap per GB, unlimited size";
+      g("sm-why").innerHTML = `${num(n)} items a day × ${sz(s)} → <b>${sz(tot)}</b> stored: ${verdict}.`;
+      g("sm-why").className = "verdict no-gl" + (r === 0 && tot >= 3e13 ? " warn" : "");
+    }
+    ["sm-n", "sm-s", "sm-y"].forEach((id) => (g(id).oninput = run)); run();
+  })();
 })();
 </script>
 </body>

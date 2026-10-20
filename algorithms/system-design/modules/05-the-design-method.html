@@ -2401,6 +2401,76 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Getting defensive</strong> when challenged, or getting lost in details nobody asked for.</li>
     </ul></div>
 
+        <section class="tech" id="t-nfr">
+      <div class="tech-h"><h3>Non-functional requirements, each with a number</h3><span class="tech-status s-default">The default · top 3–5 per design</span></div>
+      <p>Non-functional requirements say how well the system must work. Each one is only useful with a number attached, and each number changes the design.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Quality</th><th>Ask</th><th>Example target</th><th>What it changes</th></tr></thead><tbody>
+        <tr><td>Scale</td><td>Users, requests a second, read:write ratio, peaks?</td><td>50M daily users, 100:1 reads, 3× peak</td><td>Caching, replicas, sharding</td></tr>
+        <tr><td>Latency</td><td>Which operation, which percentile?</td><td>Feed loads in p99 &lt; 300 ms</td><td>Precomputation, caches, CDN, regions</td></tr>
+        <tr><td>Availability</td><td>How much downtime is acceptable?</td><td>99.95% (≈ 22 min a month)</td><td>Redundancy, multi-zone, failover (Module 04)</td></tr>
+        <tr><td>Consistency</td><td>Can users ever see stale or conflicting data?</td><td>Bookings: never double-sold; likes: seconds stale is fine</td><td>Transactions vs eventual consistency (Module 16)</td></tr>
+        <tr><td>Durability</td><td>Can we ever lose an acknowledged write?</td><td>Payments: never; analytics: some loss OK</td><td>Synchronous replication, backups</td></tr>
+        <tr><td>Freshness</td><td>How soon must changes show?</td><td>New posts visible within 5 s</td><td>Push vs pull, cache TTLs</td></tr>
+        <tr><td>Security and privacy</td><td>Who may see what? Any regulations?</td><td>GDPR, data stays in the EU</td><td>Auth, encryption, data placement (Module 26)</td></tr>
+        <tr><td>Cost and constraints</td><td>Budget, mobile networks, team size?</td><td>Works on 3G; small team</td><td>Payload size, managed services</td></tr>
+      </tbody></table>
+      <h4>Status today</h4>
+      <p>The same list appears in every interview guide; what separates candidates is choosing the few that matter for <em>this</em> system and attaching numbers.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>The first 5 minutes of every design: pick 3–5 and write them on the board</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Listing all eight for every system</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The three that matter here: no double-booking (strong consistency on seats), p99 under 500 ms for search, and 10× spikes when a popular event opens.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Highly available, scalable, low latency"</strong> with no numbers.</li><li><strong>Requirements that never come back</strong> in the design.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-c4">
+      <div class="tech-h"><h3>Drawing the design: the C4 model</h3><span class="tech-status s-situational">Situational · diagrams at the right zoom</span></div>
+      <p>A simple way to draw architecture at four zoom levels (Simon Brown's C4 model): <strong>Context</strong> (the system, its users and other systems), <strong>Containers</strong> (apps, services, databases, queues: separately running things), <strong>Components</strong> (the main parts inside one container) and <strong>Code</strong>.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>In an interview, draw containers:</strong> clients, load balancer, services, caches, databases, queues and object storage, with arrows labelled by what flows (<q>POST /orders</q>, <q>OrderPlaced event</q>).</li>
+        <li><strong>Zoom in only for the deep dive:</strong> a components view of the one service that holds the hard problem.</li>
+        <li><strong>Rules that keep diagrams readable:</strong> every box says what it is and its technology; every arrow has a direction and a label; reads and writes are drawn as separate paths when they differ.</li>
+        <li><strong>At work:</strong> diagrams as code (Structurizr, Mermaid, PlantUML, D2) live next to the code and are reviewed like it.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Widely used for design documents; the interview whiteboard is effectively a C4 container diagram.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>The high-level design step</li><li>Design documents and onboarding</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Drawing class diagrams in a system design interview</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Let me draw the containers first, then zoom into the booking service for the deep dive.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Unlabelled arrows</strong>: the interviewer can't tell reads from writes.</li><li><strong>Boxes named "backend"</strong> doing everything.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-scoring">
+      <div class="tech-h"><h3>How interviews are usually scored</h3><span class="tech-status s-default">Know the rubric</span></div>
+      <p>Most companies score system design interviews against a handful of signals, and expect more of them as the level rises. Knowing the rubric tells you where to spend your 45 minutes.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Signal</th><th>What they look for</th></tr></thead><tbody>
+        <tr><td>Problem navigation</td><td>Clarifies scope, picks the important requirements, keeps moving</td></tr>
+        <tr><td>Solution design</td><td>A working end-to-end system that meets the requirements</td></tr>
+        <tr><td>Technical depth</td><td>Goes deep on the hard part, knows how the chosen pieces really behave</td></tr>
+        <tr><td>Trade-offs</td><td>Names alternatives and why one wins here; changes course when shown a gap</td></tr>
+        <tr><td>Communication</td><td>Clear structure, thinks aloud, listens to hints</td></tr>
+      </tbody></table>
+      <table><thead><tr><th>Level</th><th>Typical expectation</th></tr></thead><tbody>
+        <tr><td>Mid-level</td><td>A sound working design; deep dives can be interviewer-led</td></tr>
+        <tr><td>Senior</td><td>Leads the deep dives, spots bottlenecks unprompted, justifies trade-offs with numbers</td></tr>
+        <tr><td>Staff and above</td><td>Frames the problem, questions requirements, weighs operations, cost, evolution and team impact</td></tr>
+      </tbody></table>
+      <h4>Status today</h4>
+      <p>The exact wording differs by company, but these signals are near-universal. Rubrics reward a complete design with one or two strong deep dives over an unfinished, perfect corner.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Planning your time: about 5 min requirements, 10 high-level design, 20 deep dives, 5 wrap-up and questions</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Optimising for a buzzword checklist</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I have a working design end to end; the riskiest part is the fan-out on write, so I'd like to go deep there unless you'd prefer another area.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>No end-to-end design at the 25-minute mark</strong>.</li><li><strong>Not offering a deep dive</strong> at senior level and above.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Requirements before rectangles"</strong>No boxes until you know what users do and how well it must work. Then breadth before depth: a working design first, the hard parts second.</div>
@@ -2482,6 +2552,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>The interviewer asks "why not use Cassandra here?" about your PostgreSQL choice. What's the best response?</p>
         <div class="opts"><button>Switch to Cassandra immediately</button><button>Explain the trade-off for this workload, and switch if their point holds</button><button>Insist PostgreSQL is always better</button></div>
         <div class="why">Probing tests understanding. Name the trade-off (writes per second, consistency, query patterns) and stay open to a better argument.</div>
+      </div>
+      <div class="quiz-q" data-answer="Seat search returns in under 500 ms at p99 during a 10× spike">
+        <p>Which is a useful non-functional requirement?</p>
+        <div class="opts"><button>The system should be fast and scalable</button><button>Seat search returns in under 500 ms at p99 during a 10× spike</button><button>Use Kafka for events</button></div>
+        <div class="why">A quality with a number that changes the design. The third is a solution, not a requirement.</div>
+      </div>
+      <div class="quiz-q" data-answer="Leads the deep dives and finds bottlenecks unprompted">
+        <p>What does a senior candidate do that a mid-level one may not?</p>
+        <div class="opts"><button>Draws more boxes</button><button>Leads the deep dives and finds bottlenecks unprompted</button><button>Names more technologies</button></div>
+        <div class="why">Seniority shows in ownership of the hard parts and trade-offs, not in the number of components.</div>
       </div>
     </div>
 

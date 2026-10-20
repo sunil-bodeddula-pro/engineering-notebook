@@ -2421,6 +2421,90 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><strong>Old hardware assumptions.</strong> Designing for 2015-era machines ("8 GB of RAM, so we need 50 servers") over-engineers everything. Think in orders of magnitude and avoid 100 machines where one will do.</li>
     </ul></div>
 
+        <section class="tech" id="t-hedge">
+      <div class="tech-h"><h3>Hedged and tied requests</h3><span class="tech-status s-situational">Situational · cutting the tail</span></div>
+      <p>Ask a second replica when the first is slow, and use whichever answers first. It attacks the slow 1% directly instead of trying to make every server perfect.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Hedge after a delay, not immediately:</strong> send the backup only once the first request has taken longer than about the 95th-percentile latency, so only ~5% of requests are duplicated.</li>
+        <li><strong>The classic result</strong> (Dean and Barroso, "The Tail at Scale", 2013): reading 1,000 keys spread over 100 servers, hedging after 10 ms cut the 99.9th-percentile latency from 1,800 ms to 74 ms, while sending just 2% more requests.</li>
+        <li><strong>Tied requests:</strong> send to two servers at once, each told about the other; whichever starts first cancels its twin. Lower latency, little duplicated work.</li>
+        <li><strong>Only for safe reads:</strong> duplicating a write is a correctness bug unless it's idempotent (Module 24).</li>
+      </ul>
+      <div id="sc-hedge"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Available in gRPC (a hedging policy in the service config, supported by some language implementations), Envoy (hedging on per-try timeout) and some database drivers (Cassandra drivers' speculative execution). Usually a config switch, not code.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Fan-out reads where one slow replica delays the whole answer</li><li>Read paths with tight p99 targets and spare capacity</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Writes that aren't idempotent</li><li>Systems already near capacity: duplicates add load at the worst moment</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Search fans out to 100 shards, so a single slow shard sets our p99. We hedge reads to a second replica after the p95 delay, about 5% extra load.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Hedging immediately</strong>: doubles the load for little gain.</li><li><strong>Hedging writes</strong> without idempotency keys.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-loadtest">
+      <div class="tech-h"><h3>Load-testing tools</h3><span class="tech-status s-default">The default way to find real capacity</span></div>
+      <p>Estimates say what you need; a load test says what one server really does. You generate realistic traffic, raise it until latency or errors break the target, and read off the capacity.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Tool</th><th>Write tests in</th><th>Known for</th></tr></thead><tbody>
+        <tr><td>k6 (Grafana)</td><td>JavaScript</td><td>Developer-friendly scripts, thresholds in CI, arrival-rate executors</td></tr>
+        <tr><td>Locust</td><td>Python</td><td>Simple user behaviour as code, distributed workers</td></tr>
+        <tr><td>Gatling</td><td>Scala, Java, Kotlin, JS</td><td>High load from one machine, detailed reports</td></tr>
+        <tr><td>Apache JMeter</td><td>GUI / XML</td><td>Long-established, many protocols</td></tr>
+        <tr><td>wrk2, Vegeta</td><td>Command line</td><td>Constant request rate with correct latency measurement</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>Closed vs open model:</strong> a closed test runs N virtual users who each wait for a response before sending the next, so a slow server automatically receives fewer requests. Real users don't wait for each other: an open test sends requests at a fixed <em>arrival rate</em> regardless. Use open-model tests to find capacity.</li>
+        <li><strong>Test types:</strong> load (expected peak), stress (until it breaks), soak (hours, to find leaks), spike (sudden burst).</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>All of these are actively maintained; k6 and Locust are the most common choices for new projects. Cloud-hosted runners (Grafana Cloud k6, Azure Load Testing and others) generate traffic from many regions.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Before launch and before big events</li><li>In CI against a staging environment to catch performance regressions</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Production without a plan: test in a production-like environment, or carefully against production with limits</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'd load test one instance with k6 at a constant arrival rate, find where p99 crosses 200 ms, and size the fleet at about 70% of that.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Testing with a closed model only</strong> and reporting its latency as real.</li><li><strong>Load generator on the same machine</strong> as the system under test.</li><li><strong>Testing one endpoint</strong> with cached responses and calling it capacity.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-co">
+      <div class="tech-h"><h3>Coordinated omission</h3><span class="tech-status s-situational">Situational · why benchmarks lie</span></div>
+      <p>A measurement error where the load generator, waiting for a slow response, quietly stops sending the requests that would have arrived during the stall. The slowest moments get the fewest samples, so reported percentiles look far better than what users experience.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Example:</strong> a tester sends one request every 10 ms. The server freezes for 1 second. A naive tester sends one request, waits the whole second, records one slow sample, then carries on. In reality 100 requests should have arrived during that second, waiting on average half a second each. One bad sample out of thousands barely moves the p99; 100 would.</li>
+        <li><strong>The fix:</strong> measure latency from when each request <em>should</em> have been sent (its schedule), not when it was actually sent; or use an open-model tool that keeps sending regardless. wrk2, k6's arrival-rate executors and Gatling's open injection all do this. HdrHistogram can correct recorded data.</li>
+        <li><strong>Also in monitoring:</strong> averaging percentiles across servers, or averaging p99s over time, is a similar trap. Merge histograms instead (Module 25).</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Named by Gil Tene (Azul); now widely understood, but still the default behaviour of simple closed-loop tools and hand-written benchmarks.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Reading or designing any latency benchmark</li><li>Explaining why production p99 is worse than the test said</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Throughput-only tests, where latency isn't reported</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'd use a constant-arrival-rate test, so stalls show up in the percentiles instead of being skipped.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Quoting p99 from a closed-loop benchmark</strong> as the user experience.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-flame">
+      <div class="tech-h"><h3>Profilers and flame graphs</h3><span class="tech-status s-default">The default way to find where time goes</span></div>
+      <p>A profiler samples what each thread is doing many times a second. A flame graph draws those samples: each box is a function, its width is the share of samples it was on the stack, and boxes stack on top of their callers. The widest boxes are where the time goes.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Reading one:</strong> the x-axis is <em>not</em> time: stacks are merged and sorted alphabetically. Look for wide plateaus at the top: functions that are themselves burning CPU.</li>
+        <li><strong>On-CPU vs off-CPU:</strong> a CPU flame graph shows computation; an off-CPU graph shows waiting (locks, disk, network). Slow requests with idle CPUs need the second kind, or tracing (Module 25).</li>
+        <li><strong>Tools:</strong> Linux <code>perf</code> and eBPF profilers for anything; async-profiler for Java; <code>pprof</code> for Go; py-spy for Python; browser and Node.js dev tools. <strong>Continuous profiling</strong> (Grafana Pyroscope, Parca, cloud profilers) samples production all the time at about 1% overhead, so you can compare before and after a deploy.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Flame graphs were invented by Brendan Gregg in 2011 and are now built into most profilers and observability platforms.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>CPU is high and you need to know why</li><li>Comparing a slow release with the previous one</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Latency spent waiting on other services: use distributed tracing</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Before adding servers I'd profile: a flame graph of the hot path often shows one function, like JSON serialisation or a regex, taking a third of the CPU.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Scaling out a CPU problem</strong> nobody has profiled.</li><li><strong>Reading the flame graph's x-axis as time</strong>.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Lanes, trip time, traffic jam"</strong>Bandwidth is lanes, latency is trip time, utilization is how full the road is. Near full, every trip gets slow, and the unluckiest trip is the one users remember.</div>
@@ -2509,6 +2593,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Your service writes 5,000 simple rows a second to PostgreSQL. Do you need a queue in front?</p>
         <div class="opts"><button>Yes, writes are high</button><button>No: that's within one database's capacity</button><button>Yes, and shard as well</button></div>
         <div class="why">Queues are for guaranteed delivery, decoupling or spikes beyond capacity, not for a load the database already handles.</div>
+      </div>
+      <div class="quiz-q" data-answer="After the first has taken longer than about the p95 latency">
+        <p>When should a hedged request be sent?</p>
+        <div class="opts"><button>Immediately, to every replica</button><button>After the first has taken longer than about the p95 latency</button><button>Only after a timeout error</button></div>
+        <div class="why">Waiting until p95 keeps the extra load to about 5% while still cutting the tail.</div>
+      </div>
+      <div class="quiz-q" data-answer="It looks much better than users experienced">
+        <p>A load tester waits for each response before sending the next. The server stalls for a second. What happens to the reported p99?</p>
+        <div class="opts"><button>It's accurate</button><button>It looks much better than users experienced</button><button>It looks worse than reality</button></div>
+        <div class="why">Coordinated omission: requests that should have queued during the stall were never sent, so never measured.</div>
       </div>
     </div>
 
@@ -2663,6 +2757,17 @@ svg.flow .fn { transition: opacity .35s ease; }
         note: "Across the Atlantic: about 80 ms, and light in fibre sets a floor no engineering removes. Ten such calls in a request is most of a second." },
       { hl: { app: "found", z: "found" }, pops: [{ n: "app", t: "keep data near compute", k: "ok", at: 0.3 }],
         note: "So keep each request's data in its own region, put a CDN near users, and partition by region when users only need local data." },
+    ],
+  });
+  Viz.scene("#sc-hedge", {
+    title: "A hedged read", sub: "<b>Blue</b> = requests, <b>green</b> = the answer used, <b>red</b> = the slow replica.",
+    nodes: [{ id: "c", x: 90, y: 125, w: 120, label: "Client" }, { id: "r1", x: 440, y: 55, w: 150, label: "Replica 1", sub: "stuck in a GC pause" }, { id: "r2", x: 440, y: 195, w: 150, label: "Replica 2" }],
+    edges: [["c", "r1"], ["c", "r2"]],
+    width: 560, height: 250,
+    steps: [
+      { hl: { c: "active", r1: "active" }, moves: [{ e: "c>r1", t: "GET item:42", k: "req" }], pops: [{ n: "r1", t: "…no reply yet", k: "bad", at: 1.2 }], hold: 3, note: "The client asks one replica. Usually it answers in about 2 ms." },
+      { hl: { c: "active", r1: "bad", r2: "active" }, moves: [{ e: "c>r2", t: "hedge: GET item:42", k: "req" }], pops: [{ n: "c", t: "waited past p95 (10 ms)", k: "evt", at: 0.2 }], hold: 3, note: "Past the 95th-percentile wait, it sends the same read to a second replica." },
+      { hl: { c: "found", r1: "bad", r2: "found" }, moves: [{ e: "c>r2", t: "value", k: "ok", back: true }], pops: [{ n: "c", t: "cancel replica 1", k: "evt", at: 1.2 }], hold: 3.2, note: "The first answer wins; the other request is cancelled. Only about 5% of reads were ever duplicated." },
     ],
   });
 })();

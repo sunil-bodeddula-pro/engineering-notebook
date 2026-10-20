@@ -2403,6 +2403,95 @@ Cache-Control: max-age=60                ← how long others may reuse this answ
     <p><strong>HTTP versions in 2026.</strong> HTTP/1.1 sends one request at a time per connection, so browsers open several connections. HTTP/2 sends many requests at once over one connection. HTTP/3 runs over <strong>QUIC</strong>, which uses UDP and combines the connection and TLS handshakes into one round trip; it also copes better with lossy mobile networks. Most large sites and CDNs serve HTTP/2 and HTTP/3 today. Module 06 goes deeper.</p>
     <p><strong>In an interview</strong> you rarely draw DNS or TLS. You do need this picture in your head: it tells you why a CDN helps, why a stateless app tier scales, and why a request that calls five services in a row is slow.</p>
 
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Draw one box for the entry point and say what it does: <q>a managed load balancer terminates TLS, routes by path and health-checks the app servers; a CDN sits in front for static content.</q> Mention TLS, keep-alive and anycast only when latency, global users or security come up.</div>
+
+    <section class="tech" id="t-revproxy">
+      <div class="tech-h"><h3>Reverse proxies and ingress</h3><span class="tech-status s-default">The default front door</span></div>
+      <p>A server that sits in front of your app servers and receives every request first: it terminates TLS, routes by host and path, balances load, limits rates, compresses, caches and adds headers. Your app servers never face the internet directly.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Terminate, then forward:</strong> the proxy decrypts HTTPS, reads the request, picks a backend (by path, host, header or weight) and forwards it over a pooled, kept-alive connection, usually plain HTTP or mTLS inside the network.</li>
+        <li><strong>Health checks:</strong> it probes backends and stops sending to ones that fail, so a crashed server disappears in seconds.</li>
+        <li><strong>Passes the client along:</strong> the app only sees the proxy's address, so the proxy adds <code>X-Forwarded-For</code> / <code>Forwarded</code> headers; trust them only from your own proxy.</li>
+      </ul>
+      <table><thead><tr><th>Product</th><th>Known for</th></tr></thead><tbody>
+        <tr><td>NGINX</td><td>Web server and proxy; static files, simple config, everywhere</td></tr>
+        <tr><td>HAProxy</td><td>Very fast L4/L7 load balancing, detailed health checks and stats</td></tr>
+        <tr><td>Envoy</td><td>Dynamic config by API (xDS), gRPC, rich metrics; the base of most service meshes and many API gateways</td></tr>
+        <tr><td>Caddy / Traefik</td><td>Automatic HTTPS through ACME; Traefik discovers containers and Kubernetes services</td></tr>
+        <tr><td>Cloud load balancers</td><td>AWS ALB/NLB, Google Cloud Load Balancing, Azure Application Gateway: managed, no servers to run</td></tr>
+      </tbody></table>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>On Kubernetes, the community <strong>ingress-nginx</strong> controller was retired on 31 March 2026 (no further fixes); new clusters use the <strong>Gateway API</strong> with an implementation such as Envoy Gateway, Istio, Cilium, NGINX Gateway Fabric or a cloud's own controller. The Ingress API itself still exists.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Always, in front of any public service</li><li>Path routing to several services behind one domain</li><li>Central TLS, rate limits and request logging</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Nothing to skip: the question is only whether it's managed (a cloud LB) or one you run</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Clients hit a managed L7 load balancer that terminates TLS and routes <code>/api</code> to the app tier and <code>/static</code> to the CDN origin.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>App servers with public IPs</strong> and no proxy in front.</li><li><strong>Trusting X-Forwarded-For from anyone</strong>: clients can forge it to dodge IP rate limits.</li><li><strong>A single proxy instance</strong>: it needs at least two, behind DNS or a cloud load balancer.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-tls">
+      <div class="tech-h"><h3>TLS 1.3 and certificates (ACME)</h3><span class="tech-status s-default">The default · HTTPS everywhere</span></div>
+      <p>TLS encrypts the connection and proves the server is who it claims to be, using a certificate signed by a trusted certificate authority. TLS 1.3 is the current version: faster and simpler than 1.2.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>One round trip:</strong> the client sends its key share in the first message, so TLS 1.3 needs 1 round trip after TCP (TLS 1.2 needed 2). On a 100 ms path that saves 100 ms per new connection. HTTP/3 over QUIC folds TCP and TLS into one round trip.</li>
+        <li><strong>0-RTT resumption:</strong> a returning client can send data in its very first message. Fast, but that data can be <em>replayed</em> by an attacker, so allow it only for safe, idempotent requests like GET.</li>
+        <li><strong>Forward secrecy always:</strong> every connection uses fresh ephemeral keys, so a stolen server key can't decrypt old recorded traffic.</li>
+        <li><strong>Certificates by ACME:</strong> a client (certbot, Caddy, cert-manager) proves you control the domain with an <code>HTTP-01</code> file, a <code>DNS-01</code> TXT record (needed for wildcards) or <code>TLS-ALPN-01</code>, then gets and renews the certificate automatically.</li>
+      </ul>
+      <div id="sc-tls"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Certificate lifetimes are shrinking by industry rule (CA/Browser Forum ballot SC-081): at most <strong>200 days</strong> from 15 March 2026, <strong>100 days</strong> from 15 March 2027 and <strong>47 days</strong> from 15 March 2029. Let's Encrypt issues 90-day certificates today, offers 45-day ones through an opt-in profile, and plans 64 days by default from February 2027 and 45 days from February 2028. Manual renewal is no longer realistic: automate it.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every external connection, and ideally internal ones too (mTLS, Module 26)</li><li>TLS terminated at the CDN or load balancer, close to users</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>0-RTT for anything that changes state (payments, orders)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>TLS terminates at the edge; certificates are issued and renewed automatically with ACME, and traffic to the backends is re-encrypted.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Manually renewed certificates</strong>: shorter lifetimes turn this into an outage waiting to happen.</li><li><strong>0-RTT enabled for POST requests</strong>: replayable.</li><li><strong>Plain HTTP between services</strong> on a shared network with no reason given.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-keepalive">
+      <div class="tech-h"><h3>Connection reuse: keep-alive and pools</h3><span class="tech-status s-default">The default · always reuse connections</span></div>
+      <p>Opening a connection costs round trips (TCP, then TLS) and CPU; reusing one costs nothing. Keep-alive keeps HTTP connections open between requests, and connection pools keep a set of ready connections to databases and services.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>The saving:</strong> a new HTTPS connection costs 2 round trips before the first byte (1 TCP + 1 TLS 1.3). At 80 ms per round trip that's 160 ms, more than most requests take to process.</li>
+        <li><strong>HTTP/1.1</strong> keeps connections open by default; <strong>HTTP/2 and HTTP/3</strong> go further and send many requests at once over one connection.</li>
+        <li><strong>Database pools:</strong> each PostgreSQL connection is a separate process using several MB, so thousands of app threads must share a small pool, often through PgBouncer or RDS Proxy.</li>
+        <li><strong>Idle timeouts must line up:</strong> if a backend closes idle connections <em>before</em> the load balancer does, the balancer sometimes sends a request on a connection that's just been closed and returns a 502. Make the backend's keep-alive timeout longer than the balancer's (AWS ALB's idle timeout defaults to 60 seconds; Node.js's server keep-alive default is 5).</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Built into every HTTP client, proxy and database driver; usually you only need to size the pools and align the timeouts.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every service-to-service and service-to-database call</li><li>Pools sized from the database's connection limit divided by the number of app instances</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Nothing: the only question is the size and timeouts</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>App servers keep pooled connections to the database through PgBouncer, about 20 per instance, so 50 instances stay well under the database's limit.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A new database connection per request</strong>.</li><li><strong>Pools that add up to more connections than the database allows</strong> once autoscaling adds instances.</li><li><strong>Intermittent 502s</strong> blamed on the network when it's a timeout mismatch.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-anycast">
+      <div class="tech-h"><h3>Anycast and GeoDNS</h3><span class="tech-status s-situational">Situational · global entry points</span></div>
+      <p>Two ways to send each user to a nearby location. <strong>Anycast</strong> announces the same IP address from many sites, and internet routing delivers packets to the nearest one. <strong>GeoDNS</strong> answers the same name with different IP addresses depending on where the user's resolver is.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Anycast:</strong> every site announces the same prefix over BGP; each router picks the shortest network path. A site that fails stops announcing and traffic shifts to the next nearest within seconds to minutes, with no DNS caching in the way. Used by DNS (the root servers, 1.1.1.1, 8.8.8.8), CDNs like Cloudflare, and AWS Global Accelerator.</li>
+        <li><strong>GeoDNS / latency routing:</strong> the DNS server looks at where the query comes from and returns the closest region's address (Route 53 latency or geolocation routing, Cloud DNS geo policies). Failover depends on DNS TTLs, and on resolvers honouring them.</li>
+        <li><strong>"Nearest" means network-nearest:</strong> anycast follows routing policy, not the map, so it's usually but not always the closest site.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>You rarely build either: you get anycast from a CDN or a global load balancer, and GeoDNS from a managed DNS service.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Users on several continents</li><li>DNS, CDNs and DDoS absorption (the attack spreads across every site)</li><li>Fast regional failover (anycast)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A single-region app: one regional load balancer is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Users reach the nearest edge through the CDN's anycast addresses; the edge routes to the closest healthy region.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Failover relying on DNS with a 1-hour TTL</strong>.</li><li><strong>Assuming anycast keeps a long TCP session on one site</strong>: a routing change can move it mid-connection (fine for short requests and DNS; CDNs engineer around it).</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Find, knock, lock, ask"</strong>DNS finds the address, TCP knocks, TLS locks, HTTP asks. The first three are paid once per connection; only the last is paid every time.</div>
@@ -2484,6 +2573,16 @@ Cache-Control: max-age=60                ← how long others may reuse this answ
         <div class="opts"><button>404 Not Found</button><button>403 Forbidden</button><button>503 Service Unavailable</button></div>
         <div class="why">4xx errors mean the request itself is wrong and will fail again. 503 means the server is temporarily overloaded or down, so a later retry may succeed.</div>
       </div>
+      <div class="quiz-q" data-answer="Two">
+        <p>How many round trips does a brand-new HTTPS connection (TCP + TLS 1.3) take before the request can be sent?</p>
+        <div class="opts"><button>One</button><button>Two</button><button>Four</button></div>
+        <div class="why">One for TCP and one for TLS 1.3. HTTP/3 over QUIC combines them into one.</div>
+      </div>
+      <div class="quiz-q" data-answer="The backend's keep-alive timeout is shorter than the load balancer's idle timeout">
+        <p>A service returns occasional 502s behind a load balancer, only on idle connections. Most likely cause?</p>
+        <div class="opts"><button>The database is slow</button><button>The backend's keep-alive timeout is shorter than the load balancer's idle timeout</button><button>TLS certificates expired</button></div>
+        <div class="why">The balancer reuses a connection the backend has just closed. Make the backend's timeout longer.</div>
+      </div>
     </div>
 
     <!-- 10 -->
@@ -2552,8 +2651,9 @@ Cache-Control: max-age=60                ← how long others may reuse this answ
     { el: "#fig-path", title: "2 · The request path", text: "Watch one request travel through DNS, the load balancer, the cache and the database." },
     { el: "#viz-req", title: "3 · Where the time goes", text: "The same visit, with a bar that adds up every millisecond." },
     { el: "#lat-widget", title: "4 · Try it yourself", text: "Move the user further away or reuse the connection, and watch which part grows." },
-    { el: "#remember", title: "5 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "6 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "5 · The technologies up close", text: "Reverse proxies, TLS 1.3 and certificates, connection reuse, anycast." },
+    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
 
   /* ---------- step-through: a first visit ---------- */
@@ -2617,6 +2717,18 @@ Cache-Control: max-age=60                ← how long others may reuse this answ
   segs.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; rtt = +b.dataset.r; segs.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); render(); });
   ["first", "tls12", "h3", "hit", "srv", "kb"].forEach((k) => $(k).addEventListener("input", render));
   render();
+  Viz.scene("#sc-tls", {
+    title: "A new HTTPS connection with TLS 1.3", sub: "<b>Blue</b> = client to server, <b>green</b> = server to client. Each round trip is one crossing there and back.",
+    nodes: [{ id: "c", x: 90, y: 110, w: 130, label: "Browser" }, { id: "s", x: 470, y: 110, w: 150, label: "Server", sub: "or CDN edge" }],
+    edges: [["c", "s"]],
+    width: 560, height: 200,
+    steps: [
+      { hl: { c: "active", s: "active" }, moves: [{ e: "c>s", t: "TCP SYN", k: "req" }, { e: "c>s", t: "SYN-ACK", k: "ok", back: true, delay: 1.1 }], hold: 3, note: "Round trip 1: TCP opens the connection." },
+      { hl: { c: "active", s: "active" }, moves: [{ e: "c>s", t: "ClientHello + key share", k: "req" }, { e: "c>s", t: "ServerHello, certificate, Finished", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "c", t: "checks the certificate", k: "evt", at: 2.2 }], hold: 3.4, note: "Round trip 2: TLS 1.3. The client guesses the key exchange up front, so one round trip is enough (TLS 1.2 needed two)." },
+      { hl: { c: "found", s: "found" }, moves: [{ e: "c>s", t: "GET /cart (encrypted)", k: "req" }, { e: "c>s", t: "200 OK", k: "ok", back: true, delay: 1.1 }], hold: 3, note: "Round trip 3: the actual request. Two round trips of setup before it." },
+      { hl: { c: "found", s: "found" }, moves: [{ e: "c>s", t: "GET /orders", k: "req" }, { e: "c>s", t: "200 OK", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "c", t: "kept alive: no setup", k: "ok", at: 0.2 }], hold: 3, note: "With keep-alive, the next request reuses the connection: one round trip instead of three." },
+    ],
+  });
 })();
 </script>
 </body>
