@@ -162,7 +162,7 @@
     }).join("");
     const marker = (k) => `<marker id="${uid}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="fm-${k}" d="M0,0 L10,5 L0,10 z"/></marker>`;
     // Wrapped so that on narrow screens only the diagram scrolls sideways, not the text around it.
-    return `<div class="flow-wrap"><svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg></div>`;
+    return `<div class="flow-wrap"><svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" style="--w:${W}px" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg></div>`;
   }
 
   /** Horizontal interval bars. items [{s,e,label,cls}], range [lo,hi] */
@@ -528,6 +528,26 @@
       const layer = document.createElementNS(SVGNS, "g"); layer.setAttribute("class", "sc-layer"); svg.appendChild(layer);
       const pathOf = (e) => svg.querySelector(`path[data-e="${CSS.escape(e)}"]`), nodeOf = (k) => svg.querySelector(`g[data-n="${CSS.escape(k)}"]`);
       const box = (k) => { const g = nodeOf(k); return g ? g.querySelector("rect").getBBox() : null; };
+      // Phones: a wide diagram scrolls sideways at a readable size; keep the step's action in view and say it can be swiped.
+      const wrap = svg.parentElement, hint = document.createElement("div");
+      hint.className = "sc-swipe"; hint.textContent = "⇆ Swipe to see the whole diagram; it follows each step";
+      wrap.after(hint);
+      const overflows = () => wrap.scrollWidth > wrap.clientWidth + 2;
+      const sizeHint = () => { hint.hidden = !overflows(); };
+      sizeHint(); window.addEventListener("resize", sizeHint);
+      function follow(s) {
+        if (!overflows()) return;
+        const mv = s.moves || [], hl = s.hl || {};
+        const all = mv.length ? mv.flatMap((m) => m.e.split(">")) : Object.keys(hl);
+        // where the action lands: each move's destination, else the highlighted result
+        const dest = mv.length ? mv.map((m) => m.e.split(">")[m.back ? 0 : 1]) : Object.keys(hl).filter((n) => /found|bad|active/.test(hl[n]));
+        const span = (ids) => { const b = ids.map(box).filter(Boolean); return b.length ? [Math.min(...b.map((x) => x.x)), Math.max(...b.map((x) => x.x + x.width))] : null; };
+        const k = svg.getBoundingClientRect().width / (cfg.width || 560), vw = wrap.clientWidth;
+        let r = span(all); if (!r) return;
+        if ((r[1] - r[0]) * k > vw) r = span(dest.length ? dest : all) || r;
+        const left = ((r[0] + r[1]) / 2) * k - vw / 2;
+        wrap.scrollTo({ left: Math.max(0, left), behavior: reduceMotion() ? "auto" : "smooth" });
+      }
       function pill(text, kind) {
         const g = document.createElementNS(SVGNS, "g"); g.setAttribute("class", "sc-tok k-" + (kind || "req"));
         const w = Math.max(18, 12 + String(text || "").length * 6.4);
@@ -578,6 +598,7 @@
         note.innerHTML = s.note || "";
         if (note.animate) note.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
         dots.forEach((d, j) => d.setAttribute("aria-current", String(j === k)));
+        follow(s);
       }
       function sync() {
         const t = tl.time(), k = stepAt(t);
