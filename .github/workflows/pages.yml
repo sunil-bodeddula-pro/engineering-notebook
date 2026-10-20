@@ -23,8 +23,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history, for sitemap lastmod dates
       - name: Check every page has the latest shared CSS/JS
         run: cd algorithms && python3 tools/inline_assets.py --check
+      - name: Check every page has current SEO tags
+        run: cd algorithms && python3 tools/seo.py --check
       - name: Assemble the site
         run: bash site/assemble.sh _site
       - uses: actions/configure-pages@v5
