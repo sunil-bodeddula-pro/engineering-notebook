@@ -2365,6 +2365,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2693,6 +2694,66 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" rel="noopener">Prompt caching</a> (Anthropic docs) and <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">Model Context Protocol</a></td><td>45 min</td><td>How a provider implements prefix caching, and the standard for connecting tools to agents.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead"> Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-model-serving-internals">
+      <summary><span class="uth-t"><b>Model serving internals</b><small>Tokens, prefill and decode, a KV-cache memory lab with real Llama 3.1 shapes, batching, quantization, speculative decoding, parallelism and MoE</small></span><span class="uth-m">about 20 min</span></summary>
+      <div class="uth-body">
+        <p>LLM serving is mostly a memory problem. The weights must fit on the GPUs, and every active conversation keeps a growing cache of attention keys and values. How many users one GPU can serve, and how fast, follows from a little arithmetic.</p>
+
+        <h3 id="u29b-flow">Tokens, prefill and decode</h3>
+        <ul>
+          <li><strong>Tokenization:</strong> text is split into sub-word tokens (byte-pair encoding and similar), roughly 3–4 characters of English each. Prices, context limits and speed are all in tokens.</li>
+          <li><strong>Prefill:</strong> the whole prompt is processed in one parallel pass, which is compute-bound and sets the <em>time to first token</em>.</li>
+          <li><strong>Decode:</strong> each new token needs a full pass over the weights, one token at a time per sequence, which is memory-bandwidth-bound and sets <em>tokens per second</em>. Batching many sequences shares each pass over the weights, which is why batching multiplies throughput.</li>
+          <li><strong>The KV cache:</strong> to avoid recomputing attention over the past, each layer stores a key and a value vector per token per KV head. It grows with every token of every active sequence.</li>
+        </ul>
+
+        <h3 id="u29b-mem">Will it fit? KV-cache arithmetic</h3>
+        <p>KV bytes per token = 2 (key and value) × layers × KV heads × head dimension × bytes per value. Pick a model and a workload:</p>
+        <div class="card widget" id="kv-lab">
+          <div class="ctl"><span class="seg" id="kv-m"></span><span class="seg" id="kv-q"></span></div>
+          <div class="ctl"><label for="kv-c">Context per conversation</label><input id="kv-c" type="range" min="0" max="7" value="3"><output id="kv-co"></output></div>
+          <div class="ctl"><label for="kv-n">Concurrent conversations</label><input id="kv-n" type="range" min="1" max="256" value="32"><output id="kv-no"></output></div>
+          <div class="ctl"><label for="kv-g">GPUs (80 GB each)</label><input id="kv-g" type="range" min="1" max="8" value="1"><output id="kv-go"></output></div>
+          <div class="no-gl" id="kv-bar"></div>
+          <div class="tiles no-gl" id="kv-tiles"></div>
+          <div class="verdict no-gl" id="kv-why"></div>
+        </div>
+
+        <h3 id="u29b-tricks">Making it faster and cheaper</h3>
+        <table>
+          <thead><tr><th>Technique</th><th>What it does</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Continuous batching</td><td>Sequences join and leave the batch at every step</td><td>Scheduler complexity (built into vLLM, SGLang, TensorRT-LLM, TGI)</td></tr>
+            <tr><td>PagedAttention</td><td>KV cache in fixed-size pages, so memory isn't reserved for the maximum length</td><td>Indirection in the attention kernel</td></tr>
+            <tr><td>Prefix caching</td><td>Reuse KV pages for a shared system prompt or document</td><td>Memory held for popular prefixes</td></tr>
+            <tr><td>Quantization</td><td>Weights in 8 or 4 bits (GPTQ, AWQ, FP8) instead of 16; KV cache in 8 bits</td><td>Some quality loss, measured with evals</td></tr>
+            <tr><td>Speculative decoding</td><td>A small draft model proposes several tokens; the big model verifies them in one pass</td><td>Extra model; gains depend on acceptance rate</td></tr>
+            <tr><td>Grouped-query attention</td><td>Several query heads share one KV head (Llama 3 uses 8 KV heads), shrinking the KV cache</td><td>A model-architecture choice, not a serving knob</td></tr>
+            <tr><td>Tensor / pipeline parallelism</td><td>Split each layer (tensor) or the layer stack (pipeline) across GPUs when weights don't fit</td><td>Fast interconnect needed (NVLink within a node)</td></tr>
+            <tr><td>Mixture of experts</td><td>Each token uses only a few expert sub-networks, so compute per token is a fraction of total parameters</td><td>All experts must still sit in memory; routing imbalance</td></tr>
+            <tr><td>Disaggregated prefill and decode</td><td>Separate GPU pools for the compute-bound and bandwidth-bound phases, handing over the KV cache</td><td>KV transfer between machines</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u29b-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How many concurrent chats can one GPU serve?"</strong> Memory left after the weights, divided by KV cache per conversation: for an 8B model in 16-bit on one 80 GB GPU, about 56 GB is left after the weights and runtime overhead, and a 4K-token chat holds about 0.54 GB of KV cache, so roughly 100 conversations, before considering throughput targets.</li>
+          <li><strong>"Why is time to first token slow for long prompts?"</strong> Prefill processes the whole prompt; prefix caching and chunked prefill help, and very long contexts may need their own pool.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Memory bandwidth, reading the weights for every token">
+            <p>What usually limits decode speed for one sequence?</p>
+            <div class="opts"><button>Network latency</button><button>Memory bandwidth, reading the weights for every token</button><button>Tokenization</button></div>
+            <div class="why">Batching many sequences amortises each read of the weights.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://huggingface.co/unsloth/Meta-Llama-3.1-8B/raw/main/config.json" target="_blank" rel="noopener">Llama 3.1 8B configuration</a></li><li><a href="https://huggingface.co/unsloth/Meta-Llama-3.1-70B/raw/main/config.json" target="_blank" rel="noopener">Llama 3.1 70B configuration</a></li><li><a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md" target="_blank" rel="noopener">Llama 3.1 model card</a></li><li><a href="https://huggingface.co/docs/transformers/main/en/tokenizer_summary" target="_blank" rel="noopener">Tokenizers summary (Hugging Face)</a></li><li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">PagedAttention / vLLM paper</a></li><li><a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noopener">Speculative decoding paper</a></li><li><a href="https://www.nvidia.com/en-us/data-center/h100/" target="_blank" rel="noopener">NVIDIA H100</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="28-architecture-styles.html"><small>Previous module</small>← 28 · Architecture styles</a>
       <a class="next" href="../index.html#designs"><small>Course complete; next come the worked designs</small>Worked designs →</a>
@@ -2834,6 +2895,28 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       g("rrf-why").innerHTML = `Documents found by <b>both</b> searches rise to the top, because they collect two shares of score. ${k < 10 ? "With a small k, first place in one list dominates." : "With k around 60, agreement between the lists matters more than any single first place."} A re-ranker would then reorder these few.`;
     }
     g("rrf-k").oninput = run; run();
+  })();
+  /* ---------- Under the hood: model serving ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const MODELS = [["Llama 3.1 8B", 8.0, 32, 8, 128], ["Llama 3.1 70B", 70.6, 80, 8, 128]], Q = [["16-bit", 2], ["8-bit", 1], ["4-bit", 0.5]], CTX = [512, 1024, 2048, 4096, 8192, 16384, 32768, 131072];
+    let m = 0, q = 0;
+    const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === get()))); run(); }; };
+    seg("kv-m", MODELS.map((x) => x[0]), () => m, (v) => (m = v)); seg("kv-q", Q.map((x) => x[0] + " weights"), () => q, (v) => (q = v));
+    const gb = (b) => b / 1e9;
+    function run() {
+      const [name, params, L, kvh, hd] = MODELS[m], ctx = CTX[+g("kv-c").value], n = +g("kv-n").value, gpus = +g("kv-g").value;
+      g("kv-co").textContent = ctx.toLocaleString("en-US") + " tokens"; g("kv-no").textContent = n; g("kv-go").textContent = gpus;
+      const wB = params * 1e9 * Q[q][1], perTok = 2 * L * kvh * hd * 2, kvB = perTok * ctx * n, total = gpus * 80e9, overhead = 0.1 * total, free = total - wB - overhead;
+      const maxN = free > 0 ? Math.floor(free / (perTok * ctx)) : 0, used = wB + kvB + overhead;
+      const pct = (x) => Math.max(0, Math.min(100, (x / total) * 100));
+      g("kv-bar").innerHTML = `<div style="display:flex;height:18px;border-radius:9px;overflow:hidden;margin:10px 0;background:var(--surface-2)"><span title="weights" style="width:${pct(wB)}%;background:var(--accent)"></span><span title="KV cache" style="width:${pct(kvB)}%;background:var(--warm)"></span><span title="runtime overhead" style="width:${pct(overhead)}%;background:var(--line)"></span></div><div class="idx">green = weights · orange = KV cache · grey = activations and runtime (about 10%) · bar = ${gpus} × 80 GB</div>`;
+      g("kv-tiles").innerHTML = [["Weights", gb(wB).toFixed(0) + " GB"], ["KV cache per token", (perTok / 1024).toFixed(0) + " KiB"], ["KV cache for this load", gb(kvB).toFixed(1) + " GB"], ["Max conversations at this context", maxN.toLocaleString("en-US")]].map(([x, y]) => `<div><b>${y}</b><span>${x}</span></div>`).join("");
+      const fits = used <= total;
+      g("kv-why").innerHTML = wB + overhead > total ? `The ${Q[q][0]} weights alone (${gb(wB).toFixed(0)} GB) don't fit on ${gpus} GPU${gpus > 1 ? "s" : ""}: add GPUs (tensor parallelism) or quantize further.` : fits ? `Fits: ${gb(used).toFixed(0)} of ${gpus * 80} GB. Each ${ctx.toLocaleString("en-US")}-token conversation holds ${gb(perTok * ctx).toFixed(2)} GB of KV cache, so memory, not compute, caps concurrency at about ${maxN}.` : `Doesn't fit: the KV cache needs ${gb(kvB).toFixed(0)} GB but only ${gb(free).toFixed(0)} GB is left after the weights. Serve at most ${maxN} conversations at this length, shorten contexts, quantize the KV cache, or add GPUs.`;
+      g("kv-why").className = "verdict no-gl" + (fits ? "" : " bad");
+    }
+    ["kv-c", "kv-n", "kv-g"].forEach((id) => (g(id).oninput = run)); run();
   })();
 })();
 </script>

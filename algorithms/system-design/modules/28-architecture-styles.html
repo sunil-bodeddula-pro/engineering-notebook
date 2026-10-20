@@ -2366,6 +2366,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2633,6 +2634,71 @@ Consequences: every query is protected by default; connection pooling must reset
         <tr><td><a href="https://alistair.cockburn.us/hexagonal-architecture/" target="_blank" rel="noopener">Hexagonal architecture</a> (Alistair Cockburn)</td><td>20 min</td><td>Ports and adapters: keeping business logic independent of infrastructure.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">Mechanisms behind specialist areas that come up in specific designs. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-everything-else">
+      <summary><span class="uth-t"><b>Everything else</b><small>Dijkstra vs A* with a live grid lab, contraction hierarchies, push and email delivery, recommendation pipelines, edge and offline, file sync</small></span><span class="uth-m">about 20 min</span></summary>
+      <div class="uth-body">
+        <p>A few specialist areas come up in specific designs. Each has one or two mechanisms worth knowing before an interview that touches it; the worked designs go further.</p>
+
+        <h3 id="u28-route">Maps and routing: Dijkstra vs A*</h3>
+        <p>Shortest paths on a road graph. Dijkstra explores outward in every direction by distance; A* adds an estimate of the remaining distance (straight-line or Manhattan) so it explores mostly toward the goal. Click cells to add or remove walls:</p>
+        <div class="card widget" id="ast-lab">
+          <div class="ctl"><span class="seg" id="ast-a"></span><button class="btn" type="button" id="ast-new">New walls</button></div>
+          <div class="no-gl" id="ast-grid"></div>
+          <div class="tiles no-gl" id="ast-tiles"></div>
+          <div class="verdict no-gl" id="ast-why"></div>
+        </div>
+        <ul>
+          <li><strong>Continental road networks</strong> are too big even for A* per query. <strong>Contraction hierarchies</strong> precompute shortcuts around unimportant nodes, so queries search only "upward" toward major roads from both ends: milliseconds for routes across a continent (OSRM, GraphHopper). Live traffic needs customizable variants that update edge weights quickly.</li>
+          <li><strong>Map matching</strong> snaps noisy GPS points to roads with a hidden Markov model; <strong>vector tiles</strong> ship map geometry in small pre-cut tiles that the client styles and renders (Design D25).</li>
+        </ul>
+
+        <h3 id="u28-push">Push notifications and email</h3>
+        <table>
+          <thead><tr><th>Channel</th><th>How it works</th><th>What to design for</th></tr></thead>
+          <tbody>
+            <tr><td>APNs (Apple), FCM (Google)</td><td>Your server sends to the platform with a device token; the platform delivers over its own persistent connection to the device</td><td>Best effort, no delivery guarantee; tokens expire (remove them on errors); collapse keys replace older pending messages; respect TTLs and quiet hours</td></tr>
+            <tr><td>Email (SMTP)</td><td>A provider relays to the recipient's mail servers</td><td>SPF, DKIM and DMARC authenticate you; Gmail and Yahoo require them for bulk senders, plus one-click unsubscribe and low spam rates; handle bounces and complaints; warm up new sending IPs</td></tr>
+            <tr><td>SMS</td><td>Aggregators deliver through carriers</td><td>Cost per message, country rules, registration of sender IDs</td></tr>
+          </tbody>
+        </table>
+        <p>Design D05 builds a notification system with preferences, deduplication, retries and per-channel rate limits.</p>
+
+        <h3 id="u28-recs">Recommendations and feeds</h3>
+        <ul>
+          <li><strong>Two stages:</strong> <em>candidate generation</em> narrows millions of items to hundreds cheaply (often a two-tower model: users and items embedded in the same space, then approximate nearest-neighbour search); <em>ranking</em> scores those hundreds with a heavier model using many features. A final pass applies business rules and diversity.</li>
+          <li><strong>Feature stores</strong> serve the same features offline (training) and online (low-latency lookups at request time), avoiding training/serving skew; real-time features ("items viewed in the last 5 minutes") come from stream processing.</li>
+          <li>Designs D06 (news feed) and D29 (Q&amp;A ranking) go through fan-out and ranking in detail.</li>
+        </ul>
+
+        <h3 id="u28-edge">Edge and offline</h3>
+        <ul>
+          <li><strong>Edge functions</strong> (Cloudflare Workers, Lambda@Edge, Fastly Compute) run code in CDN locations: authentication checks, redirects, personalisation, A/B assignment, close to users.</li>
+          <li><strong>Edge storage:</strong> Workers KV is eventually consistent (writes can take up to about a minute to appear everywhere), good for configuration and caches; Durable Objects give one single-threaded instance per key for coordination that needs a single writer (a chat room, a counter).</li>
+          <li><strong>Offline-first apps</strong> keep a local database and sync: CouchDB/PouchDB track document revision trees and surface conflicts; Firestore caches offline writes and replays them; CRDT libraries merge automatically (Module 21's deep dive).</li>
+        </ul>
+
+        <h3 id="u28-sync">File sync</h3>
+        <p>Sync clients split files into chunks named by their hashes, upload only chunks the server lacks, and compare trees of hashes (Merkle trees) to find what changed. rsync's rolling checksum finds matching blocks at any offset; content-defined chunking keeps boundaries stable after inserts (the chunking lab in Module 10's deep dive shows why). Design D12 builds the full system.</p>
+
+        <h3 id="u28-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How does a routing service answer in milliseconds?"</strong> Precomputed contraction hierarchies over the road graph, with traffic applied as edge-weight updates; A* or bidirectional search alone is too slow at continental scale.</li>
+          <li><strong>"Do push notifications guarantee delivery?"</strong> No: APNs and FCM are best effort, so important messages also go to an in-app inbox the client syncs.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="It uses an estimate of the remaining distance to explore toward the goal">
+            <p>Why does A* usually explore fewer nodes than Dijkstra?</p>
+            <div class="opts"><button>It ignores walls</button><button>It uses an estimate of the remaining distance to explore toward the goal</button><button>It explores randomly</button></div>
+            <div class="why">With an estimate that never overestimates, it still finds the shortest path.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://en.wikipedia.org/wiki/A*_search_algorithm" target="_blank" rel="noopener">A* search algorithm</a></li><li><a href="https://github.com/Project-OSRM/osrm-backend" target="_blank" rel="noopener">OSRM (contraction hierarchies)</a></li><li><a href="https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns" target="_blank" rel="noopener">Apple: sending notification requests to APNs</a></li><li><a href="https://firebase.google.com/docs/cloud-messaging" target="_blank" rel="noopener">Firebase Cloud Messaging</a></li><li><a href="https://support.google.com/a/answer/81126" target="_blank" rel="noopener">Google: email sender guidelines</a></li><li><a href="https://research.google/pubs/deep-neural-networks-for-youtube-recommendations/" target="_blank" rel="noopener">Deep neural networks for YouTube recommendations</a></li><li><a href="https://developers.cloudflare.com/durable-objects/" target="_blank" rel="noopener">Cloudflare: Durable Objects</a></li><li><a href="https://developers.cloudflare.com/kv/concepts/how-kv-works/" target="_blank" rel="noopener">Cloudflare: how Workers KV works</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="27-deployment-multi-region.html"><small>Previous module</small>← 27 · Deployment, multi-region and DR</a>
       <a class="next" href="29-ai-systems.html"><small>Next module</small>29 · Designing AI systems →</a>
@@ -2755,6 +2821,34 @@ Consequences: every query is protected by default; connection pooling must reset
         note: "The costs: snapshots so replay stays fast, event schemas you must version forever, and reads that lag writes slightly." },
     ],
   });
+  /* ---------- Under the hood: everything else ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), W = 24, H = 12, S = [1, 6], G = [22, 6];
+    let walls = new Set(), alg = 1, seed = 11;
+    const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const key = (x, y) => x + "," + y;
+    const gen = () => { walls = new Set(); for (let x = 4; x < 21; x += 4) { const gap = 1 + Math.floor(r() * (H - 2)); for (let y = 0; y < H; y++) if (Math.abs(y - gap) > 1 && r() < 0.95) walls.add(key(x, y)); } };
+    g("ast-a").innerHTML = ["Dijkstra", "A* (Manhattan distance)"].map((l, i) => `<button type="button" aria-pressed="${i === alg}">${l}</button>`).join("");
+    g("ast-a").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; alg = [...g("ast-a").children].indexOf(b); [...g("ast-a").children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === alg))); run(); };
+    function search(useH) {
+      const h = (x, y) => (useH ? Math.abs(x - G[0]) + Math.abs(y - G[1]) : 0), dist = new Map([[key(...S), 0]]), prev = new Map(), seen = new Set(), open = [[h(...S), 0, S[0], S[1]]];
+      while (open.length) { open.sort((a, b) => a[0] - b[0] || b[1] - a[1]); const [, d, x, y] = open.shift(), k = key(x, y); if (seen.has(k)) continue; seen.add(k); if (x === G[0] && y === G[1]) break;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, nk = key(nx, ny); if (nx < 0 || ny < 0 || nx >= W || ny >= H || walls.has(nk)) continue; const nd = d + 1; if (nd < (dist.get(nk) ?? Infinity)) { dist.set(nk, nd); prev.set(nk, k); open.push([nd + h(nx, ny), nd, nx, ny]); } } }
+      const path = new Set(); let c = key(...G); if (prev.has(c)) while (c) { path.add(c); c = prev.get(c); }
+      return { seen, path, len: dist.get(key(...G)) };
+    }
+    function run() {
+      const res = search(alg === 1), other = search(alg === 0);
+      g("ast-grid").innerHTML = `<div style="display:grid;grid-template-columns:repeat(${W},minmax(0,1fr));gap:2px;max-width:560px;margin:8px auto">${Array.from({ length: W * H }, (_, i) => { const x = i % W, y = Math.floor(i / W), k = key(x, y);
+        const bg = (x === S[0] && y === S[1]) || (x === G[0] && y === G[1]) ? "var(--ink)" : walls.has(k) ? "var(--ink-3)" : res.path.has(k) ? "var(--accent)" : res.seen.has(k) ? "color-mix(in srgb, var(--warm) 35%, var(--surface))" : "var(--surface-2)";
+        return `<span data-k="${k}" style="aspect-ratio:1;border-radius:3px;background:${bg};cursor:pointer"></span>`; }).join("")}</div>`;
+      g("ast-tiles").innerHTML = [["Cells explored", res.seen.size], ["The other algorithm explores", other.seen.size], ["Shortest path length", res.len ?? "no path"]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("ast-why").innerHTML = res.len == null ? "The walls block every route." : `Both find a path of ${res.len} steps (orange = explored, green = path). ${alg === 1 ? `A* explored ${res.seen.size} cells against Dijkstra's ${other.seen.size}, because the distance estimate pulls it toward the goal.` : `Dijkstra spreads in every direction, exploring ${res.seen.size} cells; A* needs ${other.seen.size}.`}`;
+    }
+    g("ast-grid").onclick = (e) => { const c = e.target.closest("[data-k]"); if (!c) return; const k = c.dataset.k; if (k === key(...S) || k === key(...G)) return; walls.has(k) ? walls.delete(k) : walls.add(k); run(); };
+    g("ast-new").onclick = () => { gen(); run(); };
+    gen(); run();
+  })();
 })();
 </script>
 </body>

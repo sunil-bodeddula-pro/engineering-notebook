@@ -2837,6 +2837,69 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <ul class="uth-src"><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html" target="_blank" rel="noopener">S3: authenticating requests with query parameters (SigV4)</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html" target="_blank" rel="noopener">S3: conditional writes</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html" target="_blank" rel="noopener">S3: versioning</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html" target="_blank" rel="noopener">S3: multipart upload</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html" target="_blank" rel="noopener">S3: performance design patterns</a></li><li><a href="https://aws.amazon.com/s3/consistency/" target="_blank" rel="noopener">S3: strong consistency</a></li><li><a href="https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-maximum-object-size-50-tb/" target="_blank" rel="noopener">S3: maximum object size raised to 50 TB (December 2025)</a></li><li><a href="https://cloud.google.com/storage/docs/request-preconditions" target="_blank" rel="noopener">Cloud Storage: request preconditions</a></li><li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/concurrency-manage" target="_blank" rel="noopener">Azure Blob: managing concurrency</a></li><li><a href="https://docs.ceph.com/en/latest/rados/operations/crush-map/" target="_blank" rel="noopener">Ceph: CRUSH maps</a></li><li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html" target="_blank" rel="noopener">HDFS architecture</a></li><li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HDFSErasureCoding.html" target="_blank" rel="noopener">HDFS erasure coding</a></li><li><a href="https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia" target="_blank" rel="noopener">FastCDC (USENIX ATC 2016)</a></li></ul>
       </div>
     </details>
+    <details class="uth" id="uth-video-delivery">
+      <summary><span class="uth-t"><b>Video delivery</b><small>Encoding ladders and codecs, HLS, DASH and CMAF, DRM, an adaptive-bitrate lab, live latency options</small></span><span class="uth-m">about 20 min</span></summary>
+      <div class="uth-body">
+        <p>Video is most of the internet's traffic, and its design is about fitting a picture through an unpredictable network: encode each title at several qualities, cut it into short segments, and let the player choose segment by segment.</p>
+
+        <h3 id="u10b-pipe">The pipeline</h3>
+        <ol>
+          <li><strong>Ingest</strong> the original upload (often hundreds of GB for professional content) into object storage.</li>
+          <li><strong>Transcode</strong> into an <em>encoding ladder</em>: several resolutions and bitrates (say 240p at 0.4 Mbps up to 4K at 15 Mbps), in parallel chunks across many machines. <em>Per-title encoding</em> (pioneered by Netflix) picks the ladder from the content: a cartoon needs far fewer bits than a football match.</li>
+          <li><strong>Package</strong> into 2–6 second segments plus a manifest listing every rendition: HLS (<code>.m3u8</code>, Apple, universal) or DASH (<code>.mpd</code>); CMAF lets both share one set of fragmented MP4 segments, halving storage and cache use.</li>
+          <li><strong>Protect</strong> with DRM where needed: Widevine (Chrome, Android), FairPlay (Apple), PlayReady (Microsoft); multi-DRM services encrypt once with common encryption (CENC).</li>
+          <li><strong>Deliver</strong> through CDNs; popular segments are served from edge caches, so origin load stays tiny.</li>
+        </ol>
+        <table>
+          <thead><tr><th>Codec</th><th>Compression vs H.264</th><th>Support</th></tr></thead>
+          <tbody>
+            <tr><td>H.264 / AVC</td><td>Baseline</td><td>Everywhere, cheap hardware decoding</td></tr>
+            <tr><td>H.265 / HEVC</td><td>About half the bitrate for similar quality</td><td>Apple devices, TVs; patent licensing is complex</td></tr>
+            <tr><td>VP9</td><td>Similar to HEVC, royalty-free</td><td>Chrome, Android, YouTube</td></tr>
+            <tr><td>AV1</td><td>Better still, royalty-free</td><td>Modern browsers and newer devices with hardware decoders; slow to encode</td></tr>
+          </tbody>
+        </table>
+        <p>Services encode popular titles in several codecs and serve each device the most efficient one it can decode: more encoding cost, less bandwidth.</p>
+
+        <h3 id="u10b-abr">Adaptive bitrate: the player decides</h3>
+        <p>Before each segment, the player picks a rendition. Too high and the buffer drains into a stall; too low and the picture is needlessly soft. Here the bandwidth drops from 9 to 1.6 Mbps, recovers, then dips again:</p>
+        <div class="card widget" id="abr-lab">
+          <div class="ctl"><span class="seg" id="abr-a"></span></div>
+          <div class="no-gl" id="abr-svg"></div>
+          <div class="tiles no-gl" id="abr-tiles"></div>
+          <div class="verdict no-gl" id="abr-why"></div>
+        </div>
+        <ul>
+          <li><strong>Throughput-based</strong> players estimate bandwidth from recent segment downloads and pick a rendition below it with a safety margin. <strong>Buffer-based</strong> ones (BBA, BOLA in dash.js) choose from how full the buffer is. Production players combine both, and some (like Netflix's) add learned models.</li>
+          <li><strong>Start fast:</strong> begin at a low rendition so playback starts in about a second, then climb.</li>
+        </ul>
+
+        <h3 id="u10b-live">Live and low latency</h3>
+        <table>
+          <thead><tr><th>Approach</th><th>Typical delay behind real time</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td>Classic HLS/DASH (6 s segments, 3 in the buffer)</td><td>About 20–30 s</td><td>Broadcast-scale live where delay doesn't matter</td></tr>
+            <tr><td>Low-latency HLS / low-latency DASH (partial segments, preload hints)</td><td>About 2–5 s</td><td>Sports, live shopping, still CDN-friendly</td></tr>
+            <tr><td>WebRTC</td><td>Under 1 s</td><td>Calls, auctions, interactive streams; needs media servers (SFUs), not plain CDNs</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u10b-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How does Netflix-style streaming adapt to bad networks?"</strong> Each title is encoded as a ladder of renditions cut into 2–6 s segments listed in a manifest; the player measures throughput and buffer and picks each segment's rendition, served from CDN caches.</li>
+          <li><strong>"Why not just send the 4K file?"</strong> Bandwidth varies second to second; a single bitrate either stalls on weak connections or wastes quality on strong ones, and segments let players switch without restarting.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="The player, segment by segment">
+            <p>In HLS or DASH, who chooses which quality to download next?</p>
+            <div class="opts"><button>The CDN</button><button>The origin server</button><button>The player, segment by segment</button></div>
+            <div class="why">The server just offers the manifest and segments; adaptation is client-side.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://developer.apple.com/documentation/http-live-streaming/hls-authoring-specification-for-apple-devices" target="_blank" rel="noopener">Apple: HLS authoring specification</a></li><li><a href="https://developer.apple.com/documentation/http-live-streaming/enabling-low-latency-http-live-streaming-hls" target="_blank" rel="noopener">Apple: low-latency HLS</a></li><li><a href="https://dashif.org/" target="_blank" rel="noopener">DASH Industry Forum</a></li><li><a href="https://netflixtechblog.com/per-title-encode-optimization-7e99442b62a2" target="_blank" rel="noopener">Netflix: per-title encode optimization</a></li><li><a href="https://arxiv.org/abs/1601.06748" target="_blank" rel="noopener">BOLA: buffer-based adaptive bitrate (paper)</a></li><li><a href="https://aomedia.org/specifications/av1/" target="_blank" rel="noopener">AV1 specification</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="09-caching.html"><small>Previous module</small>← 09 · Caching</a>
       <a class="next" href="11-relational-data-modeling.html"><small>Next module</small>11 · Relational data and modeling →</a>
@@ -3065,6 +3128,33 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       g("ck-why").className = "verdict no-gl" + (reused < after.length / 2 ? " warn" : "");
     }
     g("ck-ins").oninput = run; run();
+  })();
+  /* ---------- Under the hood: video delivery ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), LAD = [0.4, 1, 2.5, 5, 8], SEG = 2, N = 45;
+    const bwAt = (t) => (t < 20 ? 9 : t < 35 ? 1.6 : t < 50 ? 6 : 3.2);
+    const ALG = ["Always the highest quality", "Throughput-based", "Buffer-based"]; let a = 1;
+    function sim(alg) { let t = 0, buf = 0, stall = 0, sw = 0, prev = -1, start = true; const hist = [], q = [], times = [];
+      for (let s = 0; s < N; s++) { let k;
+        if (alg === 0) k = 4; else if (alg === 1) { const h = hist.slice(-3), est = h.length ? h.length / h.reduce((x, y) => x + 1 / y, 0) : 1; k = 0; LAD.forEach((r, i) => { if (r <= 0.8 * est) k = i; }); } else k = buf < 6 ? 0 : buf > 26 ? 4 : Math.floor(((buf - 6) / 20) * 4.99);
+        if (prev >= 0 && k !== prev) sw++; prev = k;
+        let rem = LAD[k] * SEG, dl = 0; while (rem > 1e-9) { const bw = bwAt(t + dl), st = Math.min(0.1, rem / bw); rem -= bw * st; dl += st; }
+        hist.push((LAD[k] * SEG) / dl);
+        if (!start) { if (dl > buf) { stall += dl - buf; buf = 0; } else buf -= dl; }
+        times.push(t); t += dl; buf = Math.min(30, buf + SEG); if (buf >= 4) start = false; if (buf >= 30) { t += SEG; buf -= SEG; } q.push(k); }
+      return { stall, sw, q, times, end: t, avg: q.reduce((x, k) => x + LAD[k], 0) / N }; }
+    g("abr-a").innerHTML = ALG.map((x, i) => `<button type="button" aria-pressed="${i === a}">${x}</button>`).join("");
+    g("abr-a").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; a = [...g("abr-a").children].indexOf(b); [...g("abr-a").children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === a))); run(); };
+    function run() {
+      const r = sim(a), W = 560, H = 200, T = Math.max(r.end, 90), X = (t) => (30 + (t / T) * (W - 40)).toFixed(1), Y = (v) => (H - 20 - (v / 10) * (H - 30)).toFixed(1);
+      let bwp = ""; for (let t = 0; t <= T; t += 0.5) bwp += `${X(t)},${Y(bwAt(t))} `;
+      const steps = r.q.map((k, i) => { const t0 = r.times[i], t1 = i + 1 < r.times.length ? r.times[i + 1] : r.end; return `${X(t0)},${Y(LAD[k])} ${X(t1)},${Y(LAD[k])}`; }).join(" ");
+      g("abr-svg").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;display:block;margin:6px auto" role="img" aria-label="Bandwidth and chosen bitrate over time"><polyline fill="none" stroke="var(--ink-3)" stroke-dasharray="4 3" stroke-width="1.5" points="${bwp}"/><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${steps}"/><text x="${W - 12}" y="14" text-anchor="end" font-size="11" fill="var(--ink-3)">dashed = available bandwidth · green = chosen bitrate (Mbps)</text><text x="30" y="${H - 4}" font-size="10" fill="var(--ink-3)">seconds →</text></svg>`;
+      g("abr-tiles").innerHTML = [["Time stalled", r.stall.toFixed(0) + " s"], ["Average bitrate", r.avg.toFixed(1) + " Mbps"], ["Quality switches", r.sw]].map(([x, y]) => `<div><b>${y}</b><span>${x}</span></div>`).join("");
+      g("abr-why").innerHTML = a === 0 ? "Ignoring the network: perfect picture until the bandwidth drops, then the buffer drains and the video freezes again and again." : a === 1 ? "It follows measured throughput with a 20% safety margin: no stalls, few switches, but it leaves quality on the table when the buffer is full." : "It reads the buffer: it starts low and climbs as the buffer fills, getting a higher average bitrate, at the cost of more switches.";
+      g("abr-why").className = "verdict no-gl" + (r.stall > 1 ? " bad" : "");
+    }
+    run();
   })();
 })();
 </script>
