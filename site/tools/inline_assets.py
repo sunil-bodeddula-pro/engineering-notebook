@@ -84,6 +84,7 @@ def chrome(path, page_html, nav):
             f'  <a class="brand" href="{root}index.html">{BRAND}</a>\n'
             f'  <nav class="tracks" aria-label="Tracks">{tabs}</nav>\n'
             f'  <span class="spacer"></span>\n'
+            f'  <button class="search-btn" type="button" data-root="{root}" aria-label="Search the site" title="Search (press /)"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m16.5 16.5 4.5 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="search-btn-label">Search</span><kbd>/</kbd></button>\n'
             f'  <button class="nav-toggle" type="button" aria-controls="sidenav" aria-expanded="false"><span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span></button>\n'
             f"</header>\n"
             f'<nav class="sidenav" id="sidenav" aria-label="{esc(track["label"])}">\n'

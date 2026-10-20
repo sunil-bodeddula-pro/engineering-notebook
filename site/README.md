@@ -29,6 +29,7 @@ Double-click **`index.html`**. It opens in any browser straight from disk. No se
 | `assets/nav.json` | The site menus: the top bar lists the tracks, the left sidebar lists the current track's pages. Edit it and run the inline tool |
 | `tools/inline_assets.py` | If you edit `assets/`, run `python3 tools/inline_assets.py` to refresh the copy inside every page |
 | `tools/seo.py` | Canonical URL, social-preview tags and structured data on every page; run it after adding a page or changing a title or description (CI runs `--check`) |
+| `tools/search_index.py` | Builds `assets/search-index.js` for the site-wide search (top bar button, `/` or Ctrl/Cmd+K): every page, section heading, up-close block, deep dive, problem and glossary term. Run it after changing pages, then `inline_assets.py` (CI runs `--check`) |
 | `assemble.sh`, `404.html` | Build the published site (with robots.txt and sitemap.xml) into one folder; the 404 page |
 
 Every problem on every page, including each problem in the practice list, is solved **inside the HTML**: the problem, why the pattern fits, numbered approach steps, commented Python code and complexity.

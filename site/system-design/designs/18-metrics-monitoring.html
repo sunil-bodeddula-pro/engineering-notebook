@@ -784,6 +784,47 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
   pre { white-space: pre-wrap; }
 }
 
+/* Site-wide search: the top bar button and the overlay (viz.js bootSearch, index from tools/search_index.py) */
+.search-btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px; font: 500 .88rem var(--sans); color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; flex: none; }
+.search-btn:hover { color: var(--ink); border-color: var(--ink-3); }
+.search-btn kbd, .iks kbd { font: 600 .72rem var(--mono, ui-monospace, monospace); padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; color: var(--ink-3); background: var(--bg); }
+.topbar .search-btn { margin-right: 4px; }
+html.iks-open { overflow: hidden; }
+.iks { position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, #000 45%, transparent); display: flex; justify-content: center; align-items: flex-start; padding: 8vh 16px 16px; }
+.iks[hidden] { display: none; }
+.iks-box { width: min(680px, 100%); max-height: 80vh; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); overflow: hidden; }
+.iks-top { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
+.iks-top input { flex: 1; min-width: 0; font: 500 1.05rem var(--sans); color: var(--ink); background: none; border: 0; outline: 0; padding: 4px 0; }
+.iks-top input::-webkit-search-cancel-button { display: none; }
+.iks-x { font: 600 .72rem var(--sans); color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.iks-f { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 14px 4px; }
+.iks-f button { font: 500 .8rem var(--sans); padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.iks-f button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.iks-s { padding: 6px 16px 8px; font-size: .82rem; color: var(--ink-3); line-height: 1.9; }
+.iks-try { font: 500 .8rem var(--sans); padding: 2px 9px; border-radius: 999px; border: 1px dashed var(--line); background: none; color: var(--accent); cursor: pointer; }
+.iks-list { overflow-y: auto; padding: 0 8px 8px; overscroll-behavior: contain; }
+.iks-r { display: flex; gap: 12px; align-items: flex-start; padding: 9px 10px; border-radius: 10px; color: var(--ink); text-decoration: none; }
+.iks-r[aria-selected="true"] { background: var(--accent-soft); }
+.iks-r:hover { background: var(--surface-2); }
+.iks-k { flex: none; width: 92px; margin-top: 2px; font: 700 .64rem var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.iks-k.k-p { color: #c2410c; } .iks-k.k-u { color: #7c3aed; } .iks-k.k-g { color: #0369a1; } .iks-k.k-pg { color: var(--accent); }
+.iks-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.iks-l { font-weight: 600; line-height: 1.3; }
+.iks-w, .iks-tags { font-size: .78rem; color: var(--ink-3); }
+.iks-d { font-size: .84rem; color: var(--ink-2); line-height: 1.4; }
+.iks mark { background: color-mix(in srgb, #f2b705 35%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.iks-foot { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid var(--line); font-size: .76rem; color: var(--ink-3); }
+@media (prefers-color-scheme: dark) { .iks-k.k-p { color: #fb923c; } .iks-k.k-u { color: #a78bfa; } .iks-k.k-g { color: #38bdf8; } }
+@media (max-width: 760px) { .search-btn kbd { display: none; } }
+@media (max-width: 560px) {
+  .search-btn { padding: 8px 10px; } .search-btn-label { display: none; }
+  .iks { padding: 0; } .iks-box { max-height: 100%; height: 100%; border-radius: 0; border: 0; }
+  .iks-k { width: auto; } .iks-r { flex-direction: column; gap: 2px; } .iks-foot { display: none; }
+}
+@media print { .search-btn, .iks { display: none !important; } }
+@keyframes g-hit { from { background: color-mix(in srgb, #f2b705 35%, transparent); } to { background: transparent; } }
+.g-hit { animation: g-hit 2.4s ease-out; border-radius: 6px; }
+
 </style>
 <script>
 /* InterviewKata — tiny, dependency-free visualizer engine.
@@ -2223,12 +2264,196 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
     btn.type = "button"; btn.className = "sketch-toggle"; btn.setAttribute("aria-pressed", "false");
     btn.title = "Draw diagrams in a hand-sketched whiteboard style";
     btn.innerHTML = '<span aria-hidden="true">✎</span><span class="sketch-label">Sketch</span>';
-    bar.insertBefore(btn, bar.querySelector(".nav-toggle"));
+    bar.insertBefore(btn, bar.querySelector(".search-btn") || bar.querySelector(".nav-toggle"));
     // On phones the top bar has no room: the same toggle lives in the menu drawer instead.
     const nav = document.getElementById("sidenav"), inNav = btn.cloneNode(true);
     if (nav) { inNav.classList.add("in-nav"); nav.insertBefore(inNav, nav.querySelector(".sn-title")); }
     [btn, inNav].forEach((b) => b.addEventListener("click", () => setSketch(b.getAttribute("aria-pressed") !== "true", b)));
     if (store.get(SKETCH_KEY) === "1") setSketch(true, btn);
+  }
+
+  // Site-wide search: the top bar's Search button, "/" or Ctrl/Cmd+K. The index (assets/search-index.js, built by
+  // tools/search_index.py) loads the first time search opens, through a script tag so it also works from disk.
+  function bootSearch() {
+    const btn = document.querySelector(".topbar .search-btn");
+    if (!btn) return;
+    const root = btn.getAttribute("data-root") || "";
+    const here = document.body.getAttribute("data-track") || "coding";
+    const TRACKS = [["", "All"], ["Coding", "Coding"], ["System design", "System design"], ["AI engineering", "AI engineering"]];
+    const KIND = { pg: "Page", s: "Section", t: "Up close", u: "Under the hood", p: "Problem", g: "Glossary" };
+    const BOOST = { pg: 3, u: 2, t: 2, s: 1, g: -2, p: 0 };
+    const TRY = ["sliding window", "consistent hashing", "rate limiter", "RAG", "two sum", "B-tree", "Kafka", "embeddings"];
+    const herLabel = { coding: "Coding", "system-design": "System design", ai: "AI engineering" }[here] || "Coding";
+    const norm = (t) => String(t || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+    const words = (t) => norm(t).split(/[^a-z0-9+#]+/).filter(Boolean);
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    let docs = null, loading = null, ov, input, list, status, chips, results = [], sel = 0, track = "", lastFocus = null;
+
+    function load() {
+      if (docs) return Promise.resolve();
+      if (!loading) loading = new Promise((ok, fail) => {
+        if (window.IK_SEARCH) return ok();
+        const s = document.createElement("script");
+        s.src = root + "assets/search-index.js"; s.onload = ok; s.onerror = fail;
+        document.head.appendChild(s);
+      }).then(() => {
+        const ix = window.IK_SEARCH; docs = [];
+        const mk = (kind, label, alt, ctx, kw, text, href, trk) =>
+          docs.push({ kind, label, ctx, text, href, track: trk, L: words(label + " " + alt), K: words(kw), C: words(ctx), D: words(text), n: norm(label.replace(/^[A-Z]?\d+ · /, "")) });
+        ix.pages.forEach(([url, title, trk, desc]) => mk("pg", title, "", trk, "", desc, url, trk));
+        ix.entries.forEach(([pi, label, anchor, kind, kw]) => {
+          const p = ix.pages[pi];
+          mk(kind, label, "", p[1], kw, "", p[0] + "#" + anchor, p[2]);
+          docs[docs.length - 1].kw = kw;
+        });
+        ix.glossary.forEach(([term, alts, def, url, trk]) => mk("g", term, alts, trk + " glossary", alts, def, url, trk));
+      });
+      return loading;
+    }
+
+    // Every query word must match the start of some word. Matches in the name count most, then tags, page, text.
+    function score(d, q, phrase) {
+      let total = 0;
+      for (const w of q) {
+        let best = 0;
+        for (const [arr, full, pre] of [[d.L, 10, 6], [d.K, 4, 3], [d.C, 2.5, 1.5], [d.D, 1.5, 1]]) {
+          for (const x of arr) {
+            const v = x === w ? full : (x.startsWith(w) ? pre : 0);
+            if (v > best) best = v;
+          }
+          if (best >= full) break;
+        }
+        if (!best) return 0;
+        total += best;
+      }
+      if (d.n === phrase) total += 15;
+      else if (d.n.startsWith(phrase)) total += 8;
+      else if (q.length > 1 && d.n.includes(phrase)) total += 5;
+      return total + BOOST[d.kind] + (d.track === herLabel ? 1 : 0);
+    }
+
+    function mark(t, q) {
+      let h = esc(t);
+      if (!q.length) return h;
+      const re = new RegExp("(^|[^a-z0-9])(" + q.map((w) => w.replace(/[.*+?^${}()|[\]\\#]/g, "\\$&")).join("|") + ")", "gi");
+      return h.replace(re, "$1<mark>$2</mark>");
+    }
+    function clip(t, q) {
+      if (!t || t.length <= 150) return t;
+      const i = q.length ? norm(t).indexOf(q[0]) : -1;
+      const a = i > 60 ? t.lastIndexOf(" ", i - 40) + 1 : 0;
+      return (a ? "… " : "") + t.slice(a, a + 150).replace(/\s+\S*$/, "") + " …";
+    }
+
+    function run() {
+      const raw = input.value.trim(), q = words(raw), phrase = norm(raw).replace(/\s+/g, " ");
+      if (!q.length) {
+        results = [];
+        list.innerHTML = "";
+        status.innerHTML = "Search every pattern, problem, module, design, deep dive and glossary term. Try: " +
+          TRY.map((t) => `<button type="button" class="iks-try">${esc(t)}</button>`).join(" ");
+        return;
+      }
+      if (!docs) { status.textContent = "Loading the index…"; return; }
+      const hits = [];
+      for (const d of docs) {
+        if (track && d.track !== track) continue;
+        const s = score(d, q, phrase);
+        if (s) hits.push([s, d]);
+      }
+      hits.sort((a, b) => b[0] - a[0] || a[1].label.length - b[1].label.length);
+      results = hits.slice(0, 30).map((h) => h[1]); sel = 0;
+      status.textContent = hits.length ? `${hits.length} result${hits.length === 1 ? "" : "s"}${hits.length > 30 ? ", showing the best 30" : ""}` : `Nothing matches “${raw}”${track ? " in " + track + ". Try All tracks" : ""}.`;
+      list.innerHTML = results.map((d, i) => {
+        const where = d.kind === "pg" ? d.track : d.ctx;
+        const text = d.kind === "pg" || d.kind === "g" ? clip(d.text, q) : "";
+        const tags = d.kind === "p" ? (d.kw ? `<span class="iks-tags">${esc(d.kw.split(", ").join(" · "))}</span>` : "") : "";
+        return `<a class="iks-r" role="option" id="iks-${i}" href="${esc(root + d.href)}" aria-selected="${i === 0}">` +
+          `<span class="iks-k k-${d.kind}">${KIND[d.kind]}</span>` +
+          `<span class="iks-b"><span class="iks-l">${mark(d.label, q)}</span><span class="iks-w">${esc(where)}${d.kind === "pg" || d.kind === "g" ? "" : " · " + esc(d.track)}</span>` +
+          (text ? `<span class="iks-d">${mark(text, q)}</span>` : "") + tags + `</span></a>`;
+      }).join("");
+      setSel(0);
+    }
+
+    function setSel(i) {
+      if (!results.length) { input.removeAttribute("aria-activedescendant"); return; }
+      sel = (i + results.length) % results.length;
+      list.querySelectorAll(".iks-r").forEach((a, j) => a.setAttribute("aria-selected", j === sel ? "true" : "false"));
+      const a = document.getElementById("iks-" + sel);
+      input.setAttribute("aria-activedescendant", a.id);
+      a.scrollIntoView({ block: "nearest" });
+    }
+
+    function build() {
+      ov = document.createElement("div");
+      ov.className = "iks"; ov.hidden = true;
+      ov.innerHTML =
+        '<div class="iks-box" role="dialog" aria-modal="true" aria-label="Search the site">' +
+        '<div class="iks-top"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m16.5 16.5 4.5 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>' +
+        '<input type="search" placeholder="Search patterns, problems, modules, terms…" aria-label="Search the site" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="iks-list">' +
+        '<button type="button" class="iks-x" aria-label="Close search">Esc</button></div>' +
+        '<div class="iks-f" role="group" aria-label="Track">' + TRACKS.map(([v, l]) => `<button type="button" data-t="${v}" aria-pressed="${v === "" ? "true" : "false"}">${l}</button>`).join("") + "</div>" +
+        '<div class="iks-s" aria-live="polite"></div><div class="iks-list" id="iks-list" role="listbox" aria-label="Results"></div>' +
+        '<div class="iks-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div></div>';
+      document.body.appendChild(ov);
+      input = ov.querySelector("input"); list = ov.querySelector(".iks-list"); status = ov.querySelector(".iks-s"); chips = ov.querySelectorAll(".iks-f button");
+      input.addEventListener("input", run);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); setSel(sel + 1); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setSel(sel - 1); }
+        else if (e.key === "Enter" && results[sel]) { e.preventDefault(); go(document.getElementById("iks-" + sel).href); }
+      });
+      ov.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { e.preventDefault(); close(); }
+        else if (e.key === "Tab") {   // keep focus inside the dialog
+          const f = [...ov.querySelectorAll("input, button, a")].filter((x) => x.offsetParent);
+          if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+          else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+        }
+      });
+      ov.addEventListener("click", (e) => {
+        if (e.target === ov || e.target.closest(".iks-x")) return close();
+        const t = e.target.closest(".iks-try");
+        if (t) { input.value = t.textContent; run(); input.focus(); return; }
+        const c = e.target.closest(".iks-f button");
+        if (c) { track = c.getAttribute("data-t"); chips.forEach((b) => b.setAttribute("aria-pressed", b === c ? "true" : "false")); run(); input.focus(); return; }
+        const r = e.target.closest(".iks-r");
+        if (r && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) { e.preventDefault(); go(r.href); }
+      });
+    }
+
+    function go(href) {
+      close(false);
+      const u = new URL(href, location.href);
+      if (u.pathname === location.pathname && u.hash) {
+        const t = document.getElementById(decodeURIComponent(u.hash.slice(1)));
+        if (t && location.hash !== u.hash) { location.hash = u.hash; return; }   // hashchange runs openTarget
+        if (t) window.dispatchEvent(new HashChangeEvent("hashchange"));
+      } else location.href = href;
+    }
+
+    function open() {
+      if (!ov) build();
+      if (!ov.hidden) return;
+      lastFocus = document.activeElement;
+      ov.hidden = false; document.documentElement.classList.add("iks-open");
+      input.focus(); input.select(); run();
+      load().then(run, () => { status.textContent = "Couldn't load the search index (assets/search-index.js)."; });
+    }
+    function close(restore) {
+      if (!ov || ov.hidden) return;
+      ov.hidden = true; document.documentElement.classList.remove("iks-open");
+      if (restore !== false && lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    btn.addEventListener("click", open);
+    btn.addEventListener("pointerenter", () => load().catch(() => {}), { once: true });   // warm the index on hover
+    document.addEventListener("keydown", (e) => {
+      const typing = e.target.closest && e.target.closest("input, textarea, select, [contenteditable]");
+      if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey) && !e.altKey) { e.preventDefault(); open(); }
+      else if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); open(); }
+    });
   }
 
   // Phones and tablets: the left sidebar (the track's menu) is a drawer opened by the top bar's Menu button.
@@ -2315,6 +2540,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
     bootPageTours();
     bootSideNav();
     bootSketch();
+    bootSearch();
     wrapTables();
     bootCodeTabs();
     bootTraces();
@@ -2324,6 +2550,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       if (typeof location === "undefined" || !location.hash) return;
       const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
       if (t && t.tagName === "DETAILS") { t.open = true; t.scrollIntoView(); }
+      else if (t && t.id.startsWith("g-")) { t.scrollIntoView({ block: "center" }); t.classList.remove("g-hit"); void t.offsetWidth; t.classList.add("g-hit"); }
     };
     if (typeof window.addEventListener === "function") window.addEventListener("hashchange", openTarget);
     openTarget();
@@ -2401,6 +2628,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
   <a class="brand" href="../../index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Interview<b>Kata</b></span></a>
   <nav class="tracks" aria-label="Tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a></nav>
   <span class="spacer"></span>
+  <button class="search-btn" type="button" data-root="../../" aria-label="Search the site" title="Search (press /)"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m16.5 16.5 4.5 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="search-btn-label">Search</span><kbd>/</kbd></button>
   <button class="nav-toggle" type="button" aria-controls="sidenav" aria-expanded="false"><span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span></button>
 </header>
 <nav class="sidenav" id="sidenav" aria-label="System design">
