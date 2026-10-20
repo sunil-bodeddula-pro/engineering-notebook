@@ -633,6 +633,7 @@ details.uth[open] > summary { border-bottom: 1px solid var(--line); }
 details.uth > .uth-body { padding: 4px 20px 16px; }
 .uth-body > h3 { margin-top: 28px; }
 .uth-body .uth-src { font-size: .9rem; }
+.uth-body .ctl input[type=text], .uth-body .ctl input[type=number] { font: .88rem var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); width: 16ch; max-width: 100%; }
 .bpt { display: grid; gap: 12px; justify-items: center; margin: 8px 0; font: .82rem var(--mono); }
 .bpt .lv { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .bpt .nd { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
@@ -2367,6 +2368,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2697,6 +2699,144 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://www.hellointerview.com/learn/system-design/patterns/large-blobs" target="_blank" rel="noopener">Handling large blobs</a> (Hello Interview)</td><td>20 min</td><td>The interview version of this page, with common follow-up questions.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How object storage, file systems and disks really work, from signed URLs to erasure coding. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-object-file-and-block-storage">
+      <summary><span class="uth-t"><b>Object, file and block storage</b><small>Operations each allows, the object API, a live SigV4 signing lab, conditional writes, erasure coding, chunking, SSDs, 8 products compared</small></span><span class="uth-m">about 40 min</span></summary>
+      <div class="uth-body">
+        <p>Object storage looks like a giant key-value store with a web API, and that is roughly what it is. The details decide real designs: what you can't do that a file system can, how a signed URL proves permission without a password, what happens when two clients overwrite one key, and how eleven nines of durability are bought.</p>
+
+        <h3 id="u10-ops">What each kind of storage lets you do</h3>
+        <table>
+          <thead><tr><th>Operation</th><th>Block (EBS, local disk)</th><th>File (local FS, NFS, EFS)</th><th>Object (S3, GCS, Azure Blob)</th></tr></thead>
+          <tbody>
+            <tr><td>Change bytes in the middle</td><td>Yes</td><td>Yes</td><td>No: write the whole object again (or compose parts)</td></tr>
+            <tr><td>Append</td><td>Yes</td><td>Yes</td><td>Not on S3 or GCS (Azure has append blobs; S3 Express One Zone supports appends)</td></tr>
+            <tr><td>Atomic rename</td><td>(Via the file system)</td><td>Yes, and it's how apps publish files safely</td><td>No: copy plus delete; "directories" are just key prefixes</td></tr>
+            <tr><td>Locks</td><td>One machine owns it</td><td>Advisory locks (unreliable over NFS)</td><td>None; use conditional writes or Azure leases</td></tr>
+            <tr><td>Shared by many machines</td><td>Usually one at a time</td><td>Yes</td><td>Yes, from anywhere over HTTP</td></tr>
+            <tr><td>Scale and cost</td><td>Up to tens of TB per volume</td><td>Petabytes, higher cost</td><td>Effectively unlimited, cheapest per GB</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u10-api">The object API</h3>
+        <table>
+          <thead><tr><th>Request</th><th>What it does</th><th>Worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td><code>PUT /key</code></td><td>Create or replace the whole object</td><td>Atomic: readers see the old or the new object, never a mix</td></tr>
+            <tr><td><code>GET /key</code> with <code>Range: bytes=0-1048575</code></td><td>Read all or part</td><td>Range reads make video seeking and parallel downloads possible</td></tr>
+            <tr><td><code>HEAD /key</code></td><td>Metadata only: size, ETag, content type</td><td>Cheap existence and change checks</td></tr>
+            <tr><td><code>DELETE /key</code></td><td>Remove (or add a delete marker when versioning is on)</td><td>Deleting a missing key still succeeds</td></tr>
+            <tr><td><code>LIST ?prefix=photos/2026/&amp;delimiter=/</code></td><td>Keys in sorted order, up to 1,000 per page with a continuation token</td><td>The delimiter makes prefixes look like folders; listing millions of keys is slow, so keep your own index</td></tr>
+            <tr><td><code>COPY</code></td><td>Server-side copy, no download</td><td>How "rename" and storage-class changes are done</td></tr>
+            <tr><td>Multipart: create, upload parts, complete (or abort)</td><td>Upload a big object in parallel parts, retrying only failed parts</td><td>S3: up to 10,000 parts of 5 MiB–5 GiB; objects up to 50 TB since December 2025. Abort unfinished uploads with a lifecycle rule, or their parts keep costing money</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u10-sign">Signed URLs, step by step</h3>
+        <p>A presigned URL lets a browser upload or download one object directly, without your servers in the data path and without your credentials. Your server signs a description of the request with its secret key; the storage service recomputes the signature and checks it. This lab computes a real AWS Signature Version 4 presigned URL in your browser. It uses AWS's documented <strong>example</strong> credentials; with the default inputs it reproduces the signature in AWS's own documentation.</p>
+        <div class="card widget" id="sv-lab">
+          <div class="ctl"><span class="seg" id="sv-m"></span><label for="sv-b">Bucket</label><input id="sv-b" type="text" value="examplebucket"><label for="sv-k">Key</label><input id="sv-k" type="text" value="test.txt"></div>
+          <div class="ctl"><label for="sv-e">Expires (seconds)</label><input id="sv-e" type="number" value="86400" min="1" max="604800"><label for="sv-d">X-Amz-Date</label><input id="sv-d" type="text" value="20130524T000000Z"><button class="btn" type="button" id="sv-now">Use now</button></div>
+          <div class="no-gl" id="sv-out"></div>
+          <div class="verdict no-gl" id="sv-why"></div>
+        </div>
+        <ul>
+          <li><strong>What's protected:</strong> the method, bucket, key, expiry and signed headers. Change any of them and the signature no longer matches (403). The secret key never leaves your server.</li>
+          <li><strong>Limits:</strong> SigV4 presigned URLs last at most 7 days, and no longer than the credentials that signed them (temporary role credentials often expire within hours).</li>
+          <li><strong>Uploads with rules:</strong> a presigned PUT can't cap the file size; a <strong>POST policy</strong> can (<code>content-length-range</code>, allowed key prefix, content type). Google Cloud Storage has the same V4 signing; Azure uses SAS tokens; CloudFront signs URLs or cookies for whole paths.</li>
+        </ul>
+
+        <h3 id="u10-overwrite">Overwrites, versions and conditional writes</h3>
+        <div id="viz-u10-ow"></div>
+        <ul>
+          <li><strong>Last writer wins</strong> by default: two concurrent PUTs both succeed and the later one remains.</li>
+          <li><strong>Conditional writes:</strong> <code>If-None-Match: *</code> creates only if the key doesn't exist (S3 since August 2024), and <code>If-Match: &lt;ETag&gt;</code> replaces only the version you read (S3 since November 2024), otherwise <code>412 Precondition Failed</code>. Google Cloud Storage uses generation numbers (<code>ifGenerationMatch</code>); Azure uses ETags and blob leases.</li>
+          <li><strong>Versioning</strong> keeps every version; a DELETE adds a <em>delete marker</em> on top, so the object can be restored. Old versions cost storage until a lifecycle rule expires them.</li>
+          <li><strong>Consistency:</strong> S3 has been strongly consistent for reads after writes, overwrites, deletes and listings since December 2020; Google Cloud Storage and Azure Blob are strongly consistent too.</li>
+          <li><strong>Request rates:</strong> S3 supports at least 3,500 writes and 5,500 reads per second per key prefix and scales by splitting busy prefixes; a sudden spike can see <code>503 Slow Down</code> until it does, so retry with backoff.</li>
+        </ul>
+
+        <h3 id="u10-durable">Durability: replication vs erasure coding</h3>
+        <p>Three full copies tolerate two losses at 3× the storage. Erasure coding splits an object into <strong>k</strong> data fragments and adds <strong>m</strong> parity fragments; any k of the k + m rebuild it (Reed–Solomon).</p>
+        <div class="card widget" id="ec-lab">
+          <div class="ctl"><label for="ec-k">Data fragments k</label><input id="ec-k" type="range" min="2" max="16" value="6"><output id="ec-ko"></output></div>
+          <div class="ctl"><label for="ec-m">Parity fragments m</label><input id="ec-m" type="range" min="1" max="6" value="3"><output id="ec-mo"></output></div>
+          <div class="tiles no-gl" id="ec-tiles"></div>
+          <div class="verdict no-gl" id="ec-why"></div>
+        </div>
+        <ul>
+          <li><strong>The cost of erasure coding</strong> is repair traffic and latency: rebuilding one lost fragment reads k others, and small objects are expensive to split, so many systems replicate hot or small data and erasure-code the rest.</li>
+          <li><strong>Placement matters as much as the code:</strong> fragments go to different disks, servers, racks and zones (failure domains), or one rack failure takes out several at once. HDFS ships policies such as RS-6-3; S3 Standard stores data across at least three Availability Zones and is designed for 99.999999999% durability.</li>
+        </ul>
+
+        <h3 id="u10-meta">Metadata path vs data path</h3>
+        <ul>
+          <li><strong>Separate them:</strong> a small metadata service knows which key or file lives where; the bulk bytes flow directly between clients and storage nodes. GFS and HDFS put all metadata in one master's memory (the NameNode), which is why millions of small files hurt HDFS.</li>
+          <li><strong>Or compute placement:</strong> Ceph's CRUSH algorithm calculates which devices hold an object from the cluster map, so no lookup table is needed. MinIO stores metadata alongside each object instead of in a central database.</li>
+          <li><strong>Large object stores</strong> keep a partitioned, replicated index of keys separate from the storage fleet, which is why listing and per-prefix request rates have their own limits.</li>
+        </ul>
+
+        <h3 id="u10-chunk">Chunking and deduplication</h3>
+        <p>Sync tools (Dropbox-style apps, backup tools like restic and Borg) split files into chunks, name each by its hash, and upload only chunks the server lacks. Where the boundaries go decides how much survives an edit:</p>
+        <div class="card widget" id="ck-lab">
+          <div class="ctl"><label for="ck-ins">Insert at the start</label><input id="ck-ins" type="text" value="Hello! "><span class="seg" id="ck-alg"></span></div>
+          <div class="no-gl" id="ck-out"></div>
+          <div class="verdict no-gl" id="ck-why"></div>
+        </div>
+        <p>Content-defined chunking (Rabin fingerprints, FastCDC's gear hash) cuts wherever a rolling hash of the last few bytes matches a pattern, so boundaries move with the content and an insert changes only nearby chunks. Fixed-size chunks are simpler and fine when edits overwrite in place (Dropbox uses 4 MB blocks).</p>
+
+        <h3 id="u10-disk">Underneath: file systems and SSDs</h3>
+        <ul>
+          <li><strong>Durable, atomic file writes</strong> follow one recipe: write a temporary file, <code>fsync</code> it, <code>rename</code> it over the target (atomic), then <code>fsync</code> the directory. Skipping a step can leave an empty or half-written file after a crash.</li>
+          <li><strong>Journaling</strong> (ext4, XFS) logs metadata changes before applying them; <strong>copy-on-write</strong> file systems (ZFS, Btrfs) never overwrite in place, which gives checksums and instant snapshots.</li>
+          <li><strong>SSDs can't overwrite in place:</strong> flash is written in pages (KBs) but erased in blocks (MBs). A flash translation layer remaps writes to fresh pages and garbage-collects old blocks, so a nearly full SSD moves more data per write (write amplification) and slows down. TRIM tells the drive which pages are free.</li>
+          <li><strong>Network block volumes</strong> (EBS, persistent disks) are replicated within a zone and sold by size, IOPS and throughput; local NVMe is faster but disappears with the machine.</li>
+        </ul>
+
+        <h3 id="u10-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Model and access</th><th>Overwrites and consistency</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Amazon S3</td><td>Buckets of keys; SigV4 presigned URLs; multipart uploads (10,000 parts); objects up to 50 TB</td><td>Strongly consistent including listings; whole-object replace; versioning with delete markers; If-Match and If-None-Match</td><td>Request rates scale per key prefix</td></tr>
+            <tr><td>Google Cloud Storage</td><td>Objects with generation numbers; V4 signed URLs; resumable uploads; compose up to 32 objects</td><td>Strongly consistent; preconditions on generations</td><td>Generations give compare-and-swap on objects</td></tr>
+            <tr><td>Azure Blob Storage</td><td>Block blobs (commit a list of uploaded blocks), append blobs, page blobs; SAS tokens</td><td>ETag checks; leases for exclusive writers</td><td>Append blobs suit logs; page blobs back VM disks</td></tr>
+            <tr><td>MinIO</td><td>S3-compatible, self-hosted</td><td>Strict consistency within a deployment</td><td>Erasure coding per object; metadata stored with the data</td></tr>
+            <tr><td>Ceph</td><td>RADOS objects placed by CRUSH; S3 via RGW, block via RBD, files via CephFS</td><td>Strong within the cluster</td><td>Placement is computed, not looked up</td></tr>
+            <tr><td>HDFS (and GFS)</td><td>Files in large blocks (128 MB by default) on DataNodes; NameNode holds metadata in memory</td><td>Write once, append only; 3 replicas across racks or erasure coding</td><td>Many small files exhaust NameNode memory</td></tr>
+            <tr><td>Block volumes</td><td>A network disk for one machine, replicated in a zone</td><td>Behaves like a local disk</td><td>IOPS and throughput are bought separately</td></tr>
+            <tr><td>Local file systems</td><td>Inodes, extents, directories</td><td>Journaling or copy-on-write</td><td>fsync plus atomic rename make writes durable and atomic</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u10-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How do users upload 2 GB videos?"</strong> The API returns presigned multipart-upload URLs; the client uploads parts directly to object storage in parallel, retrying failed parts; on completion an event triggers processing. App servers never touch the bytes.</li>
+          <li><strong>"Two editors save the same object. What happens?"</strong> Last writer wins unless we use conditional writes: read the ETag, PUT with If-Match, and on 412 re-read and merge.</li>
+          <li><strong>"Why not keep 3 copies of everything?"</strong> At petabyte scale 3× storage is expensive; erasure coding like 6+3 gives similar fault tolerance at 1.5×, with replication kept for small or hot data.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="412 Precondition Failed: someone changed it since you read it">
+            <p>You PUT an object with <code>If-Match</code> set to the ETag you read earlier. What does a 412 mean?</p>
+            <div class="opts"><button>The object doesn't exist</button><button>412 Precondition Failed: someone changed it since you read it</button><button>Your signature expired</button></div>
+            <div class="why">Re-read, merge your change, and try again: optimistic concurrency for objects.</div>
+          </div>
+          <div class="quiz-q" data-answer="1.5×, tolerating 3 lost fragments">
+            <p>Erasure coding with k = 6 data and m = 3 parity fragments costs how much storage, and survives how many losses?</p>
+            <div class="opts"><button>3×, tolerating 2 losses</button><button>1.5×, tolerating 3 lost fragments</button><button>1.5×, tolerating 1 loss</button></div>
+            <div class="why">(6 + 3) / 6 = 1.5; any 6 of the 9 fragments rebuild the object.</div>
+          </div>
+          <div class="quiz-q" data-answer="Content-defined boundaries move with the content, so only nearby chunks change">
+            <p>Why does content-defined chunking deduplicate better than fixed-size chunks after an insert near the start of a file?</p>
+            <div class="opts"><button>Its chunks are smaller</button><button>Content-defined boundaries move with the content, so only nearby chunks change</button><button>It compresses the data</button></div>
+            <div class="why">Fixed boundaries all shift by the inserted length, so every later chunk changes.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html" target="_blank" rel="noopener">S3: authenticating requests with query parameters (SigV4)</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html" target="_blank" rel="noopener">S3: conditional writes</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html" target="_blank" rel="noopener">S3: versioning</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html" target="_blank" rel="noopener">S3: multipart upload</a></li><li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html" target="_blank" rel="noopener">S3: performance design patterns</a></li><li><a href="https://aws.amazon.com/s3/consistency/" target="_blank" rel="noopener">S3: strong consistency</a></li><li><a href="https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-maximum-object-size-50-tb/" target="_blank" rel="noopener">S3: maximum object size raised to 50 TB (December 2025)</a></li><li><a href="https://cloud.google.com/storage/docs/request-preconditions" target="_blank" rel="noopener">Cloud Storage: request preconditions</a></li><li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/concurrency-manage" target="_blank" rel="noopener">Azure Blob: managing concurrency</a></li><li><a href="https://docs.ceph.com/en/latest/rados/operations/crush-map/" target="_blank" rel="noopener">Ceph: CRUSH maps</a></li><li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html" target="_blank" rel="noopener">HDFS architecture</a></li><li><a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HDFSErasureCoding.html" target="_blank" rel="noopener">HDFS erasure coding</a></li><li><a href="https://www.usenix.org/conference/atc16/technical-sessions/presentation/xia" target="_blank" rel="noopener">FastCDC (USENIX ATC 2016)</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="09-caching.html"><small>Previous module</small>← 09 · Caching</a>
       <a class="next" href="11-relational-data-modeling.html"><small>Next module</small>11 · Relational data and modeling →</a>
@@ -2856,6 +2996,76 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "Any 6 of the 9 pieces rebuild the object. Three full replicas would give similar safety at 3× the space." },
     ],
   });
+  /* ---------- Under the hood: object storage ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), enc = new TextEncoder();
+    const hex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+    const sha = async (s) => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
+    const hmac = async (key, s) => { const k = await crypto.subtle.importKey("raw", typeof key === "string" ? enc.encode(key) : key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); return crypto.subtle.sign("HMAC", k, enc.encode(s)); };
+    const uri = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+    const AK = "AKIAIOSFODNN7EXAMPLE", SK = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", REGION = "us-east-1";
+    let method = "GET";
+    g("sv-m").innerHTML = ["GET", "PUT"].map((m) => `<button type="button" aria-pressed="${m === method}">${m}</button>`).join("");
+    g("sv-m").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; method = b.textContent; [...g("sv-m").children].forEach((c) => c.setAttribute("aria-pressed", String(c === b))); run(); };
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    async function run() {
+      if (!window.crypto || !crypto.subtle) { g("sv-out").textContent = "This browser can't compute HMAC here (it needs a secure page)."; return; }
+      const bucket = g("sv-b").value.trim() || "examplebucket", key = g("sv-k").value.replace(/^\/+/, "") || "test.txt", expires = Math.min(604800, Math.max(1, +g("sv-e").value || 1)), amzDate = g("sv-d").value.trim();
+      if (!/^\d{8}T\d{6}Z$/.test(amzDate)) { g("sv-why").textContent = "X-Amz-Date must look like 20130524T000000Z."; return; }
+      const date = amzDate.slice(0, 8), host = `${bucket}.s3.amazonaws.com`, scope = `${date}/${REGION}/s3/aws4_request`;
+      const q = { "X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": `${AK}/${scope}`, "X-Amz-Date": amzDate, "X-Amz-Expires": String(expires), "X-Amz-SignedHeaders": "host" };
+      const cq = Object.keys(q).sort().map((k) => `${uri(k)}=${uri(q[k])}`).join("&"), path = "/" + key.split("/").map(uri).join("/");
+      const creq = [method, path, cq, `host:${host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
+      const hreq = await sha(creq), sts = ["AWS4-HMAC-SHA256", amzDate, scope, hreq].join("\n");
+      let kk = await hmac("AWS4" + SK, date); const k1 = hex(kk); kk = await hmac(kk, REGION); kk = await hmac(kk, "s3"); kk = await hmac(kk, "aws4_request"); const kfin = hex(kk);
+      const sig = hex(await hmac(kk, sts)), url = `https://${host}${path}?${cq}&X-Amz-Signature=${sig}`;
+      const box = (t, c) => `<div style="margin:8px 0"><div class="idx">${t}</div><pre style="margin:4px 0;padding-top:34px;white-space:pre-wrap;word-break:break-all;font-size:.78rem"><code>${esc(c)}</code></pre></div>`;
+      g("sv-out").innerHTML = box("1 · Canonical request (method, path, sorted query, signed headers, payload)", creq) + box("2 · String to sign (algorithm, time, scope, SHA-256 of step 1)", sts) + box("3 · Signing key: HMAC chain over date → region → service → aws4_request", `kDate    = HMAC("AWS4" + secret, "${date}") = ${k1.slice(0, 16)}…\nkSigning = … HMAC(kService, "aws4_request") = ${kfin.slice(0, 16)}…`) + box("4 · Signature = HMAC(kSigning, string to sign) → the URL", url);
+      const doc = method === "GET" && bucket === "examplebucket" && key === "test.txt" && expires === 86400 && amzDate === "20130524T000000Z";
+      g("sv-why").innerHTML = doc ? `Signature <code>${sig.slice(0, 12)}…</code> ${sig === "aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404" ? "matches the example in AWS's documentation exactly." : "does not match AWS's example."}` : `Change the key, method or expiry and the whole signature changes: the server recomputes it from the URL and rejects any edit. These are AWS's example credentials, so the URL won't work against a real bucket.`;
+    }
+    ["sv-b", "sv-k", "sv-e", "sv-d"].forEach((id) => (g(id).oninput = run));
+    g("sv-now").onclick = () => { g("sv-d").value = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"); run(); };
+    run();
+  })();
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Step</th><th>Editor A</th><th>Editor B</th><th>Stored object</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center;font-family:var(--sans)">${cap}</div></div>`;
+    const base = [["1", "GET doc.json → ETag \"e1\"", "GET doc.json → ETag \"e1\"", "v1 (e1)"], ["2", "edit locally", "edit locally", "v1 (e1)"]];
+    Viz.stepper("#viz-u10-ow", { title: "Two editors, one object", sub: "Without and with If-Match.", speed: 3200, frames: [
+      { view: R(base, "Both read the same version, ETag e1."), note: "Each now has its own edited copy." },
+      { view: R([...base, ["3", "PUT doc.json → 200", "", "A's version (e2)"], ["4", "", "PUT doc.json → 200", "B's version (e3)"]], "Plain PUTs: both succeed, and A's edit silently disappears."), note: "Last writer wins: a lost update, with no error anywhere." },
+      { view: R([...base, ["3", "PUT If-Match: \"e1\" → 200", "", "A's version (e2)"], ["4", "", "PUT If-Match: \"e1\" → 412", "A's version (e2)"]], "With If-Match, B's write is refused because the object is no longer e1."), note: "412 Precondition Failed: B must re-read e2, merge, and retry with If-Match: \"e2\"." },
+      { view: R([["1", "PUT If-None-Match: * → 200", "", "A's object"], ["2", "", "PUT If-None-Match: * → 412", "A's object"]], "If-None-Match: * means create only if absent: the first writer wins, safely."), note: "Useful for locks, idempotent uploads and claiming a unique name." },
+    ] });
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const run = () => {
+      const k = +g("ec-k").value, m = +g("ec-m").value; g("ec-ko").textContent = k; g("ec-mo").textContent = m;
+      const oh = (k + m) / k;
+      g("ec-tiles").innerHTML = [["Storage used per byte", oh.toFixed(2) + "×"], ["Fragments that can be lost", m], ["Reads to rebuild one fragment", k], ["Same tolerance by replication", (m + 1) + "×"]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("ec-why").innerHTML = `${k} + ${m}: any ${k} of ${k + m} fragments rebuild the object. Tolerating ${m} losses by copying would take ${m + 1} full copies (${m + 1}×); erasure coding needs ${oh.toFixed(2)}×, saving ${Math.round((1 - oh / (m + 1)) * 100)}% of the storage, but every repair reads ${k} fragments.`;
+    };
+    ["ec-k", "ec-m"].forEach((id) => (g(id).oninput = run)); run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const GEAR = Array.from({ length: 256 }, (_, i) => { let x = (i + 1) * 2654435761; x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d); x ^= x >>> 12; x = Math.imul(x, 0x297a2d39); x ^= x >>> 15; return x >>> 0; });
+    const cdc = (s) => { const out = []; let st = 0, h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 1) + GEAR[s.charCodeAt(i) & 255]) >>> 0; const len = i - st + 1; if ((len >= 4 && (h & 15) === 0) || len >= 48) { out.push(s.slice(st, i + 1)); st = i + 1; h = 0; } } if (st < s.length) out.push(s.slice(st)); return out; };
+    const fixed = (s) => s.match(/[\s\S]{1,16}/g) || [];
+    const T = "Object stores keep whole objects under keys. To sync a large file, clients split it into chunks and upload only chunks the server has not seen before. Fixed-size chunks break when a single byte is inserted near the start.";
+    let alg = 1;
+    g("ck-alg").innerHTML = ["Fixed 16-byte chunks", "Content-defined chunks"].map((l, i) => `<button type="button" aria-pressed="${i === alg}">${l}</button>`).join("");
+    g("ck-alg").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; alg = [...g("ck-alg").children].indexOf(b); [...g("ck-alg").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === alg))); run(); };
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/ /g, "·");
+    function run() {
+      const f = alg ? cdc : fixed, before = new Set(f(T)), after = f(g("ck-ins").value + T), reused = after.filter((c) => before.has(c)).length;
+      g("ck-out").innerHTML = `<div class="bpt" style="justify-items:start"><div class="lv" style="justify-content:flex-start">${after.map((c) => `<span class="nd" style="max-width:100%"><span class="${before.has(c) ? "" : "up"}" style="min-width:0;white-space:normal;word-break:break-all;text-align:left">${esc(c)}</span></span>`).join("")}</div></div>`;
+      g("ck-why").innerHTML = `After the insert: <b>${reused} of ${after.length}</b> chunks already exist on the server (orange = must upload). ${alg ? "The boundaries are chosen by the content, so they re-align right after the insert." : "Every boundary shifted by the inserted length, so every chunk looks new."}`;
+      g("ck-why").className = "verdict no-gl" + (reused < after.length / 2 ? " warn" : "");
+    }
+    g("ck-ins").oninput = run; run();
+  })();
 })();
 </script>
 </body>

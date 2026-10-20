@@ -633,6 +633,7 @@ details.uth[open] > summary { border-bottom: 1px solid var(--line); }
 details.uth > .uth-body { padding: 4px 20px 16px; }
 .uth-body > h3 { margin-top: 28px; }
 .uth-body .uth-src { font-size: .9rem; }
+.uth-body .ctl input[type=text], .uth-body .ctl input[type=number] { font: .88rem var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); width: 16ch; max-width: 100%; }
 .bpt { display: grid; gap: 12px; justify-items: center; margin: 8px 0; font: .82rem var(--mono); }
 .bpt .lv { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .bpt .nd { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
@@ -2376,6 +2377,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2663,6 +2665,139 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://www.hellointerview.com/learn/system-design/core-concepts/caching" target="_blank" rel="noopener">Caching</a> (Hello Interview)</td><td>20 min</td><td>How to bring caching into an interview: what to say, and which problems to raise.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How caches really decide what to keep, expire and refill, and where they go wrong. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-caching-internals">
+      <summary><span class="uth-t"><b>Caching internals</b><small>Hit-ratio maths, eviction policies with a simulator, expiry, stampedes, the stale-fill race, hot keys, HTTP caching, 6 products compared</small></span><span class="uth-m">about 35 min</span></summary>
+      <div class="uth-body">
+        <p>A cache is a bet that the recent past predicts the near future. How it decides what to keep, when entries expire, and what happens in the moment between a miss and a refill decides whether it helps or quietly serves wrong data.</p>
+
+        <h3 id="u09-hit">Hit-ratio arithmetic</h3>
+        <p>The hit ratio works on misses, and misses are what reach the database. Going from 90% to 99% looks small but cuts database load tenfold.</p>
+        <div class="card widget" id="hr-lab">
+          <div class="ctl"><label for="hr-h">Hit ratio</label><input id="hr-h" type="range" min="0" max="7" step="1" value="3"><output id="hr-ho"></output></div>
+          <div class="tiles no-gl" id="hr-tiles"></div>
+          <div class="verdict no-gl" id="hr-why"></div>
+        </div>
+
+        <h3 id="u09-patterns">Where the cache sits in reads and writes</h3>
+        <table>
+          <thead><tr><th>Pattern</th><th>Read</th><th>Write</th><th>Watch out for</th></tr></thead>
+          <tbody>
+            <tr><td>Cache-aside (lazy loading)</td><td>App checks the cache; on a miss reads the database and fills the cache</td><td>App writes the database, then deletes the cache entry</td><td>The fill race below; the default choice</td></tr>
+            <tr><td>Read-through</td><td>The cache library or service loads misses itself</td><td>As cache-aside</td><td>Same as cache-aside, logic in one place</td></tr>
+            <tr><td>Write-through</td><td>From the cache</td><td>Write goes to the cache and the database together</td><td>Every write pays both; cache fills with data nobody reads</td></tr>
+            <tr><td>Write-behind (write-back)</td><td>From the cache</td><td>Write to the cache; flush to the database later in batches</td><td>Data loss if the cache dies before flushing</td></tr>
+            <tr><td>Refresh-ahead</td><td>Popular entries are reloaded before they expire</td><td>Unchanged</td><td>Wasted reloads for entries that went cold</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u09-evict">Eviction: what to throw away</h3>
+        <p>When the cache is full, the eviction policy picks a victim. Real workloads are skewed (a few keys get most requests) and occasionally interrupted by <em>scans</em> (a batch job or crawler touching thousands of keys once). Run each policy on the same trace:</p>
+        <div class="card widget" id="ev-lab">
+          <div class="ctl"><label for="ev-c">Cache size</label><input id="ev-c" type="range" min="25" max="400" step="25" value="100"><output id="ev-co"></output><span class="seg" id="ev-scan"></span></div>
+          <div class="no-gl" id="ev-bars"></div>
+          <div class="verdict no-gl" id="ev-why"></div>
+        </div>
+        <table>
+          <thead><tr><th>Policy</th><th>How</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>LRU</td><td>Evict the least recently used: a hash map plus a linked list</td><td>The textbook default; Memcached uses a segmented LRU (hot, warm, cold)</td></tr>
+            <tr><td>Sampled (approximated) LRU / LFU</td><td>Pick a few random keys (Redis samples 5 by default) and evict the best candidate among them: no list to maintain</td><td>Redis <code>allkeys-lru</code>, <code>allkeys-lfu</code> and the <code>volatile-*</code> policies</td></tr>
+            <tr><td>LFU</td><td>Evict the least frequently used; needs decay or old favourites stay forever</td><td>Redis LFU keeps an 8-bit logarithmic counter per key that decays over time</td></tr>
+            <tr><td>CLOCK, 2Q, ARC</td><td>Cheap LRU approximations (CLOCK) or two lists separating once-seen from repeatedly-seen keys (2Q, ARC) to resist scans</td><td>Operating-system page caches, database buffer pools</td></tr>
+            <tr><td>W-TinyLFU</td><td>A small LRU window admits newcomers; to enter the main cache a candidate must be more frequent than the victim, judged by a compact count-min sketch that halves periodically</td><td>Caffeine (Java), Ristretto (Go)</td></tr>
+            <tr><td>S3-FIFO</td><td>Simple FIFO queues: a small one for new keys, a main one, and a ghost list; most one-hit wonders never reach the main queue</td><td>Newer caches (2023 research)</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u09-expiry">Expiry</h3>
+        <ul>
+          <li><strong>Lazy expiry:</strong> an expired key is deleted when someone reads it. Cheap, but keys nobody reads would linger forever.</li>
+          <li><strong>Active expiry:</strong> Redis also runs a background cycle that samples keys with a TTL many times a second and deletes expired ones, repeating while a large share of the sample is expired.</li>
+          <li><strong>TTL jitter:</strong> 10,000 entries filled at the same moment with the same TTL all expire together. Add a random ±10% so refills spread out.</li>
+          <li><strong>TTL is for freshness, not memory:</strong> without a <code>maxmemory</code> and an eviction policy, a full Redis rejects writes (the default policy is <code>noeviction</code>).</li>
+        </ul>
+
+        <h3 id="u09-stampede">Stampedes and request coalescing</h3>
+        <div id="sc-u09-stampede"></div>
+        <ul>
+          <li><strong>Single-flight (request coalescing):</strong> only the first miss for a key goes to the database; others wait for its result. Inside one process this is a map of in-flight futures; across servers, a short lock in the cache (<code>SET lock:k NX EX 5</code>).</li>
+          <li><strong>Serve stale while refreshing:</strong> keep the old value past its TTL for a grace period and refresh in the background (HTTP <code>stale-while-revalidate</code>, Varnish grace).</li>
+          <li><strong>Refresh early, probabilistically:</strong> each reader refreshes with a probability that rises as expiry approaches, so one reader refreshes before everyone misses (the "XFetch" algorithm).</li>
+          <li><strong>Negative caching:</strong> cache "not found" briefly too, or repeated lookups of missing keys (often attacks) go straight to the database.</li>
+        </ul>
+
+        <h3 id="u09-race">The stale-fill race</h3>
+        <p>Cache-aside with "delete on write" still has a gap: a slow reader can put an old value back after the writer deleted it.</p>
+        <div id="viz-u09-race"></div>
+        <p>Fixes: <strong>leases</strong> (the cache hands the first misser a token; a delete invalidates it, so the late fill is refused, as Facebook's memcache does); <strong>versioned values</strong> (only set if newer); <strong>invalidate from the database's change stream</strong> (change data capture), with a second, delayed delete as a cheap safety net; and always a TTL so any stale entry eventually dies.</p>
+
+        <h3 id="u09-memory">Hot keys, two tiers and memory</h3>
+        <ul>
+          <li><strong>Hot keys:</strong> one key on one cache node can exceed that node's network or CPU. Replicate it under several names (<code>k#1…k#8</code>) and read a random copy, or put a tiny in-process cache (seconds) in front.</li>
+          <li><strong>Two tiers:</strong> in-process cache (microseconds, per server) in front of Redis (sub-millisecond, shared). Invalidate both, for example by publishing invalidations on a channel.</li>
+          <li><strong>Memory overheads:</strong> every Redis key costs tens of bytes beyond its value, so millions of tiny keys add up; small hashes, lists and sets use compact encodings (listpacks, intsets) until they pass a size threshold. Memcached stores items in fixed slab classes, so a change in value sizes can leave memory stranded in the wrong class (slab rebalancing moves pages over).</li>
+          <li><strong>Snapshots fork:</strong> a Redis RDB snapshot forks the process; pages written during the snapshot are copied, so leave headroom (up to double memory under heavy writes).</li>
+        </ul>
+
+        <h3 id="u09-http">HTTP caching semantics</h3>
+        <table>
+          <thead><tr><th>Header</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>Cache-Control: max-age=60</code></td><td>Fresh for 60 seconds in any cache</td></tr>
+            <tr><td><code>s-maxage=600</code></td><td>Overrides max-age for shared caches (CDNs, proxies)</td></tr>
+            <tr><td><code>private</code> / <code>public</code></td><td>Only the browser may store it / shared caches may too</td></tr>
+            <tr><td><code>no-cache</code> vs <code>no-store</code></td><td>Store it but revalidate before every use / never store it at all</td></tr>
+            <tr><td><code>immutable</code></td><td>It will never change: don't even revalidate (for fingerprinted file names)</td></tr>
+            <tr><td><code>stale-while-revalidate=30</code>, <code>stale-if-error=86400</code></td><td>Serve stale while refreshing in the background / when the origin is failing</td></tr>
+            <tr><td><code>ETag</code> + <code>If-None-Match</code></td><td>Revalidation: the server answers <code>304 Not Modified</code> with no body if unchanged</td></tr>
+            <tr><td><code>Vary: Accept-Encoding</code></td><td>Cache separate copies per value of that request header (too many values fragment the cache)</td></tr>
+            <tr><td><code>Surrogate-Key</code> / cache tags</td><td>CDN-specific tags so one purge clears every page showing a product</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u09-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Memory and threading</th><th>Eviction and persistence</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Redis / Valkey</td><td>One thread runs commands (I/O threads help with sockets); compact encodings per data type</td><td>Sampled LRU or LFU; lazy plus active expiry; RDB snapshots (fork) and an append-only file</td><td>One slow command (KEYS, a huge range) blocks everyone</td></tr>
+            <tr><td>Memcached</td><td>Multi-threaded; slab allocator with fixed size classes</td><td>Segmented LRU per slab class; no persistence; clients shard with consistent hashing</td><td>Slab classes can starve when value sizes shift</td></tr>
+            <tr><td>Caffeine, Ristretto</td><td>Inside the application process</td><td>W-TinyLFU / TinyLFU admission</td><td>Fastest; every instance has its own copy to invalidate</td></tr>
+            <tr><td>Varnish, NGINX proxy cache</td><td>HTTP reverse-proxy caches</td><td>TTL from headers; grace serves stale while refreshing</td><td>Coalesce identical misses into one origin request</td></tr>
+            <tr><td>CDNs</td><td>Edge locations plus a tiered or shield layer</td><td>Purge by URL, tag or everything; cold content evicted</td><td>A shield tier cuts origin load; tags make purges precise</td></tr>
+            <tr><td>Browsers</td><td>Memory and disk cache per origin</td><td>Cache-Control, ETag revalidation, service-worker caches</td><td>Fingerprinted file names can be cached for a year</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u09-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"What happens when a hot key expires?"</strong> A stampede: thousands of misses hit the database at once. Coalesce them (single-flight or a short lock), serve stale while one request refreshes, and add TTL jitter.</li>
+          <li><strong>"Can cache-aside serve stale data forever?"</strong> Until the TTL, yes: a slow reader can refill an old value after the writer's delete. Leases or versioned sets close the race; a TTL bounds it.</li>
+          <li><strong>"Why not plain LRU?"</strong> A single scan flushes the hot set. Frequency-aware admission (W-TinyLFU) keeps the hot set and refuses one-hit wonders.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="It drops tenfold">
+            <p>The hit ratio rises from 90% to 99%. What happens to the load on the database?</p>
+            <div class="opts"><button>It drops by about 9%</button><button>It halves</button><button>It drops tenfold</button></div>
+            <div class="why">Misses fall from 10% to 1% of requests.</div>
+          </div>
+          <div class="quiz-q" data-answer="Store it, but revalidate with the server before each use">
+            <p>What does <code>Cache-Control: no-cache</code> mean?</p>
+            <div class="opts"><button>Never store it</button><button>Store it, but revalidate with the server before each use</button><button>Only the browser may store it</button></div>
+            <div class="why"><code>no-store</code> is the one that forbids storing.</div>
+          </div>
+          <div class="quiz-q" data-answer="It samples a few keys and evicts the best candidate among them">
+            <p>How does Redis implement LRU eviction?</p>
+            <div class="opts"><button>A linked list of every key</button><button>It samples a few keys and evicts the best candidate among them</button><button>It evicts at random</button></div>
+            <div class="why">Sampling avoids per-key list pointers; more samples get closer to true LRU.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://redis.io/docs/latest/develop/reference/eviction/" target="_blank" rel="noopener">Redis: key eviction</a></li><li><a href="https://redis.io/docs/latest/commands/expire/" target="_blank" rel="noopener">Redis: EXPIRE and how keys expire</a></li><li><a href="https://github.com/memcached/memcached/wiki" target="_blank" rel="noopener">Memcached wiki</a></li><li><a href="https://github.com/ben-manes/caffeine/wiki/Efficiency" target="_blank" rel="noopener">Caffeine: efficiency (W-TinyLFU)</a></li><li><a href="https://arxiv.org/abs/1512.00727" target="_blank" rel="noopener">TinyLFU paper (Einziger, Friedman, Manes)</a></li><li><a href="https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala" target="_blank" rel="noopener">Scaling Memcache at Facebook (NSDI 2013)</a></li><li><a href="https://www.vldb.org/pvldb/vol8/p886-vattani.pdf" target="_blank" rel="noopener">Optimal probabilistic cache stampede prevention (VLDB 2015)</a></li><li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control" target="_blank" rel="noopener">MDN: Cache-Control</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9111" target="_blank" rel="noopener">RFC 9111: HTTP caching</a></li><li><a href="https://www.fastly.com/documentation/guides/full-site-delivery/purging/working-with-surrogate-keys/" target="_blank" rel="noopener">Fastly: surrogate keys</a></li><li><a href="https://varnish-cache.org/docs/trunk/users-guide/vcl-grace.html" target="_blank" rel="noopener">Varnish: grace mode</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="08-load-balancing-scaling.html"><small>Previous module</small>← 08 · Load balancing and scaling out</a>
       <a class="next" href="10-blob-storage-cdn.html"><small>Next module</small>10 · Blob storage and CDNs →</a>
@@ -2804,6 +2939,83 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "Keys in different slots can't be combined in one command: there's no router to gather them. Key design is scaling design." },
     ],
   });
+  /* ---------- Under the hood: caching ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), H = [0.5, 0.8, 0.9, 0.95, 0.99, 0.995, 0.999, 0.9999];
+    const run = () => {
+      const h = H[+g("hr-h").value], rps = 20000, cache = 0.5, db = 10;
+      g("hr-ho").textContent = (h * 100).toFixed(h >= 0.999 ? 2 : 1).replace(/\.0$/, "") + "%";
+      const lat = h * cache + (1 - h) * (cache + db), load = (1 - h) * rps;
+      g("hr-tiles").innerHTML = [["Average latency", lat.toFixed(2) + " ms"], ["Database reads per second", Math.round(load).toLocaleString("en-US")], ["Misses per 1,000 requests", ((1 - h) * 1000).toFixed(h >= 0.999 ? 1 : 0)]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("hr-why").innerHTML = `20,000 requests a second, 0.5 ms from the cache, 10 ms from the database. Each extra \"9\" cuts database load tenfold, so a cache outage at 99% hits the database with <b>100×</b> its normal load.`;
+    };
+    g("hr-h").oninput = run; run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const rng = (s) => () => { s |= 0; s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const K = 2000, cdf = []; let tot = 0; for (let i = 1; i <= K; i++) { tot += 1 / Math.pow(i, 0.9); cdf.push(tot); }
+    const zipf = (r) => { const x = r() * tot; let lo = 0, hi = K - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (cdf[m] < x) lo = m + 1; else hi = m; } return lo; };
+    const trace = (mode) => { const r = rng(42), t = []; for (let i = 0; i < 30000; i++) { if (mode === 1 && i >= 10000 && i < 13000) t.push(100000 + i); else { const z = zipf(r); t.push(mode === 2 && i >= 15000 ? (z + 1000) % K : z); } } return t; };
+    const T = [trace(0), trace(1), trace(2)];
+    const lru = (C, tr) => { const m = new Map(); let h = 0; for (const k of tr) { if (m.has(k)) { h++; m.delete(k); } else if (m.size >= C) m.delete(m.keys().next().value); m.set(k, 1); } return h; };
+    const fifo = (C, tr) => { const m = new Set(), q = []; let h = 0, head = 0; for (const k of tr) { if (m.has(k)) { h++; continue; } if (m.size >= C) m.delete(q[head++]); m.add(k); q.push(k); } return h; };
+    const lfu = (C, tr) => { const c = new Map(); let h = 0; for (const k of tr) { if (c.has(k)) { h++; c.set(k, c.get(k) + 1); continue; } if (c.size >= C) { let mk, mv = Infinity; for (const [kk, v] of c) if (v < mv) { mv = v; mk = kk; } c.delete(mk); } c.set(k, 1); } return h; };
+    const sampled = (C, tr) => { const r = rng(7), keys = [], pos = new Map(), last = new Map(); let h = 0, t = 0; for (const k of tr) { t++; if (pos.has(k)) { h++; last.set(k, t); continue; } if (keys.length >= C) { let vi = -1, vt = Infinity; for (let s = 0; s < 5; s++) { const i = Math.floor(r() * keys.length); if (last.get(keys[i]) < vt) { vt = last.get(keys[i]); vi = i; } } const vk = keys[vi], lk = keys[keys.length - 1]; keys[vi] = lk; pos.set(lk, vi); keys.pop(); pos.delete(vk); last.delete(vk); } pos.set(k, keys.length); keys.push(k); last.set(k, t); } return h; };
+    const tinylfu = (C, tr) => {
+      const W = Math.max(1, Math.round(C * 0.01)), M = C - W, D = 4, Wd = 8 * C, sk = Array.from({ length: D }, () => new Uint8Array(Wd)); let adds = 0;
+      const hx = (k, i) => { let x = (k + 1) * 2654435761 + i * 40503; x ^= x >>> 13; x = Math.imul(x, 0x5bd1e995); x ^= x >>> 15; return (x >>> 0) % Wd; };
+      const inc = (k) => { for (let i = 0; i < D; i++) { const j = hx(k, i); if (sk[i][j] < 255) sk[i][j]++; } if (++adds >= 10 * C) { adds = 0; sk.forEach((row) => { for (let j = 0; j < Wd; j++) row[j] >>= 1; }); } };
+      const est = (k) => { let m = 255; for (let i = 0; i < D; i++) m = Math.min(m, sk[i][hx(k, i)]); return m; };
+      const win = new Map(), main = new Map(); let h = 0;
+      for (const k of tr) {
+        inc(k);
+        if (win.has(k)) { h++; win.delete(k); win.set(k, 1); continue; }
+        if (main.has(k)) { h++; main.delete(k); main.set(k, 1); continue; }
+        win.set(k, 1);
+        if (win.size > W) { const cand = win.keys().next().value; win.delete(cand);
+          if (main.size < M) main.set(cand, 1); else { const vic = main.keys().next().value; if (est(cand) > est(vic)) { main.delete(vic); main.set(cand, 1); } } }
+      }
+      return h;
+    };
+    const ALG = [["FIFO", fifo], ["LRU", lru], ["Sampled LRU (Redis, 5 samples)", sampled], ["LFU (no decay)", lfu], ["W-TinyLFU (Caffeine)", tinylfu]];
+    let scan = 1;
+    g("ev-scan").innerHTML = ["Steady traffic", "A one-off scan", "Popularity shifts halfway"].map((l, i) => `<button type="button" aria-pressed="${i === scan}">${l}</button>`).join("");
+    g("ev-scan").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; scan = [...g("ev-scan").children].indexOf(b); [...g("ev-scan").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === scan))); run(); };
+    function run() {
+      const C = +g("ev-c").value; g("ev-co").textContent = C + " of 2,000 keys";
+      const tr = T[scan], res = ALG.map(([n, f]) => [n, f(C, tr) / tr.length]), best = Math.max(...res.map((r) => r[1]));
+      g("ev-bars").innerHTML = res.map(([n, v]) => `<div style="display:grid;grid-template-columns:minmax(9em,15em) 1fr 4em;gap:10px;align-items:center;margin:6px 0"><span style="font-size:.86rem">${n}</span><span style="height:14px;border-radius:7px;background:${v === best ? "var(--accent)" : "var(--line)"};width:${(v / best) * 100}%"></span><span class="idx">${(v * 100).toFixed(1)}%</span></div>`).join("");
+      const v = Object.fromEntries(res.map(([n, x]) => [n.split(" ")[0], x * 100])), d = (a, b) => (v[a] - v[b]).toFixed(0);
+      g("ev-why").innerHTML = ["30,000 requests over 2,000 keys, skewed so a few keys are popular. ", "The same skewed traffic with 3,000 never-repeated keys in the middle (a batch job or crawler). ", "The popular keys change halfway through (a new day, a new trend). "][scan] + [
+        `Frequency beats recency on skewed traffic: W-TinyLFU and LFU beat LRU by about ${d("W-TinyLFU", "LRU")} points here, because a key that was popular is likely to stay popular.`,
+        `The scan pushes popular keys out of LRU and FIFO; frequency-aware admission refuses most one-hit wonders, so W-TinyLFU stays about ${d("W-TinyLFU", "LRU")} points ahead of LRU.`,
+        `LFU without decay clings to yesterday's favourites and drops ${Number(d("LRU", "LFU")) > 0 ? "below even LRU" : "sharply"}; W-TinyLFU's sketch halves its counts periodically, so it adapts and stays on top. That's why real LFU needs ageing.`][scan];
+    }
+    g("ev-c").oninput = run; run();
+  })();
+  Viz.scene("#sc-u09-stampede", {
+    title: "A hot key expires: stampede, then single-flight", sub: "<b>Red</b> = overload, <b>green</b> = one refresh.",
+    nodes: [{ id: "a", x: 80, y: 60, w: 120, label: "App server 1" }, { id: "b", x: 80, y: 140, w: 120, label: "App server 2" }, { id: "c", x: 80, y: 220, w: 120, label: "App server 3" }, { id: "k", x: 320, y: 140, w: 140, label: "Cache", sub: "home:feed expired" }, { id: "db", x: 530, y: 140, w: 130, label: "Database" }],
+    edges: [["a", "k"], ["b", "k"], ["c", "k"], ["k", "db"]],
+    width: 620, height: 270,
+    steps: [
+      { hl: { a: "active", b: "active", c: "active", k: "warm" }, moves: [{ e: "a>k", t: "GET", k: "req" }, { e: "b>k", t: "GET", k: "req" }, { e: "c>k", t: "GET", k: "req" }, { e: "a>k", t: "miss", k: "bad", back: true, delay: 0.9 }, { e: "b>k", t: "miss", k: "bad", back: true, delay: 0.9 }, { e: "c>k", t: "miss", k: "bad", back: true, delay: 0.9 }], hold: 3, note: "The popular key expires; every server's next request misses at the same moment." },
+      { hl: { db: "bad", k: "warm" }, moves: [{ e: "k>db", t: "same query ×3,000", k: "bad" }], pops: [{ n: "db", t: "CPU 100%: everything slows", k: "bad", at: 1.0 }], hold: 3.2, note: "Thousands of identical expensive queries hit the database at once: a stampede, sometimes enough to take it down." },
+      { hl: { a: "found", k: "found", db: "found" }, moves: [{ e: "a>k", t: "SET lock NX: won", k: "ok" }, { e: "k>db", t: "one query", k: "ok", delay: 0.8 }], pops: [{ n: "b", t: "lock taken: serve stale copy", k: "evt", at: 0.6 }, { n: "c", t: "serve stale copy", k: "evt", at: 0.8 }], hold: 3.6, note: "Single-flight: one request wins a short lock and refreshes; the others serve the slightly stale copy or wait briefly." },
+      { hl: { a: "found", b: "found", c: "found", k: "found" }, moves: [{ e: "a>k", t: "SET home:feed (TTL 300 s ± 10%)", k: "ok" }], hold: 3, note: "One database query instead of thousands, and jittered TTLs stop many keys expiring together." },
+    ],
+  });
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Time</th><th>Reader A</th><th>Writer B</th><th>Database</th><th>Cache</th></tr></thead><tbody>${rows.map((r, i) => `<tr${i === rows.length - 1 ? ' style="font-weight:700"' : ""}>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center;font-family:var(--sans)">${cap}</div></div>`;
+    const S = [["t1", "GET price → miss", "", "$10", "(empty)"], ["t2", "SELECT → $10 (then stalls)", "", "$10", "(empty)"], ["t3", "", "UPDATE price = $12", "$12", "(empty)"], ["t4", "", "DELETE cache key", "$12", "(empty)"], ["t5", "SET price = $10", "", "$12", "$10 (stale!)"]];
+    Viz.stepper("#viz-u09-race", { title: "How cache-aside serves stale data", sub: "A slow reader refills an old value after the writer's delete.", speed: 3000, frames: [
+      { view: R(S.slice(0, 2), "A misses and reads $10 from the database, then pauses (GC, slow network)."), note: "Reader A has the old value in hand." },
+      { view: R(S.slice(0, 4), "B updates the price and deletes the cache entry, exactly as cache-aside says."), note: "The writer did everything right." },
+      { view: R(S, "A wakes up and fills the cache with $10."), note: "The cache now holds a stale price until its TTL expires, and nothing will correct it sooner." },
+      { view: R([...S.slice(0, 4), ["t5", "SET price = $10 with lease 17", "", "$12", "rejected: lease 17 was invalidated at t4"]], "With leases, B's delete invalidated A's token, so the late fill is refused."), note: "Leases (or versioned sets) close the race; the next reader fills $12." },
+    ] });
+  })();
 })();
 </script>
 </body>
