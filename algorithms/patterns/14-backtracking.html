@@ -2326,123 +2326,299 @@ svg.flow .fn { transition: opacity .35s ease; }
     </table>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># The universal shape.
-# It is filled in here for "all combinations of k numbers" so you can run it;
-# for your own problem, swap in your own is_done / is_valid tests.
-def is_done(path, k):
-    # 1) goal test: here, "the path already holds k numbers"
-    return len(path) == k
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Backtracking builds answers one choice at a time and <em>undoes</em> each choice before trying the next. All four templates share three lines: <strong>choose</strong> (<code>path.append</code>), <strong>explore</strong> (recurse), <strong>unchoose</strong> (<code>path.pop</code>). They differ in when a path is recorded and which choices are allowed: <strong>A</strong> combinations of size k, <strong>B</strong> all subsets, <strong>C</strong> permutations (a <code>used</code> array instead of a start index), <strong>D</strong> subsets with duplicate values (sort, then skip equal siblings).</p>
 
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Combinations of size k (choose, explore, unchoose)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>All ways to pick k items from nums, order not mattering.</div><div><b>What it keeps</b><code>path</code>: the current partial answer; <code>start</code>: where the next choice may come from.</div><div><b>When it checks for an answer</b>Record when the path reaches length k.</div><div><b>Use it when</b>Combinations (LC 77), combination sum (LC 39/40, with a target instead of k), letter combinations.</div><div><b>Not for</b>Counting only (DP is usually faster); orderings (C).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Try it, go deeper, take it back"</strong>Packing a bag with exactly k items from a shelf, left to right. Put an item in, keep packing with items to its right, then take it out and try the next item instead. Only items to the right are allowed, so the same set is never packed twice in a different order.</div>
+    <p><strong>The story, mapped to the code.</strong> nums is a shelf; path is the bag.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The bag</td><td data-h="In the code"><code>path</code></td><td data-h="What it means">Current partial answer.</td></tr><tr><td data-h="In the story">Items you may still pick</td><td data-h="In the code"><code>range(start, len(nums))</code></td><td data-h="What it means">Only to the right of the last pick.</td></tr><tr><td data-h="In the story">Put an item in</td><td data-h="In the code"><code>path.append(nums[i])</code></td><td data-h="What it means">Choose.</td></tr><tr><td data-h="In the story">Keep packing</td><td data-h="In the code"><code>backtrack(i + 1)</code></td><td data-h="What it means">Explore.</td></tr><tr><td data-h="In the story">Take it out</td><td data-h="In the code"><code>path.pop()</code></td><td data-h="What it means">Unchoose: restores the bag for the next try.</td></tr><tr><td data-h="In the story">Bag full</td><td data-h="In the code"><code>len(path) == k → results.append(path[:])</code></td><td data-h="What it means">Record a copy.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The shape every backtracking problem follows.</p>
+    <pre><code class="python">def combine(nums, k):
+    results, path = [], []
 
-def is_valid(choice):
-    # 3) pruning test: here every number is allowed (real problems reject bad choices)
-    return True
+    def backtrack(start):
+        if len(path) == k:
+            results.append(path[:])
+            return
+        for i in range(start, len(nums)):
+            path.append(nums[i])
+            backtrack(i + 1)
+            path.pop()
 
+    backtrack(0)
+    return results</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function combine(nums: number[], k: number): number[][] {
+  const results: number[][] = [], path: number[] = [];
+  const backtrack = (start: number): void =&gt; {
+    if (path.length === k) {
+      results.push([...path]);
+      return;
+    }
+    for (let i = start; i &lt; nums.length; i++) {
+      path.push(nums[i]);
+      backtrack(i + 1);
+      path.pop();
+    }
+  };
+  backtrack(0);
+  return results;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void backtrack(int[] nums, int k, int start, List&lt;Integer&gt; path, List&lt;List&lt;Integer&gt;&gt; results) {
+    if (path.size() == k) {
+        results.add(new ArrayList&lt;&gt;(path));
+        return;
+    }
+    for (int i = start; i &lt; nums.length; i++) {
+        path.add(nums[i]);
+        backtrack(nums, k, i + 1, path, results);
+        path.remove(path.size() - 1);
+    }
+}
 
-def solve(nums, k):
-    results = []        # every finished answer we find
-    path = []           # the choices made so far on the current branch
-    solve_helper(nums, k, 0, path, results)
-    return results
+static List&lt;List&lt;Integer&gt;&gt; combine(int[] nums, int k) {
+    List&lt;List&lt;Integer&gt;&gt; results = new ArrayList&lt;&gt;();
+    backtrack(nums, k, 0, new ArrayList&lt;&gt;(), results);
+    return results;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if len(path) == k: results.append(path[:])</code></td><td data-h="What it does">Records a <em>copy</em> of a full bag.</td><td data-h="In the story">Bag full: photograph it.</td><td data-h="Why here, and what breaks if it moves"><code>append(path)</code> stores the same list object every time; after all the pops they're all empty (see Template B's bug player).</td></tr><tr><td data-h="Line"><code>for i in range(start, len(nums))</code></td><td data-h="What it does">Only items to the right.</td><td data-h="In the story">No going back along the shelf.</td><td data-h="Why here, and what breaks if it moves"><code>range(len(nums))</code> produces permutations with repeats.</td></tr><tr><td data-h="Line"><code>path.append(nums[i]); backtrack(i + 1)</code></td><td data-h="What it does">Choose, then explore.</td><td data-h="In the story">Put it in, keep packing.</td><td data-h="Why here, and what breaks if it moves"><code>backtrack(start + 1)</code> instead of <code>i + 1</code> allows earlier items again: duplicates.</td></tr><tr><td data-h="Line"><code>path.pop()</code></td><td data-h="What it does">Undo the choice.</td><td data-h="In the story">Take it out.</td><td data-h="Why here, and what breaks if it moves">Forgetting it lets the bag keep growing across branches.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through choosing 2 of <code>[1, 2, 3]</code>.</p>
+    <div id="tl-14a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-14a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When <code>backtrack(start)</code> is called, <code>path</code> holds increasing-index picks all before <code>start</code>, and on return <code>path</code> is exactly as it was on entry.</p>
+    <p><strong>Complexity.</strong> O(C(n, k) × k) time (each result copied), O(k) recursion depth.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Appending <code>path</code> instead of a copy.</strong> Photograph the bag, don't store the bag.</li><li><strong>Recursing with start + 1.</strong> Recurse with i + 1.</li><li><strong>No pruning.</strong> Stop early when too few items remain or a sum overshoots.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Try it, go deeper, take it back.</dd>
+      <dt>Choose this template when</dt><dd>"All combinations/choices" → choose-explore-unchoose with a start index.</dd>
+      <dt>Invariant</dt><dd>path is restored when each call returns.</dd>
+      <dt>The line people get wrong</dt><dd><code>results.append(path[:])</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>How many results for n = 5, k = 2?</summary><p>C(5,2) = 10.</p></details><details><summary>Why start at i + 1?</summary><p>Each set appears once, in increasing order.</p></details><details><summary>Combination sum (reuse allowed)?</summary><p>Recurse with i instead of i + 1.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · All subsets</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Every subset of nums (the power set).</div><div><b>What it keeps</b><code>path</code> and <code>start</code>, as in A.</div><div><b>When it checks for an answer</b>Record at <em>every</em> call, not only at a fixed size.</div><div><b>Use it when</b>Subsets (LC 78), any "all selections" enumeration.</div><div><b>Not for</b>Duplicates in nums (D).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Every bag is a valid answer: photograph it on arrival"</strong>Same shelf and bag, but there's no size limit: every bag you hold, including the empty one, is an answer. Photograph it the moment you arrive, then try adding each item to its right.</div>
+    <p><strong>The story, mapped to the code.</strong> Same as A, without the "bag full" rule.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Photograph on arrival</td><td data-h="In the code"><code>results.append(path[:])</code></td><td data-h="What it means">Every node of the search is an answer.</td></tr><tr><td data-h="In the story">Add an item to the right</td><td data-h="In the code"><code>path.append(nums[i])</code></td><td data-h="What it means">Choose.</td></tr><tr><td data-h="In the story">Take it out</td><td data-h="In the code"><code>path.pop()</code></td><td data-h="What it means">Unchoose.</td></tr></tbody></table>
+    <p><strong>The template.</strong> A with the record moved to the top and no stop condition.</p>
+    <pre><code class="python">def subsets(nums):
+    results, path = [], []
 
-
-def solve_helper(nums, k, start, path, results):
-    # 'start' (or index / row / used) = where the next choices come from
-    if is_done(path, k):                    # 1) goal reached?
-        results.append(path[:])             #    record a COPY (path keeps changing later)
-        return
-    for i in range(start, len(nums)):       # 2) try every candidate choice
-        if not is_valid(nums[i]):           # 3) prune bad branches early
-            continue
-        path.append(nums[i])                # 4) choose
-        solve_helper(nums, k, i + 1, path, results)   # 5) explore (i + 1: no reuse, i: reuse allowed)
-        path.pop()                          # 6) un-choose (undo EXACTLY what you did)
-
-
-# Variant A: subsets (record at EVERY node, not just at the leaves)
-def subsets(nums):
-    results = []
-    path = []
-    subsets_helper(nums, 0, path, results)
-    return results
-
-
-def subsets_helper(nums, start, path, results):
-    results.append(path[:])                 # every node of the tree is a valid subset
-    for i in range(start, len(nums)):
-        path.append(nums[i])                # choose
-        subsets_helper(nums, i + 1, path, results)    # explore
-        path.pop()                          # un-choose
-
-
-# Variant B: permutations (order matters, so use 'used' flags instead of 'start')
-def permutations(nums):
-    results = []
-    path = []
-    used = [False] * len(nums)              # used[i] is True while nums[i] sits in path
-    permutations_helper(nums, used, path, results)
-    return results
-
-
-def permutations_helper(nums, used, path, results):
-    if len(path) == len(nums):              # every number placed: one full ordering
+    def backtrack(start):
         results.append(path[:])
-        return
-    for i in range(len(nums)):              # look at ALL positions, not just later ones
-        if used[i]:
-            continue                        # already in the path, skip it
-        used[i] = True                      # choose (two changes...)
-        path.append(nums[i])
-        permutations_helper(nums, used, path, results)   # explore
-        path.pop()                          # un-choose (...so undo both)
-        used[i] = False
+        for i in range(start, len(nums)):
+            path.append(nums[i])
+            backtrack(i + 1)
+            path.pop()
 
+    backtrack(0)
+    return results</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function subsets(nums: number[]): number[][] {
+  const results: number[][] = [], path: number[] = [];
+  const backtrack = (start: number): void =&gt; {
+    results.push([...path]);
+    for (let i = start; i &lt; nums.length; i++) {
+      path.push(nums[i]);
+      backtrack(i + 1);
+      path.pop();
+    }
+  };
+  backtrack(0);
+  return results;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void subsetsFrom(int[] nums, int start, List&lt;Integer&gt; path, List&lt;List&lt;Integer&gt;&gt; results) {
+    results.add(new ArrayList&lt;&gt;(path));
+    for (int i = start; i &lt; nums.length; i++) {
+        path.add(nums[i]);
+        subsetsFrom(nums, i + 1, path, results);
+        path.remove(path.size() - 1);
+    }
+}
 
-# Variant C: input has duplicates, so sort + skip equal siblings
-def subsets_with_dup(nums):
-    nums.sort()                             # equal values now sit next to each other
-    results = []
-    path = []
-    subsets_with_dup_helper(nums, 0, path, results)
-    return results
+static List&lt;List&lt;Integer&gt;&gt; subsets(int[] nums) {
+    List&lt;List&lt;Integer&gt;&gt; results = new ArrayList&lt;&gt;();
+    subsetsFrom(nums, 0, new ArrayList&lt;&gt;(), results);
+    return results;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>results.append(path[:])</code></td><td data-h="What it does">Every call records its bag.</td><td data-h="In the story">Photograph on arrival.</td><td data-h="Why here, and what breaks if it moves">Storing <code>path</code> itself: every entry is the same list, which ends empty (see the bug player).</td></tr><tr><td data-h="Line"><code>for i in range(start, len(nums))</code></td><td data-h="What it does">Try each item to the right.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>path.pop()</code></td><td data-h="What it does">Undo.</td><td data-h="In the story">Take it out.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the subsets of <code>[1, 2]</code>. The second player stores <code>path</code> without copying.</p>
+    <div id="tl-14b"></div><div id="tl-14b-bug"></div><p>Without the copy, results holds the same list four times. Every pop changes all of them, and at the end they're all empty: <code>[[], [], [], []]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-14b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Each call records exactly one distinct subset (the indices chosen are increasing), so the 2ⁿ calls record all 2ⁿ subsets.</p>
+    <p><strong>Complexity.</strong> O(2ⁿ × n) time and output; O(n) depth.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Not copying.</strong> Photograph, don't store the bag.</li><li><strong>Recording only at the leaves.</strong> In subsets every node is an answer.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Every bag is an answer: photograph it on arrival.</dd>
+      <dt>Choose this template when</dt><dd>All subsets → record at every call.</dd>
+      <dt>Invariant</dt><dd>One call = one subset.</dd>
+      <dt>The line people get wrong</dt><dd>Copy when recording.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>How many subsets of n items?</summary><p>2ⁿ.</p></details><details><summary>Order of output for [1,2,3]?</summary><p>[], [1], [1,2], [1,2,3], [1,3], [2], [2,3], [3].</p></details><details><summary>Iterative alternative?</summary><p>Bitmasks 0..2ⁿ−1.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Permutations (used[] instead of start)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Every ordering of nums.</div><div><b>What it keeps</b><code>path</code> and a <code>used</code> flag per index.</div><div><b>When it checks for an answer</b>Record when the path uses every item.</div><div><b>Use it when</b>Permutations (LC 46), N-Queens (columns as "used"), arrangements, word squares.</div><div><b>Not for</b>Subsets/combinations (order doesn't matter: use a start index).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Any unused item can go next"</strong>Seating guests in a row of chairs: for the next chair, any guest not already seated may sit. Seat one, fill the remaining chairs, then stand them up again and try the next guest.</div>
+    <p><strong>The story, mapped to the code.</strong> Guests and chairs.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Seated guests</td><td data-h="In the code"><code>used[i] = True</code></td><td data-h="What it means">Can't be chosen again on this path.</td></tr><tr><td data-h="In the story">Next chair</td><td data-h="In the code"><code>for i in range(len(nums))</code></td><td data-h="What it means">Any unused guest, from the start.</td></tr><tr><td data-h="In the story">Seat a guest</td><td data-h="In the code"><code>used[i] = True; path.append(nums[i])</code></td><td data-h="What it means">Choose.</td></tr><tr><td data-h="In the story">Stand them up</td><td data-h="In the code"><code>path.pop(); used[i] = False</code></td><td data-h="What it means">Undo both.</td></tr><tr><td data-h="In the story">All chairs full</td><td data-h="In the code"><code>len(path) == len(nums)</code></td><td data-h="What it means">Record.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two things to undo: the path and the used flag.</p>
+    <pre><code class="python">def permutations(nums):
+    results, path, used = [], [], [False] * len(nums)
 
+    def backtrack():
+        if len(path) == len(nums):
+            results.append(path[:])
+            return
+        for i in range(len(nums)):
+            if used[i]:
+                continue
+            used[i] = True
+            path.append(nums[i])
+            backtrack()
+            path.pop()
+            used[i] = False
 
-def subsets_with_dup_helper(nums, start, path, results):
-    results.append(path[:])
-    for i in range(start, len(nums)):
-        if i &gt; start and nums[i] == nums[i - 1]:
-            continue                        # same value already tried at this depth
-        path.append(nums[i])
-        subsets_with_dup_helper(nums, i + 1, path, results)
-        path.pop()</code></pre>
-        <!-- explain:start -->
-        <p><strong>What the code is doing, line by line:</strong></p>
-        <ol>
-          <li><strong>The universal shape</strong> is split into a starter function <code>solve</code> and a recursive helper <code>solve_helper</code>. The starter creates the two lists every backtracking solution needs: <code>results</code> (finished answers) and <code>path</code> (the choices on the branch we are walking right now), then makes the first call with <code>start = 0</code>.</li>
-          <li><code>is_done</code> and <code>is_valid</code> are the two problem-specific questions. Here they are filled in for &quot;pick k numbers&quot; so the code actually runs; in a new problem you rewrite just these two.</li>
-          <li>Inside the helper, step 1 asks <em>is the path a finished answer?</em> If yes we append <code>path[:]</code>, a <strong>copy</strong>, because <code>path</code> itself will keep being changed by later appends and pops.</li>
-          <li>Step 2 loops over every candidate from <code>start</code> onward. Step 3 skips (prunes) candidates that can never lead to an answer, so their whole subtree is never explored.</li>
-          <li>Steps 4&ndash;6 are the heart of backtracking: <code>append</code> (choose), recursive call (explore), <code>pop</code> (un-choose). After the pop, <code>path</code> is exactly as it was before, ready for the next candidate.</li>
-          <li><strong>Variant A (subsets)</strong> has no goal test: it appends a copy at the start of <em>every</em> call, because every node of the tree (not just the leaves) is a valid subset.</li>
-          <li><strong>Variant B (permutations)</strong> loops over <em>all</em> indices from 0 (order matters, so <code>[2,1]</code> must be reachable) and uses the <code>used</code> list to avoid picking the same index twice. It changes two things when choosing, so it undoes two things when un-choosing.</li>
-          <li><strong>Variant C (duplicates)</strong> sorts first, then skips <code>nums[i]</code> when it equals the value just tried at the <em>same depth</em> (<code>i &gt; start</code>). This stops two identical branches from producing the same subset twice.</li>
-        </ol>
-        <p><strong>Dry run</strong> on the example:</p>
-        <table>
-          <thead><tr><th>Call</th><th>path</th><th>What happens</th><th>results</th></tr></thead>
-          <tbody>
-            <tr><td><code>solve([1,2,3], 2)</code></td><td><code>[]</code></td><td>start = 0, try 1</td><td><code>[]</code></td></tr>
-            <tr><td>helper(start=1)</td><td><code>[1]</code></td><td>not done (1 item), try 2</td><td><code>[]</code></td></tr>
-            <tr><td>helper(start=2)</td><td><code>[1,2]</code></td><td>done: save copy, return</td><td><code>[[1,2]]</code></td></tr>
-            <tr><td>back in start=1</td><td><code>[1]</code></td><td>pop 2, try 3</td><td><code>[[1,2]]</code></td></tr>
-            <tr><td>helper(start=3)</td><td><code>[1,3]</code></td><td>done: save copy</td><td><code>[[1,2],[1,3]]</code></td></tr>
-            <tr><td>back in start=0</td><td><code>[]</code></td><td>pop 3, pop 1, try 2</td><td>same</td></tr>
-            <tr><td>helper(start=2)</td><td><code>[2]</code></td><td>try 3 &rarr; <code>[2,3]</code> done: save</td><td><code>[[1,2],[1,3],[2,3]]</code></td></tr>
-            <tr><td>back in start=0</td><td><code>[]</code></td><td>try 3 &rarr; <code>[3]</code>, no numbers left, nothing saved</td><td>final answer</td></tr>
-          </tbody>
-        </table>
-        <!-- explain:end -->
+    backtrack()
+    return results</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function permutations(nums: number[]): number[][] {
+  const results: number[][] = [], path: number[] = [];
+  const used: boolean[] = new Array(nums.length).fill(false);
+  const backtrack = (): void =&gt; {
+    if (path.length === nums.length) {
+      results.push([...path]);
+      return;
+    }
+    for (let i = 0; i &lt; nums.length; i++) {
+      if (used[i]) continue;
+      used[i] = true;
+      path.push(nums[i]);
+      backtrack();
+      path.pop();
+      used[i] = false;
+    }
+  };
+  backtrack();
+  return results;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void permute(int[] nums, boolean[] used, List&lt;Integer&gt; path, List&lt;List&lt;Integer&gt;&gt; results) {
+    if (path.size() == nums.length) {
+        results.add(new ArrayList&lt;&gt;(path));
+        return;
+    }
+    for (int i = 0; i &lt; nums.length; i++) {
+        if (used[i]) continue;
+        used[i] = true;
+        path.add(nums[i]);
+        permute(nums, used, path, results);
+        path.remove(path.size() - 1);
+        used[i] = false;
+    }
+}
+
+static List&lt;List&lt;Integer&gt;&gt; permutations(int[] nums) {
+    List&lt;List&lt;Integer&gt;&gt; results = new ArrayList&lt;&gt;();
+    permute(nums, new boolean[nums.length], new ArrayList&lt;&gt;(), results);
+    return results;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for i in range(len(nums))</code></td><td data-h="What it does">Every position, every time.</td><td data-h="In the story">Any guest may take the next chair.</td><td data-h="Why here, and what breaks if it moves">Using a start index here gives combinations, not orderings.</td></tr><tr><td data-h="Line"><code>if used[i]: continue</code></td><td data-h="What it does">Skips seated guests.</td><td data-h="In the story">Already seated.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>path.pop(); used[i] = False</code></td><td data-h="What it does">Undo both changes.</td><td data-h="In the story">Stand them up.</td><td data-h="Why here, and what breaks if it moves">Forgetting <code>used[i] = False</code> means that guest is never seated again on later branches.</td></tr><tr><td data-h="Line"><code>if len(path) == len(nums)</code></td><td data-h="What it does">Every chair filled.</td><td data-h="In the story">Record.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the orderings of <code>[1, 2, 3]</code>.</p>
+    <div id="tl-14c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-14c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> <code>used[i]</code> is True exactly for the indices in <code>path</code>; both are restored when a call returns.</p>
+    <p><strong>Complexity.</strong> O(n! × n) time, O(n) depth plus output.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting to reset used.</strong> Undo both: path and used.</li><li><strong>Duplicate values.</strong> Sort and skip <code>nums[i] == nums[i−1] and not used[i−1]</code> (LC 47).</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Any unused item can go next.</dd>
+      <dt>Choose this template when</dt><dd>Orderings → used[] and a loop from 0.</dd>
+      <dt>Invariant</dt><dd>used mirrors path.</dd>
+      <dt>The line people get wrong</dt><dd>Resetting <code>used[i]</code> after the pop.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>How many permutations of 4 items?</summary><p>24.</p></details><details><summary>N-Queens: what's "used"?</summary><p>Columns and both diagonals.</p></details><details><summary>Why loop from 0?</summary><p>Any unused item can take the next position.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Subsets with duplicate values (sort, skip equal siblings)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>All distinct subsets when nums contains repeats.</div><div><b>What it keeps</b>As in B, on a sorted copy of nums.</div><div><b>When it checks for an answer</b>At one level of the loop, an item equal to the previous sibling is skipped.</div><div><b>Use it when</b>Subsets II (LC 90), Combination Sum II (LC 40), Permutations II (with used[]).</div><div><b>Not for</b>Inputs without duplicates (B is enough).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Sort, then never try the same value twice at the same level"</strong>Two identical cans on the shelf. Starting a bag with the first can or the second gives the same bags, so at each level only the first of equal neighbours is tried. Deeper levels may still take the second can after the first.</div>
+    <p><strong>The story, mapped to the code.</strong> Duplicates sit next to each other once sorted.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Sorted shelf</td><td data-h="In the code"><code>nums = sorted(nums)</code></td><td data-h="What it means">Equal values become neighbours.</td></tr><tr><td data-h="In the story">Same value as the sibling just tried</td><td data-h="In the code"><code>i &gt; start and nums[i] == nums[i - 1]</code></td><td data-h="What it means">Skip: it would repeat bags.</td></tr><tr><td data-h="In the story">i == start</td><td data-h="In the code"><code>The first choice at this level</code></td><td data-h="What it means">Always allowed, even if equal to the item before (that one is already in the bag).</td></tr></tbody></table>
+    <p><strong>The template.</strong> B on sorted input, plus one skip line.</p>
+    <pre><code class="python">def subsets_with_dup(nums):
+    nums = sorted(nums)
+    results, path = [], []
+
+    def backtrack(start):
+        results.append(path[:])
+        for i in range(start, len(nums)):
+            if i &gt; start and nums[i] == nums[i - 1]:
+                continue
+            path.append(nums[i])
+            backtrack(i + 1)
+            path.pop()
+
+    backtrack(0)
+    return results</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function subsetsWithDup(input: number[]): number[][] {
+  const nums = [...input].sort((a, b) =&gt; a - b);
+  const results: number[][] = [], path: number[] = [];
+  const backtrack = (start: number): void =&gt; {
+    results.push([...path]);
+    for (let i = start; i &lt; nums.length; i++) {
+      if (i &gt; start &amp;&amp; nums[i] === nums[i - 1]) continue;
+      path.push(nums[i]);
+      backtrack(i + 1);
+      path.pop();
+    }
+  };
+  backtrack(0);
+  return results;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void subsetsDupFrom(int[] nums, int start, List&lt;Integer&gt; path, List&lt;List&lt;Integer&gt;&gt; results) {
+    results.add(new ArrayList&lt;&gt;(path));
+    for (int i = start; i &lt; nums.length; i++) {
+        if (i &gt; start &amp;&amp; nums[i] == nums[i - 1]) continue;
+        path.add(nums[i]);
+        subsetsDupFrom(nums, i + 1, path, results);
+        path.remove(path.size() - 1);
+    }
+}
+
+static List&lt;List&lt;Integer&gt;&gt; subsetsWithDup(int[] input) {
+    int[] nums = input.clone();
+    Arrays.sort(nums);
+    List&lt;List&lt;Integer&gt;&gt; results = new ArrayList&lt;&gt;();
+    subsetsDupFrom(nums, 0, new ArrayList&lt;&gt;(), results);
+    return results;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>nums = sorted(nums)</code></td><td data-h="What it does">Puts equal values side by side.</td><td data-h="In the story">Line the cans up.</td><td data-h="Why here, and what breaks if it moves">Without sorting, the skip check only catches neighbours that happen to be equal.</td></tr><tr><td data-h="Line"><code>if i &gt; start and nums[i] == nums[i - 1]: continue</code></td><td data-h="What it does">Skips repeated values at the same level.</td><td data-h="In the story">Same can as the sibling just tried.</td><td data-h="Why here, and what breaks if it moves"><code>i > 0</code> also skips taking the second 2 <em>after</em> the first, losing [1,2,2] and [2,2] (see the bug player).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[2, 1, 2]</code> (sorted to <code>[1, 2, 2]</code>). The second player uses <code>i &gt; 0</code>.</p>
+    <div id="tl-14d"></div><div id="tl-14d-bug"></div><p>With <code>i &gt; 0</code>, the second 2 is skipped even when it's the first choice at a deeper level, so [1, 2, 2] and [2, 2] are lost.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-14d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At each level, each distinct value is tried at most once as the next element, so no subset is generated twice; every distinct subset is still reachable.</p>
+    <p><strong>Complexity.</strong> O(2ⁿ × n) worst case.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting to sort.</strong> Line the cans up first.</li><li><strong><code>i > 0</code> instead of <code>i > start</code>.</strong> Only siblings at the same level are skipped.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Sort, then never try the same value twice at the same level.</dd>
+      <dt>Choose this template when</dt><dd>Duplicates in the input → sort + skip equal siblings.</dd>
+      <dt>Invariant</dt><dd>One branch per distinct value per level.</dd>
+      <dt>The line people get wrong</dt><dd><code>i > start</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Subsets of [1, 2, 2]?</summary><p>[], [1], [1,2], [1,2,2], [2], [2,2].</p></details><details><summary>Why is i == start allowed?</summary><p>The previous equal value is already in the path, not a sibling.</p></details><details><summary>Combination Sum II?</summary><p>Same skip rule, plus a target.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · combinations</th><th>B · subsets</th><th>C · permutations</th><th>D · subsets with dups</th></tr></thead><tbody><tr><td data-h="Question">Order matters?</td><td data-h="A · combinations">No</td><td data-h="B · subsets">No</td><td data-h="C · permutations">Yes</td><td data-h="D · subsets with dups">No</td></tr><tr><td data-h="Question">Choices at each level</td><td data-h="A · combinations">range(start, n)</td><td data-h="B · subsets">range(start, n)</td><td data-h="C · permutations">range(0, n) minus used</td><td data-h="D · subsets with dups">range(start, n) minus equal siblings</td></tr><tr><td data-h="Question">Record when</td><td data-h="A · combinations">len(path) == k</td><td data-h="B · subsets">Every call</td><td data-h="C · permutations">len(path) == n</td><td data-h="D · subsets with dups">Every call</td></tr><tr><td data-h="Question">Extra state</td><td data-h="A · combinations">—</td><td data-h="B · subsets">—</td><td data-h="C · permutations">used[]</td><td data-h="D · subsets with dups">Sorted input</td></tr><tr><td data-h="Question">Count</td><td data-h="A · combinations">C(n, k)</td><td data-h="B · subsets">2ⁿ</td><td data-h="C · permutations">n!</td><td data-h="D · subsets with dups">≤ 2ⁿ</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · combinations">LC 77, 39</td><td data-h="B · subsets">LC 78</td><td data-h="C · permutations">LC 46, 51</td><td data-h="D · subsets with dups">LC 90, 40</td></tr></tbody></table>
+    <p>Ask two questions: does order matter (start index vs used[]), and when is a path an answer (fixed size vs every node)? Duplicates in the input add the sort-and-skip line.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -8049,6 +8225,66 @@ The second beautiful arrangement is [2,1]:
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl14(kind, nums, k, bug) {
+    const results = [], path = [], used = nums.map(() => false), steps = [], rows = [];
+    const fmt = (a) => "[" + a.join(", ") + "]";
+    const resText = () => (bug ? results.map(() => fmt(path)) : results.map(fmt));
+    const view = (hl) => Viz.array(nums, { label: "nums", hl: Object.assign(kind === "perm" ? Object.fromEntries(used.map((u, i) => [i, u ? "dim" : ""])) : {}, hl || {}) })
+      + Viz.chips(path.map(String), "path (the bag)") + Viz.chips(resText(), `results (${results.length})`, "found");
+    steps.push({ line: kind === "dup" ? ["sort", "init", "start"] : ["init", "start"], vars: { path: "[]" }, view: view(), analogy: "Empty bag.", note: kind === "dup" ? `Sorted: <code>${fmt(nums)}</code>.` : "<code>backtrack(0)</code>." });
+    const rec = () => { results.push(bug ? path : path.slice()); rows.push([fmt(path), results.length]);
+      steps.push({ line: kind === "sub" || kind === "dup" ? "record" : ["done", "record"], vars: { recorded: fmt(path), stored: bug ? "path itself" : "a copy", results: results.length }, view: view(), analogy: bug ? `Store the bag itself (not a photo): every stored entry now shows ${fmt(path)}.` : `Photograph the bag: ${fmt(path)}.`, note: bug ? "<code>results.append(path)</code>: same object." : `<code>results.append(${fmt(path)})</code>.` }); };
+    const go = (start) => {
+      if (kind === "sub" || kind === "dup") rec();
+      else if (path.length === (kind === "comb" ? k : nums.length)) { rec(); return; }
+      for (let i = kind === "perm" ? 0 : start; i < nums.length; i++) {
+        if (kind === "perm" && used[i]) continue;
+        if (kind === "dup" && (bug ? i > 0 : i > start) && nums[i] === nums[i - 1]) {
+          steps.push({ line: ["loop", "dup"], vars: { i, start, "nums[i]": nums[i] }, view: view({ [i]: "bad" }), analogy: bug && i === start ? `⚠ ${nums[i]} at index ${i} is the first choice at this level, but i > 0 skips it.` : `${nums[i]} equals the sibling just tried: skip.`, note: `${bug ? "i > 0" : "i > start"} and nums[${i}] == nums[${i - 1}].` });
+          continue;
+        }
+        if (kind === "perm") used[i] = true; path.push(nums[i]);
+        steps.push({ line: ["loop", "choose", "explore"], vars: { i, path: fmt(path) }, view: view({ [i]: "active" }), analogy: `Put ${nums[i]} in the bag.`, note: `<code>path.append(${nums[i]})</code>.`,
+          ask: { q: "What does the bag hold now?", options: [...new Set([fmt(path), fmt(path.slice(0, -1)), fmt([nums[i]])])], answer: fmt(path), why: `${nums[i]} was added.` } });
+        go(i + 1);
+        path.pop(); if (kind === "perm") used[i] = false;
+        steps.push({ line: "undo", vars: { path: fmt(path) }, view: view(), analogy: `Take ${nums[i]} back out.`, note: `<code>path.pop()</code>${kind === "perm" ? `, <code>used[${i}] = False</code>` : ""}.` });
+      }
+    };
+    go(0);
+    steps.push({ line: "ret", vars: { results: results.length }, view: view(), analogy: bug ? `All ${results.length} entries are the same (now empty) list.` : `${results.length} answers.`, note: `Return ${bug ? fmt(results.map(() => fmt(path))) : fmt(results.map(fmt))}.` });
+    return { steps, table: { head: ["Recorded", "results so far"], rows } };
+  }
+
+  { const run = tl14('comb', [1, 2, 3], 2, false);
+    Viz.tlab("#tl-14a", { title: "Template A \u00b7 combine([1, 2, 3], 2)", sub: "Blue = item just chosen; the bag and recorded results are shown below.", code: {"py": [[null, "def combine(nums, k):"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["done", "        if len(path) == k:"], ["record", "            results.append(path[:])"], ["record", "            return"], ["loop", "        for i in range(start, len(nums)):"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]], "ts": [[null, "function combine(nums: number[], k: number): number[][] {"], ["init", "  const results: number[][] = [], path: number[] = [];"], [null, "  const backtrack = (start: number): void => {"], ["done", "    if (path.length === k) {"], ["record", "      results.push([...path]);"], ["record", "      return;"], [null, "    }"], ["loop", "    for (let i = start; i < nums.length; i++) {"], ["choose", "      path.push(nums[i]);"], ["explore", "      backtrack(i + 1);"], ["undo", "      path.pop();"], [null, "    }"], [null, "  };"], ["start", "  backtrack(0);"], ["ret", "  return results;"], [null, "}"]], "java": [[null, "static void backtrack(int[] nums, int k, int start, List<Integer> path, List<List<Integer>> results) {"], ["done", "    if (path.size() == k) {"], ["record", "        results.add(new ArrayList<>(path));"], ["record", "        return;"], [null, "    }"], ["loop", "    for (int i = start; i < nums.length; i++) {"], ["choose", "        path.add(nums[i]);"], ["explore", "        backtrack(nums, k, i + 1, path, results);"], ["undo", "        path.remove(path.size() - 1);"], [null, "    }"], [null, "}"], [null, ""], [null, "static List<List<Integer>> combine(int[] nums, int k) {"], ["init", "    List<List<Integer>> results = new ArrayList<>();"], ["start", "    backtrack(nums, k, 0, new ArrayList<>(), results);"], ["ret", "    return results;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-14a-table").innerHTML = TL.table(run.table); }
+  { const run = tl14('sub', [1, 2, 3], 0, false);
+    Viz.tlab("#tl-14b", { title: "Template B \u00b7 subsets([1, 2, 3])", sub: "Every arrival is recorded.", code: {"py": [[null, "def subsets(nums):"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["record", "        results.append(path[:])"], ["loop", "        for i in range(start, len(nums)):"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]], "ts": [[null, "function subsets(nums: number[]): number[][] {"], ["init", "  const results: number[][] = [], path: number[] = [];"], [null, "  const backtrack = (start: number): void => {"], ["record", "    results.push([...path]);"], ["loop", "    for (let i = start; i < nums.length; i++) {"], ["choose", "      path.push(nums[i]);"], ["explore", "      backtrack(i + 1);"], ["undo", "      path.pop();"], [null, "    }"], [null, "  };"], ["start", "  backtrack(0);"], ["ret", "  return results;"], [null, "}"]], "java": [[null, "static void subsetsFrom(int[] nums, int start, List<Integer> path, List<List<Integer>> results) {"], ["record", "    results.add(new ArrayList<>(path));"], ["loop", "    for (int i = start; i < nums.length; i++) {"], ["choose", "        path.add(nums[i]);"], ["explore", "        subsetsFrom(nums, i + 1, path, results);"], ["undo", "        path.remove(path.size() - 1);"], [null, "    }"], [null, "}"], [null, ""], [null, "static List<List<Integer>> subsets(int[] nums) {"], ["init", "    List<List<Integer>> results = new ArrayList<>();"], ["start", "    subsetsFrom(nums, 0, new ArrayList<>(), results);"], ["ret", "    return results;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-14b-table").innerHTML = TL.table(run.table); }
+  { const run = tl14('sub', [1, 2], 0, false);
+    Viz.tlab("#tl-14b-bug", { title: "Why copy \u00b7 subsets([1, 2])", sub: "Switch between path[:] and path.", code: {"py": [[null, "def subsets(nums):"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["record", "        results.append(path[:])"], ["loop", "        for i in range(start, len(nums)):"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]], "ts": [[null, "function subsets(nums: number[]): number[][] {"], ["init", "  const results: number[][] = [], path: number[] = [];"], [null, "  const backtrack = (start: number): void => {"], ["record", "    results.push([...path]);"], ["loop", "    for (let i = start; i < nums.length; i++) {"], ["choose", "      path.push(nums[i]);"], ["explore", "      backtrack(i + 1);"], ["undo", "      path.pop();"], [null, "    }"], [null, "  };"], ["start", "  backtrack(0);"], ["ret", "  return results;"], [null, "}"]], "java": [[null, "static void subsetsFrom(int[] nums, int start, List<Integer> path, List<List<Integer>> results) {"], ["record", "    results.add(new ArrayList<>(path));"], ["loop", "    for (int i = start; i < nums.length; i++) {"], ["choose", "        path.add(nums[i]);"], ["explore", "        subsetsFrom(nums, i + 1, path, results);"], ["undo", "        path.remove(path.size() - 1);"], [null, "    }"], [null, "}"], [null, ""], [null, "static List<List<Integer>> subsets(int[] nums) {"], ["init", "    List<List<Integer>> results = new ArrayList<>();"], ["start", "    subsetsFrom(nums, 0, new ArrayList<>(), results);"], ["ret", "    return results;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: append(path) without copying", code: {"py": [[null, "def subsets(nums):"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["record", "        results.append(path)"], ["loop", "        for i in range(start, len(nums)):"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]]}, steps: tl14('sub', [1, 2], 0, true).steps, diverge: undefined, why: "results now holds a reference to path, so the next pop changes this \"recorded\" answer too." } });
+     }
+  { const run = tl14('perm', [1, 2, 3], 0, false);
+    Viz.tlab("#tl-14c", { title: "Template C \u00b7 permutations([1, 2, 3])", sub: "Faded = guests already seated (used).", code: {"py": [[null, "def permutations(nums):"], ["init", "    results, path, used = [], [], [False] * len(nums)"], [null, ""], [null, "    def backtrack():"], ["done", "        if len(path) == len(nums):"], ["record", "            results.append(path[:])"], ["record", "            return"], ["loop", "        for i in range(len(nums)):"], ["skip", "            if used[i]:"], ["skip", "                continue"], ["choose", "            used[i] = True"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack()"], ["undo", "            path.pop()"], ["undo", "            used[i] = False"], [null, ""], ["start", "    backtrack()"], ["ret", "    return results"]], "ts": [[null, "function permutations(nums: number[]): number[][] {"], ["init", "  const results: number[][] = [], path: number[] = [];"], ["init", "  const used: boolean[] = new Array(nums.length).fill(false);"], [null, "  const backtrack = (): void => {"], ["done", "    if (path.length === nums.length) {"], ["record", "      results.push([...path]);"], ["record", "      return;"], [null, "    }"], ["loop", "    for (let i = 0; i < nums.length; i++) {"], ["skip", "      if (used[i]) continue;"], ["choose", "      used[i] = true;"], ["choose", "      path.push(nums[i]);"], ["explore", "      backtrack();"], ["undo", "      path.pop();"], ["undo", "      used[i] = false;"], [null, "    }"], [null, "  };"], ["start", "  backtrack();"], ["ret", "  return results;"], [null, "}"]], "java": [[null, "static void permute(int[] nums, boolean[] used, List<Integer> path, List<List<Integer>> results) {"], ["done", "    if (path.size() == nums.length) {"], ["record", "        results.add(new ArrayList<>(path));"], ["record", "        return;"], [null, "    }"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["skip", "        if (used[i]) continue;"], ["choose", "        used[i] = true;"], ["choose", "        path.add(nums[i]);"], ["explore", "        permute(nums, used, path, results);"], ["undo", "        path.remove(path.size() - 1);"], ["undo", "        used[i] = false;"], [null, "    }"], [null, "}"], [null, ""], [null, "static List<List<Integer>> permutations(int[] nums) {"], ["init", "    List<List<Integer>> results = new ArrayList<>();"], ["start", "    permute(nums, new boolean[nums.length], new ArrayList<>(), results);"], ["ret", "    return results;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-14c-table").innerHTML = TL.table(run.table); }
+  { const run = tl14('dup', [1, 2, 2], 0, false);
+    Viz.tlab("#tl-14d", { title: "Template D \u00b7 subsets_with_dup([2, 1, 2])", sub: "Red = a skipped duplicate sibling.", code: {"py": [[null, "def subsets_with_dup(nums):"], ["sort", "    nums = sorted(nums)"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["record", "        results.append(path[:])"], ["loop", "        for i in range(start, len(nums)):"], ["dup", "            if i > start and nums[i] == nums[i - 1]:"], ["dup", "                continue"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]], "ts": [[null, "function subsetsWithDup(input: number[]): number[][] {"], ["sort", "  const nums = [...input].sort((a, b) => a - b);"], ["init", "  const results: number[][] = [], path: number[] = [];"], [null, "  const backtrack = (start: number): void => {"], ["record", "    results.push([...path]);"], ["loop", "    for (let i = start; i < nums.length; i++) {"], ["dup", "      if (i > start && nums[i] === nums[i - 1]) continue;"], ["choose", "      path.push(nums[i]);"], ["explore", "      backtrack(i + 1);"], ["undo", "      path.pop();"], [null, "    }"], [null, "  };"], ["start", "  backtrack(0);"], ["ret", "  return results;"], [null, "}"]], "java": [[null, "static void subsetsDupFrom(int[] nums, int start, List<Integer> path, List<List<Integer>> results) {"], ["record", "    results.add(new ArrayList<>(path));"], ["loop", "    for (int i = start; i < nums.length; i++) {"], ["dup", "        if (i > start && nums[i] == nums[i - 1]) continue;"], ["choose", "        path.add(nums[i]);"], ["explore", "        subsetsDupFrom(nums, i + 1, path, results);"], ["undo", "        path.remove(path.size() - 1);"], [null, "    }"], [null, "}"], [null, ""], [null, "static List<List<Integer>> subsetsWithDup(int[] input) {"], ["sort", "    int[] nums = input.clone();"], ["sort", "    Arrays.sort(nums);"], ["init", "    List<List<Integer>> results = new ArrayList<>();"], ["start", "    subsetsDupFrom(nums, 0, new ArrayList<>(), results);"], ["ret", "    return results;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-14d-table").innerHTML = TL.table(run.table); }
+  { const run = tl14('dup', [1, 2, 2], 0, false);
+    Viz.tlab("#tl-14d-bug", { title: "i > start, not i > 0", sub: "Switch between the two skip rules.", code: {"py": [[null, "def subsets_with_dup(nums):"], ["sort", "    nums = sorted(nums)"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["record", "        results.append(path[:])"], ["loop", "        for i in range(start, len(nums)):"], ["dup", "            if i > start and nums[i] == nums[i - 1]:"], ["dup", "                continue"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]], "ts": [[null, "function subsetsWithDup(input: number[]): number[][] {"], ["sort", "  const nums = [...input].sort((a, b) => a - b);"], ["init", "  const results: number[][] = [], path: number[] = [];"], [null, "  const backtrack = (start: number): void => {"], ["record", "    results.push([...path]);"], ["loop", "    for (let i = start; i < nums.length; i++) {"], ["dup", "      if (i > start && nums[i] === nums[i - 1]) continue;"], ["choose", "      path.push(nums[i]);"], ["explore", "      backtrack(i + 1);"], ["undo", "      path.pop();"], [null, "    }"], [null, "  };"], ["start", "  backtrack(0);"], ["ret", "  return results;"], [null, "}"]], "java": [[null, "static void subsetsDupFrom(int[] nums, int start, List<Integer> path, List<List<Integer>> results) {"], ["record", "    results.add(new ArrayList<>(path));"], ["loop", "    for (int i = start; i < nums.length; i++) {"], ["dup", "        if (i > start && nums[i] == nums[i - 1]) continue;"], ["choose", "        path.add(nums[i]);"], ["explore", "        subsetsDupFrom(nums, i + 1, path, results);"], ["undo", "        path.remove(path.size() - 1);"], [null, "    }"], [null, "}"], [null, ""], [null, "static List<List<Integer>> subsetsWithDup(int[] input) {"], ["sort", "    int[] nums = input.clone();"], ["sort", "    Arrays.sort(nums);"], ["init", "    List<List<Integer>> results = new ArrayList<>();"], ["start", "    subsetsDupFrom(nums, 0, new ArrayList<>(), results);"], ["ret", "    return results;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: i > 0", code: {"py": [[null, "def subsets_with_dup(nums):"], ["sort", "    nums = sorted(nums)"], ["init", "    results, path = [], []"], [null, ""], [null, "    def backtrack(start):"], ["record", "        results.append(path[:])"], ["loop", "        for i in range(start, len(nums)):"], ["dup", "            if i > 0 and nums[i] == nums[i - 1]:"], ["dup", "                continue"], ["choose", "            path.append(nums[i])"], ["explore", "            backtrack(i + 1)"], ["undo", "            path.pop()"], [null, ""], ["start", "    backtrack(0)"], ["ret", "    return results"]]}, steps: tl14('dup', [1, 2, 2], 0, true).steps, diverge: undefined, why: "this 2 is the first choice at its level (i == start), so it isn't a repeated sibling, but <code>i &gt; 0</code> skips it anyway." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

@@ -2314,60 +2314,230 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> every item is pushed and popped at most once, so <code>O(n)</code> time; up to <code>O(n)</code> space when everything stays open.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Matching pairs: push openers, the closer must match the top
-def is_balanced(s):
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>A stack answers "what's the most recent unfinished thing?". Three templates: <strong>A</strong> matches brackets (the most recent opener must close first), <strong>B</strong> evaluates postfix expressions (the two most recent numbers meet each operator), <strong>C</strong> is a min-stack that remembers the minimum at every height, so <code>get_min</code> stays O(1) after pops.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Balanced brackets</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Is every bracket closed by the matching type, in the right order?</div><div><b>What it keeps</b>A stack of openers still waiting to be closed.</div><div><b>When it checks for an answer</b>Each closer must match the top opener; at the end the stack must be empty.</div><div><b>Use it when</b>Valid parentheses (LC 20), remove invalid/minimum add to make valid, HTML/XML tag matching, decode string.</div><div><b>Not for</b>A single bracket type where a counter is enough.</div></div>
+    <div class="callout memory"><strong>Memory hook: "The last door you opened is the first you must close"</strong>Walking into rooms inside rooms: you must leave through the doors in reverse order. A closer that doesn't match the most recent opened door, or doors still open at the end, means the building is broken.</div>
+    <p><strong>The story, mapped to the code.</strong> Openers are doors you walk through; closers are doors you walk back out of.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Doors still open</td><td data-h="In the code"><code>stack</code></td><td data-h="What it means">Most recent on top.</td></tr><tr><td data-h="In the story">Walk through a door</td><td data-h="In the code"><code>stack.append(ch)</code></td><td data-h="What it means">An opener.</td></tr><tr><td data-h="In the story">Walk out: must be the last door</td><td data-h="In the code"><code>stack[-1] == opener_of[ch]</code></td><td data-h="What it means">Matching type on top.</td></tr><tr><td data-h="In the story">Nowhere to walk out to</td><td data-h="In the code"><code>not stack</code></td><td data-h="What it means">Closer with no opener.</td></tr><tr><td data-h="In the story">Doors left open</td><td data-h="In the code"><code>return not stack</code></td><td data-h="What it means">Unclosed openers.</td></tr></tbody></table>
+    <p><strong>The template.</strong> A dictionary from each closer to its opener keeps the checks short.</p>
+    <pre><code class="python">def is_balanced(s):
     opener_of = {")": "(", "]": "[", "}": "{"}
     stack = []
     for ch in s:
-        if ch in opener_of:                 # a closer
+        if ch in opener_of:
             if not stack or stack[-1] != opener_of[ch]:
                 return False
             stack.pop()
-        else:                               # an opener
+        else:
             stack.append(ch)
-    return not stack                        # leftovers were never closed
+    return not stack</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function isBalanced(s: string): boolean {
+  const openerOf: Record&lt;string, string&gt; = { ")": "(", "]": "[", "}": "{" };
+  const stack: string[] = [];
+  for (const ch of s) {
+    if (ch in openerOf) {
+      if (stack.length === 0 || stack[stack.length - 1] !== openerOf[ch]) {
+        return false;
+      }
+      stack.pop();
+    } else {
+      stack.push(ch);
+    }
+  }
+  return stack.length === 0;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static boolean isBalanced(String s) {
+    Map&lt;Character, Character&gt; openerOf = Map.of(')', '(', ']', '[', '}', '{');
+    Deque&lt;Character&gt; stack = new ArrayDeque&lt;&gt;();
+    for (char ch : s.toCharArray()) {
+        if (openerOf.containsKey(ch)) {
+            if (stack.isEmpty() || stack.peek() != openerOf.get(ch)) {
+                return false;
+            }
+            stack.pop();
+        } else {
+            stack.push(ch);
+        }
+    }
+    return stack.isEmpty();
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if not stack or stack[-1] != opener_of[ch]</code></td><td data-h="What it does">A closer needs a matching opener on top.</td><td data-h="In the story">Is this the last door I opened?</td><td data-h="Why here, and what breaks if it moves">Checking <code>stack[-1]</code> without <code>not stack</code> crashes on ")".</td></tr><tr><td data-h="Line"><code>stack.pop()</code></td><td data-h="What it does">The door is closed.</td><td data-h="In the story">Walk out.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return not stack</code></td><td data-h="What it does">Every opener must be closed.</td><td data-h="In the story">No doors left open.</td><td data-h="Why here, and what breaks if it moves"><code>return True</code> accepts "(()" (see the bug player).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>"([]{})"</code>. The second player returns <code>True</code> at the end instead of checking the stack.</p>
+    <div id="tl-17a"></div><div id="tl-17a-bug"></div><p>Every closer matched, but one "(" is still open. <code>return True</code> misses it.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-17a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After each character, the stack holds the unmatched openers of the prefix, in order; the prefix is valid so far iff no mismatch has occurred.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting the empty-stack check.</strong> A closer with no open door.</li><li><strong>Returning True at the end.</strong> Doors left open = invalid.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>The last door you opened is the first you must close.</dd>
+      <dt>Choose this template when</dt><dd>Nested matching → stack of openers.</dd>
+      <dt>Invariant</dt><dd>Stack = unmatched openers.</dd>
+      <dt>The line people get wrong</dt><dd><code>return not stack</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>"([)]"?</summary><p>False: ')' meets '['.</p></details><details><summary>Minimum additions to make valid?</summary><p>Unmatched closers + leftover openers.</p></details><details><summary>Only one bracket type?</summary><p>A counter that must never go negative.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Evaluate postfix (reverse Polish notation)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Compute an expression written as operands then operator, e.g. 2 1 + 3 *.</div><div><b>What it keeps</b>A stack of numbers waiting for an operator.</div><div><b>When it checks for an answer</b>Each operator pops two numbers (right one first) and pushes the result.</div><div><b>Use it when</b>Evaluate RPN (LC 150); the inner loop of calculators (LC 224/227) after converting infix.</div><div><b>Not for</b>Infix with precedence directly (needs two stacks or recursion).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Numbers wait on a plate; an operator eats the top two"</strong>Numbers are stacked on a plate. When an operator arrives, it takes the top two (the top one is the <em>right</em> operand), combines them, and puts the result back.</div>
+    <p><strong>The story, mapped to the code.</strong> The plate is the stack.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Put a number on the plate</td><td data-h="In the code"><code>stack.append(int(tok))</code></td><td data-h="What it means">Operand.</td></tr><tr><td data-h="In the story">Take the right operand</td><td data-h="In the code"><code>b = stack.pop()</code></td><td data-h="What it means">Popped first.</td></tr><tr><td data-h="In the story">Take the left operand</td><td data-h="In the code"><code>a = stack.pop()</code></td><td data-h="What it means">Popped second.</td></tr><tr><td data-h="In the story">Put the result back</td><td data-h="In the code"><code>stack.append(OPS[tok](a, b))</code></td><td data-h="What it means">Combined.</td></tr><tr><td data-h="In the story">One number left</td><td data-h="In the code"><code>stack[0]</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> A table of operations keeps the loop short. Division truncates toward zero (as LC 150 requires).</p>
+    <pre><code class="python">OPS = {"+": lambda a, b: a + b, "-": lambda a, b: a - b,
+       "*": lambda a, b: a * b, "/": lambda a, b: int(a / b)}
 
-
-# B) Evaluation: operands wait, an operator consumes the top two
 def eval_postfix(tokens):
     stack = []
     for tok in tokens:
-        if tok in ("+", "-", "*", "/"):
-            b = stack.pop()                 # right operand is on top
+        if tok in OPS:
+            b = stack.pop()
             a = stack.pop()
-            stack.append(apply(a, tok, b))
+            stack.append(OPS[tok](a, b))
         else:
             stack.append(int(tok))
-    return stack[0]
+    return stack[0]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">const OPS: Record&lt;string, (a: number, b: number) =&gt; number&gt; = {
+  "+": (a, b) =&gt; a + b, "-": (a, b) =&gt; a - b,
+  "*": (a, b) =&gt; a * b, "/": (a, b) =&gt; Math.trunc(a / b),
+};
 
-
-# C) Augmented stack: keep extra state with every entry
-class MinStack:
+function evalPostfix(tokens: string[]): number {
+  const stack: number[] = [];
+  for (const tok of tokens) {
+    if (tok in OPS) {
+      const b = stack.pop()!;
+      const a = stack.pop()!;
+      stack.push(OPS[tok](a, b));
+    } else {
+      stack.push(Number(tok));
+    }
+  }
+  return stack[0];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int evalPostfix(String[] tokens) {
+    Deque&lt;Integer&gt; stack = new ArrayDeque&lt;&gt;();
+    for (String tok : tokens) {
+        if ("+-*/".contains(tok) &amp;&amp; tok.length() == 1) {
+            int b = stack.pop();
+            int a = stack.pop();
+            stack.push(switch (tok) {
+                case "+" -&gt; a + b;
+                case "-" -&gt; a - b;
+                case "*" -&gt; a * b;
+                default -&gt; a / b;
+            });
+        } else {
+            stack.push(Integer.parseInt(tok));
+        }
+    }
+    return stack.peek();
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if tok in OPS</code></td><td data-h="What it does">Operator or number?</td><td data-h="In the story">Is it an eater?</td><td data-h="Why here, and what breaks if it moves">Checking <code>tok[0] in '+-*/'</code> treats "-3" as an operator.</td></tr><tr><td data-h="Line"><code>b = stack.pop(); a = stack.pop()</code></td><td data-h="What it does">Right operand comes off first.</td><td data-h="In the story">Top of the plate is the right-hand number.</td><td data-h="Why here, and what breaks if it moves">Swapping them breaks − and ÷ (see the bug player).</td></tr><tr><td data-h="Line"><code>OPS['/'] = int(a / b)</code></td><td data-h="What it does">Truncates toward zero.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves"><code>a // b</code> floors: −7 // 2 = −4, but the expected answer is −3.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>5 1 2 + 4 * + 3 -</code> (= 5 + (1 + 2) × 4 − 3). The second player pops the operands in the wrong order.</p>
+    <div id="tl-17b"></div><div id="tl-17b-bug"></div><p>+ and × don't care about order, but at the final − the operands are reversed: 3 − 17 = −14 instead of 17 − 3 = 14.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-17b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After each token, the stack holds the values of the complete sub-expressions read so far, left to right.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Operand order.</strong> Right operand pops first.</li><li><strong>Floor division.</strong> Truncate toward zero.</li><li><strong>Negative numbers mistaken for operators.</strong> Match the whole token.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Numbers wait on a plate; an operator eats the top two.</dd>
+      <dt>Choose this template when</dt><dd>Postfix / RPN → number stack.</dd>
+      <dt>Invariant</dt><dd>Stack = values of finished sub-expressions.</dd>
+      <dt>The line people get wrong</dt><dd><code>b = pop()</code> before <code>a = pop()</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>4 13 5 / +?</summary><p>4 + 13/5 = 4 + 2 = 6.</p></details><details><summary>Why is RPN easy for a stack?</summary><p>Each operator applies to the two most recent results.</p></details><details><summary>7 −2 /?</summary><p>−3 (truncate toward zero).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Min stack (minimum at every height)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>A stack with push, pop, top and get_min, all O(1).</div><div><b>What it keeps</b>Each entry stores its value <em>and</em> the minimum of everything at or below it.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Min Stack (LC 155), max stack, stack-based undo with "best so far".</div><div><b>Not for</b>Min over a sliding window (monotonic deque).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Every plate remembers the smallest plate under it"</strong>When you add a plate, write on it the smallest number in the pile so far (its own or the one written on the plate below). Popping a plate reveals the plate below, which already knows the minimum for the smaller pile.</div>
+    <p><strong>The story, mapped to the code.</strong> Each stack entry is a pair (value, minimum so far).</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The plate</td><td data-h="In the code"><code>(x, low)</code></td><td data-h="What it means">Value and the pile's minimum at this height.</td></tr><tr><td data-h="In the story">Write the minimum on it</td><td data-h="In the code"><code>low = min(x, stack[-1][1])</code></td><td data-h="What it means">Its own or the one below.</td></tr><tr><td data-h="In the story">Lift a plate</td><td data-h="In the code"><code>stack.pop()</code></td><td data-h="What it means">The plate below still knows its minimum.</td></tr><tr><td data-h="In the story">Read the top plate's note</td><td data-h="In the code"><code>stack[-1][1]</code></td><td data-h="What it means">get_min in O(1).</td></tr></tbody></table>
+    <p><strong>The template.</strong> Store pairs; nothing else changes.</p>
+    <pre><code class="python">class MinStack:
     def __init__(self):
-        self.stack = []                     # (value, min at this height)
+        self.stack = []
 
     def push(self, x):
         low = min(x, self.stack[-1][1]) if self.stack else x
-        self.stack.append((x, low))</code></pre>
-<!-- explain-17:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><strong>A:</strong> <code>stack[-1]</code> peeks at the top without removing it. A closer is valid only if the stack is non-empty <em>and</em> its top is the matching opener; then <code>pop()</code> removes that pair. <code>return not stack</code> is <code>True</code> exactly when nothing is left open.</li>
-  <li><strong>B:</strong> numbers are pushed until an operator arrives. Pop <code>b</code> first (it was pushed last) and then <code>a</code>, so <code>a − b</code> and <code>a / b</code> keep the right order. The result goes back on the stack as a new operand. (<code>apply</code> stands for the four operations.)</li>
-  <li><strong>C:</strong> each entry remembers the minimum of everything at or below it, so after a <code>pop()</code> the new top already knows the new minimum. No rescanning.</li>
-</ol>
-<p><strong>Dry run</strong> of template A on <code>s = "([)]"</code> (LeetCode 20):</p>
-<table>
-  <thead><tr><th>ch</th><th>kind</th><th>top before</th><th>action</th><th>stack after</th></tr></thead>
-  <tbody>
-    <tr><td><code>(</code></td><td>opener</td><td>—</td><td>push</td><td><code>(</code></td></tr>
-    <tr><td><code>[</code></td><td>opener</td><td><code>(</code></td><td>push</td><td><code>( [</code></td></tr>
-    <tr><td><code>)</code></td><td>closer</td><td><code>[</code></td><td><strong>needs <code>(</code> on top, found <code>[</code> → False</strong></td><td>—</td></tr>
-  </tbody>
-</table>
-<p>Each type appears twice, yet the order is wrong. A counter per type would miss this; the stack doesn't.</p>
-<!-- /explain-17:template -->
+        self.stack.append((x, low))
+
+    def pop(self):
+        self.stack.pop()
+
+    def top(self):
+        return self.stack[-1][0]
+
+    def get_min(self):
+        return self.stack[-1][1]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">class MinStack {
+  stack: [number, number][] = [];
+
+  push(x: number): void {
+    const low = this.stack.length ? Math.min(x, this.stack[this.stack.length - 1][1]) : x;
+    this.stack.push([x, low]);
+  }
+
+  pop(): void {
+    this.stack.pop();
+  }
+
+  top(): number {
+    return this.stack[this.stack.length - 1][0];
+  }
+
+  getMin(): number {
+    return this.stack[this.stack.length - 1][1];
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static class MinStack {
+    private final Deque&lt;int[]&gt; stack = new ArrayDeque&lt;&gt;();
+
+    void push(int x) {
+        int low = stack.isEmpty() ? x : Math.min(x, stack.peek()[1]);
+        stack.push(new int[]{x, low});
+    }
+
+    void pop() {
+        stack.pop();
+    }
+
+    int top() {
+        return stack.peek()[0];
+    }
+
+    int getMin() {
+        return stack.peek()[1];
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>low = min(x, self.stack[-1][1]) if self.stack else x</code></td><td data-h="What it does">The minimum including x.</td><td data-h="In the story">Write the smallest so far on the plate.</td><td data-h="Why here, and what breaks if it moves">A single <code>self.min</code> variable can't be restored after popping the minimum.</td></tr><tr><td data-h="Line"><code>self.stack.append((x, low))</code></td><td data-h="What it does">Stores the pair.</td><td data-h="In the story">Add the plate.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return self.stack[-1][1]</code></td><td data-h="What it does">O(1) minimum.</td><td data-h="In the story">Read the note on top.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through push 5, push 2, push 4, get_min, pop, pop, get_min.</p>
+    <div id="tl-17c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-17c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> For every entry, its <code>low</code> is the minimum of all values at or below it.</p>
+    <p><strong>Complexity.</strong> O(1) per operation, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>One global minimum.</strong> Each plate remembers its own.</li><li><strong>Empty-stack calls.</strong> Guard pop/top/get_min if the prompt allows them.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Every plate remembers the smallest plate under it.</dd>
+      <dt>Choose this template when</dt><dd>Stack + O(1) min/max → store pairs.</dd>
+      <dt>Invariant</dt><dd>low = min at or below.</dd>
+      <dt>The line people get wrong</dt><dd><code>min(x, self.stack[-1][1])</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Min after push 5, 2, 4?</summary><p>2.</p></details><details><summary>After popping 4 and 2?</summary><p>5.</p></details><details><summary>Space-saving variant?</summary><p>A second stack that only pushes when x ≤ current min.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · brackets</th><th>B · postfix</th><th>C · min stack</th></tr></thead><tbody><tr><td data-h="Question">Stack holds</td><td data-h="A · brackets">Unmatched openers</td><td data-h="B · postfix">Values of finished sub-expressions</td><td data-h="C · min stack">(value, min so far)</td></tr><tr><td data-h="Question">Push when</td><td data-h="A · brackets">An opener arrives</td><td data-h="B · postfix">A number arrives</td><td data-h="C · min stack">push(x)</td></tr><tr><td data-h="Question">Pop when</td><td data-h="A · brackets">A matching closer arrives</td><td data-h="B · postfix">An operator arrives (pop two)</td><td data-h="C · min stack">pop()</td></tr><tr><td data-h="Question">Answer</td><td data-h="A · brackets">Empty at the end, no mismatches</td><td data-h="B · postfix">The one value left</td><td data-h="C · min stack">Top's min</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · brackets">LC 20, 1249</td><td data-h="B · postfix">LC 150, 224</td><td data-h="C · min stack">LC 155</td></tr></tbody></table>
+    <p>All three use the stack for "the most recent unfinished thing": the last opened door, the last two values, the minimum of the current pile. For "next greater/smaller" questions, see the monotonic stack (page 6).</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -6047,5 +6217,82 @@ Since x = 3 is found first, the value of x is 3.</span></div></div>
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl17A(s, bug) {
+    const op = { ")": "(", "]": "[", "}": "{" }, st = [], chars = [...s], steps = [], rows = [];
+    const view = (i, bad) => Viz.array(chars, { label: "s", hl: i >= 0 ? { [i]: bad ? "bad" : "active" } : {} }) + Viz.chips(st, "stack (open doors)");
+    steps.push({ line: "init", vars: {}, view: view(-1), analogy: "No doors open.", note: "Empty stack." });
+    for (let i = 0; i < chars.length; i++) {
+      const ch = chars[i];
+      if (op[ch]) {
+        const ok = st.length && st[st.length - 1] === op[ch];
+        steps.push({ line: ["loop", "closer", "match"], vars: { ch, top: st.length ? st[st.length - 1] : "none", matches: !!ok }, view: view(i, !ok), analogy: ok ? `'${ch}' closes the last door '${op[ch]}'.` : `'${ch}' doesn't match the last door.`, note: `Top ${st.length ? `'${st[st.length - 1]}'` : "none"} vs '${op[ch]}'.`,
+          ask: { q: `Does '${ch}' match the top?`, options: ["yes", "no"], answer: ok ? "yes" : "no", why: `Top is ${st.length ? `'${st[st.length - 1]}'` : "empty"}.` } });
+        if (!ok) { rows.push([i, ch, "mismatch", st.join("")]); steps.push({ line: "bad", vars: { result: "False" }, view: view(i, true), analogy: "Broken building.", note: "Return <code>False</code>." }); return { steps, table: { head: ["i", "Char", "Action", "Stack after"], rows } }; }
+        st.pop(); rows.push([i, ch, "pop", st.join("") || "empty"]);
+        steps.push({ line: "pop", vars: { stack: st.join("") || "empty" }, view: view(i), analogy: "Walk out.", note: "Pop." });
+      } else { st.push(ch); rows.push([i, ch, "push", st.join("")]); steps.push({ line: ["loop", "push"], vars: { ch, stack: st.join("") }, view: view(i), analogy: `Walk through '${ch}'.`, note: `Push '${ch}'.` }); }
+    }
+    const r = bug ? true : st.length === 0;
+    steps.push({ line: "ret", vars: { open_doors: st.length, result: r ? "True" : "False" }, view: view(-1, st.length > 0), analogy: st.length ? (bug ? `⚠ ${st.length} door(s) still open, but the function returns True anyway.` : `${st.length} door(s) left open: invalid.`) : "All doors closed.", note: `Return <code>${r ? "True" : "False"}</code>.`,
+      ask: undefined });
+    return { steps, table: { head: ["i", "Char", "Action", "Stack after"], rows } };
+  }
+
+  function tl17B(tokens, swap) {
+    const st = [], steps = [], rows = [], f = { "+": (a, b) => a + b, "-": (a, b) => a - b, "*": (a, b) => a * b, "/": (a, b) => Math.trunc(a / b) };
+    const view = (i) => Viz.array(tokens, { label: "tokens", hl: i >= 0 ? { [i]: "active" } : {} }) + Viz.chips(st.map(String), "stack (plate)");
+    steps.push({ line: "init", vars: {}, view: view(-1), analogy: "Empty plate.", note: "Empty stack." });
+    tokens.forEach((t, i) => {
+      if (f[t]) {
+        const top = st.pop(), below = st.pop(); const [a, b] = swap ? [top, below] : [below, top]; const r = f[t](a, b); st.push(r);
+        rows.push([t, `${a} ${t} ${b}`, r, "[" + st.join(", ") + "]"]);
+        steps.push({ line: ["loop", "op", "popb", "popa", "apply"], vars: { tok: t, a, b, result: r }, view: view(i), analogy: swap && (t === "-" || t === "/") ? `⚠ Top (${top}) used as the left operand: ${a} ${t} ${b} = ${r}.` : `'${t}' eats ${below} and ${top}: ${a} ${t} ${b} = ${r}.`, note: `Push ${r}.`,
+          ask: { q: `Result of ${t}?`, options: [...new Set([String(f[t](below, top)), String(f[t](top, below)), String(below + top)])], answer: r, why: swap ? "Operands taken in the buggy order." : `a = ${below} (second pop), b = ${top} (first pop).` } });
+      } else { st.push(+t); rows.push([t, "number", "—", "[" + st.join(", ") + "]"]); steps.push({ line: ["loop", "num"], vars: { tok: t }, view: view(i), analogy: `Put ${t} on the plate.`, note: `Push ${t}.` }); }
+    });
+    steps.push({ line: "ret", vars: { result: st[0] }, view: view(-1), analogy: `One value left: ${st[0]}.`, note: `Return <code>${st[0]}</code>.` });
+    return { steps, table: { head: ["Token", "Operation", "Result", "Stack after"], rows } };
+  }
+
+  function tl17C() {
+    const st = [], steps = [], rows = [];
+    const view = () => Viz.chips(st.map(([x, l]) => `(${x}, min ${l})`), "stack (bottom → top)") + `<p class="idx">get_min() = ${st.length ? st[st.length - 1][1] : "—"}</p>`;
+    steps.push({ line: "init", vars: {}, view: view(), analogy: "No plates.", note: "Empty." });
+    const ops = [["push", 5], ["push", 2], ["push", 4], ["min"], ["pop"], ["pop"], ["min"]];
+    ops.forEach(([o, x]) => {
+      if (o === "push") { const low = st.length ? Math.min(x, st[st.length - 1][1]) : x; st.push([x, low]); rows.push([`push(${x})`, `(${x}, ${low})`, st.map((p) => `(${p})`).join(" ")]);
+        steps.push({ line: ["low", "push"], vars: { x, low }, view: view(), analogy: `Plate ${x}; smallest so far ${low}.`, note: `Push (${x}, ${low}).`, ask: { q: `Which minimum is written on plate ${x}?`, options: [...new Set([low, x, 5])].map(String), answer: low, why: "min(x, the note below)." } }); }
+      else if (o === "pop") { const p = st.pop(); rows.push(["pop()", `(${p})`, st.map((q) => `(${q})`).join(" ")]); steps.push({ line: "pop", vars: { removed: p[0] }, view: view(), analogy: `Lift plate ${p[0]}; the one below already knows its minimum.`, note: "Pop." }); }
+      else { const m = st[st.length - 1][1]; rows.push(["get_min()", m, st.map((q) => `(${q})`).join(" ")]); steps.push({ line: "min", vars: { get_min: m }, view: view(), analogy: `Top plate's note: ${m}.`, note: `get_min() = ${m}.` }); }
+    });
+    return { steps, table: { head: ["Operation", "Entry / result", "Stack after"], rows } };
+  }
+
+  { const run = tl17A('([]{})', false);
+    Viz.tlab("#tl-17a", { title: "Template A \u00b7 \"([]{})\"", sub: "Chips = doors still open (bottom \u2192 top).", code: {"py": [[null, "def is_balanced(s):"], ["init", "    opener_of = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}"], ["init", "    stack = []"], ["loop", "    for ch in s:"], ["closer", "        if ch in opener_of:"], ["match", "            if not stack or stack[-1] != opener_of[ch]:"], ["bad", "                return False"], ["pop", "            stack.pop()"], [null, "        else:"], ["push", "            stack.append(ch)"], ["ret", "    return not stack"]], "ts": [[null, "function isBalanced(s: string): boolean {"], ["init", "  const openerOf: Record<string, string> = { \")\": \"(\", \"]\": \"[\", \"}\": \"{\" };"], ["init", "  const stack: string[] = [];"], ["loop", "  for (const ch of s) {"], ["closer", "    if (ch in openerOf) {"], ["match", "      if (stack.length === 0 || stack[stack.length - 1] !== openerOf[ch]) {"], ["bad", "        return false;"], [null, "      }"], ["pop", "      stack.pop();"], [null, "    } else {"], ["push", "      stack.push(ch);"], [null, "    }"], [null, "  }"], ["ret", "  return stack.length === 0;"], [null, "}"]], "java": [[null, "static boolean isBalanced(String s) {"], ["init", "    Map<Character, Character> openerOf = Map.of(')', '(', ']', '[', '}', '{');"], ["init", "    Deque<Character> stack = new ArrayDeque<>();"], ["loop", "    for (char ch : s.toCharArray()) {"], ["closer", "        if (openerOf.containsKey(ch)) {"], ["match", "            if (stack.isEmpty() || stack.peek() != openerOf.get(ch)) {"], ["bad", "                return false;"], [null, "            }"], ["pop", "            stack.pop();"], [null, "        } else {"], ["push", "            stack.push(ch);"], [null, "        }"], [null, "    }"], ["ret", "    return stack.isEmpty();"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-17a-table").innerHTML = TL.table(run.table); }
+  { const run = tl17A('(()', false);
+    Viz.tlab("#tl-17a-bug", { title: "Why check the stack at the end \u00b7 \"(()\"", sub: "Switch between return not stack and return True.", code: {"py": [[null, "def is_balanced(s):"], ["init", "    opener_of = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}"], ["init", "    stack = []"], ["loop", "    for ch in s:"], ["closer", "        if ch in opener_of:"], ["match", "            if not stack or stack[-1] != opener_of[ch]:"], ["bad", "                return False"], ["pop", "            stack.pop()"], [null, "        else:"], ["push", "            stack.append(ch)"], ["ret", "    return not stack"]], "ts": [[null, "function isBalanced(s: string): boolean {"], ["init", "  const openerOf: Record<string, string> = { \")\": \"(\", \"]\": \"[\", \"}\": \"{\" };"], ["init", "  const stack: string[] = [];"], ["loop", "  for (const ch of s) {"], ["closer", "    if (ch in openerOf) {"], ["match", "      if (stack.length === 0 || stack[stack.length - 1] !== openerOf[ch]) {"], ["bad", "        return false;"], [null, "      }"], ["pop", "      stack.pop();"], [null, "    } else {"], ["push", "      stack.push(ch);"], [null, "    }"], [null, "  }"], ["ret", "  return stack.length === 0;"], [null, "}"]], "java": [[null, "static boolean isBalanced(String s) {"], ["init", "    Map<Character, Character> openerOf = Map.of(')', '(', ']', '[', '}', '{');"], ["init", "    Deque<Character> stack = new ArrayDeque<>();"], ["loop", "    for (char ch : s.toCharArray()) {"], ["closer", "        if (openerOf.containsKey(ch)) {"], ["match", "            if (stack.isEmpty() || stack.peek() != openerOf.get(ch)) {"], ["bad", "                return false;"], [null, "            }"], ["pop", "            stack.pop();"], [null, "        } else {"], ["push", "            stack.push(ch);"], [null, "        }"], [null, "    }"], ["ret", "    return stack.isEmpty();"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: return True", code: {"py": [[null, "def is_balanced(s):"], ["init", "    opener_of = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}"], ["init", "    stack = []"], ["loop", "    for ch in s:"], ["closer", "        if ch in opener_of:"], ["match", "            if not stack or stack[-1] != opener_of[ch]:"], ["bad", "                return False"], ["pop", "            stack.pop()"], [null, "        else:"], ["push", "            stack.append(ch)"], ["ret", "    return True"]]}, steps: tl17A('(()', true).steps, diverge: undefined, why: "a door is still open, but the function doesn't look." } });
+     }
+  { const run = tl17B(['5', '1', '2', '+', '4', '*', '+', '3', '-'], false);
+    Viz.tlab("#tl-17b", { title: "Template B \u00b7 5 1 2 + 4 * + 3 -", sub: "Chips = the plate (bottom \u2192 top).", code: {"py": [[null, "OPS = {\"+\": lambda a, b: a + b, \"-\": lambda a, b: a - b,"], [null, "       \"*\": lambda a, b: a * b, \"/\": lambda a, b: int(a / b)}"], [null, ""], [null, "def eval_postfix(tokens):"], ["init", "    stack = []"], ["loop", "    for tok in tokens:"], ["op", "        if tok in OPS:"], ["popb", "            b = stack.pop()"], ["popa", "            a = stack.pop()"], ["apply", "            stack.append(OPS[tok](a, b))"], [null, "        else:"], ["num", "            stack.append(int(tok))"], ["ret", "    return stack[0]"]], "ts": [[null, "const OPS: Record<string, (a: number, b: number) => number> = {"], [null, "  \"+\": (a, b) => a + b, \"-\": (a, b) => a - b,"], [null, "  \"*\": (a, b) => a * b, \"/\": (a, b) => Math.trunc(a / b),"], [null, "};"], [null, ""], [null, "function evalPostfix(tokens: string[]): number {"], ["init", "  const stack: number[] = [];"], ["loop", "  for (const tok of tokens) {"], ["op", "    if (tok in OPS) {"], ["popb", "      const b = stack.pop()!;"], ["popa", "      const a = stack.pop()!;"], ["apply", "      stack.push(OPS[tok](a, b));"], [null, "    } else {"], ["num", "      stack.push(Number(tok));"], [null, "    }"], [null, "  }"], ["ret", "  return stack[0];"], [null, "}"]], "java": [[null, "static int evalPostfix(String[] tokens) {"], ["init", "    Deque<Integer> stack = new ArrayDeque<>();"], ["loop", "    for (String tok : tokens) {"], ["op", "        if (\"+-*/\".contains(tok) && tok.length() == 1) {"], ["popb", "            int b = stack.pop();"], ["popa", "            int a = stack.pop();"], ["apply", "            stack.push(switch (tok) {"], [null, "                case \"+\" -> a + b;"], [null, "                case \"-\" -> a - b;"], [null, "                case \"*\" -> a * b;"], [null, "                default -> a / b;"], [null, "            });"], [null, "        } else {"], ["num", "            stack.push(Integer.parseInt(tok));"], [null, "        }"], [null, "    }"], ["ret", "    return stack.peek();"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-17b-table").innerHTML = TL.table(run.table); }
+  { const run = tl17B(['5', '1', '2', '+', '4', '*', '+', '3', '-'], false);
+    Viz.tlab("#tl-17b-bug", { title: "Operand order \u00b7 same tokens", sub: "Switch between b-then-a and a-then-b.", code: {"py": [[null, "OPS = {\"+\": lambda a, b: a + b, \"-\": lambda a, b: a - b,"], [null, "       \"*\": lambda a, b: a * b, \"/\": lambda a, b: int(a / b)}"], [null, ""], [null, "def eval_postfix(tokens):"], ["init", "    stack = []"], ["loop", "    for tok in tokens:"], ["op", "        if tok in OPS:"], ["popb", "            b = stack.pop()"], ["popa", "            a = stack.pop()"], ["apply", "            stack.append(OPS[tok](a, b))"], [null, "        else:"], ["num", "            stack.append(int(tok))"], ["ret", "    return stack[0]"]], "ts": [[null, "const OPS: Record<string, (a: number, b: number) => number> = {"], [null, "  \"+\": (a, b) => a + b, \"-\": (a, b) => a - b,"], [null, "  \"*\": (a, b) => a * b, \"/\": (a, b) => Math.trunc(a / b),"], [null, "};"], [null, ""], [null, "function evalPostfix(tokens: string[]): number {"], ["init", "  const stack: number[] = [];"], ["loop", "  for (const tok of tokens) {"], ["op", "    if (tok in OPS) {"], ["popb", "      const b = stack.pop()!;"], ["popa", "      const a = stack.pop()!;"], ["apply", "      stack.push(OPS[tok](a, b));"], [null, "    } else {"], ["num", "      stack.push(Number(tok));"], [null, "    }"], [null, "  }"], ["ret", "  return stack[0];"], [null, "}"]], "java": [[null, "static int evalPostfix(String[] tokens) {"], ["init", "    Deque<Integer> stack = new ArrayDeque<>();"], ["loop", "    for (String tok : tokens) {"], ["op", "        if (\"+-*/\".contains(tok) && tok.length() == 1) {"], ["popb", "            int b = stack.pop();"], ["popa", "            int a = stack.pop();"], ["apply", "            stack.push(switch (tok) {"], [null, "                case \"+\" -> a + b;"], [null, "                case \"-\" -> a - b;"], [null, "                case \"*\" -> a * b;"], [null, "                default -> a / b;"], [null, "            });"], [null, "        } else {"], ["num", "            stack.push(Integer.parseInt(tok));"], [null, "        }"], [null, "    }"], ["ret", "    return stack.peek();"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: pop a first", code: {"py": [[null, "OPS = {\"+\": lambda a, b: a + b, \"-\": lambda a, b: a - b,"], [null, "       \"*\": lambda a, b: a * b, \"/\": lambda a, b: int(a / b)}"], [null, ""], [null, "def eval_postfix(tokens):"], ["init", "    stack = []"], ["loop", "    for tok in tokens:"], ["op", "        if tok in OPS:"], ["popb", "            a = stack.pop()"], ["popa", "            b = stack.pop()"], ["apply", "            stack.append(OPS[tok](a, b))"], [null, "        else:"], ["num", "            stack.append(int(tok))"], ["ret", "    return stack[0]"]]}, steps: tl17B(['5', '1', '2', '+', '4', '*', '+', '3', '-'], true).steps, diverge: undefined, why: "the top of the stack is the right operand, but it was used as the left one." } });
+     }
+  { const run = tl17C();
+    Viz.tlab("#tl-17c", { title: "Template C \u00b7 push 5, 2, 4; pop twice", sub: "Each chip is (value, minimum at that height), bottom \u2192 top.", code: {"py": [[null, "class MinStack:"], [null, "    def __init__(self):"], ["init", "        self.stack = []"], [null, ""], [null, "    def push(self, x):"], ["low", "        low = min(x, self.stack[-1][1]) if self.stack else x"], ["push", "        self.stack.append((x, low))"], [null, ""], [null, "    def pop(self):"], ["pop", "        self.stack.pop()"], [null, ""], [null, "    def top(self):"], [null, "        return self.stack[-1][0]"], [null, ""], [null, "    def get_min(self):"], ["min", "        return self.stack[-1][1]"]], "ts": [[null, "class MinStack {"], ["init", "  stack: [number, number][] = [];"], [null, ""], [null, "  push(x: number): void {"], ["low", "    const low = this.stack.length ? Math.min(x, this.stack[this.stack.length - 1][1]) : x;"], ["push", "    this.stack.push([x, low]);"], [null, "  }"], [null, ""], [null, "  pop(): void {"], ["pop", "    this.stack.pop();"], [null, "  }"], [null, ""], [null, "  top(): number {"], [null, "    return this.stack[this.stack.length - 1][0];"], [null, "  }"], [null, ""], [null, "  getMin(): number {"], ["min", "    return this.stack[this.stack.length - 1][1];"], [null, "  }"], [null, "}"]], "java": [[null, "static class MinStack {"], ["init", "    private final Deque<int[]> stack = new ArrayDeque<>();"], [null, ""], [null, "    void push(int x) {"], ["low", "        int low = stack.isEmpty() ? x : Math.min(x, stack.peek()[1]);"], ["push", "        stack.push(new int[]{x, low});"], [null, "    }"], [null, ""], [null, "    void pop() {"], ["pop", "        stack.pop();"], [null, "    }"], [null, ""], [null, "    int top() {"], [null, "        return stack.peek()[0];"], [null, "    }"], [null, ""], [null, "    int getMin() {"], ["min", "        return stack.peek()[1];"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-17c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

@@ -2314,64 +2314,199 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(1)</code> average per lookup/insert, so most solutions are <code>O(n)</code> time and <code>O(n)</code> extra space. (Worst case is <code>O(n)</code> per operation if many keys collide, which doesn't happen in practice with Python's hashing.)</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Membership: have I seen this value before?
-def has_duplicate(nums):
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Hash maps and sets turn "have I seen this before?" into an O(1) lookup. Four templates: <strong>A</strong> a set of things seen (duplicates); <strong>B</strong> a map from value to index, looked up <em>before</em> storing (two sum); <strong>C</strong> a map from value to count (frequencies); <strong>D</strong> a map from a computed key to a list (grouping, e.g. anagrams). The order of "look up" and "store" is the line that most often goes wrong.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Set of seen values (contains duplicate)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Has any value appeared before?</div><div><b>What it keeps</b><code>seen</code>: every value passed so far.</div><div><b>When it checks for an answer</b>Each value is checked before it's added.</div><div><b>Use it when</b>Duplicates, first repeated item, cycle detection on states, "visited" in graphs.</div><div><b>Not for</b>Needing <em>where</em> or <em>how often</em> (B, C).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Check the guest list, then sign it"</strong>A doorman with a guest list: when someone arrives, check whether their name is already on it. If yes, they're a repeat. If not, write it down.</div>
+    <p><strong>The story, mapped to the code.</strong> The set is the guest list.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Guest list</td><td data-h="In the code"><code>seen</code></td><td data-h="What it means">Values passed so far.</td></tr><tr><td data-h="In the story">Already signed?</td><td data-h="In the code"><code>x in seen</code></td><td data-h="What it means">O(1) on average.</td></tr><tr><td data-h="In the story">Sign it</td><td data-h="In the code"><code>seen.add(x)</code></td><td data-h="What it means">After the check.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Check, then add.</p>
+    <pre><code class="python">def has_duplicate(nums):
     seen = set()
     for x in nums:
-        if x in seen:          # ask first ...
+        if x in seen:
             return True
-        seen.add(x)            # ... then remember
-    return False
-
-
-# B) Complement lookup: value -> index of the partner I need
-def two_sum(nums, target):
+        seen.add(x)
+    return False</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function hasDuplicate(nums: number[]): boolean {
+  const seen = new Set&lt;number&gt;();
+  for (const x of nums) {
+    if (seen.has(x)) return true;
+    seen.add(x);
+  }
+  return false;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static boolean hasDuplicate(int[] nums) {
+    Set&lt;Integer&gt; seen = new HashSet&lt;&gt;();
+    for (int x : nums) {
+        if (seen.contains(x)) return true;
+        seen.add(x);
+    }
+    return false;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if x in seen: return True</code></td><td data-h="What it does">Seen before?</td><td data-h="In the story">Check the list.</td><td data-h="Why here, and what breaks if it moves">Adding first makes every value look like a duplicate of itself.</td></tr><tr><td data-h="Line"><code>seen.add(x)</code></td><td data-h="What it does">Remember it.</td><td data-h="In the story">Sign the list.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[4, 1, 3, 1]</code>.</p>
+    <div id="tl-16a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-16a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Before index i, <code>seen</code> holds exactly the values at indices 0..i−1.</p>
+    <p><strong>Complexity.</strong> O(n) average time, O(n) space. (Sorting first is O(n log n) time, O(1) extra space.)</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Using a list for seen.</strong> <code>in</code> on a list is O(n).</li><li><strong>Adding before checking.</strong> Check, then sign.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Check the guest list, then sign it.</dd>
+      <dt>Choose this template when</dt><dd>"Seen before?" → set.</dd>
+      <dt>Invariant</dt><dd>seen = values before the current one.</dd>
+      <dt>The line people get wrong</dt><dd>Check before add.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Return for [4, 1, 3, 1]?</summary><p>True, at the second 1.</p></details><details><summary>Space?</summary><p>O(n).</p></details><details><summary>Within distance k (LC 219)?</summary><p>Keep only the last k values in the set (sliding window).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Value → index, look up before storing (two sum)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Find two indices whose values add to target.</div><div><b>What it keeps</b><code>index_of</code>: value → index where it appeared.</div><div><b>When it checks for an answer</b>For each number: is its complement (target − number) already stored?</div><div><b>Use it when</b>Two sum (LC 1), pairs with a difference, "have I seen what completes me?" problems.</div><div><b>Not for</b>Sorted arrays without needing indices (two pointers, page 2).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Ask who completes me, then leave my own name"</strong>At a dance, each person arriving asks the host: "is my partner (target − me) here?" Only after asking do they leave their own name. Asking first means nobody partners with themselves.</div>
+    <p><strong>The story, mapped to the code.</strong> The host's book maps a value to where that person stands.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The host's book</td><td data-h="In the code"><code>index_of</code></td><td data-h="What it means">value → index.</td></tr><tr><td data-h="In the story">Who completes me?</td><td data-h="In the code"><code>need = target - nums[i]</code></td><td data-h="What it means">The complement.</td></tr><tr><td data-h="In the story">Is my partner here?</td><td data-h="In the code"><code>need in index_of</code></td><td data-h="What it means">Lookup first.</td></tr><tr><td data-h="In the story">Leave my name</td><td data-h="In the code"><code>index_of[nums[i]] = i</code></td><td data-h="What it means">Store after the lookup.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Lookup, then store: the same order as Prefix Sum's Template B (page 1).</p>
+    <pre><code class="python">def two_sum(nums, target):
     index_of = {}
-    for i in range(len(nums)):
-        need = target - nums[i]
+    for i, x in enumerate(nums):
+        need = target - x
         if need in index_of:
             return [index_of[need], i]
-        index_of[nums[i]] = i
-    return []
-
-
-# C) Counting: how many of each?
-def counts(items):
+        index_of[x] = i
+    return []</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function twoSum(nums: number[], target: number): number[] {
+  const indexOf = new Map&lt;number, number&gt;();
+  for (let i = 0; i &lt; nums.length; i++) {
+    const need = target - nums[i];
+    if (indexOf.has(need)) return [indexOf.get(need)!, i];
+    indexOf.set(nums[i], i);
+  }
+  return [];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int[] twoSum(int[] nums, int target) {
+    Map&lt;Integer, Integer&gt; indexOf = new HashMap&lt;&gt;();
+    for (int i = 0; i &lt; nums.length; i++) {
+        int need = target - nums[i];
+        if (indexOf.containsKey(need)) return new int[]{indexOf.get(need), i};
+        indexOf.put(nums[i], i);
+    }
+    return new int[0];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>need = target - x</code></td><td data-h="What it does">The value that would complete x.</td><td data-h="In the story">Who completes me?</td><td data-h="Why here, and what breaks if it moves"><code>x - target</code> flips the sign.</td></tr><tr><td data-h="Line"><code>if need in index_of: return [index_of[need], i]</code></td><td data-h="What it does">Pair with an earlier index.</td><td data-h="In the story">Partner already here.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>index_of[x] = i</code></td><td data-h="What it does">Store after the lookup.</td><td data-h="In the story">Leave my name.</td><td data-h="Why here, and what breaks if it moves">Storing first lets x pair with itself when x = target / 2 (see the bug player).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[3, 2, 4]</code>, <code>target = 6</code>. The second player stores before looking up.</p>
+    <div id="tl-16b"></div><div id="tl-16b-bug"></div><p>Storing 3 first means its own lookup for 6 − 3 = 3 finds itself: <code>[0, 0]</code>, which uses one element twice. The correct answer is <code>[1, 2]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-16b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When index i is processed, <code>index_of</code> holds values from indices before i only, so any match is a different element.</p>
+    <p><strong>Complexity.</strong> O(n) average time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Storing before the lookup.</strong> Ask, then leave your name.</li><li><strong>Returning values instead of indices.</strong> Store the index.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Ask who completes me, then leave my name.</dd>
+      <dt>Choose this template when</dt><dd>Pair summing to target, unsorted, indices needed → map value → index.</dd>
+      <dt>Invariant</dt><dd>The map holds earlier indices only.</dd>
+      <dt>The line people get wrong</dt><dd>Lookup before store.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Answer for [2, 7, 11, 15], 9?</summary><p>[0, 1].</p></details><details><summary>Why not sort + two pointers?</summary><p>Sorting loses the original indices.</p></details><details><summary>Duplicates like [3, 3], 6?</summary><p>Works: the first 3 is stored, the second finds it.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Value → count (frequencies)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>How many times does each value appear?</div><div><b>What it keeps</b><code>count</code>: value → occurrences.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Anagram check, top-k frequent (with a heap, page 7), majority element, first unique character.</div><div><b>Not for</b>Order-dependent questions (combine with a pass over the input).</div></div>
+    <div class="callout memory"><strong>Memory hook: "A tally sheet: one mark per sighting"</strong>Bird-watching: each time you see a bird, add a mark next to its species (start a new line the first time).</div>
+    <p><strong>The story, mapped to the code.</strong> The map is the tally sheet.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Tally sheet</td><td data-h="In the code"><code>count</code></td><td data-h="What it means">Species → marks.</td></tr><tr><td data-h="In the story">New species</td><td data-h="In the code"><code>count.get(x, 0)</code></td><td data-h="What it means">Starts at 0.</td></tr><tr><td data-h="In the story">Add a mark</td><td data-h="In the code"><code>+ 1</code></td><td data-h="What it means">One per sighting.</td></tr></tbody></table>
+    <p><strong>The template.</strong> <code>collections.Counter(items)</code> does the same in one line in Python; know the loop for other languages.</p>
+    <pre><code class="python">def counts(items):
     count = {}
     for x in items:
-        count[x] = count.get(x, 0) + 1     # .get gives 0 for a new key
-    return count                            # collections.Counter(items) does the same
-
-
-# D) Grouping by a canonical key
-def group_by_key(items, key_of):
+        count[x] = count.get(x, 0) + 1
+    return count</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function counts&lt;T&gt;(items: Iterable&lt;T&gt;): Map&lt;T, number&gt; {
+  const count = new Map&lt;T, number&gt;();
+  for (const x of items) {
+    count.set(x, (count.get(x) ?? 0) + 1);
+  }
+  return count;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static &lt;T&gt; Map&lt;T, Integer&gt; counts(List&lt;T&gt; items) {
+    Map&lt;T, Integer&gt; count = new LinkedHashMap&lt;&gt;();
+    for (T x : items) {
+        count.merge(x, 1, Integer::sum);
+    }
+    return count;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>count[x] = count.get(x, 0) + 1</code></td><td data-h="What it does">Starts unseen values at 0.</td><td data-h="In the story">New line, then a mark.</td><td data-h="Why here, and what breaks if it moves"><code>count[x] += 1</code> raises KeyError on the first sighting (use defaultdict(int) or get).</td></tr><tr><td data-h="Line"><code>return count</code></td><td data-h="What it does">The tally.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">Java's HashMap has no order; LinkedHashMap keeps first-seen order.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the letters of <code>"banana"</code>.</p>
+    <div id="tl-16c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-16c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After i items, <code>count[x]</code> = occurrences of x among the first i items.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(distinct values) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>KeyError on first sighting.</strong> get(x, 0) or defaultdict.</li><li><strong>Comparing two Counters with == in other languages.</strong> Compare maps entry by entry, or use a 26-slot array for letters.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>A tally sheet: one mark per sighting.</dd>
+      <dt>Choose this template when</dt><dd>"How many of each" → count map.</dd>
+      <dt>Invariant</dt><dd>count = tallies so far.</dd>
+      <dt>The line people get wrong</dt><dd>Default 0 on first sighting.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Counts for banana?</summary><p>b:1, a:3, n:2.</p></details><details><summary>Valid anagram?</summary><p>Same counts for both strings.</p></details><details><summary>Lowercase letters only?</summary><p>An array of 26 ints is faster.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Computed key → list (group anagrams)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Group items that share some property.</div><div><b>What it keeps</b><code>groups</code>: key → list of items with that key.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Group anagrams (LC 49, key = sorted letters), group by digit sum, bucket by first letter, shifted strings.</div><div><b>Not for</b>Just counting (C).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Same label, same bin"</strong>Sorting mail into bins: compute each letter's label (for anagrams, the word's letters in alphabetical order), then drop the letter into the bin with that label, creating the bin if it doesn't exist.</div>
+    <p><strong>The story, mapped to the code.</strong> Bins keyed by a label you compute.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Compute the label</td><td data-h="In the code"><code>k = key_of(x)</code></td><td data-h="What it means">Equal for items that belong together.</td></tr><tr><td data-h="In the story">New label</td><td data-h="In the code"><code>groups.setdefault(k, [])</code></td><td data-h="What it means">Create an empty bin.</td></tr><tr><td data-h="In the story">Drop it in</td><td data-h="In the code"><code>groups[k].append(x)</code></td><td data-h="What it means">Group grows.</td></tr><tr><td data-h="In the story">All bins</td><td data-h="In the code"><code>list(groups.values())</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The key function is the whole trick.</p>
+    <pre><code class="python">def group_by_key(items, key_of):
     groups = {}
     for x in items:
-        k = key_of(x)                       # e.g. "".join(sorted(word))
-        if k not in groups:
-            groups[k] = []
-        groups[k].append(x)
+        k = key_of(x)
+        groups.setdefault(k, []).append(x)
     return list(groups.values())</code></pre>
-<!-- explain-16:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><strong>A:</strong> <code>seen = set()</code> remembers values. <code>if x in seen</code> is an <code>O(1)</code> question; we ask <em>before</em> <code>seen.add(x)</code> so a value never counts as its own duplicate.</li>
-  <li><strong>B:</strong> the dictionary maps a value to the index where it appeared. For each number we compute the partner it needs (<code>target − nums[i]</code>) and look it up. Storing after the lookup means an element can't pair with itself.</li>
-  <li><strong>C:</strong> <code>count.get(x, 0) + 1</code> reads the current count (0 if <code>x</code> is new) and adds one. That avoids a <code>KeyError</code> without an <code>if</code>.</li>
-  <li><strong>D:</strong> <code>key_of(x)</code> turns each item into its canonical form; items with equal keys land in the same list. Keys must be hashable, so use a string or a tuple, never a list.</li>
-</ol>
-<p><strong>Dry run</strong> of template B on <code>nums = [3, 2, 4]</code>, <code>target = 6</code> (LeetCode 1, Example 2):</p>
-<table>
-  <thead><tr><th>i</th><th>nums[i]</th><th>need</th><th>need in index_of?</th><th>index_of after</th></tr></thead>
-  <tbody>
-    <tr><td>0</td><td>3</td><td>3</td><td>no (3 itself isn't stored yet)</td><td><code>{3: 0}</code></td></tr>
-    <tr><td>1</td><td>2</td><td>4</td><td>no</td><td><code>{3: 0, 2: 1}</code></td></tr>
-    <tr><td>2</td><td>4</td><td>2</td><td><strong>yes → return [1, 2]</strong></td><td>—</td></tr>
-  </tbody>
-</table>
-<p>Row 0 shows why we look up <em>before</em> storing: the 3 must not pair with itself to make 6.</p>
-<!-- /explain-16:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function groupByKey&lt;T, K&gt;(items: T[], keyOf: (x: T) =&gt; K): T[][] {
+  const groups = new Map&lt;K, T[]&gt;();
+  for (const x of items) {
+    const k = keyOf(x);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(x);
+  }
+  return [...groups.values()];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static &lt;T, K&gt; List&lt;List&lt;T&gt;&gt; groupByKey(List&lt;T&gt; items, Function&lt;T, K&gt; keyOf) {
+    Map&lt;K, List&lt;T&gt;&gt; groups = new LinkedHashMap&lt;&gt;();
+    for (T x : items) {
+        K k = keyOf.apply(x);
+        groups.computeIfAbsent(k, unused -&gt; new ArrayList&lt;&gt;()).add(x);
+    }
+    return new ArrayList&lt;&gt;(groups.values());
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>k = key_of(x)</code></td><td data-h="What it does">Computes the label.</td><td data-h="In the story">What's on the envelope?</td><td data-h="Why here, and what breaks if it moves">A list can't be a dict key in Python: use a tuple or a string (e.g. ''.join(sorted(w))).</td></tr><tr><td data-h="Line"><code>groups.setdefault(k, []).append(x)</code></td><td data-h="What it does">Creates the bin if needed, then appends.</td><td data-h="In the story">Drop it in.</td><td data-h="Why here, and what breaks if it moves"><code>groups[k].append(x)</code> without creating the bin raises KeyError.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through grouping <code>[eat, tea, tan, ate, nat, bat]</code> by sorted letters.</p>
+    <div id="tl-16d"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-16d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Every processed item is in exactly one bin, the one for its key.</p>
+    <p><strong>Complexity.</strong> O(n × cost of key). For anagrams: O(n · m log m) with sorting, O(n · m) with a 26-count tuple key.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Unhashable keys.</strong> Tuples or strings.</li><li><strong>Bad key choice.</strong> Items in the same group must get equal keys, and only they.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Same label, same bin.</dd>
+      <dt>Choose this template when</dt><dd>"Group items that are equivalent" → key → list map.</dd>
+      <dt>Invariant</dt><dd>One bin per key.</dd>
+      <dt>The line people get wrong</dt><dd>The key function.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Key for anagrams?</summary><p>Sorted letters, or a 26-letter count tuple.</p></details><details><summary>Bins for the example?</summary><p>[eat, tea, ate], [tan, nat], [bat].</p></details><details><summary>Group shifted strings?</summary><p>Key = differences between consecutive letters mod 26.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · set</th><th>B · value → index</th><th>C · value → count</th><th>D · key → list</th></tr></thead><tbody><tr><td data-h="Question">Stores</td><td data-h="A · set">Values seen</td><td data-h="B · value → index">Where each value was</td><td data-h="C · value → count">How often</td><td data-h="D · key → list">Items grouped by key</td></tr><tr><td data-h="Question">Order of operations</td><td data-h="A · set">Check, then add</td><td data-h="B · value → index">Look up, then store</td><td data-h="C · value → count">Increment</td><td data-h="D · key → list">Compute key, append</td></tr><tr><td data-h="Question">Answers</td><td data-h="A · set">Seen before?</td><td data-h="B · value → index">Where is my complement?</td><td data-h="C · value → count">How many?</td><td data-h="D · key → list">Which belong together?</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · set">LC 217, 141</td><td data-h="B · value → index">LC 1, 560 (with prefix sums)</td><td data-h="C · value → count">LC 242, 347, 169</td><td data-h="D · key → list">LC 49</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · set">O(n) / O(n)</td><td data-h="B · value → index">O(n) / O(n)</td><td data-h="C · value → count">O(n) / O(k)</td><td data-h="D · key → list">O(n·key) / O(n)</td></tr></tbody></table>
+    <p>Pick by what you need back from the lookup: a yes/no (A), a position (B), a number (C), or a collection (D). When you look up and store in the same loop, look up first.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -7598,5 +7733,95 @@ class Solution:
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl16A(nums) {
+    const seen = new Set(), steps = [], rows = [];
+    const view = (i, hit) => Viz.array(nums, { label: "nums", hl: i >= 0 ? { [i]: hit ? "bad" : "active" } : {} }) + Viz.chips([...seen].map(String), "seen");
+    steps.push({ line: "init", vars: {}, view: view(-1), analogy: "An empty guest list.", note: "<code>seen = set()</code>." });
+    for (let i = 0; i < nums.length; i++) {
+      const x = nums[i], hit = seen.has(x);
+      steps.push({ line: ["loop", "check"], vars: { x, in_seen: hit }, view: view(i, hit), analogy: hit ? `${x} is already on the list: a repeat.` : `${x} isn't on the list yet.`, note: `${x} in seen? ${hit}.`,
+        ask: { q: `Is ${x} in seen?`, options: ["yes", "no"], answer: hit ? "yes" : "no", why: `seen = {${[...seen].join(", ")}}.` } });
+      rows.push([i, x, hit ? "yes" : "no", "{" + [...seen].join(", ") + "}"]);
+      if (hit) { steps.push({ line: "found", vars: { result: "True" }, view: view(i, true), analogy: "Duplicate found.", note: "Return <code>True</code>." }); return { steps, table: { head: ["i", "x", "Already seen?", "seen before adding"], rows } }; }
+      seen.add(x); steps.push({ line: "add", vars: { seen: "{" + [...seen].join(", ") + "}" }, view: view(i), analogy: `Sign ${x} on the list.`, note: `<code>seen.add(${x})</code>.` });
+    }
+    steps.push({ line: "none", vars: { result: "False" }, view: view(-1), analogy: "No repeats.", note: "Return <code>False</code>." });
+    return { steps, table: { head: ["i", "x", "Already seen?", "seen before adding"], rows } };
+  }
+
+  function tl16B(nums, target, storeFirst) {
+    const idx = new Map(), steps = [], rows = [];
+    const view = (i, hl) => Viz.array(nums, { label: "nums", hl: Object.assign(i >= 0 ? { [i]: "active" } : {}, hl || {}) }) + Viz.chips([...idx].map(([k, v]) => `${k} → ${v}`), "index_of (value → index)");
+    steps.push({ line: "init", vars: {}, view: view(-1), analogy: "The host's book is empty.", note: "<code>index_of = {}</code>." });
+    for (let i = 0; i < nums.length; i++) {
+      const x = nums[i], need = target - x;
+      if (storeFirst) { idx.set(x, i); steps.push({ line: ["loop", "store"], vars: { i, x, stored: `${x} → ${i}` }, view: view(i), analogy: `${x} leaves its name <b>before</b> asking.`, note: `<code>index_of[${x}] = ${i}</code> (too early).` }); }
+      steps.push({ line: storeFirst ? "need" : ["loop", "need"], vars: { i, x, need }, view: view(i), analogy: `${x} needs a partner worth ${need}.`, note: `<code>need = ${target} − ${x} = ${need}</code>.`,
+        ask: { q: `Is ${need} in the book?`, options: ["yes", "no"], answer: idx.has(need) ? "yes" : "no", why: `Book: {${[...idx].map(([k, v]) => `${k}: ${v}`).join(", ")}}.` } });
+      if (idx.has(need)) {
+        const j = idx.get(need); rows.push([i, x, need, "yes", `[${j}, ${i}]`]);
+        steps.push({ line: ["look", "found"], vars: { result: `[${j}, ${i}]` }, view: view(i, { [j]: j === i ? "bad" : "found", [i]: j === i ? "bad" : "found" }), analogy: j === i ? `⚠ ${x} found its own name: index ${i} twice.` : `Partner ${need} is at index ${j}.`, note: `Return <code>[${j}, ${i}]</code>.` });
+        return { steps, table: { head: ["i", "x", "need", "In the book?", "Action"], rows } };
+      }
+      rows.push([i, x, need, "no", `store ${x} → ${i}`]);
+      steps.push({ line: "look", vars: { need, found: false }, view: view(i), analogy: `No ${need} yet.`, note: `${need} not in the book.` });
+      if (!storeFirst) { idx.set(x, i); steps.push({ line: "store", vars: { stored: `${x} → ${i}` }, view: view(i), analogy: `${x} leaves its name.`, note: `<code>index_of[${x}] = ${i}</code>.` }); }
+    }
+    steps.push({ line: "none", vars: {}, view: view(-1), analogy: "No pair.", note: "Return <code>[]</code>." });
+    return { steps, table: { head: ["i", "x", "need", "In the book?", "Action"], rows } };
+  }
+
+  function tl16C(s) {
+    const chars = [...s], c = new Map(), steps = [], rows = [];
+    const view = (i) => Viz.array(chars, { label: "items", hl: i >= 0 ? { [i]: "active" } : {} }) + Viz.chips([...c].map(([k, v]) => `${k}: ${v}`), "count");
+    steps.push({ line: "init", vars: {}, view: view(-1), analogy: "A blank tally sheet.", note: "<code>count = {}</code>." });
+    chars.forEach((x, i) => {
+      const before = c.get(x) || 0; c.set(x, before + 1); rows.push([i, x, before, before + 1]);
+      steps.push({ line: ["loop", "tally"], vars: { x, [`count[${x}]`]: before + 1 }, view: view(i), analogy: before ? `Another '${x}': ${before + 1} marks.` : `First '${x}': new line, 1 mark.`, note: `<code>count['${x}'] = ${before} + 1</code>.`,
+        ask: { q: `count['${x}'] after this?`, options: [...new Set([before + 1, before, 1])].map(String), answer: before + 1, why: `It was ${before}.` } });
+    });
+    steps.push({ line: "ret", vars: {}, view: view(-1), analogy: "Tally complete.", note: "Return the counts." });
+    return { steps, table: { head: ["i", "Item", "Count before", "Count after"], rows } };
+  }
+
+  function tl16D(words) {
+    const g = new Map(), steps = [], rows = [];
+    const view = (i) => Viz.array(words, { label: "words", hl: i >= 0 ? { [i]: "active" } : {} }) + Viz.chips([...g].map(([k, v]) => `${k}: ${v.join(", ")}`), "groups (key: words)");
+    steps.push({ line: "init", vars: {}, view: view(-1), analogy: "No bins yet.", note: "<code>groups = {}</code>." });
+    words.forEach((w, i) => {
+      const k = [...w].sort().join(""), isNew = !g.has(k); if (isNew) g.set(k, []); g.get(k).push(w); rows.push([w, k, isNew ? "new bin" : "existing bin", g.get(k).join(", ")]);
+      steps.push({ line: ["loop", "key", "bin"], vars: { word: w, key: k }, view: view(i), analogy: `"${w}" → label "${k}": ${isNew ? "new bin" : "joins its bin"}.`, note: `<code>key = '${k}'</code>.`,
+        ask: { q: `Label for "${w}"?`, options: [...new Set([k, w, [...w].reverse().join("")])], answer: k, why: "Letters in alphabetical order." } });
+    });
+    steps.push({ line: "ret", vars: { groups: g.size }, view: view(-1), analogy: `${g.size} bins.`, note: "Return the bins." });
+    return { steps, table: { head: ["Word", "Key", "Bin", "Bin contents after"], rows } };
+  }
+
+  { const run = tl16A([4, 1, 3, 1]);
+    Viz.tlab("#tl-16a", { title: "Template A \u00b7 [4, 1, 3, 1]", sub: "Chips = the guest list.", code: {"py": [[null, "def has_duplicate(nums):"], ["init", "    seen = set()"], ["loop", "    for x in nums:"], ["check", "        if x in seen:"], ["found", "            return True"], ["add", "        seen.add(x)"], ["none", "    return False"]], "ts": [[null, "function hasDuplicate(nums: number[]): boolean {"], ["init", "  const seen = new Set<number>();"], ["loop", "  for (const x of nums) {"], ["check", "    if (seen.has(x)) return true;"], ["add", "    seen.add(x);"], [null, "  }"], ["none", "  return false;"], [null, "}"]], "java": [[null, "static boolean hasDuplicate(int[] nums) {"], ["init", "    Set<Integer> seen = new HashSet<>();"], ["loop", "    for (int x : nums) {"], ["check", "        if (seen.contains(x)) return true;"], ["add", "        seen.add(x);"], [null, "    }"], ["none", "    return false;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-16a-table").innerHTML = TL.table(run.table); }
+  { const run = tl16B([3, 2, 4], 6, false);
+    Viz.tlab("#tl-16b", { title: "Template B \u00b7 [3, 2, 4], target 6", sub: "Chips = the host's book (value \u2192 index).", code: {"py": [[null, "def two_sum(nums, target):"], ["init", "    index_of = {}"], ["loop", "    for i, x in enumerate(nums):"], ["need", "        need = target - x"], ["look", "        if need in index_of:"], ["found", "            return [index_of[need], i]"], ["store", "        index_of[x] = i"], ["none", "    return []"]], "ts": [[null, "function twoSum(nums: number[], target: number): number[] {"], ["init", "  const indexOf = new Map<number, number>();"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["need", "    const need = target - nums[i];"], ["look", "    if (indexOf.has(need)) return [indexOf.get(need)!, i];"], ["store", "    indexOf.set(nums[i], i);"], [null, "  }"], ["none", "  return [];"], [null, "}"]], "java": [[null, "static int[] twoSum(int[] nums, int target) {"], ["init", "    Map<Integer, Integer> indexOf = new HashMap<>();"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["need", "        int need = target - nums[i];"], ["look", "        if (indexOf.containsKey(need)) return new int[]{indexOf.get(need), i};"], ["store", "        indexOf.put(nums[i], i);"], [null, "    }"], ["none", "    return new int[0];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-16b-table").innerHTML = TL.table(run.table); }
+  { const run = tl16B([3, 2, 4], 6, false);
+    Viz.tlab("#tl-16b-bug", { title: "Order matters \u00b7 [3, 2, 4], target 6", sub: "Switch between lookup-then-store and store-then-lookup.", code: {"py": [[null, "def two_sum(nums, target):"], ["init", "    index_of = {}"], ["loop", "    for i, x in enumerate(nums):"], ["need", "        need = target - x"], ["look", "        if need in index_of:"], ["found", "            return [index_of[need], i]"], ["store", "        index_of[x] = i"], ["none", "    return []"]], "ts": [[null, "function twoSum(nums: number[], target: number): number[] {"], ["init", "  const indexOf = new Map<number, number>();"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["need", "    const need = target - nums[i];"], ["look", "    if (indexOf.has(need)) return [indexOf.get(need)!, i];"], ["store", "    indexOf.set(nums[i], i);"], [null, "  }"], ["none", "  return [];"], [null, "}"]], "java": [[null, "static int[] twoSum(int[] nums, int target) {"], ["init", "    Map<Integer, Integer> indexOf = new HashMap<>();"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["need", "        int need = target - nums[i];"], ["look", "        if (indexOf.containsKey(need)) return new int[]{indexOf.get(need), i};"], ["store", "        indexOf.put(nums[i], i);"], [null, "    }"], ["none", "    return new int[0];"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: store before lookup", code: {"py": [[null, "def two_sum(nums, target):"], ["init", "    index_of = {}"], ["loop", "    for i, x in enumerate(nums):"], ["store", "        index_of[x] = i"], ["need", "        need = target - x"], ["look", "        if need in index_of:"], ["found", "            return [index_of[need], i]"], ["none", "    return []"]]}, steps: tl16B([3, 2, 4], 6, true).steps, diverge: undefined, why: "3 was stored before asking, so it finds itself as its own partner." } });
+     }
+  { const run = tl16C('banana');
+    Viz.tlab("#tl-16c", { title: "Template C \u00b7 counts(\"banana\")", sub: "Chips = the tally sheet.", code: {"py": [[null, "def counts(items):"], ["init", "    count = {}"], ["loop", "    for x in items:"], ["tally", "        count[x] = count.get(x, 0) + 1"], ["ret", "    return count"]], "ts": [[null, "function counts<T>(items: Iterable<T>): Map<T, number> {"], ["init", "  const count = new Map<T, number>();"], ["loop", "  for (const x of items) {"], ["tally", "    count.set(x, (count.get(x) ?? 0) + 1);"], [null, "  }"], ["ret", "  return count;"], [null, "}"]], "java": [[null, "static <T> Map<T, Integer> counts(List<T> items) {"], ["init", "    Map<T, Integer> count = new LinkedHashMap<>();"], ["loop", "    for (T x : items) {"], ["tally", "        count.merge(x, 1, Integer::sum);"], [null, "    }"], ["ret", "    return count;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-16c-table").innerHTML = TL.table(run.table); }
+  { const run = tl16D(['eat', 'tea', 'tan', 'ate', 'nat', 'bat']);
+    Viz.tlab("#tl-16d", { title: "Template D \u00b7 group anagrams", sub: "Chips = bins (label: words).", code: {"py": [[null, "def group_by_key(items, key_of):"], ["init", "    groups = {}"], ["loop", "    for x in items:"], ["key", "        k = key_of(x)"], ["bin", "        groups.setdefault(k, []).append(x)"], ["ret", "    return list(groups.values())"]], "ts": [[null, "function groupByKey<T, K>(items: T[], keyOf: (x: T) => K): T[][] {"], ["init", "  const groups = new Map<K, T[]>();"], ["loop", "  for (const x of items) {"], ["key", "    const k = keyOf(x);"], ["bin", "    if (!groups.has(k)) groups.set(k, []);"], ["bin", "    groups.get(k)!.push(x);"], [null, "  }"], ["ret", "  return [...groups.values()];"], [null, "}"]], "java": [[null, "static <T, K> List<List<T>> groupByKey(List<T> items, Function<T, K> keyOf) {"], ["init", "    Map<K, List<T>> groups = new LinkedHashMap<>();"], ["loop", "    for (T x : items) {"], ["key", "        K k = keyOf.apply(x);"], ["bin", "        groups.computeIfAbsent(k, unused -> new ArrayList<>()).add(x);"], [null, "    }"], ["ret", "    return new ArrayList<>(groups.values());"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-16d-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

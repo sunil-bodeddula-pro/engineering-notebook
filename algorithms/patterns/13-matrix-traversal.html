@@ -2321,116 +2321,291 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> flood fill / BFS / DFS on an <code>R × C</code> grid is <code>O(R·C)</code> time, since each cell is pushed at most once and has at most 4 (or 8) neighbors. Space is <code>O(R·C)</code> in the worst case for the stack/queue/visited set. Spiral and rotate are <code>O(R·C)</code> time and <code>O(1)</code> extra space.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python">from collections import deque   # deque = a queue with fast append() on the right and popleft() on the left
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>A grid is a graph in disguise: each cell is a node and its neighbours are the cells one step up, right, down and left. Matrix traversal has four templates. <strong>A</strong> flood-fills one region (DFS with a stack). <strong>B</strong> counts regions by flooding from every unvisited cell. <strong>C</strong> finds the fewest steps between two cells (BFS by layers). <strong>D</strong> rotates a square matrix in place (transpose, then reverse each row). A and B share the direction list and the bounds check.</p>
 
-# The 4 directions written as [row change, column change]: up, right, down, left
-DIRS4 = [[-1, 0], [0, 1], [1, 0], [0, -1]]
-# The 8 directions = the 4 above + the 4 diagonals (only when the problem says "8-directionally")
-DIRS8 = [[-1, 0], [0, 1], [1, 0], [0, -1], [-1, -1], [-1, 1], [1, 1], [1, -1]]
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Flood fill one region</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Change every cell connected to <code>(sr, sc)</code> that has the same value (paint bucket, LC 733).</div><div><b>What it keeps</b>A stack of painted cells whose neighbours haven't been checked; the grid itself is the visited set.</div><div><b>When it checks for an answer</b>Each popped cell checks its 4 neighbours: inside the grid and still the target value?</div><div><b>Use it when</b>Paint bucket, mark an island, capture surrounded regions, any "connected cells" problem.</div><div><b>Not for</b>Fewest steps (C: BFS).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Paint as you step; painted cells are walls"</strong>Spilling paint: a cell turns the new colour the moment the paint reaches it, so it never counts as "same colour" again. The paint keeps spreading up, right, down and left until nothing of the old colour touches it.</div>
+    <p><strong>The story, mapped to the code.</strong> The grid is a floor of tiles; the paint spreads tile to tile.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The four directions</td><td data-h="In the code"><code>DIRS4</code></td><td data-h="What it means">(row change, column change) pairs.</td></tr><tr><td data-h="In the story">Stay on the floor</td><td data-h="In the code"><code>is_inside(grid, nr, nc)</code></td><td data-h="What it means">Bounds check first.</td></tr><tr><td data-h="In the story">A tile of the old colour</td><td data-h="In the code"><code>grid[nr][nc] == target</code></td><td data-h="What it means">Paint can spread there.</td></tr><tr><td data-h="In the story">Paint it now</td><td data-h="In the code"><code>grid[nr][nc] = paint</code></td><td data-h="What it means">Also marks it visited.</td></tr><tr><td data-h="In the story">Remember to spread from it</td><td data-h="In the code"><code>stack.append((nr, nc))</code></td><td data-h="What it means">Its neighbours are checked later.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Painting on push means the grid itself is the visited set: no extra memory.</p>
+    <pre><code class="python">DIRS4 = [(-1, 0), (0, 1), (1, 0), (0, -1)]       # up, right, down, left
 
+def is_inside(grid, r, c):
+    return 0 &lt;= r &lt; len(grid) and 0 &lt;= c &lt; len(grid[0])
 
-def is_inside(grid, row, col):
-    # True when (row, col) is a real cell of the grid, False when it falls off an edge
-    number_of_rows = len(grid)
-    number_of_cols = len(grid[0])
-    if row &lt; 0 or row &gt;= number_of_rows:
-        return False
-    if col &lt; 0 or col &gt;= number_of_cols:
-        return False
-    return True
+def flood(grid, sr, sc, target, paint):
+    grid[sr][sc] = paint
+    stack = [(sr, sc)]
+    while stack:
+        r, c = stack.pop()
+        for dr, dc in DIRS4:
+            nr, nc = r + dr, c + dc
+            if is_inside(grid, nr, nc) and grid[nr][nc] == target:
+                grid[nr][nc] = paint
+                stack.append((nr, nc))</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">const DIRS4 = [[-1, 0], [0, 1], [1, 0], [0, -1]];      // up, right, down, left
 
+function isInside(grid: number[][], r: number, c: number): boolean {
+  return r &gt;= 0 &amp;&amp; r &lt; grid.length &amp;&amp; c &gt;= 0 &amp;&amp; c &lt; grid[0].length;
+}
 
-# A) DFS flood fill: repaint every cell that is connected to (start_row, start_col)
-#    and currently holds the value `target`, using the value `paint`.
-#    (target and paint must be different, otherwise painted cells still look unvisited.)
-def flood(grid, start_row, start_col, target, paint):
-    grid[start_row][start_col] = paint           # painting a cell = marking it as visited
-    stack = []                                   # cells whose neighbours we still have to look at
-    stack.append([start_row, start_col])
-    while len(stack) &gt; 0:
-        cell = stack.pop()                       # take the most recently added cell (this makes it DFS)
-        row = cell[0]
-        col = cell[1]
-        for direction in DIRS4:
-            next_row = row + direction[0]        # move one step in this direction
-            next_col = col + direction[1]
-            if is_inside(grid, next_row, next_col):          # 1) still on the grid?
-                if grid[next_row][next_col] == target:       # 2) part of the same region?
-                    grid[next_row][next_col] = paint         # 3) mark it BEFORE pushing, so it is pushed once
-                    stack.append([next_row, next_col])
+function flood(grid: number[][], sr: number, sc: number, target: number, paint: number): void {
+  grid[sr][sc] = paint;
+  const stack: number[][] = [[sr, sc]];
+  while (stack.length &gt; 0) {
+    const [r, c] = stack.pop()!;
+    for (const [dr, dc] of DIRS4) {
+      const nr = r + dr, nc = c + dc;
+      if (isInside(grid, nr, nc) &amp;&amp; grid[nr][nc] === target) {
+        grid[nr][nc] = paint;
+        stack.push([nr, nc]);
+      }
+    }
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static final int[][] DIRS4 = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}}; // up, right, down, left
 
+static boolean isInside(int[][] grid, int r, int c) {
+    return r &gt;= 0 &amp;&amp; r &lt; grid.length &amp;&amp; c &gt;= 0 &amp;&amp; c &lt; grid[0].length;
+}
 
-# B) Count regions: scan every cell; each unpainted target cell starts a new region
-def count_regions(grid, target, paint):
+static void flood(int[][] grid, int sr, int sc, int target, int paint) {
+    grid[sr][sc] = paint;
+    Deque&lt;int[]&gt; stack = new ArrayDeque&lt;&gt;();
+    stack.push(new int[]{sr, sc});
+    while (!stack.isEmpty()) {
+        int[] cell = stack.pop();
+        for (int[] d : DIRS4) {
+            int nr = cell[0] + d[0], nc = cell[1] + d[1];
+            if (isInside(grid, nr, nc) &amp;&amp; grid[nr][nc] == target) {
+                grid[nr][nc] = paint;
+                stack.push(new int[]{nr, nc});
+            }
+        }
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>DIRS4 = [(-1, 0), (0, 1), (1, 0), (0, -1)]</code></td><td data-h="What it does">The four neighbours as offsets.</td><td data-h="In the story">Up, right, down, left.</td><td data-h="Why here, and what breaks if it moves">Typos here (e.g. (1, 1)) silently move diagonally.</td></tr><tr><td data-h="Line"><code>is_inside(grid, nr, nc) and grid[nr][nc] == target</code></td><td data-h="What it does">Bounds first, then the value.</td><td data-h="In the story">On the floor and the old colour?</td><td data-h="Why here, and what breaks if it moves">Checking the value first reads outside the grid (Python's −1 wraps around silently).</td></tr><tr><td data-h="Line"><code>grid[nr][nc] = paint</code></td><td data-h="What it does">Paints on discovery.</td><td data-h="In the story">Paint it now.</td><td data-h="Why here, and what breaks if it moves">Painting only on pop lets a tile be pushed many times.</td></tr><tr><td data-h="Line"><code>grid[sr][sc] = paint (start)</code></td><td data-h="What it does">The start is painted before the loop.</td><td data-h="In the story">The spill starts here.</td><td data-h="Why here, and what breaks if it moves">If <code>paint == target</code> nothing changes and the loop never ends: return early in that case.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through a flood from <code>(0, 0)</code>, turning 1s into 2s.</p>
+    <div id="tl-13a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-13a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Every painted cell is connected to the start through painted cells, and every painted cell is either on the stack or has had all 4 neighbours checked.</p>
+    <p><strong>Complexity.</strong> O(rows × cols) time; O(rows × cols) stack in the worst case.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>paint == target.</strong> Return immediately: nothing to do.</li><li><strong>Value check before bounds check.</strong> Stay on the floor first.</li><li><strong>Recursion on big grids in Python.</strong> Use the stack, as here.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Paint as you step; painted cells are walls.</dd>
+      <dt>Choose this template when</dt><dd>"Connected cells with the same value" → flood fill.</dd>
+      <dt>Invariant</dt><dd>Painted = reached; never re-entered.</dd>
+      <dt>The line people get wrong</dt><dd><code>is_inside(...) and grid[nr][nc] == target</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Cells painted in the example?</summary><p>(0,0), (0,1), (1,0).</p></details><details><summary>Why no visited set?</summary><p>The paint itself marks visited.</p></details><details><summary>8 directions?</summary><p>Add the four diagonals to the offsets.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Count regions (islands)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>How many separate regions of a value are there?</div><div><b>What it keeps</b>A counter; the grid is changed as regions are flooded.</div><div><b>When it checks for an answer</b>Every cell still holding the target starts a new region.</div><div><b>Use it when</b>Number of Islands (LC 200), count provinces in a grid, number of closed islands.</div><div><b>Not for</b>Region sizes only (return a count from flood instead), or when the grid must stay unchanged (use a visited set).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Find dry land, count an island, sink the whole island"</strong>Scan the map row by row. When you step on land, that's a new island: count it, then sink every connected land cell so you never count it again.</div>
+    <p><strong>The story, mapped to the code.</strong> 1 = land, 0 = water.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Scan every cell</td><td data-h="In the code"><code>for row… for col…</code></td><td data-h="What it means">Row by row.</td></tr><tr><td data-h="In the story">Untouched land</td><td data-h="In the code"><code>grid[row][col] == target</code></td><td data-h="What it means">A new island.</td></tr><tr><td data-h="In the story">Count it</td><td data-h="In the code"><code>region_count += 1</code></td><td data-h="What it means">One per discovery.</td></tr><tr><td data-h="In the story">Sink it</td><td data-h="In the code"><code>flood(grid, row, col, target, paint)</code></td><td data-h="What it means">Template A.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Uses <code>flood</code> from Template A.</p>
+    <pre><code class="python">def count_regions(grid, target, paint):
     region_count = 0
     for row in range(len(grid)):
         for col in range(len(grid[0])):
             if grid[row][col] == target:
-                region_count = region_count + 1      # nobody painted this cell yet, so it is a new region
-                flood(grid, row, col, target, paint) # paint the whole region so we never count it again
-    return region_count
+                region_count += 1
+                flood(grid, row, col, target, paint)
+    return region_count</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function countRegions(grid: number[][], target: number, paint: number): number {
+  let regionCount = 0;
+  for (let row = 0; row &lt; grid.length; row++) {
+    for (let col = 0; col &lt; grid[0].length; col++) {
+      if (grid[row][col] === target) {
+        regionCount++;
+        flood(grid, row, col, target, paint);
+      }
+    }
+  }
+  return regionCount;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int countRegions(int[][] grid, int target, int paint) {
+    int regionCount = 0;
+    for (int row = 0; row &lt; grid.length; row++) {
+        for (int col = 0; col &lt; grid[0].length; col++) {
+            if (grid[row][col] == target) {
+                regionCount++;
+                flood(grid, row, col, target, paint);
+            }
+        }
+    }
+    return regionCount;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if grid[row][col] == target</code></td><td data-h="What it does">Untouched land.</td><td data-h="In the story">New island?</td><td data-h="Why here, and what breaks if it moves">Checking <code>!= 0</code> also counts already-sunk cells if paint isn't 0.</td></tr><tr><td data-h="Line"><code>region_count += 1</code></td><td data-h="What it does">Counts once per region.</td><td data-h="In the story">Count it.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>flood(...)</code></td><td data-h="What it does">Sinks the whole region.</td><td data-h="In the story">Sink it.</td><td data-h="Why here, and what breaks if it moves">Forgetting it counts every land cell.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through counting islands of 1s.</p>
+    <div id="tl-13b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-13b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After the scan passes a cell, every land cell connected to any earlier land cell has been sunk, and region_count = islands found so far.</p>
+    <p><strong>Complexity.</strong> O(rows × cols): each cell is scanned once and flooded at most once.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Using paint == target.</strong> The sunk island must look different.</li><li><strong>Mutating input you're not allowed to change.</strong> Use a visited set instead.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Find land, count it, sink the island.</dd>
+      <dt>Choose this template when</dt><dd>"Number of islands/regions" → scan + flood.</dd>
+      <dt>Invariant</dt><dd>Sunk cells are never counted again.</dd>
+      <dt>The line people get wrong</dt><dd>Flood right after counting.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Islands in the example?</summary><p>3.</p></details><details><summary>Diagonal connections?</summary><p>Use 8 directions in flood.</p></details><details><summary>Union-Find alternative?</summary><p>Union neighbours; count roots (page 23).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Fewest steps in a grid (BFS by layers)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Fewest moves from <code>start</code> to <code>goal</code> through open cells (−1 if impossible).</div><div><b>What it keeps</b>A queue of cells; a visited set; the current step count.</div><div><b>When it checks for an answer</b>Each layer is one more step; return the step count when the goal is dequeued.</div><div><b>Use it when</b>Shortest path in a binary matrix, maze escape, knight moves, word ladder on a grid.</div><div><b>Not for</b>Different costs per cell (Dijkstra, page 20).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Spread one step at a time; the first time you touch the goal is the answer"</strong>Water spreading through a maze: after 1 second it fills cells 1 step away, after 2 seconds cells 2 steps away. The moment it reaches the exit, the elapsed seconds are the shortest path.</div>
+    <p><strong>The story, mapped to the code.</strong> 0 = open cell, 1 = wall.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Water front</td><td data-h="In the code"><code>queue</code></td><td data-h="What it means">Cells reached at this step.</td></tr><tr><td data-h="In the story">One second passes</td><td data-h="In the code"><code>steps += 1 after each layer</code></td><td data-h="What it means">One layer per step.</td></tr><tr><td data-h="In the story">Wet already</td><td data-h="In the code"><code>(nr, nc) in visited</code></td><td data-h="What it means">Skip.</td></tr><tr><td data-h="In the story">Reaches the exit</td><td data-h="In the code"><code>(row, col) == goal</code></td><td data-h="What it means">Return steps.</td></tr></tbody></table>
+    <p><strong>The template.</strong> BFS with a layer loop (page 12, Template B) on grid neighbours.</p>
+    <pre><code class="python">from collections import deque
 
-
-# C) BFS layers: fewest steps from start to goal, walking only on cells equal to open_value
 def bfs_steps(grid, start, goal, open_value):
-    visited = set()                              # cells already put in the queue, stored as (row, col)
-    visited.add((start[0], start[1]))
-    queue = deque()
-    queue.append([start[0], start[1]])
-    steps = 0                                    # every cell in the current layer is `steps` away
-    while len(queue) &gt; 0:
-        layer_size = len(queue)                  # how many cells belong to the current layer
-        for position in range(layer_size):       # (position itself is not needed, we just repeat)
-            cell = queue.popleft()               # oldest cell first: this is what makes it BFS
-            row = cell[0]
-            col = cell[1]
-            if row == goal[0] and col == goal[1]:
-                return steps                     # the first time we reach the goal is the shortest way
-            for direction in DIRS4:
-                next_row = row + direction[0]
-                next_col = col + direction[1]
-                if is_inside(grid, next_row, next_col):
-                    if (next_row, next_col) not in visited:
-                        if grid[next_row][next_col] == open_value:
-                            visited.add((next_row, next_col))   # mark when ADDING to the queue
-                            queue.append([next_row, next_col])
-        steps = steps + 1                        # finished one whole layer = one more step
-    return -1                                    # the queue ran dry: the goal can't be reached
-
-
-# D) Rotate a square matrix 90 degrees clockwise, in place
-def rotate_clockwise(matrix):
+    visited = {start}
+    queue = deque([start])
+    steps = 0
+    while queue:
+        for _ in range(len(queue)):
+            r, c = queue.popleft()
+            if (r, c) == goal:
+                return steps
+            for dr, dc in DIRS4:
+                nr, nc = r + dr, c + dc
+                if (is_inside(grid, nr, nc) and (nr, nc) not in visited
+                        and grid[nr][nc] == open_value):
+                    visited.add((nr, nc))
+                    queue.append((nr, nc))
+        steps += 1
+    return -1</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function bfsSteps(grid: number[][], start: number[], goal: number[], openValue: number): number {
+  const key = (r: number, c: number) =&gt; r * grid[0].length + c;
+  const visited = new Set([key(start[0], start[1])]);
+  let queue = [start];
+  let steps = 0;
+  while (queue.length &gt; 0) {
+    const next: number[][] = [];
+    for (const [r, c] of queue) {
+      if (r === goal[0] &amp;&amp; c === goal[1]) return steps;
+      for (const [dr, dc] of DIRS4) {
+        const nr = r + dr, nc = c + dc;
+        if (isInside(grid, nr, nc) &amp;&amp; !visited.has(key(nr, nc)) &amp;&amp; grid[nr][nc] === openValue) {
+          visited.add(key(nr, nc));
+          next.push([nr, nc]);
+        }
+      }
+    }
+    queue = next;
+    steps++;
+  }
+  return -1;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int bfsSteps(int[][] grid, int[] start, int[] goal, int openValue) {
+    int cols = grid[0].length;
+    boolean[] visited = new boolean[grid.length * cols];
+    visited[start[0] * cols + start[1]] = true;
+    Deque&lt;int[]&gt; queue = new ArrayDeque&lt;&gt;();
+    queue.offer(start);
+    int steps = 0;
+    while (!queue.isEmpty()) {
+        for (int k = queue.size(); k &gt; 0; k--) {
+            int[] cell = queue.poll();
+            if (cell[0] == goal[0] &amp;&amp; cell[1] == goal[1]) return steps;
+            for (int[] d : DIRS4) {
+                int nr = cell[0] + d[0], nc = cell[1] + d[1];
+                if (isInside(grid, nr, nc) &amp;&amp; !visited[nr * cols + nc] &amp;&amp; grid[nr][nc] == openValue) {
+                    visited[nr * cols + nc] = true;
+                    queue.offer(new int[]{nr, nc});
+                }
+            }
+        }
+        steps++;
+    }
+    return -1;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for _ in range(len(queue))</code></td><td data-h="What it does">Processes one layer = one step.</td><td data-h="In the story">One second of spreading.</td><td data-h="Why here, and what breaks if it moves">Without layers you need a distance per cell instead.</td></tr><tr><td data-h="Line"><code>if (r, c) == goal: return steps</code></td><td data-h="What it does">First time the goal is dequeued is the shortest.</td><td data-h="In the story">Water reached the exit.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>not in visited and grid[nr][nc] == open_value</code></td><td data-h="What it does">Open and new.</td><td data-h="In the story">Dry, open cell?</td><td data-h="Why here, and what breaks if it moves">Marking visited on pop lets cells be queued many times.</td></tr><tr><td data-h="Line"><code>steps += 1</code></td><td data-h="What it does">After each full layer.</td><td data-h="In the story">One more second.</td><td data-h="Why here, and what breaks if it moves">Incrementing inside the inner loop counts cells, not steps.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the maze from the top-left to the bottom-right (1 = wall).</p>
+    <div id="tl-13c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-13c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the start of layer s, the queue holds exactly the open cells whose shortest distance from start is s.</p>
+    <p><strong>Complexity.</strong> O(rows × cols) time and space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>DFS for shortest path.</strong> Water spreads in rings: BFS.</li><li><strong>Forgetting walls.</strong> Check the cell is open.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Spread one step at a time; first touch of the goal wins.</dd>
+      <dt>Choose this template when</dt><dd>Fewest moves on a grid → BFS layers.</dd>
+      <dt>Invariant</dt><dd>Layer s = cells at distance s.</dd>
+      <dt>The line people get wrong</dt><dd><code>steps += 1</code> after the layer loop.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Steps in the example maze?</summary><p>6.</p></details><details><summary>Start is the goal?</summary><p>Return 0 on the first dequeue.</p></details><details><summary>Unreachable?</summary><p>Queue empties: −1.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Rotate a square matrix 90° clockwise, in place</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Rotate an n × n matrix clockwise without a second matrix.</div><div><b>What it keeps</b>Nothing extra: two passes of swaps.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Rotate Image (LC 48); counter-clockwise = transpose then reverse each column (or reverse rows first).</div><div><b>Not for</b>Non-square matrices (they need a new matrix).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Flip over the diagonal, then mirror each row"</strong>Turn a square photo a quarter turn clockwise in two moves: flip it over its top-left→bottom-right diagonal (rows become columns), then mirror each row left-to-right.</div>
+    <p><strong>The story, mapped to the code.</strong> A square photo of numbered tiles.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Flip over the diagonal</td><td data-h="In the code"><code>swap matrix[r][c] and matrix[c][r] for c &gt; r</code></td><td data-h="What it means">Transpose.</td></tr><tr><td data-h="In the story">Only above the diagonal</td><td data-h="In the code"><code>range(row + 1, size)</code></td><td data-h="What it means">Each pair swapped once.</td></tr><tr><td data-h="In the story">Mirror each row</td><td data-h="In the code"><code>matrix[row].reverse()</code></td><td data-h="What it means">Left ↔ right.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two loops, both in place.</p>
+    <pre><code class="python">def rotate_clockwise(matrix):
     size = len(matrix)
-    # Step 1 - transpose: swap matrix[row][col] with matrix[col][row]
-    for row in range(size):
-        for col in range(row + 1, size):         # only cells right of the diagonal: each pair swapped once
-            temp = matrix[row][col]
-            matrix[row][col] = matrix[col][row]
-            matrix[col][row] = temp
-    # Step 2 - mirror: reverse every row (left becomes right)
-    for row in range(size):
-        matrix[row].reverse()</code></pre>
-        <!-- explain:start -->
-        <p><strong>What the code is doing, line by line:</strong></p>
-        <ol>
-          <li><code>DIRS4</code> / <code>DIRS8</code>: every move is written as a pair <code>[row change, column change]</code>. Adding a pair to <code>(row, col)</code> gives the neighbouring cell. Writing them once means you never type four nearly identical <code>if</code> blocks.</li>
-          <li><code>is_inside</code>: checks that a row and column are inside the grid. Always call it <em>before</em> reading <code>grid[next_row][next_col]</code>. In Python <code>grid[-1]</code> silently reads the last row, so a missing check gives wrong answers instead of an error.</li>
-          <li><code>flood</code> (template A): paints the start cell, then repeatedly pops a cell from the <code>stack</code>, looks at its 4 neighbours, and paints and pushes every neighbour that still holds <code>target</code>. Painting doubles as the "visited" mark, so no cell is processed twice.</li>
-          <li><code>count_regions</code> (template B): visits every cell with two plain <code>for</code> loops. Each time it meets an unpainted target cell it adds 1 to the count and calls <code>flood</code>, which paints that whole region so it is never counted again.</li>
-          <li><code>bfs_steps</code> (template C): like <code>flood</code>, but uses a queue (<code>deque</code>) and processes it <strong>one layer at a time</strong>: <code>layer_size</code> cells, then <code>steps = steps + 1</code>. Every cell in a layer is the same distance from the start, so the first time the goal is popped we have the shortest distance.</li>
-          <li><code>rotate_clockwise</code> (template D): first swaps each pair across the main diagonal (transpose), using a <code>temp</code> variable so neither value is lost. Then it reverses every row. Together the two steps give a clockwise rotation.</li>
-        </ol>
-        <p><strong>Dry run</strong> on the example:</p>
-        <table>
-          <thead><tr><th>Call</th><th>Grid before</th><th>Result</th></tr></thead>
-          <tbody>
-            <tr><td><code>count_regions(g, 1, 9)</code></td><td><code>[[1,1,0],[0,0,1],[1,0,1]]</code></td><td>3 regions: {(0,0),(0,1)}, {(1,2),(2,2)}, {(2,0)}. Every 1 is now 9.</td></tr>
-            <tr><td><code>bfs_steps(maze, [0,0], [2,0], 0)</code></td><td><code>[[0,0,0],[1,1,0],[0,0,0]]</code></td><td>6. Layers: (0,0) → (0,1) → (0,2) → (1,2) → (2,2) → (2,1) → (2,0).</td></tr>
-            <tr><td><code>rotate_clockwise(m)</code></td><td><code>[[1,2],[3,4]]</code></td><td>transpose → <code>[[1,3],[2,4]]</code>, mirror → <code>[[3,1],[4,2]]</code></td></tr>
-          </tbody>
-        </table>
-        <!-- explain:end -->
+    for r in range(size):
+        for c in range(r + 1, size):
+            matrix[r][c], matrix[c][r] = matrix[c][r], matrix[r][c]
+    for row in matrix:
+        row.reverse()</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function rotateClockwise(matrix: number[][]): void {
+  const size = matrix.length;
+  for (let r = 0; r &lt; size; r++) {
+    for (let c = r + 1; c &lt; size; c++) {
+      [matrix[r][c], matrix[c][r]] = [matrix[c][r], matrix[r][c]];
+    }
+  }
+  for (const row of matrix) row.reverse();
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void rotateClockwise(int[][] matrix) {
+    int size = matrix.length;
+    for (int r = 0; r &lt; size; r++) {
+        for (int c = r + 1; c &lt; size; c++) {
+            int tmp = matrix[r][c];
+            matrix[r][c] = matrix[c][r];
+            matrix[c][r] = tmp;
+        }
+    }
+    for (int[] row : matrix) {
+        for (int i = 0, j = size - 1; i &lt; j; i++, j--) {
+            int tmp = row[i]; row[i] = row[j]; row[j] = tmp;
+        }
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for c in range(r + 1, size)</code></td><td data-h="What it does">Only cells above the diagonal.</td><td data-h="In the story">Each pair once.</td><td data-h="Why here, and what breaks if it moves"><code>range(size)</code> swaps every pair twice, undoing the transpose (see the bug player).</td></tr><tr><td data-h="Line"><code>swap matrix[r][c] and matrix[c][r]</code></td><td data-h="What it does">Transpose.</td><td data-h="In the story">Flip over the diagonal.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>row.reverse()</code></td><td data-h="What it does">Mirror each row.</td><td data-h="In the story">Left ↔ right.</td><td data-h="Why here, and what breaks if it moves">Reversing the row <em>order</em> instead gives a counter-clockwise turn's mirror.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through a 3 × 3 rotation. The second player starts the inner loop at 0.</p>
+    <div id="tl-13d"></div><div id="tl-13d-bug"></div><p>Starting at 0 swaps each pair twice, so the transpose undoes itself and only the mirror remains: <code>[[3,2,1],[6,5,4],[9,8,7]]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-13d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After the transpose, <code>matrix[r][c]</code> holds the original <code>matrix[c][r]</code>; after mirroring, it holds the original <code>matrix[n−1−c][r]</code>, which is the clockwise rotation.</p>
+    <p><strong>Complexity.</strong> O(n²) time, O(1) extra space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Inner loop from 0.</strong> Only above the diagonal.</li><li><strong>Reversing the list of rows.</strong> Mirror each row.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Flip over the diagonal, then mirror each row.</dd>
+      <dt>Choose this template when</dt><dd>Rotate in place → transpose + reverse rows.</dd>
+      <dt>Invariant</dt><dd>Transpose swaps each pair once.</dd>
+      <dt>The line people get wrong</dt><dd><code>range(r + 1, size)</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Counter-clockwise?</summary><p>Transpose, then reverse the order of rows (or reverse each column).</p></details><details><summary>180°?</summary><p>Reverse each row and the row order.</p></details><details><summary>Where does matrix[0][0] go?</summary><p>matrix[0][n−1].</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · flood fill</th><th>B · count regions</th><th>C · fewest steps</th><th>D · rotate</th></tr></thead><tbody><tr><td data-h="Question">Structure</td><td data-h="A · flood fill">Stack (DFS)</td><td data-h="B · count regions">Scan + A</td><td data-h="C · fewest steps">Queue by layers (BFS)</td><td data-h="D · rotate">Two passes of swaps</td></tr><tr><td data-h="Question">Visited</td><td data-h="A · flood fill">The grid (painted)</td><td data-h="B · count regions">The grid (sunk)</td><td data-h="C · fewest steps">A set</td><td data-h="D · rotate">—</td></tr><tr><td data-h="Question">Answer</td><td data-h="A · flood fill">The changed grid</td><td data-h="B · count regions">Number of regions</td><td data-h="C · fewest steps">Step count or −1</td><td data-h="D · rotate">The rotated matrix</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · flood fill">LC 733, 130</td><td data-h="B · count regions">LC 200, 695</td><td data-h="C · fewest steps">LC 1091, 994</td><td data-h="D · rotate">LC 48</td></tr><tr><td data-h="Question">Time</td><td data-h="A · flood fill">O(R·C)</td><td data-h="B · count regions">O(R·C)</td><td data-h="C · fewest steps">O(R·C)</td><td data-h="D · rotate">O(n²)</td></tr></tbody></table>
+    <p>Connected-region questions → A/B (any traversal order works). "Fewest steps" → C (it must be BFS). Matrix transformations → D-style index tricks.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -7904,6 +8079,104 @@ class Solution:
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  const tl13hl = (cells, cls) => Object.fromEntries(cells.map(([r, c]) => [r + "," + c, cls]));
+  const D4 = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+  const tlIn = (g, r, c) => r >= 0 && r < g.length && c >= 0 && c < g[0].length;
+
+  function tl13A(G, sr, sc) {
+    const g = G.map((r) => r.slice()), steps = [], rows = []; const st = [[sr, sc]]; g[sr][sc] = 2;
+    const view = (cur, extra) => Viz.grid(g, { hl: Object.assign({}, tl13hl(g.flatMap((row, r) => row.map((v, c) => [r, c, v])).filter((x) => x[2] === 2).map((x) => [x[0], x[1]]), "found"), tl13hl(st, "gold"), cur ? { [cur[0] + "," + cur[1]]: "active" } : {}, extra || {}) }) + Viz.chips(st.map(([r, c]) => `(${r},${c})`), "stack");
+    steps.push({ line: ["paint0", "init"], vars: { start: `(${sr},${sc})` }, view: view(), analogy: `Spill the paint at (${sr},${sc}).`, note: "Paint the start, push it." });
+    while (st.length) {
+      const [r, c] = st.pop(); const painted = [];
+      for (const [dr, dc] of D4) { const nr = r + dr, nc = c + dc; if (tlIn(g, nr, nc) && g[nr][nc] === 1) { g[nr][nc] = 2; st.push([nr, nc]); painted.push(`(${nr},${nc})`); } }
+      steps.push({ line: ["loop", "pop", "dirs", "check", "paint", "push"], vars: { cell: `(${r},${c})`, painted: painted.length ? painted.join(" ") : "none" }, view: view([r, c]), analogy: painted.length ? `From (${r},${c}) the paint reaches ${painted.join(", ")}.` : `(${r},${c}) has no unpainted 1s around it.`, note: `Check up, right, down, left of (${r},${c}).`,
+        ask: { q: `How many new cells does (${r},${c}) paint?`, options: ["0", "1", "2", "3"], answer: painted.length, why: "Neighbours inside the grid that are still 1." } });
+      rows.push([`(${r},${c})`, painted.length ? painted.join(" ") : "—", st.map(([a, b]) => `(${a},${b})`).join(" ") || "empty"]);
+    }
+    steps.push({ line: "loop", vars: {}, view: view(), analogy: "Nothing left to spread: the region is painted.", note: "Stack empty." });
+    return { steps, table: { head: ["Popped", "Newly painted", "Stack after"], rows } };
+  }
+
+  function tl13B(G) {
+    const g = G.map((r) => r.slice()), owner = {}, steps = [], rows = []; let count = 0;
+    const cls = ["found", "warm", "window", "gold"];
+    const view = (cur) => Viz.grid(g.map((row, r) => row.map((v, c) => (owner[r + "," + c] ? "#" + owner[r + "," + c] : v))), { hl: Object.assign(Object.fromEntries(Object.entries(owner).map(([k, v]) => [k, cls[(v - 1) % 4]])), cur ? { [cur]: "active" } : {}) }) + `<p class="idx">islands = ${count}</p>`;
+    steps.push({ line: "init", vars: { region_count: 0 }, view: view(), analogy: "Start scanning the map.", note: "<code>region_count = 0</code>." });
+    for (let r = 0; r < g.length; r++) for (let c = 0; c < g[0].length; c++) {
+      if (g[r][c] !== 1) continue;
+      count++; const st = [[r, c]], cells = [`(${r},${c})`]; g[r][c] = 2; owner[r + "," + c] = count;
+      while (st.length) { const [a, b] = st.pop(); for (const [dr, dc] of D4) { const nr = a + dr, nc = b + dc; if (tlIn(g, nr, nc) && g[nr][nc] === 1) { g[nr][nc] = 2; owner[nr + "," + nc] = count; st.push([nr, nc]); cells.push(`(${nr},${nc})`); } } }
+      steps.push({ line: ["scan", "new", "count", "sink"], vars: { cell: `(${r},${c})`, region_count: count, sunk: cells.length }, view: view(r + "," + c), analogy: `Land at (${r},${c}) nobody has counted: island #${count}. Sink ${cells.length} cell${cells.length > 1 ? "s" : ""}.`, note: `flood from (${r},${c}).`,
+        ask: { q: "How many islands so far?", options: ["1", "2", "3", "4"], answer: count, why: "One per untouched land cell found by the scan." } });
+      rows.push([`(${r},${c})`, count, cells.join(" ")]);
+    }
+    steps.push({ line: "ret", vars: { region_count: count }, view: view(), analogy: `${count} islands.`, note: `Return <code>${count}</code>.` });
+    return { steps, table: { head: ["Scan found land at", "region_count", "Cells sunk"], rows } };
+  }
+
+  function tl13C(G, start, goal) {
+    const dist = { [start.join(",")]: 0 }, steps = [], rows = []; let q = [start], s = 0;
+    const view = (front) => Viz.grid(G.map((row, r) => row.map((v, c) => (v === 1 ? "#" : dist[r + "," + c] !== undefined ? dist[r + "," + c] : "·"))), { hl: Object.assign(Object.fromEntries(G.flatMap((row, r) => row.map((v, c) => [r + "," + c, v === 1 ? "bad" : dist[r + "," + c] !== undefined ? "window" : ""]))), tl13hl(front || [], "active"), { [goal.join(",")]: "gold" }) });
+    steps.push({ line: "init", vars: { steps: 0, queue: `[(${start})]` }, view: view([start]), analogy: "Water starts at the entrance.", note: "<code>visited = {start}</code>." });
+    while (q.length) {
+      if (q.some(([r, c]) => r === goal[0] && c === goal[1])) {
+        steps.push({ line: ["layer", "pop", "goal"], vars: { steps: s }, view: view(q), analogy: `The water reaches the exit after ${s} steps.`, note: `Return <code>${s}</code>.` });
+        rows.push([s, q.map(([r, c]) => `(${r},${c})`).join(" "), "goal"]);
+        return { steps, table: { head: ["Step", "Layer (cells reached)", "Note"], rows } };
+      }
+      const next = [];
+      for (const [r, c] of q) for (const [dr, dc] of D4) { const nr = r + dr, nc = c + dc; if (tlIn(G, nr, nc) && G[nr][nc] === 0 && dist[nr + "," + nc] === undefined) { dist[nr + "," + nc] = s + 1; next.push([nr, nc]); } }
+      rows.push([s, q.map(([r, c]) => `(${r},${c})`).join(" "), ""]);
+      steps.push({ line: ["loop", "layer", "pop", "dirs", "check", "push", "step"], vars: { steps: s + 1, next_layer: next.map(([r, c]) => `(${r},${c})`).join(" ") || "none" }, view: view(next), analogy: `Second ${s + 1}: water spreads to ${next.length} new cell${next.length === 1 ? "" : "s"}.`, note: `Layer ${s} done.`,
+        ask: { q: "How many cells does the next layer have?", options: ["0", "1", "2", "3"], answer: next.length, why: "Open, unvisited neighbours of the current layer." } });
+      q = next; s++;
+    }
+    steps.push({ line: "none", vars: {}, view: view(), analogy: "The water stopped before the exit.", note: "Return <code>-1</code>." });
+    return { steps, table: { head: ["Step", "Layer (cells reached)", "Note"], rows } };
+  }
+
+  function tl13D(bug) {
+    const m = [[1, 2, 3], [4, 5, 6], [7, 8, 9]], steps = [], rows = [], n = 3, mirrored = [];
+    const view = (hl) => Viz.grid(m, { hl: Object.assign(Object.fromEntries(mirrored.flatMap((r) => [0, 1, 2].map((c) => [r + "," + c, "found"]))), hl || {}) });
+    steps.push({ line: "init", vars: { size: 3 }, view: view(), analogy: "The photo before turning.", note: "Original matrix." });
+    for (let r = 0; r < n; r++) for (let c = bug ? 0 : r + 1; c < n; c++) {
+      const a = m[r][c], b = m[c][r]; m[r][c] = b; m[c][r] = a;
+      steps.push({ line: ["tloop", "swap"], vars: { r, c, swapped: `${a} ↔ ${b}` }, view: view({ [r + "," + c]: "active", [c + "," + r]: "active" }), analogy: r === c ? `(${r},${c}) is on the diagonal: swapping with itself.` : bug && c < r ? `⚠ (${r},${c}) ↔ (${c},${r}) was already swapped: this puts ${a} and ${b} back.` : `Flip ${a} and ${b} across the diagonal.`, note: `swap m[${r}][${c}] and m[${c}][${r}].` });
+      rows.push([`(${r},${c}) ↔ (${c},${r})`, `${a} ↔ ${b}`, JSON.stringify(m).replace(/,/g, ", ")]);
+    }
+    steps.push({ line: "tloop", vars: { after_transpose: JSON.stringify(m).replace(/,/g, ", ") }, view: view(), analogy: bug ? "The \"transpose\" undid itself." : "Transposed: rows became columns.", note: "Transpose done.",
+      ask: { q: "What does row 0 become after mirroring?", options: [JSON.stringify(m[0].slice().reverse()).replace(/,/g, ", "), JSON.stringify(m[0]).replace(/,/g, ", ")], answer: JSON.stringify(m[0].slice().reverse()).replace(/,/g, ", "), why: "Mirror = reverse the row." } });
+    for (let r = 0; r < n; r++) { m[r].reverse(); mirrored.push(r); steps.push({ line: "rev", vars: { row: r, now: JSON.stringify(m[r]).replace(/,/g, ", ") }, view: view(), analogy: `Mirror row ${r}.`, note: `<code>matrix[${r}].reverse()</code>.` }); rows.push([`reverse row ${r}`, "", JSON.stringify(m).replace(/,/g, ", ")]); }
+    return { steps, table: { head: ["Operation", "Values", "Matrix after"], rows } };
+  }
+
+  { const run = tl13A([[1, 1, 0, 0], [1, 0, 0, 1], [0, 0, 1, 1], [1, 0, 1, 1]], 0, 0);
+    Viz.tlab("#tl-13a", { title: "Template A \u00b7 flood from (0, 0): 1 \u2192 2", sub: "Green = painted; blue = the cell being spread from; gold = waiting on the stack.", code: {"py": [[null, "DIRS4 = [(-1, 0), (0, 1), (1, 0), (0, -1)]       # up, right, down, left"], [null, ""], [null, "def is_inside(grid, r, c):"], [null, "    return 0 <= r < len(grid) and 0 <= c < len(grid[0])"], [null, ""], [null, "def flood(grid, sr, sc, target, paint):"], ["paint0", "    grid[sr][sc] = paint"], ["init", "    stack = [(sr, sc)]"], ["loop", "    while stack:"], ["pop", "        r, c = stack.pop()"], ["dirs", "        for dr, dc in DIRS4:"], ["dirs", "            nr, nc = r + dr, c + dc"], ["check", "            if is_inside(grid, nr, nc) and grid[nr][nc] == target:"], ["paint", "                grid[nr][nc] = paint"], ["push", "                stack.append((nr, nc))"]], "ts": [[null, "const DIRS4 = [[-1, 0], [0, 1], [1, 0], [0, -1]];      // up, right, down, left"], [null, ""], [null, "function isInside(grid: number[][], r: number, c: number): boolean {"], [null, "  return r >= 0 && r < grid.length && c >= 0 && c < grid[0].length;"], [null, "}"], [null, ""], [null, "function flood(grid: number[][], sr: number, sc: number, target: number, paint: number): void {"], ["paint0", "  grid[sr][sc] = paint;"], ["init", "  const stack: number[][] = [[sr, sc]];"], ["loop", "  while (stack.length > 0) {"], ["pop", "    const [r, c] = stack.pop()!;"], ["dirs", "    for (const [dr, dc] of DIRS4) {"], ["dirs", "      const nr = r + dr, nc = c + dc;"], ["check", "      if (isInside(grid, nr, nc) && grid[nr][nc] === target) {"], ["paint", "        grid[nr][nc] = paint;"], ["push", "        stack.push([nr, nc]);"], [null, "      }"], [null, "    }"], [null, "  }"], [null, "}"]], "java": [[null, "static final int[][] DIRS4 = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}}; // up, right, down, left"], [null, ""], [null, "static boolean isInside(int[][] grid, int r, int c) {"], [null, "    return r >= 0 && r < grid.length && c >= 0 && c < grid[0].length;"], [null, "}"], [null, ""], [null, "static void flood(int[][] grid, int sr, int sc, int target, int paint) {"], ["paint0", "    grid[sr][sc] = paint;"], ["init", "    Deque<int[]> stack = new ArrayDeque<>();"], ["init", "    stack.push(new int[]{sr, sc});"], ["loop", "    while (!stack.isEmpty()) {"], ["pop", "        int[] cell = stack.pop();"], ["dirs", "        for (int[] d : DIRS4) {"], ["dirs", "            int nr = cell[0] + d[0], nc = cell[1] + d[1];"], ["check", "            if (isInside(grid, nr, nc) && grid[nr][nc] == target) {"], ["paint", "                grid[nr][nc] = paint;"], ["push", "                stack.push(new int[]{nr, nc});"], [null, "            }"], [null, "        }"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-13a-table").innerHTML = TL.table(run.table); }
+  { const run = tl13B([[1, 1, 0, 0], [1, 0, 0, 1], [0, 0, 1, 1], [1, 0, 1, 1]]);
+    Viz.tlab("#tl-13b", { title: "Template B \u00b7 count islands", sub: "Each island gets its own colour as it's sunk; blue = scan position.", code: {"py": [[null, "def count_regions(grid, target, paint):"], ["init", "    region_count = 0"], ["scan", "    for row in range(len(grid)):"], ["scan", "        for col in range(len(grid[0])):"], ["new", "            if grid[row][col] == target:"], ["count", "                region_count += 1"], ["sink", "                flood(grid, row, col, target, paint)"], ["ret", "    return region_count"]], "ts": [[null, "function countRegions(grid: number[][], target: number, paint: number): number {"], ["init", "  let regionCount = 0;"], ["scan", "  for (let row = 0; row < grid.length; row++) {"], ["scan", "    for (let col = 0; col < grid[0].length; col++) {"], ["new", "      if (grid[row][col] === target) {"], ["count", "        regionCount++;"], ["sink", "        flood(grid, row, col, target, paint);"], [null, "      }"], [null, "    }"], [null, "  }"], ["ret", "  return regionCount;"], [null, "}"]], "java": [[null, "static int countRegions(int[][] grid, int target, int paint) {"], ["init", "    int regionCount = 0;"], ["scan", "    for (int row = 0; row < grid.length; row++) {"], ["scan", "        for (int col = 0; col < grid[0].length; col++) {"], ["new", "            if (grid[row][col] == target) {"], ["count", "                regionCount++;"], ["sink", "                flood(grid, row, col, target, paint);"], [null, "            }"], [null, "        }"], [null, "    }"], ["ret", "    return regionCount;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-13b-table").innerHTML = TL.table(run.table); }
+  { const run = tl13C([[0, 0, 0, 0], [1, 1, 0, 1], [0, 0, 0, 0], [0, 1, 1, 0]], [0, 0], [3, 3]);
+    Viz.tlab("#tl-13c", { title: "Template C \u00b7 fewest steps (0,0) \u2192 (3,3)", sub: "Numbers = step at which water reached the cell. Red = wall.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def bfs_steps(grid, start, goal, open_value):"], ["init", "    visited = {start}"], ["init", "    queue = deque([start])"], ["init", "    steps = 0"], ["loop", "    while queue:"], ["layer", "        for _ in range(len(queue)):"], ["pop", "            r, c = queue.popleft()"], ["goal", "            if (r, c) == goal:"], ["goal", "                return steps"], ["dirs", "            for dr, dc in DIRS4:"], ["dirs", "                nr, nc = r + dr, c + dc"], [null, "                if (is_inside(grid, nr, nc) and (nr, nc) not in visited"], ["check", "                        and grid[nr][nc] == open_value):"], ["push", "                    visited.add((nr, nc))"], ["push", "                    queue.append((nr, nc))"], ["step", "        steps += 1"], ["none", "    return -1"]], "ts": [[null, "function bfsSteps(grid: number[][], start: number[], goal: number[], openValue: number): number {"], [null, "  const key = (r: number, c: number) => r * grid[0].length + c;"], ["init", "  const visited = new Set([key(start[0], start[1])]);"], ["init", "  let queue = [start];"], ["init", "  let steps = 0;"], ["loop", "  while (queue.length > 0) {"], ["layer", "    const next: number[][] = [];"], ["pop", "    for (const [r, c] of queue) {"], ["goal", "      if (r === goal[0] && c === goal[1]) return steps;"], ["dirs", "      for (const [dr, dc] of DIRS4) {"], ["dirs", "        const nr = r + dr, nc = c + dc;"], ["check", "        if (isInside(grid, nr, nc) && !visited.has(key(nr, nc)) && grid[nr][nc] === openValue) {"], ["push", "          visited.add(key(nr, nc));"], ["push", "          next.push([nr, nc]);"], [null, "        }"], [null, "      }"], [null, "    }"], ["step", "    queue = next;"], ["step", "    steps++;"], [null, "  }"], ["none", "  return -1;"], [null, "}"]], "java": [[null, "static int bfsSteps(int[][] grid, int[] start, int[] goal, int openValue) {"], [null, "    int cols = grid[0].length;"], ["init", "    boolean[] visited = new boolean[grid.length * cols];"], ["init", "    visited[start[0] * cols + start[1]] = true;"], ["init", "    Deque<int[]> queue = new ArrayDeque<>();"], ["init", "    queue.offer(start);"], ["init", "    int steps = 0;"], ["loop", "    while (!queue.isEmpty()) {"], ["layer", "        for (int k = queue.size(); k > 0; k--) {"], ["pop", "            int[] cell = queue.poll();"], ["goal", "            if (cell[0] == goal[0] && cell[1] == goal[1]) return steps;"], ["dirs", "            for (int[] d : DIRS4) {"], ["dirs", "                int nr = cell[0] + d[0], nc = cell[1] + d[1];"], ["check", "                if (isInside(grid, nr, nc) && !visited[nr * cols + nc] && grid[nr][nc] == openValue) {"], ["push", "                    visited[nr * cols + nc] = true;"], ["push", "                    queue.offer(new int[]{nr, nc});"], [null, "                }"], [null, "            }"], [null, "        }"], ["step", "        steps++;"], [null, "    }"], ["none", "    return -1;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-13c-table").innerHTML = TL.table(run.table); }
+  { const run = tl13D(false);
+    Viz.tlab("#tl-13d", { title: "Template D \u00b7 rotate [[1,2,3],[4,5,6],[7,8,9]]", sub: "Blue = the two cells being swapped; green = rows already mirrored.", code: {"py": [[null, "def rotate_clockwise(matrix):"], ["init", "    size = len(matrix)"], ["tloop", "    for r in range(size):"], ["tloop", "        for c in range(r + 1, size):"], ["swap", "            matrix[r][c], matrix[c][r] = matrix[c][r], matrix[r][c]"], ["rev", "    for row in matrix:"], ["rev", "        row.reverse()"]], "ts": [[null, "function rotateClockwise(matrix: number[][]): void {"], ["init", "  const size = matrix.length;"], ["tloop", "  for (let r = 0; r < size; r++) {"], ["tloop", "    for (let c = r + 1; c < size; c++) {"], ["swap", "      [matrix[r][c], matrix[c][r]] = [matrix[c][r], matrix[r][c]];"], [null, "    }"], [null, "  }"], ["rev", "  for (const row of matrix) row.reverse();"], [null, "}"]], "java": [[null, "static void rotateClockwise(int[][] matrix) {"], ["init", "    int size = matrix.length;"], ["tloop", "    for (int r = 0; r < size; r++) {"], ["tloop", "        for (int c = r + 1; c < size; c++) {"], ["swap", "            int tmp = matrix[r][c];"], ["swap", "            matrix[r][c] = matrix[c][r];"], ["swap", "            matrix[c][r] = tmp;"], [null, "        }"], [null, "    }"], ["rev", "    for (int[] row : matrix) {"], ["rev", "        for (int i = 0, j = size - 1; i < j; i++, j--) {"], ["rev", "            int tmp = row[i]; row[i] = row[j]; row[j] = tmp;"], [null, "        }"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-13d-table").innerHTML = TL.table(run.table); }
+  { const run = tl13D(false);
+    Viz.tlab("#tl-13d-bug", { title: "Why start at r + 1", sub: "Switch between range(r + 1, size) and range(size).", code: {"py": [[null, "def rotate_clockwise(matrix):"], ["init", "    size = len(matrix)"], ["tloop", "    for r in range(size):"], ["tloop", "        for c in range(r + 1, size):"], ["swap", "            matrix[r][c], matrix[c][r] = matrix[c][r], matrix[r][c]"], ["rev", "    for row in matrix:"], ["rev", "        row.reverse()"]], "ts": [[null, "function rotateClockwise(matrix: number[][]): void {"], ["init", "  const size = matrix.length;"], ["tloop", "  for (let r = 0; r < size; r++) {"], ["tloop", "    for (let c = r + 1; c < size; c++) {"], ["swap", "      [matrix[r][c], matrix[c][r]] = [matrix[c][r], matrix[r][c]];"], [null, "    }"], [null, "  }"], ["rev", "  for (const row of matrix) row.reverse();"], [null, "}"]], "java": [[null, "static void rotateClockwise(int[][] matrix) {"], ["init", "    int size = matrix.length;"], ["tloop", "    for (int r = 0; r < size; r++) {"], ["tloop", "        for (int c = r + 1; c < size; c++) {"], ["swap", "            int tmp = matrix[r][c];"], ["swap", "            matrix[r][c] = matrix[c][r];"], ["swap", "            matrix[c][r] = tmp;"], [null, "        }"], [null, "    }"], ["rev", "    for (int[] row : matrix) {"], ["rev", "        for (int i = 0, j = size - 1; i < j; i++, j--) {"], ["rev", "            int tmp = row[i]; row[i] = row[j]; row[j] = tmp;"], [null, "        }"], [null, "    }"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: inner loop from 0", code: {"py": [[null, "def rotate_clockwise(matrix):"], ["init", "    size = len(matrix)"], ["tloop", "    for r in range(size):"], ["tloop", "        for c in range(size):"], ["swap", "            matrix[r][c], matrix[c][r] = matrix[c][r], matrix[r][c]"], ["rev", "    for row in matrix:"], ["rev", "        row.reverse()"]]}, steps: tl13D(true).steps, diverge: undefined, why: "this pair was already swapped when (c, r) was visited; swapping again puts it back." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

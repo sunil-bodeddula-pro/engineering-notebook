@@ -2345,172 +2345,404 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost formula:</strong> time = <strong>number of states × work per transition</strong>; space = number of states (often reducible by one dimension). House Robber: n states × O(1) = <code>O(n)</code>. Coin Change: amount × coins. Edit Distance: <code>m·n</code> × O(1). Burst Balloons: n² states × n splits = <code>O(n³)</code>.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python templates (memorize these)</h2>
-    <pre><code class="python"># ---- The ladder on Fibonacci ------------------------------------------
-# fib(0) = 0, fib(1) = 1, and every later number is the sum of the two before it.
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Dynamic programming has seven templates here. <strong>A</strong> (top-down memo) and <strong>B</strong> (bottom-up table) are the two ways to fill any DP; Fibonacci keeps the recurrence trivial so you can watch the mechanics. The rest are the common shapes of the recurrence: <strong>C</strong> 0/1 knapsack (each item once), <strong>D</strong> unbounded knapsack (items reusable), <strong>E</strong> two strings (a 2-D grid), <strong>F</strong> intervals (solve short ranges first), <strong>G</strong> a state machine (a few states per day). For every one, ask the same three questions: <em>what does a cell mean, what does it depend on, in what order can I fill it?</em></p>
 
-def fib_rec(n):                               # 1) plain recursion: O(2^n) time
-    # base cases: fib(0) = 0 and fib(1) = 1
-    if n &lt; 2:
-        return n
-    # each call makes TWO more calls, so the same values are recomputed over and over
-    return fib_rec(n - 1) + fib_rec(n - 2)
-
-
-def fib_memo(n, memo=None):                   # 2) memoization (top-down): O(n) time
-    # memo is a dict that remembers answers we already computed: memo[k] = fib(k).
-    # We create it on the first call (memo is None) and pass the SAME dict down every call.
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Top-down: recursion + memo</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Compute a recursive answer without recomputing the same subproblem.</div><div><b>What it keeps</b><code>memo</code>: subproblem → answer.</div><div><b>When it checks for an answer</b>Every call first checks the memo; every computed answer is stored before returning.</div><div><b>Use it when</b>When the recurrence is easy to write recursively and only some subproblems are needed.</div><div><b>Not for</b>Very deep recursion in Python (≈1000 frames): use B.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Write the answer on the whiteboard; check the whiteboard first"</strong>A teacher asked the same question many times writes the answer on the whiteboard the first time. Next time, they just read it. Plain recursion forgets and re-derives everything, which is exponential.</div>
+    <p><strong>The story, mapped to the code.</strong> Each subproblem is a question; the memo is the whiteboard.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Questions you can answer at once</td><td data-h="In the code"><code>if n &lt; 2: return n</code></td><td data-h="What it means">Base cases.</td></tr><tr><td data-h="In the story">Look at the whiteboard</td><td data-h="In the code"><code>if n in memo: return memo[n]</code></td><td data-h="What it means">Already solved.</td></tr><tr><td data-h="In the story">Work it out from smaller questions</td><td data-h="In the code"><code>fib(n - 1) + fib(n - 2)</code></td><td data-h="What it means">The recurrence.</td></tr><tr><td data-h="In the story">Write it on the board</td><td data-h="In the code"><code>memo[n] = …</code></td><td data-h="What it means">Store before returning.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Plain recursion plus two memo lines.</p>
+    <pre><code class="python">def fib_memo(n, memo=None):
     if memo is None:
         memo = {}
     if n &lt; 2:
         return n
-    # already solved? just look it up instead of recomputing
     if n in memo:
         return memo[n]
-    # solve once, store the answer, then return it
-    answer = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)
-    memo[n] = answer
-    return answer
-
-
-def fib_tab(n):                               # 3) tabulation (bottom-up): O(n) time, O(n) space
+    memo[n] = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)
+    return memo[n]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function fibMemo(n: number, memo = new Map&lt;number, number&gt;()): number {
+  if (n &lt; 2) return n;
+  if (memo.has(n)) return memo.get(n)!;
+  memo.set(n, fibMemo(n - 1, memo) + fibMemo(n - 2, memo));
+  return memo.get(n)!;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static long fibMemo(int n, Map&lt;Integer, Long&gt; memo) {
+    if (n &lt; 2) return n;
+    if (memo.containsKey(n)) return memo.get(n);
+    memo.put(n, fibMemo(n - 1, memo) + fibMemo(n - 2, memo));
+    return memo.get(n);
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if n &lt; 2: return n</code></td><td data-h="What it does">Base cases.</td><td data-h="In the story">Answers you know by heart.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if n in memo: return memo[n]</code></td><td data-h="What it does">Reuses a stored answer.</td><td data-h="In the story">Read the whiteboard.</td><td data-h="Why here, and what breaks if it moves">Without it this is plain recursion: fib(50) takes about 2⁵⁰ calls (see the bug player).</td></tr><tr><td data-h="Line"><code>memo[n] = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)</code></td><td data-h="What it does">Computes once, stores.</td><td data-h="In the story">Write it down.</td><td data-h="Why here, and what breaks if it moves">A default argument <code>memo={}</code> is shared between calls in Python; <code>None</code> then <code>{}</code> avoids that.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>fib_memo(5)</code>. The second player removes the memo and counts the calls.</p>
+    <div id="tl-15a"></div><div id="tl-15a-bug"></div><p>With the memo, fib(5) makes 9 calls; without it, 15 (and fib(30) would make 2.7 million).</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Once <code>memo[n]</code> is set it's the correct answer for n, so each distinct n is computed at most once.</p>
+    <p><strong>Complexity.</strong> O(number of states × work per state) = O(n) for Fibonacci; O(n) memo + O(n) stack.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Mutable default <code>memo={}</code>.</strong> Use None, then create the dict.</li><li><strong>Memo key missing a parameter.</strong> The key must include everything the answer depends on (e.g. (i, remaining)).</li><li><strong>Stack overflow.</strong> Use @lru_cache with a raised limit, or B.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Write the answer on the whiteboard; check it first.</dd>
+      <dt>Choose this template when</dt><dd>Recursive recurrence with repeated subproblems → memoise.</dd>
+      <dt>Invariant</dt><dd>Each state computed once.</dd>
+      <dt>The line people get wrong</dt><dd>The memo check before the recursion.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Calls for fib_memo(5)?</summary><p>9.</p></details><details><summary>Python shortcut?</summary><p>@functools.cache on the recursive function.</p></details><details><summary>When top-down beats bottom-up?</summary><p>When only a few states are actually reached.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Bottom-up: fill a table in order (and shrink it)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Same answers, without recursion, by filling smaller subproblems first.</div><div><b>What it keeps</b><code>dp[i]</code> = answer for subproblem i; often only the last few cells are needed.</div><div><b>When it checks for an answer</b>Each cell is computed from cells already filled.</div><div><b>Use it when</b>Most interview DPs; when you can name an order in which dependencies are ready.</div><div><b>Not for</b>State spaces where only a few states are reachable (A may be faster).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Build the staircase from the bottom step up"</strong>Climbing a staircase where each step's number is the sum of the two below it: start at the bottom and write each step's number as you go. You only ever look at the two steps right below you, so you can forget the rest.</div>
+    <p><strong>The story, mapped to the code.</strong> dp is the staircase.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The first steps, known</td><td data-h="In the code"><code>dp[0] = 0, dp[1] = 1</code></td><td data-h="What it means">Base cases.</td></tr><tr><td data-h="In the story">Climb in order</td><td data-h="In the code"><code>for i in range(2, n + 1)</code></td><td data-h="What it means">Dependencies first.</td></tr><tr><td data-h="In the story">Look at the two steps below</td><td data-h="In the code"><code>dp[i - 1] + dp[i - 2]</code></td><td data-h="What it means">The recurrence.</td></tr><tr><td data-h="In the story">Only two steps matter</td><td data-h="In the code"><code>older, newer</code></td><td data-h="What it means">O(1) space version.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The table version, then the same loop keeping only two numbers.</p>
+    <pre><code class="python">def fib_tab(n):
     if n &lt; 2:
         return n
-    # dp[i] will hold fib(i); [0] * (n + 1) makes a list of n + 1 zeros
     dp = [0] * (n + 1)
     dp[1] = 1
-    # fill the table from small to large, so dp[i - 1] and dp[i - 2] are always ready
     for i in range(2, n + 1):
         dp[i] = dp[i - 1] + dp[i - 2]
     return dp[n]
 
 
-def fib_opt(n):                               # 4) space-optimized: O(1) space
-    # the table only ever reads the last two cells, so keep just two variables
-    older = 0                                 # fib(i)      (starts as fib(0))
-    newer = 1                                 # fib(i + 1)  (starts as fib(1))
-    for step in range(n):
-        # next_value must be computed BEFORE we overwrite older,
-        # because it needs the old value of older
-        next_value = older + newer
-        older = newer
-        newer = next_value
-    return older
+def fib_opt(n):
+    older, newer = 0, 1
+    for _ in range(n):
+        older, newer = newer, older + newer
+    return older</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function fibTab(n: number): number {
+  if (n &lt; 2) return n;
+  const dp: number[] = new Array(n + 1).fill(0);
+  dp[1] = 1;
+  for (let i = 2; i &lt;= n; i++) {
+    dp[i] = dp[i - 1] + dp[i - 2];
+  }
+  return dp[n];
+}
 
+function fibOpt(n: number): number {
+  let older = 0, newer = 1;
+  for (let i = 0; i &lt; n; i++) [older, newer] = [newer, older + newer];
+  return older;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static long fibTab(int n) {
+    if (n &lt; 2) return n;
+    long[] dp = new long[n + 1];
+    dp[1] = 1;
+    for (int i = 2; i &lt;= n; i++) {
+        dp[i] = dp[i - 1] + dp[i - 2];
+    }
+    return dp[n];
+}
 
-# ---- 0/1 knapsack: each item at most once -&gt; capacity loop BACKWARDS ----
-def knapsack_01(weights, values, capacity):
-    # dp[cap] = best value that fits in a bag of size cap; [0] * k = k zeros (take nothing)
+static long fibOpt(int n) {
+    long older = 0, newer = 1;
+    for (int i = 0; i &lt; n; i++) {
+        long next = older + newer;
+        older = newer;
+        newer = next;
+    }
+    return older;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>dp = [0] * (n + 1)</code></td><td data-h="What it does">One cell per subproblem 0..n.</td><td data-h="In the story">The staircase.</td><td data-h="Why here, and what breaks if it moves">Size n loses dp[n].</td></tr><tr><td data-h="Line"><code>for i in range(2, n + 1)</code></td><td data-h="What it does">Fills in dependency order.</td><td data-h="In the story">Climb from the bottom.</td><td data-h="Why here, and what breaks if it moves">Filling in the wrong order reads cells that are still 0.</td></tr><tr><td data-h="Line"><code>dp[i] = dp[i - 1] + dp[i - 2]</code></td><td data-h="What it does">The recurrence.</td><td data-h="In the story">Sum of the two steps below.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>older, newer = newer, older + newer</code></td><td data-h="What it does">Keeps only the last two cells.</td><td data-h="In the story">Forget the lower steps.</td><td data-h="Why here, and what breaks if it moves">Updating one variable at a time without the tuple loses the old value.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>fib_tab(6)</code>.</p>
+    <div id="tl-15b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Before iteration i, <code>dp[0..i-1]</code> are all final.</p>
+    <p><strong>Complexity.</strong> O(n) time; O(n) space for the table, O(1) with the two-variable version.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Off-by-one table size.</strong> n + 1 cells for answers 0..n.</li><li><strong>Wrong fill order.</strong> Everything a cell reads must already be filled.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Build the staircase from the bottom up.</dd>
+      <dt>Choose this template when</dt><dd>Clear dependency order → bottom-up table.</dd>
+      <dt>Invariant</dt><dd>Cells before i are final.</dd>
+      <dt>The line people get wrong</dt><dd>The fill order.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>dp for n = 6?</summary><p>[0, 1, 1, 2, 3, 5, 8].</p></details><details><summary>When can you drop the table?</summary><p>When each cell reads only a fixed number of previous cells.</p></details><details><summary>Climbing stairs (1 or 2 steps)?</summary><p>Same recurrence with dp[0] = dp[1] = 1.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · 0/1 knapsack (each item at most once)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Best total value with total weight ≤ capacity, each item used at most once.</div><div><b>What it keeps</b><code>dp[cap]</code> = best value using the items seen so far within capacity cap.</div><div><b>When it checks for an answer</b>For each item, every capacity from high to low decides: skip it, or take it once.</div><div><b>Use it when</b>Subset sum, partition equal subset sum (LC 416), target sum (LC 494), ones and zeroes.</div><div><b>Not for</b>Reusable items (D).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Each item once: walk the capacities downwards"</strong>Packing a suitcase where each item exists once. For one item, update the biggest suitcases first: their "take it" option reads smaller suitcases that don't contain this item yet. Walking upwards would let the item be packed twice.</div>
+    <p><strong>The story, mapped to the code.</strong> dp is a row of suitcases of sizes 0..capacity.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Best value for a suitcase of size cap</td><td data-h="In the code"><code>dp[cap]</code></td><td data-h="What it means">Using items seen so far.</td></tr><tr><td data-h="In the story">Skip the item</td><td data-h="In the code"><code>dp[cap]</code></td><td data-h="What it means">Keep the old value.</td></tr><tr><td data-h="In the story">Take it once</td><td data-h="In the code"><code>dp[cap - weight] + value</code></td><td data-h="What it means">The smaller suitcase, still without this item.</td></tr><tr><td data-h="In the story">Big to small</td><td data-h="In the code"><code>range(capacity, weight - 1, -1)</code></td><td data-h="What it means">So the item isn't reused.</td></tr></tbody></table>
+    <p><strong>The template.</strong> One row, updated in place, backwards.</p>
+    <pre><code class="python">def knapsack_01(weights, values, capacity):
     dp = [0] * (capacity + 1)
-    for i in range(len(weights)):
-        weight = weights[i]
-        value = values[i]
-        # walk cap DOWN from capacity to weight: dp[cap - weight] has not been
-        # updated for this item yet, so it still means "without this item"
-        cap = capacity
-        while cap &gt;= weight:
+    for weight, value in zip(weights, values):
+        for cap in range(capacity, weight - 1, -1):
             dp[cap] = max(dp[cap], dp[cap - weight] + value)
-            cap = cap - 1
-    return dp[capacity]
-
-
-# ---- Unbounded knapsack: items reusable -&gt; loop FORWARDS -----------------
-def unbounded(weights, values, capacity):
-    # dp[cap] = best value for a bag of size cap, each item may be used many times
+    return dp[capacity]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function knapsack01(weights: number[], values: number[], capacity: number): number {
+  const dp: number[] = new Array(capacity + 1).fill(0);
+  weights.forEach((weight, i) =&gt; {
+    for (let cap = capacity; cap &gt;= weight; cap--) {
+      dp[cap] = Math.max(dp[cap], dp[cap - weight] + values[i]);
+    }
+  });
+  return dp[capacity];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int knapsack01(int[] weights, int[] values, int capacity) {
+    int[] dp = new int[capacity + 1];
+    for (int i = 0; i &lt; weights.length; i++) {
+        for (int cap = capacity; cap &gt;= weights[i]; cap--) {
+            dp[cap] = Math.max(dp[cap], dp[cap - weights[i]] + values[i]);
+        }
+    }
+    return dp[capacity];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>dp = [0] * (capacity + 1)</code></td><td data-h="What it does">No items yet: value 0 everywhere.</td><td data-h="In the story">Empty suitcases.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>for cap in range(capacity, weight - 1, -1)</code></td><td data-h="What it does">High to low.</td><td data-h="In the story">Biggest suitcase first.</td><td data-h="Why here, and what breaks if it moves">Low to high reads a dp[cap − weight] that already includes this item: unbounded knapsack by accident (see the bug player).</td></tr><tr><td data-h="Line"><code>dp[cap] = max(dp[cap], dp[cap - weight] + value)</code></td><td data-h="What it does">Skip vs take once.</td><td data-h="In the story">Is it worth packing?</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through weights <code>[1, 3, 4]</code>, values <code>[15, 20, 30]</code>, capacity 4. The second player loops capacities upward.</p>
+    <div id="tl-15c"></div><div id="tl-15c-bug"></div><p>Upwards, dp[2] reads dp[1], which already holds the weight-1 item, so it's packed again: the answer becomes 60 (four copies) instead of 35.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After processing item i, <code>dp[cap]</code> is the best value using items 0..i with weight ≤ cap; the downward loop guarantees each read cell is from before item i.</p>
+    <p><strong>Complexity.</strong> O(items × capacity) time, O(capacity) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Upward loop.</strong> Each item once → downward.</li><li><strong>Using a 2-D table and forgetting to copy the row.</strong> dp[i][cap] = dp[i−1][cap] first.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Each item once: walk the capacities downwards.</dd>
+      <dt>Choose this template when</dt><dd>Pick a subset under a budget → 0/1 knapsack.</dd>
+      <dt>Invariant</dt><dd>Reads come from "before this item".</dd>
+      <dt>The line people get wrong</dt><dd><code>range(capacity, weight - 1, -1)</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Answer for the example?</summary><p>35 (weights 1 + 3).</p></details><details><summary>Partition equal subset sum?</summary><p>Boolean knapsack with capacity = total / 2.</p></details><details><summary>Space?</summary><p>O(capacity).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Unbounded knapsack (items reusable)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Best value (or number of ways) when each item can be used any number of times.</div><div><b>What it keeps</b><code>dp[cap]</code> = best value for capacity cap.</div><div><b>When it checks for an answer</b>For every capacity, try ending with each item.</div><div><b>Use it when</b>Coin change (LC 322 min coins, LC 518 ways), rod cutting, perfect squares.</div><div><b>Not for</b>Items usable once (C).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Any item, as often as you like: grow the capacity upward"</strong>A vending machine refills itself. For each suitcase size, ask: which item could I have packed last? The rest of the suitcase is a smaller size you've already solved, and it may contain the same item again.</div>
+    <p><strong>The story, mapped to the code.</strong> Same suitcases; the shelf never runs out.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Best for size cap</td><td data-h="In the code"><code>dp[cap]</code></td><td data-h="What it means">Any number of each item.</td></tr><tr><td data-h="In the story">Pack item i last</td><td data-h="In the code"><code>dp[cap - weight] + value</code></td><td data-h="What it means">Smaller suitcase may already include item i.</td></tr><tr><td data-h="In the story">Small to large</td><td data-h="In the code"><code>for cap in range(1, capacity + 1)</code></td><td data-h="What it means">Smaller sizes are final first.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Capacity outer, items inner, both upward.</p>
+    <pre><code class="python">def unbounded(weights, values, capacity):
     dp = [0] * (capacity + 1)
     for cap in range(1, capacity + 1):
-        for i in range(len(weights)):
-            weight = weights[i]
-            value = values[i]
+        for weight, value in zip(weights, values):
             if weight &lt;= cap:
-                # dp[cap - weight] may ALREADY include this item: that is what allows reuse
                 dp[cap] = max(dp[cap], dp[cap - weight] + value)
-    return dp[capacity]
-
-
-# ---- Two strings: dp[i][j] over prefixes a[:i], b[:j] ------------------
-def two_strings(a, b):
-    len_a = len(a)
-    len_b = len(b)
-    # build a (len_a + 1) x (len_b + 1) table of zeros, one row at a time;
-    # row 0 / column 0 stand for the empty prefix
-    dp = []
-    for i in range(len_a + 1):
-        dp.append([0] * (len_b + 1))
-    for i in range(1, len_a + 1):
-        for j in range(1, len_b + 1):
-            # dp index i matches string index i - 1 (the extra row shifts everything by one)
+    return dp[capacity]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function unbounded(weights: number[], values: number[], capacity: number): number {
+  const dp: number[] = new Array(capacity + 1).fill(0);
+  for (let cap = 1; cap &lt;= capacity; cap++) {
+    weights.forEach((weight, i) =&gt; {
+      if (weight &lt;= cap) {
+        dp[cap] = Math.max(dp[cap], dp[cap - weight] + values[i]);
+      }
+    });
+  }
+  return dp[capacity];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int unbounded(int[] weights, int[] values, int capacity) {
+    int[] dp = new int[capacity + 1];
+    for (int cap = 1; cap &lt;= capacity; cap++) {
+        for (int i = 0; i &lt; weights.length; i++) {
+            if (weights[i] &lt;= cap) {
+                dp[cap] = Math.max(dp[cap], dp[cap - weights[i]] + values[i]);
+            }
+        }
+    }
+    return dp[capacity];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for cap in range(1, capacity + 1)</code></td><td data-h="What it does">Smaller capacities first.</td><td data-h="In the story">Grow the suitcase.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if weight &lt;= cap</code></td><td data-h="What it does">The item fits.</td><td data-h="In the story">Could it be the last item packed?</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>dp[cap] = max(dp[cap], dp[cap - weight] + value)</code></td><td data-h="What it does">Best "last item" choice.</td><td data-h="In the story">Pack it last.</td><td data-h="Why here, and what breaks if it moves">For counting ways (coin change II), the loop order decides whether [1,2] and [2,1] are counted once (items outer) or twice (capacity outer).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Same items as C: weights <code>[1, 3, 4]</code>, values <code>[15, 20, 30]</code>, capacity 4.</p>
+    <div id="tl-15d"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When cap is processed, <code>dp[0..cap-1]</code> are final best values with unlimited items.</p>
+    <p><strong>Complexity.</strong> O(items × capacity) time, O(capacity) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Downward loop (that's 0/1).</strong> Reusable → upward.</li><li><strong>Coin change min with 0 init.</strong> Initialise to infinity except dp[0] = 0.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Any item, as often as you like: grow upward.</dd>
+      <dt>Choose this template when</dt><dd>Reusable items/coins → unbounded knapsack.</dd>
+      <dt>Invariant</dt><dd>Smaller capacities are final.</dd>
+      <dt>The line people get wrong</dt><dd>Loop direction (up).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Answer for the example?</summary><p>60: four weight-1 items.</p></details><details><summary>Coin change (fewest coins)?</summary><p>dp[c] = min(dp[c − coin] + 1).</p></details><details><summary>Count combinations, not orderings?</summary><p>Coins in the outer loop.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-e">
+    <h3>Template E · Two strings (longest common subsequence)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Compare two sequences: LCS, edit distance, interleaving, distinct subsequences.</div><div><b>What it keeps</b><code>dp[i][j]</code> = answer for the first i characters of a and the first j of b.</div><div><b>When it checks for an answer</b>Each cell looks at the cell diagonally up-left (match) or the cells up and left (skip one).</div><div><b>Use it when</b>LCS (LC 1143), edit distance (LC 72), shortest common supersequence, regex/wildcard matching.</div><div><b>Not for</b>Single sequence problems (B, C, D).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Match → diagonal + 1; otherwise the better of up and left"</strong>Two people reading two words letter by letter. If the current letters match, both step forward together and the common part grows by one (diagonal). If not, one of them skips a letter; keep whichever skip did better (up or left).</div>
+    <p><strong>The story, mapped to the code.</strong> Rows are prefixes of a, columns prefixes of b; row and column 0 are empty prefixes.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Empty prefix</td><td data-h="In the code"><code>row 0 / column 0 = 0</code></td><td data-h="What it means">Nothing in common with an empty string.</td></tr><tr><td data-h="In the story">Letters match</td><td data-h="In the code"><code>dp[i-1][j-1] + 1</code></td><td data-h="What it means">Diagonal + 1.</td></tr><tr><td data-h="In the story">Skip a letter of a</td><td data-h="In the code"><code>dp[i-1][j]</code></td><td data-h="What it means">Up.</td></tr><tr><td data-h="In the story">Skip a letter of b</td><td data-h="In the code"><code>dp[i][j-1]</code></td><td data-h="What it means">Left.</td></tr><tr><td data-h="In the story">Whole words</td><td data-h="In the code"><code>dp[len_a][len_b]</code></td><td data-h="What it means">Bottom-right.</td></tr></tbody></table>
+    <p><strong>The template.</strong> An (len_a + 1) × (len_b + 1) grid; index i − 1 is the i-th character.</p>
+    <pre><code class="python">def lcs(a, b):
+    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
             if a[i - 1] == b[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1               # (LCS version) extend the diagonal
+                dp[i][j] = dp[i - 1][j - 1] + 1
             else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])    # drop a character from one side
-    return dp[len_a][len_b]
-
-
-# ---- Interval DP: fill by increasing length ----------------------------
-def interval(size, score):
-    # score is a function passed in: score(left, last, right) = value of picking "last" inside (left, right)
-    # build a size x size table of zeros: dp[left][right] = best answer strictly between left and right
-    dp = []
-    for i in range(size):
-        dp.append([0] * size)
-    # short intervals first, so the smaller pieces are ready when a longer one needs them
-    for length in range(2, size):
-        for left in range(size - length):
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[len(a)][len(b)]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function lcs(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, () =&gt; new Array(b.length + 1).fill(0));
+  for (let i = 1; i &lt;= a.length; i++) {
+    for (let j = 1; j &lt;= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  return dp[a.length][b.length];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int lcs(String a, String b) {
+    int[][] dp = new int[a.length() + 1][b.length() + 1];
+    for (int i = 1; i &lt;= a.length(); i++) {
+        for (int j = 1; j &lt;= b.length(); j++) {
+            if (a.charAt(i - 1) == b.charAt(j - 1)) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+    }
+    return dp[a.length()][b.length()];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]</code></td><td data-h="What it does">Extra row/column for empty prefixes.</td><td data-h="In the story">The empty-word border.</td><td data-h="Why here, and what breaks if it moves"><code>[[0] * m] * n</code> repeats one row object n times: writing one row writes them all.</td></tr><tr><td data-h="Line"><code>if a[i - 1] == b[j - 1]</code></td><td data-h="What it does">Cell (i, j) is about the i-th and j-th characters.</td><td data-h="In the story">Do the current letters match?</td><td data-h="Why here, and what breaks if it moves"><code>a[i]</code> is off by one and crashes on the last row.</td></tr><tr><td data-h="Line"><code>dp[i][j] = dp[i - 1][j - 1] + 1</code></td><td data-h="What it does">Match: extend the diagonal.</td><td data-h="In the story">Both step forward.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])</code></td><td data-h="What it does">No match: skip one letter.</td><td data-h="In the story">Better of up and left.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>a = "abcde"</code>, <code>b = "ace"</code>, one row at a time.</p>
+    <div id="tl-15e"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15e-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Row by row, each cell's up, left and up-left neighbours are final before it's computed.</p>
+    <p><strong>Complexity.</strong> O(len_a × len_b) time; O(len_b) space with two rows.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Off-by-one between dp indices and string indices.</strong> dp row i ↔ character a[i − 1].</li><li><strong>Shared row objects in Python.</strong> Build rows with a comprehension.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Match → diagonal + 1; else best of up and left.</dd>
+      <dt>Choose this template when</dt><dd>Two sequences compared prefix by prefix → 2-D DP.</dd>
+      <dt>Invariant</dt><dd>Neighbours up/left/diagonal are final.</dd>
+      <dt>The line people get wrong</dt><dd><code>a[i - 1] == b[j - 1]</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>LCS of abcde and ace?</summary><p>3 (ace).</p></details><details><summary>Edit distance's match case?</summary><p>dp[i−1][j−1] with no cost.</p></details><details><summary>Space optimisation?</summary><p>Keep the previous row only.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-f">
+    <h3>Template F · Interval DP (burst balloons)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Best score for a range [left, right] from best scores of smaller ranges inside it.</div><div><b>What it keeps</b><code>dp[left][right]</code> = best for the open range between left and right.</div><div><b>When it checks for an answer</b>Ranges are solved by increasing length; each tries every possible split point.</div><div><b>Use it when</b>Burst balloons (LC 312), matrix-chain multiplication, minimum cost to cut a stick (LC 1547), palindrome partitioning variants.</div><div><b>Not for</b>Problems where a prefix is enough (B, E).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Short ranges first; pick who goes last"</strong>To score a stretch of balloons, decide which balloon you burst <em>last</em> inside it. At that moment its neighbours are the stretch's two walls, and the two sides are independent smaller stretches you've already solved.</div>
+    <p><strong>The story, mapped to the code.</strong> vals has a 1 added at each end (the walls).</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Walls at both ends</td><td data-h="In the code"><code>vals = [1] + nums + [1]</code></td><td data-h="What it means">Bursting next to a wall multiplies by 1.</td></tr><tr><td data-h="In the story">A stretch between two walls</td><td data-h="In the code"><code>dp[left][right]</code></td><td data-h="What it means">Balloons strictly between them.</td></tr><tr><td data-h="In the story">Burst last</td><td data-h="In the code"><code>last in range(left + 1, right)</code></td><td data-h="What it means">Try each one.</td></tr><tr><td data-h="In the story">Its score</td><td data-h="In the code"><code>vals[left] * vals[last] * vals[right]</code></td><td data-h="What it means">Neighbours are the walls.</td></tr><tr><td data-h="In the story">Short stretches first</td><td data-h="In the code"><code>for length in range(2, n)</code></td><td data-h="What it means">Sub-ranges are ready.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Three loops: length, left end, split point.</p>
+    <pre><code class="python">def max_coins(nums):
+    vals = [1] + nums + [1]
+    n = len(vals)
+    dp = [[0] * n for _ in range(n)]
+    for length in range(2, n):
+        for left in range(n - length):
             right = left + length
-            best = float("-inf")                  # float("-inf") is smaller than every number
             for last in range(left + 1, right):
-                candidate = dp[left][last] + score(left, last, right) + dp[last][right]
-                best = max(best, candidate)
-            dp[left][right] = best
-    return dp[0][size - 1]
-
-
-# ---- State machine: one variable per state, update all at once ---------
-def stock_cooldown(prices):
-    # float("-inf") = "impossible": you can't hold or have sold anything before day 0
-    hold = float("-inf")
-    sold = float("-inf")
-    rest = 0
-    for i in range(len(prices)):
-        price = prices[i]
-        # every new value must use YESTERDAY's values, so compute all three into
-        # temporary variables first, then copy them over
-        new_hold = max(hold, rest - price)
-        new_sold = hold + price
-        new_rest = max(rest, sold)
-        hold = new_hold
-        sold = new_sold
-        rest = new_rest
+                dp[left][right] = max(dp[left][right],
+                    dp[left][last] + vals[left] * vals[last] * vals[right] + dp[last][right])
+    return dp[0][n - 1]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function maxCoins(nums: number[]): number {
+  const vals = [1, ...nums, 1], n = vals.length;
+  const dp = Array.from({ length: n }, () =&gt; new Array(n).fill(0));
+  for (let length = 2; length &lt; n; length++) {
+    for (let left = 0; left + length &lt; n; left++) {
+      const right = left + length;
+      for (let last = left + 1; last &lt; right; last++) {
+        dp[left][right] = Math.max(dp[left][right],
+          dp[left][last] + vals[left] * vals[last] * vals[right] + dp[last][right]);
+      }
+    }
+  }
+  return dp[0][n - 1];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int maxCoins(int[] nums) {
+    int n = nums.length + 2;
+    int[] vals = new int[n];
+    vals[0] = vals[n - 1] = 1;
+    for (int i = 0; i &lt; nums.length; i++) vals[i + 1] = nums[i];
+    int[][] dp = new int[n][n];
+    for (int length = 2; length &lt; n; length++) {
+        for (int left = 0; left + length &lt; n; left++) {
+            int right = left + length;
+            for (int last = left + 1; last &lt; right; last++) {
+                dp[left][right] = Math.max(dp[left][right],
+                    dp[left][last] + vals[left] * vals[last] * vals[right] + dp[last][right]);
+            }
+        }
+    }
+    return dp[0][n - 1];
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>vals = [1] + nums + [1]</code></td><td data-h="What it does">Adds the walls.</td><td data-h="In the story">Walls worth 1.</td><td data-h="Why here, and what breaks if it moves">Without them the edge balloons need special cases.</td></tr><tr><td data-h="Line"><code>for length in range(2, n)</code></td><td data-h="What it does">Shorter ranges first.</td><td data-h="In the story">Short stretches first.</td><td data-h="Why here, and what breaks if it moves">Looping <code>left</code> outermost from 0 reads ranges that aren't solved yet.</td></tr><tr><td data-h="Line"><code>for last in range(left + 1, right)</code></td><td data-h="What it does">Every possible last balloon.</td><td data-h="In the story">Who goes last?</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>dp[left][last] + vals[left]*vals[last]*vals[right] + dp[last][right]</code></td><td data-h="What it does">Left side + last burst + right side.</td><td data-h="In the story">Its neighbours are the walls.</td><td data-h="Why here, and what breaks if it moves">Using "first" instead of "last" breaks independence: the neighbours change.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>nums = [3, 1, 5, 8]</code> (vals = [1, 3, 1, 5, 8, 1]); one step per range.</p>
+    <div id="tl-15f"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15f-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When a range of length L is computed, every range strictly inside it (length &lt; L) is final.</p>
+    <p><strong>Complexity.</strong> O(n³) time, O(n²) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Wrong loop order.</strong> By length.</li><li><strong>Thinking about the first balloon.</strong> Choose the last one.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Short ranges first; pick who goes last.</dd>
+      <dt>Choose this template when</dt><dd>Answer for a range from sub-ranges split at a point → interval DP.</dd>
+      <dt>Invariant</dt><dd>Shorter ranges are final.</dd>
+      <dt>The line people get wrong</dt><dd>Looping by length.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Answer for [3, 1, 5, 8]?</summary><p>167.</p></details><details><summary>Why add 1s at both ends?</summary><p>They're the walls; multiplying by 1 changes nothing.</p></details><details><summary>Complexity?</summary><p>O(n³).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-g">
+    <h3>Template G · State machine (stock with cooldown)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Best result over days when each day you're in one of a few states.</div><div><b>What it keeps</b>One number per state: the best profit if you end today in that state.</div><div><b>When it checks for an answer</b>Every day, each state is recomputed from yesterday's states.</div><div><b>Use it when</b>Stock problems with cooldown/fee/k transactions (LC 309, 714, 123), house robber, paint fence.</div><div><b>Not for</b>Problems without a small fixed set of states.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Draw the states, draw the arrows, one line per arrow"</strong>Each evening you're holding a share, just sold one, or resting. Draw those three circles and the allowed moves between them. Each day's update is just "best way to arrive in each circle".</div>
+    <p><strong>The story, mapped to the code.</strong> States: <code>hold</code>, <code>sold</code> (sold today, so tomorrow is a cooldown), <code>rest</code> (no share, free to buy).</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Holding a share</td><td data-h="In the code"><code>hold = max(hold, rest - price)</code></td><td data-h="What it means">Keep holding, or buy today (only from rest).</td></tr><tr><td data-h="In the story">Just sold</td><td data-h="In the code"><code>sold = hold + price</code></td><td data-h="What it means">Sell what you held.</td></tr><tr><td data-h="In the story">Resting</td><td data-h="In the code"><code>rest = max(rest, sold)</code></td><td data-h="What it means">Keep resting, or cooldown ends.</td></tr><tr><td data-h="In the story">Use yesterday's values</td><td data-h="In the code"><code>new_hold, new_sold, new_rest</code></td><td data-h="What it means">Compute all, then assign.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Three states, three lines, all from yesterday's values.</p>
+    <pre><code class="python">def stock_cooldown(prices):
+    hold, sold, rest = float("-inf"), float("-inf"), 0
+    for price in prices:
+        hold, sold, rest = (max(hold, rest - price),
+                            hold + price,
+                            max(rest, sold))
     return max(sold, rest)</code></pre>
-        <!-- explain:start -->
-        <p><strong>What the code is doing, line by line:</strong></p>
-        <ol>
-          <li><strong>The ladder, stage 1 (<code>fib_rec</code>):</strong> the recurrence written directly. It is correct but slow: <code>fib_rec(5)</code> calls <code>fib_rec(3)</code> twice, <code>fib_rec(2)</code> three times, and so on, so the work roughly doubles with every step of <code>n</code>.</li>
-          <li><strong>Stage 2 (<code>fib_memo</code>):</strong> the same recursion plus a dictionary <code>memo</code>. Before computing <code>fib(n)</code> we check <code>if n in memo</code>; after computing it we store <code>memo[n] = answer</code>. Each value is now computed once, so the time drops to <code>O(n)</code>. The <code>memo=None</code> default plus <code>if memo is None: memo = {}</code> gives every top-level call a fresh dictionary, and passing <code>memo</code> into the recursive calls makes them all share it.</li>
-          <li><strong>Stage 3 (<code>fib_tab</code>):</strong> no recursion at all. A list <code>dp</code> is filled from index 2 upwards, and each cell only reads two cells that were filled earlier.</li>
-          <li><strong>Stage 4 (<code>fib_opt</code>):</strong> since only the last two cells are read, two variables replace the whole list. <code>next_value</code> is a temporary: if we wrote <code>older = newer</code> first, the old <code>older</code> would be lost before we could add it. The dry run below shows stages 3 and 4 side by side: <code>older</code> after <code>n</code> loop steps equals <code>dp[n]</code>.</li>
-          <li><strong>0/1 knapsack:</strong> <code>dp[cap]</code> is the best value for a bag of size <code>cap</code>. For each item, a <code>while</code> loop walks <code>cap</code> from <code>capacity</code> <em>down</em> to <code>weight</code>. Going downwards means <code>dp[cap - weight]</code> was not touched yet for this item, so the item can be counted at most once.</li>
-          <li><strong>Unbounded knapsack:</strong> the same update, but <code>cap</code> goes <em>upwards</em>. Now <code>dp[cap - weight]</code> may already contain this item, which is exactly what lets an item be reused.</li>
-          <li><strong>Two strings:</strong> the table is built row by row with <code>append</code> (one row of zeros per prefix of <code>a</code>). Cell <code>dp[i][j]</code> compares the last characters <code>a[i - 1]</code> and <code>b[j - 1]</code>: on a match it extends the diagonal, otherwise it keeps the better of dropping one character from either string.</li>
-          <li><strong>Interval DP:</strong> <code>dp[left][right]</code> is the best answer for the open interval between <code>left</code> and <code>right</code>. The outer loop goes over <code>length</code> from short to long; the inner loop tries every split point <code>last</code> and keeps the maximum in <code>best</code> (which starts at minus infinity so the first candidate always wins).</li>
-          <li><strong>State machine:</strong> one variable per state (<code>hold</code>, <code>sold</code>, <code>rest</code>). All three new values are computed into <code>new_hold</code>, <code>new_sold</code>, <code>new_rest</code> before any variable is overwritten, so each one is based on yesterday's numbers only.</li>
-        </ol>
-        <p><strong>Dry run</strong> on the example:</p>
-        <table>
-          <thead><tr><th>n</th><th><code>dp[n]</code> in <code>fib_tab</code></th><th><code>older</code> after n loop steps</th><th><code>newer</code> after n loop steps</th></tr></thead>
-          <tbody>
-            <tr><td>0</td><td>0</td><td>0</td><td>1</td></tr>
-            <tr><td>1</td><td>1</td><td>1</td><td>1</td></tr>
-            <tr><td>2</td><td>1</td><td>1</td><td>2</td></tr>
-            <tr><td>3</td><td>2</td><td>2</td><td>3</td></tr>
-            <tr><td>4</td><td>3</td><td>3</td><td>5</td></tr>
-            <tr><td>5</td><td>5</td><td>5</td><td>8</td></tr>
-            <tr><td>6</td><td>8</td><td>8</td><td>13</td></tr>
-            <tr><td>7</td><td>13</td><td>13</td><td>21</td></tr>
-          </tbody>
-        </table>
-        <!-- explain:end -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function stockCooldown(prices: number[]): number {
+  let hold = -Infinity, sold = -Infinity, rest = 0;
+  for (const price of prices) {
+    [hold, sold, rest] = [Math.max(hold, rest - price), hold + price, Math.max(rest, sold)];
+  }
+  return Math.max(sold, rest);
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int stockCooldown(int[] prices) {
+    long hold = Long.MIN_VALUE / 2, sold = Long.MIN_VALUE / 2, rest = 0;
+    for (int price : prices) {
+        long newHold = Math.max(hold, rest - price);
+        long newSold = hold + price;
+        long newRest = Math.max(rest, sold);
+        hold = newHold; sold = newSold; rest = newRest;
+    }
+    return (int) Math.max(sold, rest);
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>hold, sold = -inf, -inf; rest = 0</code></td><td data-h="What it does">Day 0: you can't hold or have sold yet.</td><td data-h="In the story">Start resting with 0.</td><td data-h="Why here, and what breaks if it moves">Starting hold at 0 pretends you got a share for free.</td></tr><tr><td data-h="Line"><code>hold = max(hold, rest - price)</code></td><td data-h="What it does">Buy only from rest.</td><td data-h="In the story">Cooldown blocks buying right after selling.</td><td data-h="Why here, and what breaks if it moves"><code>sold - price</code> would skip the cooldown.</td></tr><tr><td data-h="Line"><code>sold = hold + price</code></td><td data-h="What it does">Sell today.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>rest = max(rest, sold)</code></td><td data-h="What it does">Yesterday's sale finishes its cooldown.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>simultaneous assignment</code></td><td data-h="What it does">All three use yesterday's values.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">Updating hold first, then using the new hold for sold, sells on the same day you bought.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>prices = [1, 2, 3, 0, 2]</code>.</p>
+    <div id="tl-15g"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-15g-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After day d, hold/sold/rest are the best profits for ending day d in that state.</p>
+    <p><strong>Complexity.</strong> O(days × states) time, O(states) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Sequential updates.</strong> Compute from yesterday, then assign together.</li><li><strong>Wrong start values.</strong> Impossible states start at −infinity.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Draw the states and arrows; one line per arrow.</dd>
+      <dt>Choose this template when</dt><dd>A few states per step with allowed moves → state-machine DP.</dd>
+      <dt>Invariant</dt><dd>Each state = best way to end today there.</dd>
+      <dt>The line people get wrong</dt><dd>Simultaneous update.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Answer for [1, 2, 3, 0, 2]?</summary><p>3: buy 1, sell 2, cooldown, buy 0, sell 2.</p></details><details><summary>Transaction fee?</summary><p>Subtract it when selling.</p></details><details><summary>House robber states?</summary><p>Robbed today / not.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Template</th><th>Cell means</th><th>Depends on</th><th>Fill order</th><th>Typical prompts</th></tr></thead><tbody><tr><td data-h="Template">A · memo</td><td data-h="Cell means">Answer for a state (any shape)</td><td data-h="Depends on">Whatever the recursion calls</td><td data-h="Fill order">Whatever the recursion reaches</td><td data-h="Typical prompts">Any, when recursion is natural</td></tr><tr><td data-h="Template">B · table</td><td data-h="Cell means">dp[i] for a prefix/size i</td><td data-h="Depends on">A few smaller i</td><td data-h="Fill order">Increasing i</td><td data-h="Typical prompts">Climbing stairs, house robber</td></tr><tr><td data-h="Template">C · 0/1 knapsack</td><td data-h="Cell means">Best for capacity cap</td><td data-h="Depends on">dp[cap − w] before this item</td><td data-h="Fill order">Items outer, capacity <em>down</em></td><td data-h="Typical prompts">LC 416, 494</td></tr><tr><td data-h="Template">D · unbounded</td><td data-h="Cell means">Best for capacity cap</td><td data-h="Depends on">dp[cap − w], any items</td><td data-h="Fill order">Capacity <em>up</em></td><td data-h="Typical prompts">LC 322, 518</td></tr><tr><td data-h="Template">E · two strings</td><td data-h="Cell means">Prefixes a[:i], b[:j]</td><td data-h="Depends on">Up, left, diagonal</td><td data-h="Fill order">Row by row</td><td data-h="Typical prompts">LC 1143, 72</td></tr><tr><td data-h="Template">F · interval</td><td data-h="Cell means">Range [l, r]</td><td data-h="Depends on">Shorter ranges inside</td><td data-h="Fill order">By length</td><td data-h="Typical prompts">LC 312, 1547</td></tr><tr><td data-h="Template">G · state machine</td><td data-h="Cell means">Best ending today in state s</td><td data-h="Depends on">Yesterday's states</td><td data-h="Fill order">Day by day</td><td data-h="Typical prompts">LC 309, 714, 198</td></tr></tbody></table>
+    <p>Same three questions for every DP: what does a cell mean, what does it depend on, in which order are dependencies ready? A and B are two ways to fill; C–G are the common shapes of "depends on".</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -18885,6 +19117,156 @@ The total probability the knight stays on the board is 0.0625.</span></div></div
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  const tlF15 = (a) => "[" + a.join(", ") + "]";
+  function tl15A(n, nomemo) {
+    const memo = {}, stack = [], steps = [], rows = []; let calls = 0;
+    const view = (k) => Viz.chips(stack.map((x) => `fib(${x})`), "call stack") + Viz.array(Array.from({ length: n + 1 }, (_, i) => (memo[i] !== undefined ? memo[i] : null)), { label: nomemo ? "memo (unused)" : "memo", hl: k !== undefined && memo[k] !== undefined ? { [k]: "found" } : {} }) + `<p class="idx">calls so far: ${calls}</p>`;
+    const f = (k) => {
+      calls++; stack.push(k);
+      if (k < 2) { steps.push({ line: "base", vars: { n: k, returns: k, calls }, view: view(), analogy: `fib(${k}) is known: ${k}.`, note: `Base case: return ${k}.` }); stack.pop(); return k; }
+      if (!nomemo && memo[k] !== undefined) { steps.push({ line: "hit", vars: { n: k, returns: memo[k], calls }, view: view(k), analogy: `fib(${k}) is on the whiteboard: ${memo[k]}.`, note: `Memo hit: return ${memo[k]}.` }); stack.pop(); return memo[k]; }
+      steps.push({ line: "store", vars: { n: k, calls }, view: view(), analogy: nomemo && rows.some((r) => r[0] === k) ? `⚠ fib(${k}) again: computed from scratch a second time.` : `fib(${k}): ask fib(${k - 1}) and fib(${k - 2}).`, note: `Recurse for ${k}.`,
+        ask: !nomemo ? { q: `Will fib(${k - 2}) be a memo hit when it's called?`, options: ["yes", "no"], answer: k - 2 >= 2 ? "yes" : "no", why: k - 2 >= 2 ? `fib(${k - 1}) computes fib(${k - 2}) first.` : "It's a base case." } : undefined });
+      const v = f(k - 1) + f(k - 2); if (!nomemo) memo[k] = v; rows.push([k, v, calls]);
+      steps.push({ line: ["store", "ret"], vars: { n: k, returns: v, calls }, view: view(k), analogy: nomemo ? `fib(${k}) = ${v} (not remembered).` : `Write fib(${k}) = ${v} on the whiteboard.`, note: `return ${v}.` });
+      stack.pop(); return v;
+    };
+    const r = f(n);
+    steps.push({ line: "ret", vars: { result: r, total_calls: calls }, view: view(), analogy: `fib(${n}) = ${r} after ${calls} calls.`, note: `Total calls: ${calls}.` });
+    return { steps, table: { head: ["n (finished)", "fib(n)", "Calls so far"], rows } };
+  }
+
+  function tl15B(n) {
+    const dp = new Array(n + 1).fill(null), steps = [], rows = []; dp[0] = 0; dp[1] = 1;
+    steps.push({ line: "init", vars: { dp: tlF15(dp.map((x) => (x === null ? "·" : x))) }, view: Viz.array(dp, { label: "dp", hl: { 0: "found", 1: "found" } }), analogy: "The bottom two steps are known.", note: "<code>dp[0] = 0</code>, <code>dp[1] = 1</code>." });
+    for (let i = 2; i <= n; i++) {
+      dp[i] = dp[i - 1] + dp[i - 2]; rows.push([i, dp[i - 1], dp[i - 2], dp[i]]);
+      steps.push({ line: ["loop", "fill"], vars: { i, [`dp[${i}]`]: dp[i] }, view: Viz.array(dp, { label: "dp", hl: { [i]: "active", [i - 1]: "gold", [i - 2]: "gold" } }), analogy: `Step ${i} = ${dp[i - 1]} + ${dp[i - 2]} = ${dp[i]}.`, note: `<code>dp[${i}] = dp[${i - 1}] + dp[${i - 2}]</code>.`,
+        ask: { q: `dp[${i}] = ?`, options: [...new Set([dp[i], dp[i - 1], dp[i] + 1])].map(String), answer: dp[i], why: `${dp[i - 1]} + ${dp[i - 2]}.` } });
+    }
+    steps.push({ line: "ret", vars: { result: dp[n] }, view: Viz.array(dp, { label: "dp", hl: { [n]: "found" } }), analogy: `Top step: ${dp[n]}.`, note: `Return <code>${dp[n]}</code>.` });
+    return { steps, table: { head: ["i", "dp[i − 1]", "dp[i − 2]", "dp[i]"], rows } };
+  }
+
+  function tl15K(w, v, C, up) {
+    const dp = new Array(C + 1).fill(0), steps = [], rows = [];
+    steps.push({ line: "init", vars: { dp: tlF15(dp) }, view: Viz.array(dp, { label: "dp[cap]" }), analogy: "Empty suitcases are worth 0.", note: "<code>dp = [0] * (capacity + 1)</code>." });
+    w.forEach((wt, i) => {
+      const caps = []; for (let c = up ? wt : C; up ? c <= C : c >= wt; c += up ? 1 : -1) caps.push(c);
+      caps.forEach((c) => {
+        const take = dp[c - wt] + v[i], old = dp[c]; dp[c] = Math.max(old, take);
+        steps.push({ line: ["item", "cap", "fill"], vars: { item: `w=${wt}, v=${v[i]}`, cap: c, skip: old, take, [`dp[${c}]`]: dp[c] }, view: Viz.array(dp, { label: "dp[cap]", hl: { [c]: "active", [c - wt]: "gold" } }),
+          analogy: up && c - wt >= wt && dp[c - wt] !== 0 && take > old && c - wt > 0 && caps.indexOf(c - wt) >= 0 ? `⚠ dp[${c - wt}] already includes this item, so it's packed again: ${take}.` : `Size ${c}: skip = ${old}, take = dp[${c - wt}] + ${v[i]} = ${take}.`,
+          note: `<code>dp[${c}] = max(${old}, ${take}) = ${dp[c]}</code>.`, ask: { q: `dp[${c}] after this item?`, options: [...new Set([dp[c], old, take])].map(String), answer: dp[c], why: `max(skip ${old}, take ${take}).` } });
+      });
+      rows.push([`w=${wt}, v=${v[i]}`, tlF15(dp)]);
+    });
+    steps.push({ line: "ret", vars: { result: dp[C] }, view: Viz.array(dp, { label: "dp[cap]", hl: { [C]: "found" } }), analogy: `Best for size ${C}: ${dp[C]}.`, note: `Return <code>${dp[C]}</code>.` });
+    return { steps, table: { head: ["After item", "dp[0..capacity]"], rows } };
+  }
+
+  function tl15U(w, v, C) {
+    const dp = new Array(C + 1).fill(0), steps = [], rows = [];
+    steps.push({ line: "init", vars: { dp: tlF15(dp) }, view: Viz.array(dp, { label: "dp[cap]" }), analogy: "Empty suitcases are worth 0.", note: "<code>dp = [0] * (capacity + 1)</code>." });
+    for (let c = 1; c <= C; c++) {
+      const tries = [];
+      w.forEach((wt, i) => { if (wt <= c) { const t = dp[c - wt] + v[i]; tries.push(`w${wt}: ${dp[c - wt]}+${v[i]}=${t}`); dp[c] = Math.max(dp[c], t); } });
+      rows.push([c, tries.join("; "), dp[c]]);
+      steps.push({ line: ["cap", "item", "fits", "fill"], vars: { cap: c, [`dp[${c}]`]: dp[c] }, view: Viz.array(dp, { label: "dp[cap]", hl: Object.assign({ [c]: "active" }, Object.fromEntries(w.filter((wt) => wt <= c).map((wt) => [c - wt, "gold"]))) }),
+        analogy: `Size ${c}: try each item as the last one packed (${tries.join("; ")}).`, note: `<code>dp[${c}] = ${dp[c]}</code>.`, ask: { q: `dp[${c}] = ?`, options: [...new Set([dp[c], dp[c - 1] || 0, dp[c] - 15])].map(String), answer: dp[c], why: "Best of the tries." } });
+    }
+    steps.push({ line: "ret", vars: { result: dp[C] }, view: Viz.array(dp, { label: "dp[cap]", hl: { [C]: "found" } }), analogy: `Best for size ${C}: ${dp[C]}.`, note: `Return <code>${dp[C]}</code>.` });
+    return { steps, table: { head: ["cap", "Tries (last item)", "dp[cap]"], rows } };
+  }
+
+  function tl15E(a, b) {
+    const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0)), steps = [], rows = [], match = {};
+    const view = (i, hl) => Viz.grid(dp, { hl: Object.assign({}, match, hl || {}) }) + `<p class="idx">rows: '' ${[...a].join(" ")} · columns: '' ${[...b].join(" ")}</p>`;
+    steps.push({ line: "init", vars: {}, view: view(), analogy: "Row 0 and column 0 are empty prefixes: 0.", note: `${a.length + 1} × ${b.length + 1} grid of zeros.` });
+    for (let i = 1; i <= a.length; i++) {
+      const notes = [];
+      for (let j = 1; j <= b.length; j++) {
+        if (a[i - 1] === b[j - 1]) { dp[i][j] = dp[i - 1][j - 1] + 1; match[i + "," + j] = "found"; notes.push(`'${a[i - 1]}' matches at column ${j}: ${dp[i][j]}`); }
+        else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+      rows.push([`'${a[i - 1]}'`, tlF15(dp[i])]);
+      steps.push({ line: ["loop", "match", "diag", "skip"], vars: { i, letter: a[i - 1], row: tlF15(dp[i]) }, view: view(i, Object.fromEntries(dp[i].map((_, j) => [i + "," + j, match[i + "," + j] || "active"]))),
+        analogy: notes.length ? notes.join("; ") + "." : `'${a[i - 1]}' matches nothing in "${b}": copy the best of up and left.`, note: `Row ${i} filled.`,
+        ask: { q: `Last cell of row ${i} (LCS of "${a.slice(0, i)}" and "${b}")?`, options: [...new Set([dp[i][b.length], dp[i][b.length] + 1, Math.max(0, dp[i][b.length] - 1)])].map(String), answer: dp[i][b.length], why: "Read the row's last cell." } });
+    }
+    steps.push({ line: "ret", vars: { result: dp[a.length][b.length] }, view: view(a.length, { [a.length + "," + b.length]: "gold" }), analogy: `Bottom-right: ${dp[a.length][b.length]}.`, note: `Return <code>${dp[a.length][b.length]}</code>.` });
+    return { steps, table: { head: ["Row (letter of a)", "dp row"], rows } };
+  }
+
+  function tl15F(nums) {
+    const vals = [1, ...nums, 1], n = vals.length, dp = Array.from({ length: n }, () => new Array(n).fill(0)), solved = {}, steps = [], rows = [];
+    const view = (hl) => Viz.array(vals, { label: "vals" }) + Viz.grid(dp.map((r, i) => r.map((x, j) => (j > i + 1 ? x : "·"))), { small: true, hl: Object.assign({}, solved, hl || {}) });
+    steps.push({ line: "init", vars: { vals: tlF15(vals) }, view: view(), analogy: "Walls added at both ends.", note: `<code>vals = ${tlF15(vals)}</code>.` });
+    for (let len = 2; len < n; len++) for (let l = 0; l + len < n; l++) {
+      const r = l + len; let best = 0, bestLast = -1;
+      for (let k = l + 1; k < r; k++) { const c = dp[l][k] + vals[l] * vals[k] * vals[r] + dp[k][r]; if (c > best) { best = c; bestLast = k; } }
+      dp[l][r] = best; solved[l + "," + r] = "found"; rows.push([`(${l}, ${r})`, len, `${vals[bestLast]} (index ${bestLast})`, best]);
+      steps.push({ line: ["len", "left", "last", "fill"], vars: { left: l, right: r, best_last: vals[bestLast], [`dp[${l}][${r}]`]: best }, view: view({ [l + "," + r]: "active" }),
+        analogy: `Between walls ${vals[l]} and ${vals[r]}: bursting ${vals[bestLast]} last is best (${best}).`, note: `<code>dp[${l}][${r}] = ${best}</code>.` });
+    }
+    steps.push({ line: "ret", vars: { result: dp[0][n - 1] }, view: view({ [`0,${n - 1}`]: "gold" }), analogy: `Whole row: ${dp[0][n - 1]} coins.`, note: `Return <code>${dp[0][n - 1]}</code>.` });
+    return { steps, table: { head: ["Range (left, right)", "Length", "Best last balloon", "dp"], rows } };
+  }
+
+  function tl15G(prices) {
+    let hold = -Infinity, sold = -Infinity, rest = 0; const steps = [], rows = [];
+    const s = (x) => (x === -Infinity ? "-inf" : x);
+    const view = (d) => Viz.array(prices, { label: "prices", hl: d >= 0 ? { [d]: "active" } : {} }) + Viz.chips([`hold ${s(hold)}`, `sold ${s(sold)}`, `rest ${s(rest)}`], "states (end of day)");
+    steps.push({ line: "init", vars: { hold: "-inf", sold: "-inf", rest: 0 }, view: view(-1), analogy: "Before day 0 you hold nothing and have sold nothing.", note: "Impossible states start at −infinity." });
+    prices.forEach((p, d) => {
+      const nh = Math.max(hold, rest - p), ns = hold + p, nr = Math.max(rest, sold);
+      hold = nh; sold = ns; rest = nr; rows.push([d, p, s(hold), s(sold), s(rest)]);
+      steps.push({ line: ["loop", "move"], vars: { day: d, price: p, hold: s(hold), sold: s(sold), rest: s(rest) }, view: view(d), analogy: `Day ${d} (price ${p}): best holding ${s(hold)}, just sold ${s(sold)}, resting ${s(rest)}.`, note: "All three from yesterday's values.",
+        ask: { q: "Best profit if you end today having just sold?", options: [...new Set([s(sold), s(rest), s(hold)])].map(String), answer: s(sold), why: "Yesterday's hold + today's price." } });
+    });
+    const r = Math.max(sold, rest);
+    steps.push({ line: "ret", vars: { result: r }, view: view(-1), analogy: `Best ending without a share: ${r}.`, note: `Return <code>max(sold, rest) = ${r}</code>.` });
+    return { steps, table: { head: ["Day", "Price", "hold", "sold", "rest"], rows } };
+  }
+
+  { const run = tl15A(5, false);
+    Viz.tlab("#tl-15a", { title: "Template A \u00b7 fib_memo(5)", sub: "The chips show the call stack; the row shows the whiteboard (memo).", code: {"py": [[null, "def fib_memo(n, memo=None):"], [null, "    if memo is None:"], [null, "        memo = {}"], ["base", "    if n < 2:"], ["base", "        return n"], ["hit", "    if n in memo:"], ["hit", "        return memo[n]"], ["store", "    memo[n] = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)"], ["ret", "    return memo[n]"]], "ts": [[null, "function fibMemo(n: number, memo = new Map<number, number>()): number {"], ["base", "  if (n < 2) return n;"], ["hit", "  if (memo.has(n)) return memo.get(n)!;"], ["store", "  memo.set(n, fibMemo(n - 1, memo) + fibMemo(n - 2, memo));"], ["ret", "  return memo.get(n)!;"], [null, "}"]], "java": [[null, "static long fibMemo(int n, Map<Integer, Long> memo) {"], ["base", "    if (n < 2) return n;"], ["hit", "    if (memo.containsKey(n)) return memo.get(n);"], ["store", "    memo.put(n, fibMemo(n - 1, memo) + fibMemo(n - 2, memo));"], ["ret", "    return memo.get(n);"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15a-table").innerHTML = TL.table(run.table); }
+  { const run = tl15A(5, false);
+    Viz.tlab("#tl-15a-bug", { title: "Without the memo \u00b7 fib(5)", sub: "Switch between memo and plain recursion.", code: {"py": [[null, "def fib_memo(n, memo=None):"], [null, "    if memo is None:"], [null, "        memo = {}"], ["base", "    if n < 2:"], ["base", "        return n"], ["hit", "    if n in memo:"], ["hit", "        return memo[n]"], ["store", "    memo[n] = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)"], ["ret", "    return memo[n]"]], "ts": [[null, "function fibMemo(n: number, memo = new Map<number, number>()): number {"], ["base", "  if (n < 2) return n;"], ["hit", "  if (memo.has(n)) return memo.get(n)!;"], ["store", "  memo.set(n, fibMemo(n - 1, memo) + fibMemo(n - 2, memo));"], ["ret", "  return memo.get(n)!;"], [null, "}"]], "java": [[null, "static long fibMemo(int n, Map<Integer, Long> memo) {"], ["base", "    if (n < 2) return n;"], ["hit", "    if (memo.containsKey(n)) return memo.get(n);"], ["store", "    memo.put(n, fibMemo(n - 1, memo) + fibMemo(n - 2, memo));"], ["ret", "    return memo.get(n);"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: no memo", code: {"py": [[null, "def fib(n):"], ["base", "    if n < 2:"], ["base", "        return n"], ["store", "    return fib(n - 1) + fib(n - 2)"]]}, steps: tl15A(5, true).steps, diverge: undefined, why: "fib(3) was already worked out on the other branch, but without a memo it's computed again from scratch." } });
+     }
+  { const run = tl15B(6);
+    Viz.tlab("#tl-15b", { title: "Template B \u00b7 fib_tab(6)", sub: "Blue = the cell being filled; gold = the two it reads.", code: {"py": [[null, "def fib_tab(n):"], ["base", "    if n < 2:"], ["base", "        return n"], ["init", "    dp = [0] * (n + 1)"], ["init", "    dp[1] = 1"], ["loop", "    for i in range(2, n + 1):"], ["fill", "        dp[i] = dp[i - 1] + dp[i - 2]"], ["ret", "    return dp[n]"], [null, ""], [null, ""], [null, "def fib_opt(n):"], [null, "    older, newer = 0, 1"], [null, "    for _ in range(n):"], [null, "        older, newer = newer, older + newer"], [null, "    return older"]], "ts": [[null, "function fibTab(n: number): number {"], ["base", "  if (n < 2) return n;"], ["init", "  const dp: number[] = new Array(n + 1).fill(0);"], ["init", "  dp[1] = 1;"], ["loop", "  for (let i = 2; i <= n; i++) {"], ["fill", "    dp[i] = dp[i - 1] + dp[i - 2];"], [null, "  }"], ["ret", "  return dp[n];"], [null, "}"], [null, ""], [null, "function fibOpt(n: number): number {"], [null, "  let older = 0, newer = 1;"], [null, "  for (let i = 0; i < n; i++) [older, newer] = [newer, older + newer];"], [null, "  return older;"], [null, "}"]], "java": [[null, "static long fibTab(int n) {"], ["base", "    if (n < 2) return n;"], ["init", "    long[] dp = new long[n + 1];"], ["init", "    dp[1] = 1;"], ["loop", "    for (int i = 2; i <= n; i++) {"], ["fill", "        dp[i] = dp[i - 1] + dp[i - 2];"], [null, "    }"], ["ret", "    return dp[n];"], [null, "}"], [null, ""], [null, "static long fibOpt(int n) {"], [null, "    long older = 0, newer = 1;"], [null, "    for (int i = 0; i < n; i++) {"], [null, "        long next = older + newer;"], [null, "        older = newer;"], [null, "        newer = next;"], [null, "    }"], [null, "    return older;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15b-table").innerHTML = TL.table(run.table); }
+  { const run = tl15K([1, 3, 4], [15, 20, 30], 4, false);
+    Viz.tlab("#tl-15c", { title: "Template C \u00b7 0/1 knapsack, capacity 4", sub: "Blue = cell being updated; gold = the smaller suitcase it reads.", code: {"py": [[null, "def knapsack_01(weights, values, capacity):"], ["init", "    dp = [0] * (capacity + 1)"], ["item", "    for weight, value in zip(weights, values):"], ["cap", "        for cap in range(capacity, weight - 1, -1):"], ["fill", "            dp[cap] = max(dp[cap], dp[cap - weight] + value)"], ["ret", "    return dp[capacity]"]], "ts": [[null, "function knapsack01(weights: number[], values: number[], capacity: number): number {"], ["init", "  const dp: number[] = new Array(capacity + 1).fill(0);"], ["item", "  weights.forEach((weight, i) => {"], ["cap", "    for (let cap = capacity; cap >= weight; cap--) {"], ["fill", "      dp[cap] = Math.max(dp[cap], dp[cap - weight] + values[i]);"], [null, "    }"], [null, "  });"], ["ret", "  return dp[capacity];"], [null, "}"]], "java": [[null, "static int knapsack01(int[] weights, int[] values, int capacity) {"], ["init", "    int[] dp = new int[capacity + 1];"], ["item", "    for (int i = 0; i < weights.length; i++) {"], ["cap", "        for (int cap = capacity; cap >= weights[i]; cap--) {"], ["fill", "            dp[cap] = Math.max(dp[cap], dp[cap - weights[i]] + values[i]);"], [null, "        }"], [null, "    }"], ["ret", "    return dp[capacity];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15c-table").innerHTML = TL.table(run.table); }
+  { const run = tl15K([1, 3, 4], [15, 20, 30], 4, false);
+    Viz.tlab("#tl-15c-bug", { title: "Why downwards \u00b7 same items", sub: "Switch between downward and upward loops.", code: {"py": [[null, "def knapsack_01(weights, values, capacity):"], ["init", "    dp = [0] * (capacity + 1)"], ["item", "    for weight, value in zip(weights, values):"], ["cap", "        for cap in range(capacity, weight - 1, -1):"], ["fill", "            dp[cap] = max(dp[cap], dp[cap - weight] + value)"], ["ret", "    return dp[capacity]"]], "ts": [[null, "function knapsack01(weights: number[], values: number[], capacity: number): number {"], ["init", "  const dp: number[] = new Array(capacity + 1).fill(0);"], ["item", "  weights.forEach((weight, i) => {"], ["cap", "    for (let cap = capacity; cap >= weight; cap--) {"], ["fill", "      dp[cap] = Math.max(dp[cap], dp[cap - weight] + values[i]);"], [null, "    }"], [null, "  });"], ["ret", "  return dp[capacity];"], [null, "}"]], "java": [[null, "static int knapsack01(int[] weights, int[] values, int capacity) {"], ["init", "    int[] dp = new int[capacity + 1];"], ["item", "    for (int i = 0; i < weights.length; i++) {"], ["cap", "        for (int cap = capacity; cap >= weights[i]; cap--) {"], ["fill", "            dp[cap] = Math.max(dp[cap], dp[cap - weights[i]] + values[i]);"], [null, "        }"], [null, "    }"], ["ret", "    return dp[capacity];"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: capacities upward", code: {"py": [[null, "def knapsack_01(weights, values, capacity):"], ["init", "    dp = [0] * (capacity + 1)"], ["item", "    for weight, value in zip(weights, values):"], ["cap", "        for cap in range(weight, capacity + 1):"], ["fill", "            dp[cap] = max(dp[cap], dp[cap - weight] + value)"], ["ret", "    return dp[capacity]"]]}, steps: tl15K([1, 3, 4], [15, 20, 30], 4, true).steps, diverge: undefined, why: "dp[cap \u2212 weight] was already updated for this same item, so the item is counted twice." } });
+     }
+  { const run = tl15U([1, 3, 4], [15, 20, 30], 4);
+    Viz.tlab("#tl-15d", { title: "Template D \u00b7 unbounded knapsack, capacity 4", sub: "Blue = capacity being solved; gold = the smaller capacity it reads.", code: {"py": [[null, "def unbounded(weights, values, capacity):"], ["init", "    dp = [0] * (capacity + 1)"], ["cap", "    for cap in range(1, capacity + 1):"], ["item", "        for weight, value in zip(weights, values):"], ["fits", "            if weight <= cap:"], ["fill", "                dp[cap] = max(dp[cap], dp[cap - weight] + value)"], ["ret", "    return dp[capacity]"]], "ts": [[null, "function unbounded(weights: number[], values: number[], capacity: number): number {"], ["init", "  const dp: number[] = new Array(capacity + 1).fill(0);"], ["cap", "  for (let cap = 1; cap <= capacity; cap++) {"], ["item", "    weights.forEach((weight, i) => {"], ["fits", "      if (weight <= cap) {"], ["fill", "        dp[cap] = Math.max(dp[cap], dp[cap - weight] + values[i]);"], [null, "      }"], [null, "    });"], [null, "  }"], ["ret", "  return dp[capacity];"], [null, "}"]], "java": [[null, "static int unbounded(int[] weights, int[] values, int capacity) {"], ["init", "    int[] dp = new int[capacity + 1];"], ["cap", "    for (int cap = 1; cap <= capacity; cap++) {"], ["item", "        for (int i = 0; i < weights.length; i++) {"], ["fits", "            if (weights[i] <= cap) {"], ["fill", "                dp[cap] = Math.max(dp[cap], dp[cap - weights[i]] + values[i]);"], [null, "            }"], [null, "        }"], [null, "    }"], ["ret", "    return dp[capacity];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15d-table").innerHTML = TL.table(run.table); }
+  { const run = tl15E('abcde', 'ace');
+    Viz.tlab("#tl-15e", { title: "Template E \u00b7 lcs(\"abcde\", \"ace\")", sub: "Rows: '', a, b, c, d, e. Columns: '', a, c, e. Green = a match (diagonal + 1).", code: {"py": [[null, "def lcs(a, b):"], ["init", "    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]"], ["loop", "    for i in range(1, len(a) + 1):"], ["loop", "        for j in range(1, len(b) + 1):"], ["match", "            if a[i - 1] == b[j - 1]:"], ["diag", "                dp[i][j] = dp[i - 1][j - 1] + 1"], [null, "            else:"], ["skip", "                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])"], ["ret", "    return dp[len(a)][len(b)]"]], "ts": [[null, "function lcs(a: string, b: string): number {"], ["init", "  const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));"], ["loop", "  for (let i = 1; i <= a.length; i++) {"], ["loop", "    for (let j = 1; j <= b.length; j++) {"], ["match", "      if (a[i - 1] === b[j - 1]) {"], ["diag", "        dp[i][j] = dp[i - 1][j - 1] + 1;"], [null, "      } else {"], ["skip", "        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);"], [null, "      }"], [null, "    }"], [null, "  }"], ["ret", "  return dp[a.length][b.length];"], [null, "}"]], "java": [[null, "static int lcs(String a, String b) {"], ["init", "    int[][] dp = new int[a.length() + 1][b.length() + 1];"], ["loop", "    for (int i = 1; i <= a.length(); i++) {"], ["loop", "        for (int j = 1; j <= b.length(); j++) {"], ["match", "            if (a.charAt(i - 1) == b.charAt(j - 1)) {"], ["diag", "                dp[i][j] = dp[i - 1][j - 1] + 1;"], [null, "            } else {"], ["skip", "                dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);"], [null, "            }"], [null, "        }"], [null, "    }"], ["ret", "    return dp[a.length()][b.length()];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15e-table").innerHTML = TL.table(run.table); }
+  { const run = tl15F([3, 1, 5, 8]);
+    Viz.tlab("#tl-15f", { title: "Template F \u00b7 max_coins([3, 1, 5, 8])", sub: "Grid cell (left, right); blue = range being solved; green = solved.", code: {"py": [[null, "def max_coins(nums):"], ["init", "    vals = [1] + nums + [1]"], ["init", "    n = len(vals)"], ["init", "    dp = [[0] * n for _ in range(n)]"], ["len", "    for length in range(2, n):"], ["left", "        for left in range(n - length):"], ["left", "            right = left + length"], ["last", "            for last in range(left + 1, right):"], [null, "                dp[left][right] = max(dp[left][right],"], ["fill", "                    dp[left][last] + vals[left] * vals[last] * vals[right] + dp[last][right])"], ["ret", "    return dp[0][n - 1]"]], "ts": [[null, "function maxCoins(nums: number[]): number {"], ["init", "  const vals = [1, ...nums, 1], n = vals.length;"], ["init", "  const dp = Array.from({ length: n }, () => new Array(n).fill(0));"], ["len", "  for (let length = 2; length < n; length++) {"], ["left", "    for (let left = 0; left + length < n; left++) {"], ["left", "      const right = left + length;"], ["last", "      for (let last = left + 1; last < right; last++) {"], [null, "        dp[left][right] = Math.max(dp[left][right],"], ["fill", "          dp[left][last] + vals[left] * vals[last] * vals[right] + dp[last][right]);"], [null, "      }"], [null, "    }"], [null, "  }"], ["ret", "  return dp[0][n - 1];"], [null, "}"]], "java": [[null, "static int maxCoins(int[] nums) {"], ["init", "    int n = nums.length + 2;"], ["init", "    int[] vals = new int[n];"], ["init", "    vals[0] = vals[n - 1] = 1;"], ["init", "    for (int i = 0; i < nums.length; i++) vals[i + 1] = nums[i];"], ["init", "    int[][] dp = new int[n][n];"], ["len", "    for (int length = 2; length < n; length++) {"], ["left", "        for (int left = 0; left + length < n; left++) {"], ["left", "            int right = left + length;"], ["last", "            for (int last = left + 1; last < right; last++) {"], [null, "                dp[left][right] = Math.max(dp[left][right],"], ["fill", "                    dp[left][last] + vals[left] * vals[last] * vals[right] + dp[last][right]);"], [null, "            }"], [null, "        }"], [null, "    }"], ["ret", "    return dp[0][n - 1];"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15f-table").innerHTML = TL.table(run.table); }
+  { const run = tl15G([1, 2, 3, 0, 2]);
+    Viz.tlab("#tl-15g", { title: "Template G \u00b7 prices [1, 2, 3, 0, 2]", sub: "One step per day; the three state values update together.", code: {"py": [[null, "def stock_cooldown(prices):"], ["init", "    hold, sold, rest = float(\"-inf\"), float(\"-inf\"), 0"], ["loop", "    for price in prices:"], ["move", "        hold, sold, rest = (max(hold, rest - price),"], ["move", "                            hold + price,"], ["move", "                            max(rest, sold))"], ["ret", "    return max(sold, rest)"]], "ts": [[null, "function stockCooldown(prices: number[]): number {"], ["init", "  let hold = -Infinity, sold = -Infinity, rest = 0;"], ["loop", "  for (const price of prices) {"], ["move", "    [hold, sold, rest] = [Math.max(hold, rest - price), hold + price, Math.max(rest, sold)];"], [null, "  }"], ["ret", "  return Math.max(sold, rest);"], [null, "}"]], "java": [[null, "static int stockCooldown(int[] prices) {"], ["init", "    long hold = Long.MIN_VALUE / 2, sold = Long.MIN_VALUE / 2, rest = 0;"], ["loop", "    for (int price : prices) {"], ["move", "        long newHold = Math.max(hold, rest - price);"], ["move", "        long newSold = hold + price;"], ["move", "        long newRest = Math.max(rest, sold);"], ["move", "        hold = newHold; sold = newSold; rest = newRest;"], [null, "    }"], ["ret", "    return (int) Math.max(sold, rest);"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-15g-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 
