@@ -2396,6 +2396,131 @@ svg.flow .fn { transition: opacity .35s ease; }
     </ul>
     <p><strong>In an interview</strong>, security is usually one or two sentences unless it's the focus: "users sign in through an OIDC provider; the API gateway verifies short-lived JWTs; every endpoint checks the caller owns the resource; services use workload identity and mTLS; secrets in a secrets manager; data encrypted at rest with KMS." For multi-tenant SaaS, add the isolation model.</p>
 
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Security is usually two sentences unless it's the focus: <q>sign-in through an OIDC provider; the gateway verifies short-lived JWTs; every endpoint checks the caller may access that resource; services authenticate with workload identity or mTLS; secrets in a secrets manager; data encrypted with KMS keys; WAF and rate limits at the edge.</q> Go deeper on whichever part the product makes hard: sharing, multi-tenancy, or payments.</div>
+
+    <section class="tech" id="t-oidc">
+      <div class="tech-h"><h3>OAuth 2.0 and OpenID Connect</h3><span class="tech-status s-default">The default for sign-in and delegated access</span></div>
+      <p>OAuth 2.0 lets an app get an <em>access token</em> to call an API on a user's behalf without seeing their password. OpenID Connect (OIDC) adds an <em>ID token</em> that says who the user is, which makes it a sign-in protocol.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Flow</th><th>Who uses it</th></tr></thead><tbody>
+        <tr><td>Authorization code + PKCE</td><td>Web, mobile and single-page apps signing users in: the default for anything with a user</td></tr>
+        <tr><td>Client credentials</td><td>Service-to-service calls with no user</td></tr>
+        <tr><td>Device authorization</td><td>TVs and CLIs: "go to this URL and enter this code"</td></tr>
+        <tr><td>Refresh tokens</td><td>Getting new short-lived access tokens without signing in again</td></tr>
+        <tr><td><s>Implicit</s>, <s>password</s></td><td>Deprecated: tokens in URLs, or apps handling passwords</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>PKCE</strong>: the app sends a hash of a random secret with the login, and the secret itself when exchanging the code, so a stolen code is useless.</li>
+        <li><strong>Scopes</strong> limit what a token can do (<code>orders:read</code>); <strong>audience</strong> says which API it's for. APIs must check both.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>OAuth 2.0 security best practice is RFC 9700 (January 2025). OAuth 2.1, which makes PKCE mandatory, removes the implicit and password flows and requires exact redirect-URI matching, is still an IETF draft (version 16, September 2026), though major identity providers already follow it.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any sign-in: use a provider (Okta, Auth0, Entra ID, Cognito, Google, Keycloak) rather than building it</li><li>Third-party apps acting on users' data</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Writing your own authorization server unless identity is your product</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Users sign in through an OIDC provider with the authorization-code flow and PKCE; the API accepts short-lived access tokens scoped to it.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Using the ID token to call APIs</strong> (it's for the client, not the API).</li><li><strong>Implicit flow</strong> or tokens in URL query strings.</li><li><strong>Not checking audience</strong>: a token for another API works on yours.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-jwt">
+      <div class="tech-h"><h3>JWTs and sessions</h3><span class="tech-status s-default">The default token format</span></div>
+      <p>A JWT is a signed JSON token: <code>header.payload.signature</code> in base64url. Any service with the public key can verify it locally, with no database lookup. The trade-off: a valid JWT can't easily be taken back before it expires.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Verify properly:</strong> signature with an allow-listed algorithm (RS256, ES256, EdDSA; never <code>none</code>), then <code>exp</code>, <code>iss</code> and <code>aud</code>. Fetch keys from the issuer's JWKS URL and cache them; rotate keys with <code>kid</code>.</li>
+        <li><strong>Revocation:</strong> keep access tokens short (5–15 minutes) and refresh them; for instant logout, check a small deny-list of token IDs, or use opaque tokens checked against the auth server (introspection).</li>
+        <li><strong>Payload is readable</strong> by anyone: signed, not encrypted. No secrets or personal data in it.</li>
+        <li><strong>Browser storage:</strong> for web apps, a server-side session cookie (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>) is often safer than a JWT in localStorage, which any injected script can read.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>JWT is RFC 7519; best practice for JWTs is RFC 8725. The "backend for frontend" pattern (tokens kept on the server, a cookie in the browser) is the recommended approach for browser apps.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Stateless verification at a gateway and across many services</li><li>Short-lived access tokens</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Long-lived sessions that must be revocable instantly: use server sessions or opaque tokens</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The gateway verifies a 10-minute JWT against the provider's JWKS, checks audience and scope, and passes the user ID downstream; refresh tokens are rotated.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Accepting alg: none</strong> or letting the token choose its algorithm.</li><li><strong>Day-long access tokens</strong> with no revocation story.</li><li><strong>Personal data in the payload</strong>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-mtls">
+      <div class="tech-h"><h3>Service identity and mTLS</h3><span class="tech-status s-situational">Situational · zero-trust between services</span></div>
+      <p>Every service gets its own cryptographic identity (a short-lived certificate), and services prove who they are to each other on every connection with mutual TLS. Network location stops being proof of trust.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>SPIFFE</strong> names workloads (<code>spiffe://shop.example/ns/prod/sa/payments</code>) and defines short-lived identity documents (SVIDs); <strong>SPIRE</strong> issues them after attesting what the workload really is.</li>
+        <li><strong>Service meshes</strong> (Istio, Linkerd, Cilium) issue certificates and do mTLS in sidecars or node proxies, so app code doesn't change. Policies then say "payments may call ledger".</li>
+        <li><strong>Cloud workload identity</strong> (AWS IAM roles for pods, GKE Workload Identity, Azure workload identity) gives each workload short-lived cloud credentials with no stored keys.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>SPIFFE and SPIRE are CNCF graduated projects. Istio's sidecar-less ambient mode has been generally available since Istio 1.24 (November 2024).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Many services, regulated data, or shared clusters</li><li>Replacing long-lived API keys between services</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A monolith or a handful of services in one private network: start with network policies and workload identity</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Services authenticate with mesh-issued mTLS certificates, and authorization policies list which service may call which.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"It's inside the VPC, so it's trusted"</strong>.</li><li><strong>Long-lived shared API keys</strong> between services.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-secrets">
+      <div class="tech-h"><h3>Secrets managers and envelope encryption</h3><span class="tech-status s-default">The default for keys and secrets</span></div>
+      <p>Secrets (database passwords, API keys) live in a secrets manager, fetched at runtime and rotated; data is encrypted with keys held by a key management service (KMS) that never lets the master key leave it.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Envelope encryption:</strong> for each object, generate a random <em>data key</em>, encrypt the data with it locally (fast, AES-256-GCM), then ask KMS to encrypt the data key with the master key. Store the encrypted data key next to the data. To read, KMS decrypts the small data key; the bulk data never travels to KMS.</li>
+        <li><strong>Rotation:</strong> rotating the master key only re-wraps data keys, not terabytes of data. Deleting a key makes everything under it unreadable ("crypto-shredding", useful for per-customer deletion).</li>
+        <li><strong>Every KMS call is logged</strong> and permissioned, so access to data becomes auditable.</li>
+      </ul>
+      <div id="sc-env"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>AWS KMS and Secrets Manager, Google Cloud KMS and Secret Manager, Azure Key Vault; HashiCorp Vault (now under the Business Source License, IBM-owned since 2025) and its open-source fork OpenBao. Kubernetes secrets are only base64-encoded unless encryption at rest is turned on, so many teams sync from a secrets manager with the External Secrets Operator.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every system: no secrets in code, images or environment files in Git</li><li>Per-tenant keys when customers need key control or deletion guarantees</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Nothing to skip; only the level of key granularity varies</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Secrets come from the secrets manager at start-up and rotate automatically; data at rest uses envelope encryption with a KMS key per tenant.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Secrets committed to Git</strong> or baked into container images.</li><li><strong>Sending bulk data to KMS</strong> to encrypt (slow, size-limited).</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-waf">
+      <div class="tech-h"><h3>WAF, bot and DDoS protection</h3><span class="tech-status s-default">The default at the edge</span></div>
+      <p>Filters in front of your app: DDoS protection absorbs floods, a web application firewall (WAF) blocks malicious requests (SQL injection patterns, known exploits), and bot management separates people from scripts.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Network floods (layers 3–4)</strong> are absorbed by the provider's capacity, spread across anycast sites; Cloudflare reported attacks in the tens of terabits per second in 2025. You can't absorb that yourself.</li>
+        <li><strong>Application floods (layer 7)</strong> look like real requests: rate limits per IP, per user and per API key, challenges, and caching protect you.</li>
+        <li><strong>WAF rules:</strong> managed rule sets (often based on the OWASP Core Rule Set) plus your own; start in log-only mode to measure false positives.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Cloudflare, Akamai, Fastly, AWS WAF and Shield, Google Cloud Armor, Azure Front Door. Usually bundled with the CDN.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any public endpoint</li><li>Login, sign-up and checkout pages, which attract credential stuffing and bots</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Relying on it instead of fixing vulnerabilities: a WAF is a layer, not a cure</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Traffic enters through the CDN with DDoS protection and a managed WAF; login has stricter per-IP and per-account rate limits.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Origin servers reachable directly</strong>, bypassing the CDN and WAF.</li><li><strong>No rate limit on login</strong>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-zanzibar">
+      <div class="tech-h"><h3>Relationship-based authorization (Zanzibar)</h3><span class="tech-status s-situational">Situational · sharing and permissions at scale</span></div>
+      <p>Authorization as a graph of relationships: <q>user:ana is an editor of doc:42</q>, <q>doc:42 is in folder:7</q>, <q>members of group:eng are viewers of folder:7</q>. A check asks whether a path exists. This is how Google Drive-style sharing works.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Tuples and a schema:</strong> relationships are stored as <code>object#relation@subject</code> tuples; a schema defines rules such as "editors are also viewers" and "viewers of a folder are viewers of its documents".</li>
+        <li><strong>Check, expand, list:</strong> "can Ana view doc 42?", "who can view it?", "which docs can Ana view?" (the hardest at scale).</li>
+        <li><strong>The new-enemy problem:</strong> after removing someone and then adding sensitive content, a stale check must not let them see it. Zanzibar returns a consistency token (a "zookie") with each write, and checks evaluated at least that fresh.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Google's 2019 Zanzibar paper describes a system handling trillions of access-control lists and millions of checks a second at under 10 ms p95. Open-source and hosted versions: SpiceDB (AuthZed), OpenFGA (a CNCF incubating project since October 2025, behind Auth0 FGA), Ory Keto; AWS Verified Permissions uses the Cedar policy language instead.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Sharing, nested folders, organisations and teams, per-object permissions</li><li>Many services needing one consistent answer to "may X do Y?"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Simple roles (admin, member): a role column and middleware is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Document permissions are relationships in an OpenFGA-style service: owner, editor, viewer, inherited through folders; every API checks it, passing the consistency token after permission changes.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Permission logic copied into every service</strong>.</li><li><strong>Caching "allowed" answers</strong> with no story for revocation.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Front desk, badge, locked floors"</strong>Authenticate once at the front desk, authorize every door with the badge (for this person and this room), and lock floors apart so one breach stays small.</div>
@@ -2473,6 +2598,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Which risk is A01 in the OWASP Top 10:2025?</p>
         <div class="opts"><button>Injection</button><button>Broken access control</button><button>Cryptographic failures</button></div>
         <div class="why">Missing or wrong authorization checks are the most common serious web vulnerability.</div>
+      </div>
+      <div class="quiz-q" data-answer="Only the small data key">
+        <p>In envelope encryption, what does KMS encrypt?</p>
+        <div class="opts"><button>The whole file</button><button>Only the small data key</button><button>Nothing; it only stores keys</button></div>
+        <div class="why">Data is encrypted locally with the data key; KMS wraps that key with the master key, which never leaves it.</div>
+      </div>
+      <div class="quiz-q" data-answer="Authorization code with PKCE">
+        <p>Which OAuth flow should a mobile app use to sign users in?</p>
+        <div class="opts"><button>Implicit</button><button>Authorization code with PKCE</button><button>Resource owner password</button></div>
+        <div class="why">Implicit and password flows are deprecated; PKCE protects the code exchange.</div>
       </div>
     </div>
 
@@ -2604,9 +2739,22 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-oauth", title: "3 · Step through it", text: "Every redirect and exchange, frame by frame." },
     { el: "#jwt", title: "4 · Tamper with a token", text: "Edit the claims and see whether the signature still holds." },
     { el: "#az", title: "5 · Who may do what?", text: "Try authorization rules on real requests." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "OAuth and OIDC, JWTs, mTLS, secrets and envelope encryption, WAF and DDoS, Zanzibar." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-env", {
+    title: "Envelope encryption", sub: "<b>Blue</b> = requests, <b>green</b> = keys or data returned. The master key never leaves KMS.",
+    nodes: [{ id: "app", x: 90, y: 120, w: 120, label: "App server" }, { id: "kms", x: 420, y: 50, w: 150, label: "KMS", sub: "holds the master key" }, { id: "s3", x: 420, y: 190, w: 150, label: "Storage", sub: "ciphertext + wrapped key" }],
+    edges: [["app", "kms"], ["app", "s3"]],
+    width: 540, height: 250,
+    steps: [
+      { hl: { app: "active", kms: "active" }, moves: [{ e: "app>kms", t: "GenerateDataKey", k: "req" }, { e: "app>kms", t: "plain key + wrapped key", k: "ok", back: true, delay: 1.1 }], hold: 3.2, note: "KMS creates a fresh data key and returns it twice: in plain form, and encrypted (\"wrapped\") with the master key." },
+      { hl: { app: "found" }, pops: [{ n: "app", t: "AES-GCM encrypt locally, forget the plain key", k: "evt", at: 0.3 }], hold: 2.8, note: "The app encrypts the data itself, quickly, then throws the plain data key away." },
+      { hl: { app: "active", s3: "found" }, moves: [{ e: "app>s3", t: "ciphertext + wrapped key", k: "req" }], hold: 2.8, note: "Only ciphertext and the wrapped key are stored. A stolen disk or bucket reveals nothing." },
+      { hl: { app: "active", kms: "found", s3: "found" }, moves: [{ e: "app>s3", t: "read", k: "ok", back: true }, { e: "app>kms", t: "Decrypt(wrapped key)", k: "req", delay: 1.0 }, { e: "app>kms", t: "plain key", k: "ok", back: true, delay: 2.0 }], hold: 3.4, note: "To read: KMS unwraps the small key (permission-checked and logged), and the app decrypts the data locally." },
+    ],
+  });
 })();
 </script>
 </body>
