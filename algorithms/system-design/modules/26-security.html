@@ -2371,6 +2371,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2687,6 +2688,118 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://passkeys.dev/" target="_blank" rel="noopener">passkeys.dev</a></td><td>20 min</td><td>How passkeys work and how to add them to an app.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How the cryptography and browser mechanics behind authentication and authorization really work. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-security-internals">
+      <summary><span class="uth-t"><b>Security internals</b><small>Hashes vs MACs vs password hashing with two labs, AEAD and nonce reuse, post-quantum TLS, certificate transparency, cookies and passkeys, policy engines, attack paths, 8 products compared</small></span><span class="uth-m">about 35 min</span></summary>
+      <div class="uth-body">
+        <p>Security designs are built from a small set of primitives: hashes, MACs, password hashes, symmetric and public-key encryption, signatures and certificates. Knowing which does what, and how each is misused, explains most real breaches and most interview follow-ups.</p>
+
+        <h3 id="u26b-hash">Hashes, MACs and password hashing</h3>
+        <table>
+          <thead><tr><th>Primitive</th><th>Answers</th><th>Examples</th><th>Never use it for</th></tr></thead>
+          <tbody>
+            <tr><td>Hash</td><td>"Has this data changed?" Same input, same 256-bit fingerprint; can't be reversed</td><td>SHA-256, SHA-3, BLAKE3</td><td>Passwords (too fast), authentication (anyone can compute it)</td></tr>
+            <tr><td>MAC</td><td>"Did someone with the key produce this?"</td><td>HMAC-SHA256, Poly1305</td><td>Proof to third parties (both sides share the key)</td></tr>
+            <tr><td>Password hash</td><td>"Is this the password?" Deliberately slow and salted</td><td>Argon2id, scrypt, bcrypt, PBKDF2</td><td>Anything that must be fast</td></tr>
+            <tr><td>Signature</td><td>"Did the holder of this private key sign this?" Anyone can verify</td><td>Ed25519, ECDSA, RSA-PSS</td><td>Confidentiality (it doesn't hide data)</td></tr>
+          </tbody>
+        </table>
+        <div class="card widget" id="hs-lab">
+          <div class="ctl"><label for="hs-m">Message</label><input id="hs-m" type="text" value="transfer $100 to Ana" style="width:28ch"><label for="hs-k">Key</label><input id="hs-k" type="text" value="server-secret"></div>
+          <div class="no-gl" id="hs-out"></div>
+          <div class="verdict no-gl" id="hs-why"></div>
+        </div>
+        <p><strong>Passwords:</strong> store a unique random <strong>salt</strong> per user and a slow, memory-hard hash. Salts defeat precomputed (rainbow) tables and make identical passwords hash differently; slowness limits guessing speed after a database leak:</p>
+        <div class="card widget" id="pw-lab">
+          <div class="ctl"><label for="pw-l">Password length</label><input id="pw-l" type="range" min="6" max="16" value="8"><output id="pw-lo"></output><span class="seg" id="pw-c"></span></div>
+          <div class="no-gl" id="pw-out"></div>
+          <div class="verdict no-gl" id="pw-why"></div>
+        </div>
+        <div id="viz-u26b-salt"></div>
+
+        <h3 id="u26b-enc">Encryption and keys</h3>
+        <ul>
+          <li><strong>Symmetric, authenticated (AEAD):</strong> AES-256-GCM or ChaCha20-Poly1305 encrypt and detect tampering in one step. Each key must <em>never</em> reuse a nonce: with GCM, a repeated nonce leaks the XOR of two plaintexts and lets attackers forge messages.</li>
+          <li><strong>Public-key:</strong> key exchange (ECDHE with X25519) agrees a shared secret over an open channel; that secret then keys fast symmetric encryption. RSA encryption is legacy; use it, if at all, only for signatures.</li>
+          <li><strong>Post-quantum:</strong> a future quantum computer could break today's key exchange, and recorded traffic could be decrypted later ("harvest now, decrypt later"). NIST standardised ML-KEM (FIPS 203) in 2024, and Chrome, Firefox and Safari now use the hybrid <code>X25519MLKEM768</code> key exchange by default for TLS 1.3, secure if either half holds.</li>
+          <li><strong>At rest:</strong> disk and database encryption with keys in a KMS (envelope encryption, up close above); <strong>end to end:</strong> only the endpoints hold keys (Signal protocol, WhatsApp), so the server can't read messages but also can't search or moderate them.</li>
+        </ul>
+
+        <h3 id="u26b-pki">Certificates and transparency</h3>
+        <p>A server certificate binds a domain to a public key, signed by an intermediate certificate authority that chains to a root in the browser's trust store. <strong>Certificate Transparency</strong> requires every publicly trusted certificate to be logged in public append-only logs (Merkle trees); browsers reject certificates without proof of logging, and domain owners can monitor the logs for certificates they didn't ask for.</p>
+
+        <h3 id="u26b-web">Sessions, cookies and the browser</h3>
+        <ul>
+          <li><strong>Cookie flags:</strong> <code>HttpOnly</code> (scripts can't read it, so XSS can't steal it), <code>Secure</code> (HTTPS only), <code>SameSite=Lax</code> or <code>Strict</code> (not sent on most cross-site requests, the main CSRF defence; browsers default to Lax-like behaviour).</li>
+          <li><strong>CSRF</strong> tricks a logged-in browser into sending a request; defend with SameSite plus anti-CSRF tokens or checking the <code>Origin</code> header on state-changing requests.</li>
+          <li><strong>Passkeys (WebAuthn):</strong> the device creates a key pair per site; login signs a server challenge with the private key, which never leaves the device. The browser binds the signature to the real origin, so a look-alike phishing site gets nothing usable.</li>
+          <li><strong>JWT pitfalls</strong> beyond the lab above: accepting <code>alg: none</code>; key confusion (an RS256 public key used as an HS256 secret); trusting a <code>kid</code> or <code>jku</code> header that points at attacker-controlled keys. Allow-list algorithms and key sources.</li>
+        </ul>
+
+        <h3 id="u26b-authz">Authorization models and policy engines</h3>
+        <table>
+          <thead><tr><th>Model</th><th>Rule looks like</th><th>Good for</th></tr></thead>
+          <tbody>
+            <tr><td>RBAC</td><td>Admins may delete projects</td><td>A few stable roles</td></tr>
+            <tr><td>ABAC</td><td>Allow if user.department = doc.department and time is in office hours</td><td>Rules over attributes</td></tr>
+            <tr><td>ReBAC</td><td>Viewers of a folder can view its documents</td><td>Sharing, hierarchies (Zanzibar, up close above)</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Policy engines</strong> keep these rules out of application code: Open Policy Agent evaluates Rego policies as a library or sidecar; AWS's Cedar language (behind Verified Permissions) is designed to be analysable, so you can prove properties about policies.</p>
+
+        <h3 id="u26b-threats">Common attack paths</h3>
+        <ul>
+          <li><strong>Broken access control</strong> (OWASP's top risk): an endpoint that checks you're logged in but not that you own <code>/invoices/1234</code>. Check ownership on every object, server-side.</li>
+          <li><strong>Injection:</strong> SQL, command and template injection; always parameterise, never build queries from strings.</li>
+          <li><strong>SSRF:</strong> a feature that fetches a URL ("import from link", webhooks) is tricked into calling internal services or the cloud metadata endpoint for credentials. Allow-list destinations, block private ranges, and require IMDSv2-style tokens.</li>
+          <li><strong>Tenant isolation:</strong> every query scoped by tenant (row-level security in PostgreSQL helps), separate keys per tenant for high-value data, and tests that try cross-tenant access.</li>
+          <li><strong>Audit logs:</strong> append-only, separate from application logs, recording who did what to which resource.</li>
+        </ul>
+
+        <h3 id="u26b-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product or standard</th><th>How it works</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Let's Encrypt (ACME)</td><td>Automated certificates after proving domain control</td><td>Short lifetimes make automated renewal mandatory, which is the point</td></tr>
+            <tr><td>Cloud KMSs</td><td>Keys in hardware security modules; envelope encryption</td><td>Keys never leave; rotating the master key doesn't re-encrypt data</td></tr>
+            <tr><td>Vault / OpenBao</td><td>Secrets engines, including dynamic short-lived database credentials</td><td>Credentials that expire on their own limit a leak</td></tr>
+            <tr><td>Okta, Auth0, Cognito, Keycloak</td><td>OAuth 2.0, OIDC and SAML identity providers</td><td>Buy identity; design token lifetimes, scopes and sessions</td></tr>
+            <tr><td>SpiceDB, OpenFGA</td><td>Zanzibar-style relationship tuples with consistency tokens</td><td>"Can this user see this?" at scale</td></tr>
+            <tr><td>OPA, Cedar</td><td>Policy as code, evaluated by a library or sidecar</td><td>Authorization rules separate from app code</td></tr>
+            <tr><td>SPIFFE / SPIRE</td><td>Short-lived workload certificates for mTLS</td><td>Service identity without shared secrets</td></tr>
+            <tr><td>Cloudflare, AWS Shield, Cloud Armor</td><td>Anycast absorbs volumetric attacks; WAF and rate limits stop layer-7 ones</td><td>Layer-7 floods look like real users</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u26b-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How do you store passwords?"</strong> Argon2id (or bcrypt) with a per-user salt and a cost tuned to about 100 ms per hash, plus breached-password checks and rate-limited logins; better still, passkeys.</li>
+          <li><strong>"How do you verify a webhook came from us?"</strong> Sign the body with HMAC-SHA256 and a per-customer secret, include a timestamp in the signed data, and have receivers compare in constant time and reject old timestamps.</li>
+          <li><strong>"Is our TLS quantum-safe?"</strong> Key exchange is, if both sides negotiate X25519MLKEM768 (modern browsers do by default); certificates and signatures are still classical, which matters less because they can't be attacked retroactively.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="They make identical passwords hash differently and defeat precomputed tables">
+            <p>What do per-user salts achieve?</p>
+            <div class="opts"><button>They make hashing slower</button><button>They make identical passwords hash differently and defeat precomputed tables</button><button>They encrypt the password</button></div>
+            <div class="why">Slowness comes from the algorithm and its cost factor; the salt forces attackers to attack each hash separately.</div>
+          </div>
+          <div class="quiz-q" data-answer="HMAC, because only key holders can produce a valid tag">
+            <p>To prove an API request wasn't altered and came from a client sharing your secret, use…</p>
+            <div class="opts"><button>SHA-256 of the body</button><button>HMAC, because only key holders can produce a valid tag</button><button>Base64 encoding</button></div>
+            <div class="why">Anyone can compute a plain hash of modified data.</div>
+          </div>
+          <div class="quiz-q" data-answer="Reusing a nonce with the same key">
+            <p>What is the most dangerous mistake with AES-GCM?</p>
+            <div class="opts"><button>Using a 256-bit key</button><button>Reusing a nonce with the same key</button><button>Encrypting short messages</button></div>
+            <div class="why">Nonce reuse breaks both confidentiality and integrity.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html" target="_blank" rel="noopener">OWASP: password storage cheat sheet</a></li><li><a href="https://gist.github.com/Chick3nman/32e662a5bb63bc4f51b847bb422222fd" target="_blank" rel="noopener">Hashcat benchmark on an RTX 4090</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9106" target="_blank" rel="noopener">RFC 9106: Argon2</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc5116" target="_blank" rel="noopener">RFC 5116: authenticated encryption (AEAD)</a></li><li><a href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener">NIST FIPS 203: ML-KEM</a></li><li><a href="https://certificate.transparency.dev/howctworks/" target="_blank" rel="noopener">Certificate Transparency: how it works</a></li><li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies" target="_blank" rel="noopener">MDN: using HTTP cookies</a></li><li><a href="https://webauthn.guide/" target="_blank" rel="noopener">WebAuthn guide</a></li><li><a href="https://portswigger.net/web-security/jwt" target="_blank" rel="noopener">PortSwigger: JWT attacks</a></li><li><a href="https://www.openpolicyagent.org/docs/latest/" target="_blank" rel="noopener">Open Policy Agent</a></li><li><a href="https://docs.cedarpolicy.com/" target="_blank" rel="noopener">Cedar policy language</a></li><li><a href="https://owasp.org/Top10/2025/" target="_blank" rel="noopener">OWASP Top 10:2025</a></li><li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html" target="_blank" rel="noopener">OWASP: SSRF prevention</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="25-observability.html"><small>Previous module</small>← 25 · Observability</a>
       <a class="next" href="27-deployment-multi-region.html"><small>Next module</small>27 · Deployment, multi-region and DR →</a>
@@ -2819,6 +2932,46 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       { hl: { app: "active", kms: "found", s3: "found" }, moves: [{ e: "app>s3", t: "read", k: "ok", back: true }, { e: "app>kms", t: "Decrypt(wrapped key)", k: "req", delay: 1.0 }, { e: "app>kms", t: "plain key", k: "ok", back: true, delay: 2.0 }], hold: 3.4, note: "To read: KMS unwraps the small key (permission-checked and logged), and the app decrypts the data locally." },
     ],
   });
+  /* ---------- Under the hood: cryptography and web security ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), enc = new TextEncoder();
+    const hex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+    const bits = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 2) { let x = parseInt(a.substr(i, 2), 16) ^ parseInt(b.substr(i, 2), 16); while (x) { n += x & 1; x >>= 1; } } return n; };
+    async function run() {
+      if (!window.crypto || !crypto.subtle) { g("hs-out").textContent = "This browser can't compute hashes here (it needs a secure page)."; return; }
+      const m = g("hs-m").value, k = g("hs-k").value || " ", m2 = m.length ? m.slice(0, -1) + String.fromCharCode(m.charCodeAt(m.length - 1) ^ 1) : "x";
+      const h1 = hex(await crypto.subtle.digest("SHA-256", enc.encode(m))), h2 = hex(await crypto.subtle.digest("SHA-256", enc.encode(m2)));
+      const key = await crypto.subtle.importKey("raw", enc.encode(k), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]), mac = hex(await crypto.subtle.sign("HMAC", key, enc.encode(m)));
+      const row = (a, b) => `<tr><td>${a}</td><td><code style="word-break:break-all">${b}</code></td></tr>`;
+      g("hs-out").innerHTML = `<table><tbody>${row("SHA-256(message)", h1)}${row(`SHA-256 after flipping one bit (\"${m2.slice(-6)}\")`, h2)}${row("HMAC-SHA256(key, message)", mac)}</tbody></table>`;
+      g("hs-why").innerHTML = `Flipping one bit of the input changed <b>${bits(h1, h2)} of 256</b> output bits (about half: the avalanche effect). Anyone can recompute the SHA-256 of a tampered message, so it proves nothing; the HMAC can only be produced with the key.`;
+    }
+    g("hs-m").oninput = run; g("hs-k").oninput = run; run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const CS = [["Lowercase (26)", 26], ["Letters + digits (62)", 62], ["Printable (95)", 95]];
+    let c = 1;
+    g("pw-c").innerHTML = CS.map((x, i) => `<button type="button" aria-pressed="${i === c}">${x[0]}</button>`).join("");
+    g("pw-c").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; c = [...g("pw-c").children].indexOf(b); [...g("pw-c").children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === c))); run(); };
+    const H = [["MD5 (unsalted, fast)", 164e9], ["SHA-256 (fast)", 22e9], ["bcrypt, cost 5", 1.8e5], ["bcrypt, cost 12", 1.8e5 / 128]];
+    const dur = (s) => s < 1 ? "under a second" : s < 120 ? Math.round(s) + " seconds" : s < 7200 ? Math.round(s / 60) + " minutes" : s < 172800 ? Math.round(s / 3600) + " hours" : s < 3.15e7 * 2 ? Math.round(s / 86400) + " days" : s < 3.15e7 * 1e6 ? Math.round(s / 3.15e7).toLocaleString("en-US") + " years" : "longer than the universe has existed";
+    function run() {
+      const L = +g("pw-l").value; g("pw-lo").textContent = L + " characters";
+      const space = Math.pow(CS[c][1], L);
+      g("pw-out").innerHTML = `<table><thead><tr><th>Stored as</th><th>Guesses per second (one RTX 4090)</th><th>Time to try every password</th></tr></thead><tbody>${H.map(([n, r]) => `<tr><td>${n}</td><td>${r >= 1e9 ? (r / 1e9).toFixed(0) + " billion" : r >= 1e3 ? Math.round(r).toLocaleString("en-US") : r}</td><td>${dur(space / r)}</td></tr>`).join("")}</tbody></table>`;
+      g("pw-why").innerHTML = `${space.toExponential(1).replace("e+", " × 10^")} possible passwords. Speeds are hashcat benchmarks on one consumer GPU; attackers rent hundreds, and real passwords fall far faster to dictionaries and leaked-password lists. The cost factor is what buys time: Argon2id is also memory-hard, so GPUs gain much less.`;
+    }
+    g("pw-l").oninput = run; run();
+  })();
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>User</th><th>Password</th><th>Stored</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center">${cap}</div></div>`;
+    Viz.stepper("#viz-u26b-salt", { title: "Why salts matter", sub: "Two users choose the same password.", speed: 3200, frames: [
+      { view: R([["ana", "sunshine1", "<code>sha256 = 5c9a…</code>"], ["ben", "sunshine1", "<code>sha256 = 5c9a…</code>"]], "Unsalted: identical passwords give identical hashes."), note: "Crack one and you have both; a precomputed table of common passwords cracks them instantly." },
+      { view: R([["ana", "sunshine1", "<code>salt=Q7x… hash=91be…</code>"], ["ben", "sunshine1", "<code>salt=M2c… hash=e40f…</code>"]], "Salted: a random salt per user is hashed with the password."), note: "Same password, different hashes. Precomputed tables are useless; each hash must be attacked on its own." },
+      { view: R([["ana", "sunshine1", "<code>$argon2id$m=19456,t=2,p=1$Q7x…$91be…</code>"], ["ben", "sunshine1", "<code>$argon2id$m=19456,t=2,p=1$M2c…$e40f…</code>"]], "The stored string records the algorithm, its cost parameters and the salt."), note: "Raise the cost later and rehash on each user's next login. OWASP suggests Argon2id with at least 19 MiB of memory and 2 iterations as a minimum." },
+    ] });
+  })();
 })();
 </script>
 </body>

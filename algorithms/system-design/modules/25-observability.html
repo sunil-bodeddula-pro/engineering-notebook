@@ -2373,6 +2373,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2633,6 +2634,118 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://www.brendangregg.com/usemethod.html" target="_blank" rel="noopener">The USE Method</a> (Brendan Gregg)</td><td>15 min</td><td>A checklist for finding resource bottlenecks.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How metrics, traces and logs are really recorded, sampled and turned into alerts. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-observability-internals">
+      <summary><span class="uth-t"><b>Observability internals</b><small>Metric types and a percentile lab, cardinality, traceparent propagation lab, head vs tail sampling (animated), logs indexing, SLO burn-rate alerts, profiling and eBPF, 6 products compared</small></span><span class="uth-m">about 30 min</span></summary>
+      <div class="uth-body">
+        <p>Dashboards are only as truthful as the data types behind them. How a latency percentile is computed, what a trace ID looks like on the wire, which traces are kept, and what an alert actually measures decide whether you find the problem or a misleading average.</p>
+
+        <h3 id="u25-types">Metric types</h3>
+        <table>
+          <thead><tr><th>Type</th><th>What it stores</th><th>Use it for</th><th>Trap</th></tr></thead>
+          <tbody>
+            <tr><td>Counter</td><td>A number that only goes up (resets on restart)</td><td>Requests, errors, bytes; graph its rate</td><td>Graphing the raw value instead of <code>rate()</code></td></tr>
+            <tr><td>Gauge</td><td>A value that goes up and down</td><td>Queue length, memory, temperature</td><td>Sampling misses spikes between scrapes</td></tr>
+            <tr><td>Histogram</td><td>Counts of observations per bucket (≤ 10 ms, ≤ 25 ms, …), plus sum and count</td><td>Latency and size distributions; aggregatable across servers</td><td>Percentiles are estimated within a bucket; choose buckets around your SLO</td></tr>
+            <tr><td>Native / exponential histogram</td><td>Buckets on an exponential scale chosen automatically, stored sparsely</td><td>Accurate percentiles at low cost (Prometheus native histograms, stable since 3.8; OpenTelemetry exponential histograms)</td><td>Needs opt-in and backend support</td></tr>
+            <tr><td>Summary</td><td>Quantiles computed inside each process</td><td>A single process's latency</td><td>Quantiles can't be combined across instances</td></tr>
+          </tbody>
+        </table>
+        <div class="card widget" id="pc-lab">
+          <div class="ctl"><span class="seg" id="pc-b"></span></div>
+          <div class="no-gl" id="pc-out"></div>
+          <div class="verdict no-gl" id="pc-why"></div>
+        </div>
+
+        <h3 id="u25-card">Cardinality and cost</h3>
+        <p>Every unique combination of metric name and label values is a separate series stored and indexed forever (until retention). <code>http_requests_total{route, method, status}</code> with 50 routes × 5 methods × 10 statuses is 2,500 series per instance, fine; adding <code>user_id</code> multiplies it by your user count. Put high-cardinality detail in logs and traces, where it's sampled or stored cheaply, and keep metrics for aggregates.</p>
+
+        <h3 id="u25-trace">Traces: context propagation</h3>
+        <p>A trace is a tree of spans, one per unit of work, linked by IDs passed from service to service in the W3C <code>traceparent</code> header:</p>
+        <div class="card widget" id="tp-lab">
+          <div class="ctl"><button class="btn primary" type="button" id="tp-new">Start a new request</button><label><input type="checkbox" id="tp-s" checked> Sampled</label></div>
+          <div class="no-gl" id="tp-out"></div>
+          <div class="verdict no-gl" id="tp-why"></div>
+        </div>
+        <ul>
+          <li><strong>Head sampling</strong> decides at the first service (say, keep 1%) and passes the decision downstream in the flags, so a trace is kept or dropped as a whole. Cheap, but slow and failed requests are dropped at the same rate as boring ones.</li>
+          <li><strong>Tail sampling</strong> buffers all spans of a trace in a collector and decides once it's complete: keep every error and every trace over 2 s, plus 1% of the rest. Better traces, but the collector must hold whole traces in memory and route all spans of a trace to the same instance.</li>
+          <li><strong>Exemplars</strong> attach a trace ID to a metric sample, so a spike on a latency graph links straight to an example slow trace.</li>
+          <li><strong>OpenTelemetry</strong> provides the SDKs, the wire protocol (OTLP) and the Collector, which receives, processes (batches, samples, scrubs personal data) and exports to any backend.</li>
+        </ul>
+        <div id="viz-u25-tail"></div>
+
+        <h3 id="u25-logs">Logs: index everything or index labels</h3>
+        <table>
+          <thead><tr><th></th><th>Index every word (Elasticsearch, OpenSearch, Splunk)</th><th>Index labels only (Grafana Loki, many cloud log stores)</th></tr></thead>
+          <tbody>
+            <tr><td>Storage</td><td>Inverted index on local disks, often larger than the raw logs</td><td>Compressed chunks in object storage plus a small label index</td></tr>
+            <tr><td>Queries</td><td>Fast full-text search anywhere</td><td>Pick streams by label, then scan (grep) their chunks in parallel</td></tr>
+            <tr><td>Cost</td><td>High at large volumes</td><td>Much lower; slower for needle-in-a-haystack searches</td></tr>
+          </tbody>
+        </table>
+        <p>Either way: log structured JSON with a trace ID, a consistent level and no secrets or personal data; sample or drop debug logs in production; and use a pipeline (Fluent Bit, Vector, the OpenTelemetry Collector) to buffer, enrich and route.</p>
+
+        <h3 id="u25-alert">Alerting on SLOs: burn rates</h3>
+        <p>An SLO of 99.9% success over 30 days allows 0.1% errors: the <em>error budget</em>. The burn rate is how fast you're spending it: a burn rate of 1 uses exactly the budget in 30 days; 14.4 uses 2% of it in one hour. The Google SRE workbook recommends paging when both a long and a short window agree, so alerts are fast for big incidents but don't fire on brief blips:</p>
+        <table>
+          <thead><tr><th>Severity</th><th>Burn rate</th><th>Long window</th><th>Short window</th><th>Budget consumed when it fires</th></tr></thead>
+          <tbody>
+            <tr><td>Page</td><td>14.4</td><td>1 hour</td><td>5 minutes</td><td>2%</td></tr>
+            <tr><td>Page</td><td>6</td><td>6 hours</td><td>30 minutes</td><td>5%</td></tr>
+            <tr><td>Ticket</td><td>1</td><td>3 days</td><td>6 hours</td><td>10%</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u25-more">Profiles, eBPF and real users</h3>
+        <ul>
+          <li><strong>Continuous profiling</strong> (Grafana Pyroscope, Parca, cloud profilers) samples stacks across the fleet at about 1% overhead, so you can diff CPU and memory by version; OpenTelemetry is adding profiles as a fourth signal.</li>
+          <li><strong>eBPF</strong> programs in the Linux kernel observe network calls, latency and CPU for every process without changing code (Cilium Hubble, Pixie, Grafana Beyla), useful for services nobody instrumented.</li>
+          <li><strong>Real-user monitoring</strong> measures what browsers and apps actually experienced (Core Web Vitals, crashes), which server metrics can't see.</li>
+        </ul>
+
+        <h3 id="u25-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>How it works</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Prometheus</td><td>Pulls metrics from targets, stores series in its TSDB, alerts with PromQL rules</td><td>Cardinality, not request volume, decides cost; Thanos and Mimir add long-term, multi-cluster storage</td></tr>
+            <tr><td>Elasticsearch / OpenSearch for logs</td><td>Inverted index over every field</td><td>Full-text search at a storage cost</td></tr>
+            <tr><td>Grafana Loki</td><td>Label index plus compressed chunks in object storage</td><td>Much cheaper; queries scan chunks</td></tr>
+            <tr><td>OpenTelemetry</td><td>SDKs, OTLP and the Collector for traces, metrics and logs</td><td>Instrument once, change backends later</td></tr>
+            <tr><td>Jaeger, Grafana Tempo</td><td>Trace storage; Tempo keeps traces in object storage, found by trace ID</td><td>Cheap retention of every sampled trace</td></tr>
+            <tr><td>Pyroscope, Parca</td><td>Continuous profiling</td><td>Flame graphs over time and versions</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u25-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How do you compute p99 across 50 servers?"</strong> From merged histograms (sum the bucket counts, then estimate the quantile), never by averaging each server's p99.</li>
+          <li><strong>"How do you keep tracing affordable?"</strong> Tail sampling in the Collector: keep all errors and slow traces, a small share of the rest; store spans in object storage.</li>
+          <li><strong>"When do you page someone?"</strong> On fast SLO burn (14.4× over an hour, confirmed over 5 minutes), not on CPU or single errors; slower burns open tickets.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Merge the histograms, then compute the percentile">
+            <p>How should you get the p99 latency of a service running on many servers?</p>
+            <div class="opts"><button>Average each server's p99</button><button>Take the highest server's p99</button><button>Merge the histograms, then compute the percentile</button></div>
+            <div class="why">Percentiles don't average; the busy servers' requests must be weighted by their count.</div>
+          </div>
+          <div class="quiz-q" data-answer="It decides after seeing the whole trace, so errors and slow traces can always be kept">
+            <p>What is the advantage of tail sampling over head sampling?</p>
+            <div class="opts"><button>It's cheaper</button><button>It decides after seeing the whole trace, so errors and slow traces can always be kept</button><button>It needs no collector</button></div>
+            <div class="why">Head sampling decides before anything interesting has happened.</div>
+          </div>
+          <div class="quiz-q" data-answer="About 2% of the monthly error budget in one hour">
+            <p>A burn rate of 14.4 sustained for one hour consumes how much of a 30-day error budget?</p>
+            <div class="opts"><button>About 2% of the monthly error budget in one hour</button><button>14.4%</button><button>All of it</button></div>
+            <div class="why">14.4 × 1 hour ÷ 720 hours ≈ 2%.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://prometheus.io/docs/practices/histograms/" target="_blank" rel="noopener">Prometheus: histograms and summaries</a></li><li><a href="https://prometheus.io/docs/specs/native_histograms/" target="_blank" rel="noopener">Prometheus: native histograms</a></li><li><a href="https://www.w3.org/TR/trace-context/" target="_blank" rel="noopener">W3C Trace Context</a></li><li><a href="https://opentelemetry.io/docs/concepts/sampling/" target="_blank" rel="noopener">OpenTelemetry: sampling</a></li><li><a href="https://opentelemetry.io/docs/collector/" target="_blank" rel="noopener">OpenTelemetry Collector</a></li><li><a href="https://grafana.com/docs/loki/latest/get-started/overview/" target="_blank" rel="noopener">Grafana Loki overview</a></li><li><a href="https://grafana.com/docs/tempo/latest/" target="_blank" rel="noopener">Grafana Tempo</a></li><li><a href="https://sre.google/workbook/alerting-on-slos/" target="_blank" rel="noopener">Google SRE workbook: alerting on SLOs</a></li><li><a href="https://grafana.com/docs/pyroscope/latest/" target="_blank" rel="noopener">Grafana Pyroscope</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="24-reliability-patterns.html"><small>Previous module</small>← 24 · Reliability patterns</a>
       <a class="next" href="26-security.html"><small>Next module</small>26 · Security →</a>
@@ -2746,6 +2859,51 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "Cost control starts at the source: sample debug logs, keep every error, and set retention per log type." },
     ],
   });
+  /* ---------- Under the hood: observability ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    let s = 3; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+    const ln = (med, sig) => { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return med * Math.exp(sig * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)); };
+    const SRV = [["Server A (most traffic)", 9000, 20, 0.4], ["Server B", 900, 30, 0.5], ["Server C (overloaded, little traffic)", 100, 400, 0.5]];
+    const data = SRV.map(([n, c, m, sg]) => Array.from({ length: c }, () => ln(m, sg)).sort((a, b) => a - b));
+    const q = (arr, p) => arr[Math.min(arr.length - 1, Math.floor(arr.length * p))];
+    const BK = [["Coarse buckets (10, 50, 100, 500, 1000 ms)", [10, 50, 100, 500, 1000, Infinity]], ["Buckets around the SLO (… 200, 300, 400, 500 …)", [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, Infinity]], ["Native exponential (×1.09 per bucket)", null]];
+    let b = 0;
+    g("pc-b").innerHTML = BK.map((x, i) => `<button type="button" aria-pressed="${i === b}">${x[0]}</button>`).join("");
+    g("pc-b").onclick = (e) => { const t = e.target.closest("button"); if (!t) return; b = [...g("pc-b").children].indexOf(t); [...g("pc-b").children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === b))); run(); };
+    function hq(all, bounds, p) { const counts = bounds.map(() => 0); all.forEach((v) => { const i = bounds.findIndex((u) => v <= u); counts[i]++; }); const target = p * all.length; let acc = 0; for (let i = 0; i < bounds.length; i++) { if (acc + counts[i] >= target) { const lo = i ? bounds[i - 1] : 0, hi = bounds[i] === Infinity ? bounds[i - 1] : bounds[i]; return lo + ((target - acc) / counts[i]) * (hi - lo); } acc += counts[i]; } }
+    function run() {
+      const all = data.flat().sort((a, b) => a - b), truth = q(all, 0.99), each = data.map((d) => q(d, 0.99)), avg = each.reduce((a, x) => a + x, 0) / each.length;
+      const bounds = BK[b][1] || (() => { const o = []; let x = 1; while (x < 5000) { o.push(x); x *= 1.09; } o.push(Infinity); return o; })();
+      const est = hq(all, bounds, 0.99);
+      g("pc-out").innerHTML = `<table><thead><tr><th>Server</th><th>Requests</th><th>Its own p99</th></tr></thead><tbody>${SRV.map((x, i) => `<tr><td>${x[0]}</td><td>${x[1].toLocaleString("en-US")}</td><td>${Math.round(each[i])} ms</td></tr>`).join("")}</tbody></table><div class="tiles"><div><b>${Math.round(truth)} ms</b><span>True p99 of all 10,000 requests</span></div><div><b>${Math.round(avg)} ms</b><span>Average of the three p99s (wrong)</span></div><div><b>${Math.round(est)} ms</b><span>Estimated from merged histogram buckets</span></div></div>`;
+      const err = Math.round(((est - truth) / truth) * 100);
+      g("pc-why").innerHTML = `Averaging p99s gives ${Math.round(avg)} ms against a true ${Math.round(truth)} ms: each server's percentile ignores how many requests it served. Merging histograms is correct in principle; the estimate is ${Math.abs(err) <= 3 ? "within a few percent" : `${err > 0 ? "+" : ""}${err}% off`} because ${b === 0 ? "the true value sits inside a wide bucket and the estimate interpolates linearly across it" : b === 1 ? "buckets are dense where it matters" : "exponential buckets keep the relative error small everywhere"}.`;
+      g("pc-why").className = "verdict no-gl" + (Math.abs(err) > 15 ? " warn" : "");
+    }
+    run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const rh = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (x) => x.toString(16).padStart(2, "0")).join("");
+    const SV = ["api-gateway", "orders", "payments", "fraud-check"];
+    function run() {
+      const tid = rh(16), flags = g("tp-s").checked ? "01" : "00"; let parent = null;
+      const rows = SV.map((svc, i) => { const sid = rh(8), hdr = i === 0 ? "(none: starts the trace)" : `<code>00-${tid}-${parent}-${flags}</code>`; parent = sid; return `<tr><td>${"&nbsp;&nbsp;".repeat(i)}${svc}</td><td style="word-break:break-all">${hdr}</td><td><code>${sid}</code></td></tr>`; });
+      g("tp-out").innerHTML = `<table><thead><tr><th>Service</th><th>traceparent it received</th><th>Its span ID</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
+      g("tp-why").innerHTML = `Format: <code>version-traceid-parentspanid-flags</code>. The 128-bit trace ID <code>${tid.slice(0, 8)}…</code> is the same everywhere; each hop passes its own span ID as the next one's parent, which is how the backend rebuilds the tree. Flags <code>${flags}</code> = ${flags === "01" ? "sampled: every service records its spans" : "not sampled: services skip recording, but still pass the header on"}.`;
+    }
+    g("tp-new").onclick = run; g("tp-s").onchange = run; run();
+  })();
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Trace</th><th>Outcome</th><th>Head sampling (1%)</th><th>Tail sampling</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center">${cap}</div></div>`;
+    const T = [["#1", "200 OK, 40 ms", "dropped", "dropped"], ["#2", "200 OK, 35 ms", "dropped", "dropped"], ["#3", "500 error", "dropped (decided at the start)", "<b>kept</b> (error)"], ["#4", "200 OK, 3.4 s", "dropped", "<b>kept</b> (slow)"], ["#5", "200 OK, 50 ms", "<b>kept</b> (the lucky 1%)", "<b>kept</b> (1% baseline)"]];
+    Viz.stepper("#viz-u25-tail", { title: "Head vs tail sampling", sub: "Five requests, one of them failing, one slow.", speed: 3200, frames: [
+      { view: R(T.slice(0, 2), "Normal requests: both strategies drop most of them."), note: "Sampling exists because storing every span is expensive." },
+      { view: R(T.slice(0, 4), "An error and a slow request arrive."), note: "Head sampling decided at the first hop, before the error happened, so it drops them as often as anything else." },
+      { view: R(T, "Tail sampling waits until each trace is complete, then applies rules."), note: "Keep errors, keep slow traces, keep a small share of the rest: the traces you need, at a fraction of the cost. The price is a collector tier that buffers whole traces." },
+    ] });
+  })();
 })();
 </script>
 </body>
