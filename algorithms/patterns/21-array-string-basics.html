@@ -2315,21 +2315,82 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> usually <code>O(n)</code> time; <code>O(n)</code> space when building a new string, <code>O(1)</code> otherwise.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Scan with a lookup table and a running total (look one ahead)
-def scan_with_table(s, value):
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Array and string basics are about walking an index carefully. Three templates: <strong>A</strong> a single scan with a lookup table and a one-character lookahead (Roman numerals), <strong>B</strong> a pointer that bounces between rows (zigzag conversion), <strong>C</strong> split, reverse, join (reverse words). Each is short, and each has one line that's easy to get off by one.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Scan with a lookup table and a lookahead (Roman to integer)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Convert a Roman numeral to an integer.</div><div><b>What it keeps</b>A running <code>total</code>; a table from symbol to value.</div><div><b>When it checks for an answer</b>Each symbol looks one step ahead: a smaller symbol before a larger one is subtracted.</div><div><b>Use it when</b>Roman to integer (LC 13), parsing tokens with prefixes, run-length decoding, any "depends on the next item" scan.</div><div><b>Not for</b>Integer to Roman (greedy over a value table instead).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Smaller before bigger means minus"</strong>Read the numeral like a price tag. Normally you add each symbol. But when a symbol is followed by a bigger one (I before V, X before C), it's a discount: subtract it instead.</div>
+    <p><strong>The story, mapped to the code.</strong> Each symbol is a coin with a face value.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Face values</td><td data-h="In the code"><code>value</code></td><td data-h="What it means">Symbol → number.</td></tr><tr><td data-h="In the story">This coin</td><td data-h="In the code"><code>current = value[s[i]]</code></td><td data-h="What it means">One symbol.</td></tr><tr><td data-h="In the story">Peek at the next coin</td><td data-h="In the code"><code>i + 1 &lt; len(s) and value[s[i + 1]] &gt; current</code></td><td data-h="What it means">Strictly bigger?</td></tr><tr><td data-h="In the story">Discount</td><td data-h="In the code"><code>total -= current</code></td><td data-h="What it means">Subtract.</td></tr><tr><td data-h="In the story">Normal</td><td data-h="In the code"><code>total += current</code></td><td data-h="What it means">Add.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Check the bound before peeking.</p>
+    <pre><code class="python">VALUE = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+def roman_to_int(s):
     total = 0
     for i in range(len(s)):
-        current = value[s[i]]
-        if i + 1 < len(s) and value[s[i + 1]] > current:
-            total = total - current          # the next symbol changes this one's meaning
+        current = VALUE[s[i]]
+        if i + 1 &lt; len(s) and VALUE[s[i + 1]] &gt; current:
+            total -= current
         else:
-            total = total + current
-    return total
+            total += current
+    return total</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">const VALUE: Record&lt;string, number&gt; = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
 
+function romanToInt(s: string): number {
+  let total = 0;
+  for (let i = 0; i &lt; s.length; i++) {
+    const current = VALUE[s[i]];
+    if (i + 1 &lt; s.length &amp;&amp; VALUE[s[i + 1]] &gt; current) {
+      total -= current;
+    } else {
+      total += current;
+    }
+  }
+  return total;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static final Map&lt;Character, Integer&gt; VALUE = Map.of('I', 1, 'V', 5, 'X', 10, 'L', 50, 'C', 100, 'D', 500, 'M', 1000);
 
-# B) Simulation with a direction that bounces
-def zigzag_rows(s, num_rows):
+static int romanToInt(String s) {
+    int total = 0;
+    for (int i = 0; i &lt; s.length(); i++) {
+        int current = VALUE.get(s.charAt(i));
+        if (i + 1 &lt; s.length() &amp;&amp; VALUE.get(s.charAt(i + 1)) &gt; current) {
+            total -= current;
+        } else {
+            total += current;
+        }
+    }
+    return total;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if i + 1 &lt; len(s) and VALUE[s[i + 1]] &gt; current</code></td><td data-h="What it does">Bound check, then a strict comparison with the next symbol.</td><td data-h="In the story">Is the next coin bigger?</td><td data-h="Why here, and what breaks if it moves">Without the bound check the last symbol reads past the end; with <code>&gt;=</code>, equal neighbours like III are subtracted (see the bug player).</td></tr><tr><td data-h="Line"><code>total -= current</code></td><td data-h="What it does">Subtractive pair.</td><td data-h="In the story">Discount.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>total += current</code></td><td data-h="What it does">Normal case.</td><td data-h="In the story">Add the coin.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>"MCMXCIV"</code>. The second player uses <code>&gt;=</code> on <code>"III"</code>.</p>
+    <div id="tl-21a"></div><div id="tl-21a-bug"></div><p>With <code>&gt;=</code>, each I followed by an equal I is subtracted: −1 − 1 + 1 = −1 instead of 3.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-21a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After index i, <code>total</code> equals the value of s[0..i] if s[i] is read as "added", adjusted by the subtractions already applied.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Missing bound check.</strong> Peek only if there is a next symbol.</li><li><strong><code>&gt;=</code>.</strong> Only strictly bigger means minus.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Smaller before bigger means minus.</dd>
+      <dt>Choose this template when</dt><dd>Value depends on the next item → scan with lookahead.</dd>
+      <dt>Invariant</dt><dd>Each symbol is added or subtracted exactly once.</dd>
+      <dt>The line people get wrong</dt><dd><code>i + 1 &lt; len(s)</code> then <code>&gt;</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>MCMXCIV?</summary><p>1994.</p></details><details><summary>Why is the last symbol always added?</summary><p>There's nothing after it to be bigger.</p></details><details><summary>Integer to Roman?</summary><p>Greedy over [(1000, M), (900, CM), …].</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · A bouncing row pointer (zigzag conversion)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Write s in a zigzag over num_rows rows, then read row by row.</div><div><b>What it keeps</b>One list per row; <code>row</code> and <code>step</code> (+1 going down, −1 going up).</div><div><b>When it checks for an answer</b>The direction flips at the top and bottom rows.</div><div><b>Use it when</b>Zigzag conversion (LC 6), diagonal traversals, ping-pong indexing.</div><div><b>Not for</b>Spiral traversal (four directions, use direction vectors).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Go down, bounce at the floor, go up, bounce at the ceiling"</strong>A ball dropping letters as it bounces between the ceiling (row 0) and the floor (last row). It drops one letter per row it passes; at either end it turns around.</div>
+    <p><strong>The story, mapped to the code.</strong> Each row is a shelf; the ball moves one shelf per letter.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Shelves</td><td data-h="In the code"><code>rows = [[] ...]</code></td><td data-h="What it means">One per row.</td></tr><tr><td data-h="In the story">Ball position</td><td data-h="In the code"><code>row</code></td><td data-h="What it means">Current shelf.</td></tr><tr><td data-h="In the story">Direction</td><td data-h="In the code"><code>step = ±1</code></td><td data-h="What it means">Down or up.</td></tr><tr><td data-h="In the story">Ceiling or floor</td><td data-h="In the code"><code>row == 0 / row == num_rows - 1</code></td><td data-h="What it means">Turn around.</td></tr><tr><td data-h="In the story">One row only</td><td data-h="In the code"><code>if num_rows == 1: return s</code></td><td data-h="What it means">No room to bounce.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The guard for one row matters: without it the ball leaves the only shelf.</p>
+    <pre><code class="python">def zigzag(s, num_rows):
+    if num_rows == 1:
+        return s
     rows = [[] for _ in range(num_rows)]
     row, step = 0, 1
     for ch in s:
@@ -2338,32 +2399,93 @@ def zigzag_rows(s, num_rows):
             step = 1
         elif row == num_rows - 1:
             step = -1
-        row = row + step
-    return "".join("".join(r) for r in rows)
-
-
-# C) Building output: collect pieces, join once
-def words_reversed(s):
-    words = s.split()                        # also drops extra spaces
+        row += step
+    return "".join("".join(r) for r in rows)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function zigzag(s: string, numRows: number): string {
+  if (numRows === 1) return s;
+  const rows: string[][] = Array.from({ length: numRows }, () =&gt; []);
+  let row = 0, step = 1;
+  for (const ch of s) {
+    rows[row].push(ch);
+    if (row === 0) step = 1;
+    else if (row === numRows - 1) step = -1;
+    row += step;
+  }
+  return rows.map((r) =&gt; r.join("")).join("");
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static String zigzag(String s, int numRows) {
+    if (numRows == 1) return s;
+    StringBuilder[] rows = new StringBuilder[numRows];
+    for (int i = 0; i &lt; numRows; i++) rows[i] = new StringBuilder();
+    int row = 0, step = 1;
+    for (char ch : s.toCharArray()) {
+        rows[row].append(ch);
+        if (row == 0) step = 1;
+        else if (row == numRows - 1) step = -1;
+        row += step;
+    }
+    StringBuilder out = new StringBuilder();
+    for (StringBuilder r : rows) out.append(r);
+    return out.toString();
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if num_rows == 1: return s</code></td><td data-h="What it does">One row: nothing to zigzag.</td><td data-h="In the story">No room to bounce.</td><td data-h="Why here, and what breaks if it moves">Without it, row becomes 1 after the first letter and the next append is out of range.</td></tr><tr><td data-h="Line"><code>if row == 0: step = 1 / elif row == num_rows - 1: step = -1</code></td><td data-h="What it does">Turn at the ends.</td><td data-h="In the story">Bounce.</td><td data-h="Why here, and what breaks if it moves">Turning <em>after</em> moving lets row reach −1 or num_rows.</td></tr><tr><td data-h="Line"><code>row += step</code></td><td data-h="What it does">Move one row.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>"PAYPALISHIRING"</code> on 3 rows.</p>
+    <div id="tl-21b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-21b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Before each letter, 0 ≤ row &lt; num_rows and step points away from the end it last touched.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>No one-row guard.</strong> One shelf, no bounce.</li><li><strong>Turning after the move.</strong> Turn, then move.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Down, bounce at the floor, up, bounce at the ceiling.</dd>
+      <dt>Choose this template when</dt><dd>Ping-pong across a fixed range → row + step, flip at ends.</dd>
+      <dt>Invariant</dt><dd>row stays in range.</dd>
+      <dt>The line people get wrong</dt><dd>The num_rows == 1 guard.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Rows for PAYPALISHIRING, 3?</summary><p>PAHN / APLSIIG / YIR.</p></details><details><summary>Cycle length?</summary><p>2 × (num_rows − 1).</p></details><details><summary>Formula version?</summary><p>Characters at index k·cycle ± r in row r.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Split, reverse, join (reverse words)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Reverse the order of words, collapsing extra spaces.</div><div><b>What it keeps</b>A list of words.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Reverse words (LC 151), normalising whitespace, rotating word order.</div><div><b>Not for</b>In-place O(1) space versions (reverse the whole string, then each word).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Cut at the spaces, shuffle the pieces, glue with one space"</strong>Cut a sentence into word cards (ignoring blank cards), put the stack upside down, and tape them back together with exactly one space between.</div>
+    <p><strong>The story, mapped to the code.</strong> Words are cards.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Cut into cards</td><td data-h="In the code"><code>s.split()</code></td><td data-h="What it means">No argument: splits on runs of whitespace and drops empties.</td></tr><tr><td data-h="In the story">Upside down</td><td data-h="In the code"><code>words.reverse()</code></td><td data-h="What it means">Last word first.</td></tr><tr><td data-h="In the story">Tape with one space</td><td data-h="In the code"><code>" ".join(words)</code></td><td data-h="What it means">Single spaces.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Know your language's split: Python's <code>split()</code> with no argument already drops empty pieces; TypeScript and Java need a filter or a trim plus regex.</p>
+    <pre><code class="python">def words_reversed(s):
+    words = s.split()
     words.reverse()
     return " ".join(words)</code></pre>
-<!-- explain-21:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><strong>A:</strong> <code>value</code> is the rule table. Checking <code>i + 1 &lt; len(s)</code> before reading <code>s[i + 1]</code> is the bounds-check habit that prevents <code>IndexError</code> on the last element.</li>
-  <li><strong>B:</strong> the state is just <code>row</code> and <code>step</code>. Flip the direction <em>after</em> writing on the top or bottom row, then move. (With <code>num_rows = 1</code> the bounce never happens, so handle that case first in a real solution.)</li>
-  <li><strong>C:</strong> <code>split()</code> with no argument splits on any run of whitespace and ignores leading/trailing spaces; <code>" ".join</code> puts exactly one space back between words.</li>
-</ol>
-<p><strong>Dry run</strong> of template A on <code>s = "XIV"</code> with the Roman table:</p>
-<table>
-  <thead><tr><th>i</th><th>symbol</th><th>next bigger?</th><th>total</th></tr></thead>
-  <tbody>
-    <tr><td>0</td><td><code>X</code> (10)</td><td>no (<code>I</code> is 1)</td><td>10</td></tr>
-    <tr><td>1</td><td><code>I</code> (1)</td><td>yes (<code>V</code> is 5) → subtract</td><td>9</td></tr>
-    <tr><td>2</td><td><code>V</code> (5)</td><td>no next</td><td><strong>14</strong></td></tr>
-  </tbody>
-</table>
-<!-- /explain-21:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function wordsReversed(s: string): string {
+  const words = s.split(" ").filter((w) =&gt; w.length &gt; 0);
+  words.reverse();
+  return words.join(" ");
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static String wordsReversed(String s) {
+    List&lt;String&gt; words = new ArrayList&lt;&gt;(Arrays.asList(s.trim().split("\\s+")));
+    Collections.reverse(words);
+    return String.join(" ", words);
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>words = s.split()</code></td><td data-h="What it does">Splits on any whitespace, dropping empties.</td><td data-h="In the story">Cut into cards.</td><td data-h="Why here, and what breaks if it moves"><code>s.split(" ")</code> in Python keeps empty strings for repeated spaces, so the join puts extra spaces back.</td></tr><tr><td data-h="Line"><code>words.reverse()</code></td><td data-h="What it does">In-place reverse.</td><td data-h="In the story">Upside down.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>" ".join(words)</code></td><td data-h="What it does">Exactly one space between.</td><td data-h="In the story">Tape.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>"  the sky  is blue "</code>.</p>
+    <div id="tl-21c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-21c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The word list contains exactly the non-empty words of s.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>split(" ") with repeated spaces.</strong> Use split() or filter empties.</li><li><strong>Reversing characters instead of words.</strong> Reverse the list of words.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Cut, shuffle, glue with one space.</dd>
+      <dt>Choose this template when</dt><dd>Word-order changes → split / reverse / join.</dd>
+      <dt>Invariant</dt><dd>No empty words in the list.</dd>
+      <dt>The line people get wrong</dt><dd>Which split.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Result for the example?</summary><p>"blue is sky the".</p></details><details><summary>O(1) extra space?</summary><p>Reverse the whole char array, then each word, then compact spaces.</p></details><details><summary>Java regex?</summary><p>trim() then split("\\s+").</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · lookahead scan</th><th>B · bouncing pointer</th><th>C · split/reverse/join</th></tr></thead><tbody><tr><td data-h="Question">Index movement</td><td data-h="A · lookahead scan">Left to right, peek at i + 1</td><td data-h="B · bouncing pointer">Row pointer ±1, flips at ends</td><td data-h="C · split/reverse/join">Library calls</td></tr><tr><td data-h="Question">Easy-to-miss line</td><td data-h="A · lookahead scan">Bound check before peeking</td><td data-h="B · bouncing pointer">One-row guard</td><td data-h="C · split/reverse/join">Which split</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · lookahead scan">LC 13, 443</td><td data-h="B · bouncing pointer">LC 6</td><td data-h="C · split/reverse/join">LC 151, 186</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · lookahead scan">O(n) / O(1)</td><td data-h="B · bouncing pointer">O(n) / O(n)</td><td data-h="C · split/reverse/join">O(n) / O(n)</td></tr></tbody></table>
+    <p>These are warm-up shapes, but interviewers watch the edge cases: the last element (A), the smallest input (B), and messy whitespace (C).</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -5606,5 +5728,73 @@ The array becomes sorted in 2 operations, which is minimal.</span></div></div>
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  const RV = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  function tl21A(s, ge) {
+    const ch = [...s], steps = [], rows = []; let total = 0; const sub = {};
+    const view = (i) => Viz.array(ch, { label: "s", hl: Object.assign({}, sub, i >= 0 ? { [i]: "active" } : {}, i >= 0 && i + 1 < ch.length ? { [i + 1]: "gold" } : {}) }) + `<p class="idx">total = ${total}</p>`;
+    steps.push({ line: "init", vars: { total: 0 }, view: view(-1), analogy: "Empty purse.", note: "<code>total = 0</code>." });
+    ch.forEach((c, i) => {
+      const cur = RV[c], nx = i + 1 < ch.length ? RV[ch[i + 1]] : null, minus = nx !== null && (ge ? nx >= cur : nx > cur);
+      if (minus) { total -= cur; sub[i] = "bad"; } else total += cur;
+      rows.push([i, c, cur, nx === null ? "—" : nx, minus ? `− ${cur}` : `+ ${cur}`, total]);
+      steps.push({ line: ["loop", "read", "peek", minus ? "minus" : "plus"], vars: { symbol: c, current: cur, next: nx === null ? "none" : nx, total }, view: view(i),
+        analogy: minus ? (ge && nx === cur ? `⚠ Next coin (${nx}) is equal, not bigger, but >= subtracts ${cur} anyway.` : `${c} before a bigger coin (${nx}): discount, −${cur}.`) : `${c}: +${cur}.`, note: `<code>total = ${total}</code>.`,
+        ask: { q: `Add or subtract ${c}?`, options: ["add", "subtract"], answer: minus ? "subtract" : "add", why: nx === null ? "Last symbol." : `Next is ${nx}${ge ? " (rule: >=)" : ""}.` } });
+    });
+    steps.push({ line: "ret", vars: { result: total }, view: view(-1), analogy: `Total ${total}.`, note: `Return <code>${total}</code>.` });
+    return { steps, table: { head: ["i", "Symbol", "Value", "Next value", "Action", "total"], rows } };
+  }
+
+  function tl21B(s, n) {
+    const rows = Array.from({ length: n }, () => []), steps = [], tbl = [], cell = {}; let row = 0, step = 1, col = 0, maxCol = 0;
+    const view = (last) => Viz.grid(Array.from({ length: n }, (_, r) => Array.from({ length: maxCol + 1 }, (_, c) => cell[r + "," + c] ?? "")), { small: true, hl: last ? { [last]: "active" } : {} });
+    steps.push({ line: ["guard", "init"], vars: { row, step }, view: view(), analogy: `${n} empty shelves; the ball starts at the top.`, note: `<code>row = 0</code>, <code>step = 1</code>.` });
+    [...s].forEach((c) => {
+      rows[row].push(c); cell[row + "," + col] = c; maxCol = Math.max(maxCol, col); const at = row + "," + col; const before = step;
+      if (row === 0) step = 1; else if (row === n - 1) step = -1;
+      if (step === -1) col++;
+      tbl.push([c, row, step]);
+      steps.push({ line: ["loop", "drop", "turn", "move"], vars: { ch: c, row, step }, view: view(at), analogy: `Drop '${c}' on shelf ${row}${step !== before ? ` and bounce ${step > 0 ? "down" : "up"}` : ""}.`, note: `Next row: ${row + step}.`,
+        ask: { q: "Which row gets the next letter?", options: [...new Set([row + step, row - step, 0].filter((x) => x >= 0 && x < n))].map(String), answer: row + step, why: `row ${row} + step ${step}.` } });
+      row += step;
+    });
+    const res = rows.map((r) => r.join("")).join("");
+    steps.push({ line: "ret", vars: { result: res }, view: view(), analogy: `Read shelf by shelf: ${rows.map((r) => r.join("")).join(" / ")}.`, note: `Return <code>${res}</code>.` });
+    return { steps, table: { head: ["Letter", "Row", "Step after"], rows: tbl } };
+  }
+
+  function tl21C(s) {
+    const steps = [], words = s.split(" ").filter((w) => w);
+    steps.push({ line: "split", vars: { words: "[" + words.map((w) => `'${w}'`).join(", ") + "]" }, view: Viz.chips(words, "words"), analogy: `Cut into ${words.length} cards; blank pieces are dropped.`, note: "<code>s.split()</code>." });
+    const rev = words.slice().reverse();
+    steps.push({ line: "rev", vars: { words: "[" + rev.map((w) => `'${w}'`).join(", ") + "]" }, view: Viz.chips(rev, "words"), analogy: "Turn the stack upside down.", note: "<code>words.reverse()</code>.",
+      ask: { q: "Which word is first after reversing?", options: [...new Set([rev[0], words[0], rev[1]])], answer: rev[0], why: "The last word moves to the front." } });
+    steps.push({ line: "join", vars: { result: rev.join(" ") }, view: Viz.chips([rev.join(" ")], "result"), analogy: "Tape them with single spaces.", note: `Return <code>"${rev.join(" ")}"</code>.` });
+    return { steps, table: { head: ["Step", "Result"], rows: [["split", words.join(" | ")], ["reverse", rev.join(" | ")], ["join", `"${rev.join(" ")}"`]] } };
+  }
+
+  { const run = tl21A('MCMXCIV', false);
+    Viz.tlab("#tl-21a", { title: "Template A \u00b7 \"MCMXCIV\"", sub: "Blue = current symbol; gold = the next symbol it peeks at; red = subtracted.", code: {"py": [[null, "VALUE = {\"I\": 1, \"V\": 5, \"X\": 10, \"L\": 50, \"C\": 100, \"D\": 500, \"M\": 1000}"], [null, ""], [null, "def roman_to_int(s):"], ["init", "    total = 0"], ["loop", "    for i in range(len(s)):"], ["read", "        current = VALUE[s[i]]"], ["peek", "        if i + 1 < len(s) and VALUE[s[i + 1]] > current:"], ["minus", "            total -= current"], [null, "        else:"], ["plus", "            total += current"], ["ret", "    return total"]], "ts": [[null, "const VALUE: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };"], [null, ""], [null, "function romanToInt(s: string): number {"], ["init", "  let total = 0;"], ["loop", "  for (let i = 0; i < s.length; i++) {"], ["read", "    const current = VALUE[s[i]];"], ["peek", "    if (i + 1 < s.length && VALUE[s[i + 1]] > current) {"], ["minus", "      total -= current;"], [null, "    } else {"], ["plus", "      total += current;"], [null, "    }"], [null, "  }"], ["ret", "  return total;"], [null, "}"]], "java": [[null, "static final Map<Character, Integer> VALUE = Map.of('I', 1, 'V', 5, 'X', 10, 'L', 50, 'C', 100, 'D', 500, 'M', 1000);"], [null, ""], [null, "static int romanToInt(String s) {"], ["init", "    int total = 0;"], ["loop", "    for (int i = 0; i < s.length(); i++) {"], ["read", "        int current = VALUE.get(s.charAt(i));"], ["peek", "        if (i + 1 < s.length() && VALUE.get(s.charAt(i + 1)) > current) {"], ["minus", "            total -= current;"], [null, "        } else {"], ["plus", "            total += current;"], [null, "        }"], [null, "    }"], ["ret", "    return total;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-21a-table").innerHTML = TL.table(run.table); }
+  { const run = tl21A('III', false);
+    Viz.tlab("#tl-21a-bug", { title: "Strictly bigger \u00b7 \"III\"", sub: "Switch between > and >=.", code: {"py": [[null, "VALUE = {\"I\": 1, \"V\": 5, \"X\": 10, \"L\": 50, \"C\": 100, \"D\": 500, \"M\": 1000}"], [null, ""], [null, "def roman_to_int(s):"], ["init", "    total = 0"], ["loop", "    for i in range(len(s)):"], ["read", "        current = VALUE[s[i]]"], ["peek", "        if i + 1 < len(s) and VALUE[s[i + 1]] > current:"], ["minus", "            total -= current"], [null, "        else:"], ["plus", "            total += current"], ["ret", "    return total"]], "ts": [[null, "const VALUE: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };"], [null, ""], [null, "function romanToInt(s: string): number {"], ["init", "  let total = 0;"], ["loop", "  for (let i = 0; i < s.length; i++) {"], ["read", "    const current = VALUE[s[i]];"], ["peek", "    if (i + 1 < s.length && VALUE[s[i + 1]] > current) {"], ["minus", "      total -= current;"], [null, "    } else {"], ["plus", "      total += current;"], [null, "    }"], [null, "  }"], ["ret", "  return total;"], [null, "}"]], "java": [[null, "static final Map<Character, Integer> VALUE = Map.of('I', 1, 'V', 5, 'X', 10, 'L', 50, 'C', 100, 'D', 500, 'M', 1000);"], [null, ""], [null, "static int romanToInt(String s) {"], ["init", "    int total = 0;"], ["loop", "    for (int i = 0; i < s.length(); i++) {"], ["read", "        int current = VALUE.get(s.charAt(i));"], ["peek", "        if (i + 1 < s.length() && VALUE.get(s.charAt(i + 1)) > current) {"], ["minus", "            total -= current;"], [null, "        } else {"], ["plus", "            total += current;"], [null, "        }"], [null, "    }"], ["ret", "    return total;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: >= instead of >", code: {"py": [[null, "VALUE = {\"I\": 1, \"V\": 5, \"X\": 10, \"L\": 50, \"C\": 100, \"D\": 500, \"M\": 1000}"], [null, ""], [null, "def roman_to_int(s):"], ["init", "    total = 0"], ["loop", "    for i in range(len(s)):"], ["read", "        current = VALUE[s[i]]"], ["peek", "        if i + 1 < len(s) and VALUE[s[i + 1]] >= current:"], ["minus", "            total -= current"], [null, "        else:"], ["plus", "            total += current"], ["ret", "    return total"]]}, steps: tl21A('III', true).steps, diverge: undefined, why: "the next symbol is equal, not bigger, so this I should be added." } });
+     }
+  { const run = tl21B('PAYPALISHIRING', 3);
+    Viz.tlab("#tl-21b", { title: "Template B \u00b7 \"PAYPALISHIRING\", 3 rows", sub: "Each row is a shelf; blue = the letter just dropped.", code: {"py": [[null, "def zigzag(s, num_rows):"], ["guard", "    if num_rows == 1:"], ["guard", "        return s"], ["init", "    rows = [[] for _ in range(num_rows)]"], ["init", "    row, step = 0, 1"], ["loop", "    for ch in s:"], ["drop", "        rows[row].append(ch)"], ["turn", "        if row == 0:"], ["turn", "            step = 1"], ["turn", "        elif row == num_rows - 1:"], ["turn", "            step = -1"], ["move", "        row += step"], ["ret", "    return \"\".join(\"\".join(r) for r in rows)"]], "ts": [[null, "function zigzag(s: string, numRows: number): string {"], ["guard", "  if (numRows === 1) return s;"], ["init", "  const rows: string[][] = Array.from({ length: numRows }, () => []);"], ["init", "  let row = 0, step = 1;"], ["loop", "  for (const ch of s) {"], ["drop", "    rows[row].push(ch);"], ["turn", "    if (row === 0) step = 1;"], ["turn", "    else if (row === numRows - 1) step = -1;"], ["move", "    row += step;"], [null, "  }"], ["ret", "  return rows.map((r) => r.join(\"\")).join(\"\");"], [null, "}"]], "java": [[null, "static String zigzag(String s, int numRows) {"], ["guard", "    if (numRows == 1) return s;"], ["init", "    StringBuilder[] rows = new StringBuilder[numRows];"], ["init", "    for (int i = 0; i < numRows; i++) rows[i] = new StringBuilder();"], ["init", "    int row = 0, step = 1;"], ["loop", "    for (char ch : s.toCharArray()) {"], ["drop", "        rows[row].append(ch);"], ["turn", "        if (row == 0) step = 1;"], ["turn", "        else if (row == numRows - 1) step = -1;"], ["move", "        row += step;"], [null, "    }"], ["ret", "    StringBuilder out = new StringBuilder();"], ["ret", "    for (StringBuilder r : rows) out.append(r);"], ["ret", "    return out.toString();"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-21b-table").innerHTML = TL.table(run.table); }
+  { const run = tl21C('  the sky  is blue ');
+    Viz.tlab("#tl-21c", { title: "Template C \u00b7 \"  the sky  is blue \"", sub: "Three steps: split, reverse, join.", code: {"py": [[null, "def words_reversed(s):"], ["split", "    words = s.split()"], ["rev", "    words.reverse()"], ["join", "    return \" \".join(words)"]], "ts": [[null, "function wordsReversed(s: string): string {"], ["split", "  const words = s.split(\" \").filter((w) => w.length > 0);"], ["rev", "  words.reverse();"], ["join", "  return words.join(\" \");"], [null, "}"]], "java": [[null, "static String wordsReversed(String s) {"], ["split", "    List<String> words = new ArrayList<>(Arrays.asList(s.trim().split(\"\\\\s+\")));"], ["rev", "    Collections.reverse(words);"], ["join", "    return String.join(\" \", words);"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-21c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

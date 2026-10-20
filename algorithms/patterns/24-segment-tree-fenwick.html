@@ -2311,33 +2311,115 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> Fenwick and segment tree are <code>O(log n)</code> per operation with <code>O(n)</code> space (segment tree ≈ 2–4n). A sparse table is <code>O(1)</code> per query, <code>O(n log n)</code> to build.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Fenwick tree: point add, prefix sum (1-indexed inside)
-class Fenwick:
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>When an array changes <em>and</em> you need range answers, prefix sums (page 1) are too slow to rebuild. Two templates fix that with O(log n) updates and queries. <strong>A</strong> the Fenwick tree (binary indexed tree) answers prefix sums using the lowest set bit of each index. <strong>B</strong> the iterative segment tree answers range max (or min, or sum) by climbing from two leaves towards the root.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Fenwick tree (point add, prefix sum)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Add to one position, and ask for the sum of positions 1..i, both many times.</div><div><b>What it keeps</b><code>tree[i]</code> (1-indexed) = sum of the block of positions <code>(i − lowbit(i), i]</code>, where lowbit(i) = <code>i & -i</code>.</div><div><b>When it checks for an answer</b>prefix(i) adds blocks while stripping the lowest bit; add(i) updates every block that covers i by adding the lowest bit.</div><div><b>Use it when</b>Range sum with updates (LC 307), count of smaller numbers after self (LC 315), inversion counts, order statistics.</div><div><b>Not for</b>Range max/min with updates (B), or a static array (plain prefix sums).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Lowest bit off to read, lowest bit on to write"</strong>Each index i is a bucket covering the last lowbit(i) positions ending at i. To read 1..i, take bucket i, then jump left by its size (i − lowbit(i)), until 0. To add at i, every bucket that covers i must change: jump right by lowbit each time (i + lowbit(i)).</div>
+    <p><strong>The story, mapped to the code.</strong> Indices start at 1; lowbit(6) = 2 (6 = 110₂), lowbit(4) = 4, lowbit(8) = 8.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Bucket i covers</td><td data-h="In the code"><code>(i - (i &amp; -i), i]</code></td><td data-h="What it means">Its own size is the lowest set bit.</td></tr><tr><td data-h="In the story">Read: take the bucket, jump left</td><td data-h="In the code"><code>total += tree[i]; i -= i &amp; -i</code></td><td data-h="What it means">Turns the lowest 1 bit off.</td></tr><tr><td data-h="In the story">Write: update the bucket, jump right</td><td data-h="In the code"><code>tree[i] += delta; i += i &amp; -i</code></td><td data-h="What it means">Every bucket that also covers this position.</td></tr><tr><td data-h="In the story">Range l..r</td><td data-h="In the code"><code>prefix(r) - prefix(l - 1)</code></td><td data-h="What it means">Like prefix sums.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two loops of the same shape, one going left, one going right. Positions are 1-based.</p>
+    <pre><code class="python">class Fenwick:
     def __init__(self, n):
         self.n = n
         self.tree = [0] * (n + 1)
 
-    def add(self, i, delta):        # position i is 1-based
+    def add(self, i, delta):
         while i &lt;= self.n:
             self.tree[i] += delta
-            i += i &amp; -i              # next block that covers i
+            i += i &amp; -i
 
-    def prefix(self, i):            # sum of positions 1..i
+    def prefix(self, i):
         total = 0
         while i &gt; 0:
             total += self.tree[i]
-            i -= i &amp; -i              # drop the lowest set bit
+            i -= i &amp; -i
         return total
 
+    def range_sum(self, l, r):
+        return self.prefix(r) - self.prefix(l - 1)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">class Fenwick {
+  n: number; tree: number[];
+  constructor(n: number) {
+    this.n = n;
+    this.tree = new Array(n + 1).fill(0);
+  }
 
-# B) iterative segment tree: point set, range max on [lo, hi]
-class MaxTree:
+  add(i: number, delta: number): void {
+    for (; i &lt;= this.n; i += i &amp; -i) {
+      this.tree[i] += delta;
+    }
+  }
+
+  prefix(i: number): number {
+    let total = 0;
+    for (; i &gt; 0; i -= i &amp; -i) {
+      total += this.tree[i];
+    }
+    return total;
+  }
+
+  rangeSum(l: number, r: number): number {
+    return this.prefix(r) - this.prefix(l - 1);
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static class Fenwick {
+    int n; long[] tree;
+    Fenwick(int n) {
+        this.n = n;
+        tree = new long[n + 1];
+    }
+
+    void add(int i, long delta) {
+        for (; i &lt;= n; i += i &amp; -i) {
+            tree[i] += delta;
+        }
+    }
+
+    long prefix(int i) {
+        long total = 0;
+        for (; i &gt; 0; i -= i &amp; -i) {
+            total += tree[i];
+        }
+        return total;
+    }
+
+    long rangeSum(int l, int r) {
+        return prefix(r) - prefix(l - 1);
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>self.tree = [0] * (n + 1)</code></td><td data-h="What it does">1-indexed: slot 0 is unused.</td><td data-h="In the story">Bucket numbers start at 1.</td><td data-h="Why here, and what breaks if it moves">Using index 0: <code>0 & -0 = 0</code>, so the loops never move (an infinite loop).</td></tr><tr><td data-h="Line"><code>i += i &amp; -i</code></td><td data-h="What it does">Next bucket that also covers position i.</td><td data-h="In the story">Lowest bit on: jump right.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>i -= i &amp; -i</code></td><td data-h="What it does">Jump to the bucket just left of this one.</td><td data-h="In the story">Lowest bit off: jump left.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>prefix(r) - prefix(l - 1)</code></td><td data-h="What it does">Range from two prefixes.</td><td data-h="In the story">Same trick as Prefix Sum A.</td><td data-h="Why here, and what breaks if it moves"><code>prefix(l)</code> drops position l.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> The tree is built from <code>[5, 2, 9, −3, 5, 20, 10, −8]</code> (positions 1..8). Step through <code>prefix(6)</code>, then <code>add(4, 10)</code>.</p>
+    <div id="tl-24a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-24a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> tree[i] always equals the sum of positions (i − lowbit(i), i]; add keeps it true for every bucket covering the changed position, and prefix(i) sums disjoint buckets that exactly cover 1..i.</p>
+    <p><strong>Complexity.</strong> O(log n) per add and prefix; O(n) space; building by n adds is O(n log n).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>0-based indices.</strong> Shift to 1-based.</li><li><strong>Setting instead of adding.</strong> To set position i to v, add v − current.</li><li><strong>Range with prefix(l).</strong> Use prefix(l − 1).</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Lowest bit off to read, lowest bit on to write.</dd>
+      <dt>Choose this template when</dt><dd>Prefix/range sums with point updates → Fenwick.</dd>
+      <dt>Invariant</dt><dd>tree[i] = sum over (i − lowbit, i].</dd>
+      <dt>The line people get wrong</dt><dd><code>i & -i</code> on 1-based indices.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Buckets read by prefix(6)?</summary><p>6 (covers 5..6), then 4 (covers 1..4).</p></details><details><summary>Buckets updated by add(4, …) with n = 8?</summary><p>4, then 8.</p></details><details><summary>lowbit(12)?</summary><p>4 (12 = 1100₂).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Iterative segment tree (point set, range max)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Set one position, and ask for the max (or min, or sum) over l..r, both many times.</div><div><b>What it keeps</b>An array <code>t</code> of size 2 × size: leaves at <code>size..2·size−1</code>, each internal node = max of its two children.</div><div><b>When it checks for an answer</b>A query walks two pointers up from the leaves, taking a node whenever it is a "lone" child at the edge of the range.</div><div><b>Use it when</b>Range max/min with updates, range sum with updates (Fenwick also works), skyline-style queries.</div><div><b>Not for</b>Range updates (needs lazy propagation) or static arrays (a sparse table is O(1) per query).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Leaves at the bottom; climb both ends and grab the edges"</strong>A knockout tournament bracket: each match winner (max) moves up. To ask who's best in a range of players, start at both ends of the range at the bottom and climb. Whenever an end is the outer child of its match, its winner is fully inside the range: take it and step inward.</div>
+    <p><strong>The story, mapped to the code.</strong> Leaf i lives at t[size + i]; node k's children are 2k and 2k + 1.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Players at the bottom</td><td data-h="In the code"><code>t[size + i]</code></td><td data-h="What it means">The array.</td></tr><tr><td data-h="In the story">Match winners</td><td data-h="In the code"><code>t[k] = max(t[2k], t[2k + 1])</code></td><td data-h="What it means">Internal nodes.</td></tr><tr><td data-h="In the story">A change at the bottom</td><td data-h="In the code"><code>set(i, val): climb i //= 2</code></td><td data-h="What it means">Replay the matches above it.</td></tr><tr><td data-h="In the story">Left end is a right child</td><td data-h="In the code"><code>lo &amp; 1 → take t[lo], lo += 1</code></td><td data-h="What it means">Its parent would include a player outside the range.</td></tr><tr><td data-h="In the story">Right end (exclusive)</td><td data-h="In the code"><code>hi &amp; 1 → hi -= 1, take t[hi]</code></td><td data-h="What it means">Mirror image.</td></tr><tr><td data-h="In the story">Nothing taken yet</td><td data-h="In the code"><code>res = -inf</code></td><td data-h="What it means">Neutral for max.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Half-open query <code>[lo, hi + 1)</code> on the leaves.</p>
+    <pre><code class="python">class MaxTree:
     def __init__(self, n):
         self.size = 1
         while self.size &lt; n:
             self.size *= 2
-        self.t = [0] * (2 * self.size)   # leaves at size .. 2*size - 1
+        self.t = [float("-inf")] * (2 * self.size)
 
     def set(self, i, val):
         i += self.size
@@ -2347,38 +2429,97 @@ class MaxTree:
             self.t[i] = max(self.t[2 * i], self.t[2 * i + 1])
             i //= 2
 
-    def query(self, lo, hi):
-        res = 0
+    def query(self, lo, hi):                  # inclusive lo..hi
+        res = float("-inf")
         lo += self.size
         hi += self.size + 1
         while lo &lt; hi:
             if lo &amp; 1:
-                res = max(res, self.t[lo]); lo += 1
+                res = max(res, self.t[lo])
+                lo += 1
             if hi &amp; 1:
-                hi -= 1; res = max(res, self.t[hi])
-            lo //= 2; hi //= 2
+                hi -= 1
+                res = max(res, self.t[hi])
+            lo //= 2
+            hi //= 2
         return res</code></pre>
-<!-- explain-24:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><code>i &amp; -i</code> is the lowest set bit of <code>i</code>: the size of the block that <code>tree[i]</code> covers (positions <code>i − (i &amp; −i) + 1 … i</code>).</li>
-  <li><code>add</code> climbs to every block containing position <code>i</code>; <code>prefix</code> descends through disjoint blocks that tile <code>1..i</code>. Both visit at most <code>log n</code> entries.</li>
-  <li>A range sum is <code>prefix(r) − prefix(l − 1)</code>.</li>
-  <li>The segment tree stores leaves at <code>size + i</code>; node <code>k</code>'s children are <code>2k</code> and <code>2k + 1</code>, so updating walks <code>i //= 2</code> to the root.</li>
-  <li>The query walks both ends upward, taking a node whenever it hangs outside the remaining range (<code>lo</code> odd or <code>hi</code> odd).</li>
-</ol>
-<p><strong>Dry run</strong> of the Fenwick tree on <code>[5, 2, 9, 1]</code> (positions 1–4):</p>
-<table>
-  <thead><tr><th>operation</th><th>indices touched</th><th>tree[1..4] after</th></tr></thead>
-  <tbody>
-    <tr><td>add(1, 5)</td><td>1, 2, 4</td><td>5, 5, 0, 5</td></tr>
-    <tr><td>add(2, 2)</td><td>2, 4</td><td>5, 7, 0, 7</td></tr>
-    <tr><td>add(3, 9)</td><td>3, 4</td><td>5, 7, 9, 16</td></tr>
-    <tr><td>add(4, 1)</td><td>4</td><td>5, 7, 9, 17</td></tr>
-    <tr><td>prefix(3)</td><td>3, 2 → 9 + 7</td><td>= 16 (5 + 2 + 9)</td></tr>
-  </tbody>
-</table>
-<!-- /explain-24:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">class MaxTree {
+  size = 1; t: number[];
+  constructor(n: number) {
+    while (this.size &lt; n) this.size *= 2;
+    this.t = new Array(2 * this.size).fill(-Infinity);
+  }
+
+  set(i: number, val: number): void {
+    i += this.size;
+    this.t[i] = val;
+    for (i &gt;&gt;= 1; i &gt; 0; i &gt;&gt;= 1) {
+      this.t[i] = Math.max(this.t[2 * i], this.t[2 * i + 1]);
+    }
+  }
+
+  query(lo: number, hi: number): number {                // inclusive lo..hi
+    let res = -Infinity;
+    lo += this.size;
+    hi += this.size + 1;
+    while (lo &lt; hi) {
+      if (lo &amp; 1) res = Math.max(res, this.t[lo++]);
+      if (hi &amp; 1) res = Math.max(res, this.t[--hi]);
+      lo &gt;&gt;= 1;
+      hi &gt;&gt;= 1;
+    }
+    return res;
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static class MaxTree {
+    int size = 1; int[] t;
+    MaxTree(int n) {
+        while (size &lt; n) size *= 2;
+        t = new int[2 * size];
+        Arrays.fill(t, Integer.MIN_VALUE);
+    }
+
+    void set(int i, int val) {
+        i += size;
+        t[i] = val;
+        for (i &gt;&gt;= 1; i &gt; 0; i &gt;&gt;= 1) {
+            t[i] = Math.max(t[2 * i], t[2 * i + 1]);
+        }
+    }
+
+    int query(int lo, int hi) {                          // inclusive lo..hi
+        int res = Integer.MIN_VALUE;
+        lo += size;
+        hi += size + 1;
+        while (lo &lt; hi) {
+            if ((lo &amp; 1) == 1) res = Math.max(res, t[lo++]);
+            if ((hi &amp; 1) == 1) res = Math.max(res, t[--hi]);
+            lo &gt;&gt;= 1;
+            hi &gt;&gt;= 1;
+        }
+        return res;
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>self.t = [float('-inf')] * (2 * self.size)</code></td><td data-h="What it does">Empty slots are neutral for max.</td><td data-h="In the story">Absent players never win.</td><td data-h="Why here, and what breaks if it moves">Filling with 0 makes empty leaves beat negative values.</td></tr><tr><td data-h="Line"><code>while i: self.t[i] = max(self.t[2*i], self.t[2*i+1]); i //= 2</code></td><td data-h="What it does">Replays matches above the change.</td><td data-h="In the story">Climb to the root.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>hi += self.size + 1</code></td><td data-h="What it does">Converts inclusive hi to an exclusive leaf bound.</td><td data-h="In the story">One past the right end.</td><td data-h="Why here, and what breaks if it moves">Forgetting the + 1 drops position hi.</td></tr><tr><td data-h="Line"><code>if lo &amp; 1: take t[lo], lo += 1</code></td><td data-h="What it does">lo is a right child: its parent covers lo − 1 too, which is outside.</td><td data-h="In the story">Grab the edge, step in.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>res = float('-inf')</code></td><td data-h="What it does">Neutral start.</td><td data-h="In the story">Nothing taken yet.</td><td data-h="Why here, and what breaks if it moves"><code>res = 0</code> answers 0 for an all-negative range (see the bug player).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Built from <code>[2, 7, 1, 8, 3]</code> (size 8). Step through <code>query(1, 3)</code>. The second player starts <code>res</code> at 0 on <code>[−5, −2, −7]</code>.</p>
+    <div id="tl-24b"></div><div id="tl-24b-bug"></div><p>Every value is negative, so a start of 0 is never beaten: the answer comes out 0 instead of −2.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-24b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Before each climb, every leaf in the query range is either already folded into res or lies under a node in [lo, hi) at the current level.</p>
+    <p><strong>Complexity.</strong> O(log n) per set and query; O(n) space (2 × next power of two).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Neutral value 0 for max.</strong> Use −inf (min: +inf, sum: 0).</li><li><strong>Inclusive/exclusive confusion.</strong> Convert hi to exclusive once, up front.</li><li><strong>Expecting range updates.</strong> Those need lazy propagation.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Climb both ends; grab the edges.</dd>
+      <dt>Choose this template when</dt><dd>Range max/min/sum with point updates → segment tree.</dd>
+      <dt>Invariant</dt><dd>Node = combine(children).</dd>
+      <dt>The line people get wrong</dt><dd>The neutral start value.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>query(1, 3) on [2, 7, 1, 8, 3]?</summary><p>8.</p></details><details><summary>Leaf of position i?</summary><p>t[size + i].</p></details><details><summary>Range min instead?</summary><p>min and +inf.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · Fenwick</th><th>B · segment tree</th></tr></thead><tbody><tr><td data-h="Question">Answers</td><td data-h="A · Fenwick">Prefix sums (so range sums)</td><td data-h="B · segment tree">Any associative combine: max, min, sum, gcd</td></tr><tr><td data-h="Question">Update</td><td data-h="A · Fenwick">Add to a position</td><td data-h="B · segment tree">Set a position</td></tr><tr><td data-h="Question">Indexing</td><td data-h="A · Fenwick">1-based, lowbit jumps</td><td data-h="B · segment tree">Leaves at size + i, parent = i // 2</td></tr><tr><td data-h="Question">Code size</td><td data-h="A · Fenwick">~10 lines</td><td data-h="B · segment tree">~25 lines</td></tr><tr><td data-h="Question">Time</td><td data-h="A · Fenwick">O(log n)</td><td data-h="B · segment tree">O(log n)</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · Fenwick">LC 307, 315, 493</td><td data-h="B · segment tree">Range max with updates, LC 699, 218</td></tr></tbody></table>
+    <p>If the question is sums, Fenwick is shorter. For max/min (which can't be "subtracted" out of a prefix), use the segment tree. Static array? Prefix sums (page 1) or a sparse table.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -4727,5 +4868,75 @@ class Solution:
   Viz.stepper("#viz-fenwick", { title: "Template A: a Fenwick tree being built and queried", sub: "Blue = entries an update touches, green = entries a prefix query adds up.", frames: f, speed: 1500 });
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl24A(vals) {
+    const n = vals.length, tree = new Array(n + 1).fill(0), steps = [], rows = [];
+    const lb = (i) => i & -i;
+    for (let i = 1; i <= n; i++) for (let j = i; j <= n; j += lb(j)) tree[j] += vals[i - 1];
+    const view = (hl) => Viz.array(vals, { label: "values (pos 1..8)", showIdx: false }) + Viz.array(tree.slice(1).map((v, k) => `${v}`), { label: "tree[i]", showIdx: false, hl: Object.fromEntries(Object.entries(hl || {}).map(([i, c]) => [i - 1, c])) })
+      + `<p class="idx">${tree.slice(1).map((_, k) => `t${k + 1}: (${k + 1 - lb(k + 1)}, ${k + 1}]`).join(" · ")}</p>`;
+    steps.push({ line: ["init", "aloop", "aupd", "anext"], vars: { tree: "[" + tree.slice(1).join(", ") + "]" }, view: view(), analogy: "Built with eight adds. Each bucket covers the range shown under it.", note: "Tree ready." });
+    let i = 6, total = 0; const hl = {};
+    steps.push({ line: "pinit", vars: { i, total }, view: view(), analogy: "prefix(6): read buckets, jumping left.", note: "<code>total = 0</code>." });
+    while (i > 0) {
+      total += tree[i]; hl[i] = "found";
+      rows.push(["prefix(6)", i, `(${i - lb(i)}, ${i}]`, tree[i], `total = ${total}`]);
+      steps.push({ line: ["ploop", "pacc", "pnext"], vars: { i, [`i in binary`]: i.toString(2), lowbit: lb(i), [`tree[${i}]`]: tree[i], total }, view: view(Object.assign({}, hl, { [i]: "active" })), analogy: `Bucket ${i} covers positions ${i - lb(i) + 1}..${i}: +${tree[i]}. Jump left by ${lb(i)} to ${i - lb(i)}.`, note: `<code>i -= ${lb(i)}</code>.`,
+        ask: { q: `Next bucket after ${i}?`, options: [...new Set([i - lb(i), i - 1, i + lb(i)])].filter((x) => x >= 0).map(String), answer: i - lb(i), why: `${i} − lowbit ${lb(i)}.` } });
+      i -= lb(i);
+    }
+    steps.push({ line: "pret", vars: { result: total }, view: view(hl), analogy: `prefix(6) = ${total}.`, note: `Return <code>${total}</code>.` });
+    i = 4; const hl2 = {};
+    while (i <= n) {
+      tree[i] += 10; hl2[i] = "found"; rows.push(["add(4, 10)", i, `(${i - lb(i)}, ${i}]`, tree[i], `tree[${i}] += 10`]);
+      steps.push({ line: ["aloop", "aupd", "anext"], vars: { i, [`i in binary`]: i.toString(2), lowbit: lb(i), [`tree[${i}]`]: tree[i] }, view: view(Object.assign({}, hl2, { [i]: "active" })), analogy: `Bucket ${i} covers position 4: +10. Jump right by ${lb(i)} to ${i + lb(i)}.`, note: `<code>i += ${lb(i)}</code>.` });
+      i += lb(i);
+    }
+    steps.push({ line: "aloop", vars: { i }, view: view(hl2), analogy: `${i} > ${n}: done. Only ${Object.keys(hl2).length} buckets changed.`, note: "add finished." });
+    return { steps, table: { head: ["Operation", "i", "Covers", "tree[i]", "Effect"], rows } };
+  }
+
+  function tl24B(vals, qlo, qhi, zeroStart) {
+    let size = 1; while (size < vals.length) size *= 2;
+    const t = new Array(2 * size).fill(-Infinity); vals.forEach((v, i) => (t[size + i] = v));
+    for (let k = size - 1; k > 0; k--) t[k] = Math.max(t[2 * k], t[2 * k + 1]);
+    const show = (x) => (x === -Infinity ? "-∞" : x);
+    const steps = [], rows = [], taken = {};
+    const view = (lo, hi) => Viz.tree(t.slice(1).map(show), { hl: Object.assign({}, taken, lo !== undefined && lo < 2 * size ? { [lo - 1]: "active" } : {}, hi !== undefined && hi - 1 < 2 * size && hi > lo ? { [hi - 2]: "warm" } : {}) });
+    let res = zeroStart ? 0 : -Infinity, lo = qlo + size, hi = qhi + size + 1;
+    steps.push({ line: "qinit", vars: { res: show(res), lo, hi }, view: view(lo, hi), analogy: `Range ${qlo}..${qhi}: leaves t[${lo}] up to (not including) t[${hi}].`, note: `<code>res = ${show(res)}</code>.` });
+    while (lo < hi) {
+      const took = [];
+      if (lo & 1) { res = Math.max(res, t[lo]); taken[lo - 1] = "found"; took.push(`t[${lo}] = ${show(t[lo])}`); lo++; }
+      if (hi & 1) { hi--; res = Math.max(res, t[hi]); taken[hi - 1] = "found"; took.push(`t[${hi}] = ${show(t[hi])}`); }
+      rows.push([lo, hi, took.join(", ") || "—", show(res)]);
+      steps.push({ line: ["qloop", "qleft", "qright"], vars: { lo, hi, took: took.join(", ") || "none", res: show(res) }, view: view(lo, hi), analogy: took.length ? `Edge node${took.length > 1 ? "s" : ""} fully inside the range: take ${took.join(" and ")}.` + (zeroStart && res === 0 ? " ⚠ The 0 start is still winning." : "") : "Both ends are inner children: nothing to take at this level.", note: `<code>res = ${show(res)}</code>.`,
+        ask: { q: "res after this level?", options: [...new Set([show(res), 0, show(Math.max(...vals))])].map(String), answer: show(res), why: took.length ? "max with the nodes taken." : "Nothing taken." } });
+      lo >>= 1; hi >>= 1;
+      steps.push({ line: "qup", vars: { lo, hi }, view: view(lo, hi), analogy: "Climb one level.", note: `<code>lo = ${lo}</code>, <code>hi = ${hi}</code>.` });
+    }
+    steps.push({ line: "qret", vars: { result: show(res) }, view: view(), analogy: `Max over ${qlo}..${qhi}: ${show(res)}.`, note: `Return <code>${show(res)}</code>.` });
+    return { steps, table: { head: ["lo (after taking)", "hi (after taking)", "Nodes taken", "res"], rows } };
+  }
+
+  { const run = tl24A([5, 2, 9, -3, 5, 20, 10, -8]);
+    Viz.tlab("#tl-24a", { title: "Template A \u00b7 prefix(6), then add(4, 10)", sub: "Each cell is tree[i] with the range it covers. Blue = bucket being read or updated.", code: {"py": [[null, "class Fenwick:"], [null, "    def __init__(self, n):"], ["init", "        self.n = n"], ["init", "        self.tree = [0] * (n + 1)"], [null, ""], [null, "    def add(self, i, delta):"], ["aloop", "        while i <= self.n:"], ["aupd", "            self.tree[i] += delta"], ["anext", "            i += i & -i"], [null, ""], [null, "    def prefix(self, i):"], ["pinit", "        total = 0"], ["ploop", "        while i > 0:"], ["pacc", "            total += self.tree[i]"], ["pnext", "            i -= i & -i"], ["pret", "        return total"], [null, ""], [null, "    def range_sum(self, l, r):"], ["range", "        return self.prefix(r) - self.prefix(l - 1)"]], "ts": [[null, "class Fenwick {"], [null, "  n: number; tree: number[];"], [null, "  constructor(n: number) {"], ["init", "    this.n = n;"], ["init", "    this.tree = new Array(n + 1).fill(0);"], [null, "  }"], [null, ""], [null, "  add(i: number, delta: number): void {"], ["aloop", "    for (; i <= this.n; i += i & -i) {"], ["aupd", "      this.tree[i] += delta;"], [null, "    }"], [null, "  }"], [null, ""], [null, "  prefix(i: number): number {"], ["pinit", "    let total = 0;"], ["ploop", "    for (; i > 0; i -= i & -i) {"], ["pacc", "      total += this.tree[i];"], [null, "    }"], ["pret", "    return total;"], [null, "  }"], [null, ""], [null, "  rangeSum(l: number, r: number): number {"], ["range", "    return this.prefix(r) - this.prefix(l - 1);"], [null, "  }"], [null, "}"]], "java": [[null, "static class Fenwick {"], [null, "    int n; long[] tree;"], [null, "    Fenwick(int n) {"], ["init", "        this.n = n;"], ["init", "        tree = new long[n + 1];"], [null, "    }"], [null, ""], [null, "    void add(int i, long delta) {"], ["aloop", "        for (; i <= n; i += i & -i) {"], ["aupd", "            tree[i] += delta;"], [null, "        }"], [null, "    }"], [null, ""], [null, "    long prefix(int i) {"], ["pinit", "        long total = 0;"], ["ploop", "        for (; i > 0; i -= i & -i) {"], ["pacc", "            total += tree[i];"], [null, "        }"], ["pret", "        return total;"], [null, "    }"], [null, ""], [null, "    long rangeSum(int l, int r) {"], ["range", "        return prefix(r) - prefix(l - 1);"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-24a-table").innerHTML = TL.table(run.table); }
+  { const run = tl24B([2, 7, 1, 8, 3], 1, 3, false);
+    Viz.tlab("#tl-24b", { title: "Template B \u00b7 query(1, 3) on [2, 7, 1, 8, 3]", sub: "The tree is drawn root first (t[1]); leaves are the bottom row. Blue = lo / hi; green = nodes taken.", code: {"py": [[null, "class MaxTree:"], [null, "    def __init__(self, n):"], ["init", "        self.size = 1"], ["init", "        while self.size < n:"], ["init", "            self.size *= 2"], ["init", "        self.t = [float(\"-inf\")] * (2 * self.size)"], [null, ""], [null, "    def set(self, i, val):"], ["sleaf", "        i += self.size"], ["sleaf", "        self.t[i] = val"], ["sup", "        i //= 2"], ["sup", "        while i:"], ["sup", "            self.t[i] = max(self.t[2 * i], self.t[2 * i + 1])"], ["sup", "            i //= 2"], [null, ""], [null, "    def query(self, lo, hi):                  # inclusive lo..hi"], ["qinit", "        res = float(\"-inf\")"], ["qinit", "        lo += self.size"], ["qinit", "        hi += self.size + 1"], ["qloop", "        while lo < hi:"], ["qleft", "            if lo & 1:"], ["qleft", "                res = max(res, self.t[lo])"], ["qleft", "                lo += 1"], ["qright", "            if hi & 1:"], ["qright", "                hi -= 1"], ["qright", "                res = max(res, self.t[hi])"], ["qup", "            lo //= 2"], ["qup", "            hi //= 2"], ["qret", "        return res"]], "ts": [[null, "class MaxTree {"], [null, "  size = 1; t: number[];"], [null, "  constructor(n: number) {"], ["init", "    while (this.size < n) this.size *= 2;"], ["init", "    this.t = new Array(2 * this.size).fill(-Infinity);"], [null, "  }"], [null, ""], [null, "  set(i: number, val: number): void {"], ["sleaf", "    i += this.size;"], ["sleaf", "    this.t[i] = val;"], ["sup", "    for (i >>= 1; i > 0; i >>= 1) {"], ["sup", "      this.t[i] = Math.max(this.t[2 * i], this.t[2 * i + 1]);"], [null, "    }"], [null, "  }"], [null, ""], [null, "  query(lo: number, hi: number): number {                // inclusive lo..hi"], ["qinit", "    let res = -Infinity;"], ["qinit", "    lo += this.size;"], ["qinit", "    hi += this.size + 1;"], ["qloop", "    while (lo < hi) {"], ["qleft", "      if (lo & 1) res = Math.max(res, this.t[lo++]);"], ["qright", "      if (hi & 1) res = Math.max(res, this.t[--hi]);"], ["qup", "      lo >>= 1;"], ["qup", "      hi >>= 1;"], [null, "    }"], ["qret", "    return res;"], [null, "  }"], [null, "}"]], "java": [[null, "static class MaxTree {"], [null, "    int size = 1; int[] t;"], [null, "    MaxTree(int n) {"], ["init", "        while (size < n) size *= 2;"], ["init", "        t = new int[2 * size];"], ["init", "        Arrays.fill(t, Integer.MIN_VALUE);"], [null, "    }"], [null, ""], [null, "    void set(int i, int val) {"], ["sleaf", "        i += size;"], ["sleaf", "        t[i] = val;"], ["sup", "        for (i >>= 1; i > 0; i >>= 1) {"], ["sup", "            t[i] = Math.max(t[2 * i], t[2 * i + 1]);"], [null, "        }"], [null, "    }"], [null, ""], [null, "    int query(int lo, int hi) {                          // inclusive lo..hi"], ["qinit", "        int res = Integer.MIN_VALUE;"], ["qinit", "        lo += size;"], ["qinit", "        hi += size + 1;"], ["qloop", "        while (lo < hi) {"], ["qleft", "            if ((lo & 1) == 1) res = Math.max(res, t[lo++]);"], ["qright", "            if ((hi & 1) == 1) res = Math.max(res, t[--hi]);"], ["qup", "            lo >>= 1;"], ["qup", "            hi >>= 1;"], [null, "        }"], ["qret", "        return res;"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-24b-table").innerHTML = TL.table(run.table); }
+  { const run = tl24B([-5, -2, -7], 0, 2, false);
+    Viz.tlab("#tl-24b-bug", { title: "Neutral start \u00b7 query(0, 2) on [\u22125, \u22122, \u22127]", sub: "Switch between \u2212inf and 0.", code: {"py": [[null, "class MaxTree:"], [null, "    def __init__(self, n):"], ["init", "        self.size = 1"], ["init", "        while self.size < n:"], ["init", "            self.size *= 2"], ["init", "        self.t = [float(\"-inf\")] * (2 * self.size)"], [null, ""], [null, "    def set(self, i, val):"], ["sleaf", "        i += self.size"], ["sleaf", "        self.t[i] = val"], ["sup", "        i //= 2"], ["sup", "        while i:"], ["sup", "            self.t[i] = max(self.t[2 * i], self.t[2 * i + 1])"], ["sup", "            i //= 2"], [null, ""], [null, "    def query(self, lo, hi):                  # inclusive lo..hi"], ["qinit", "        res = float(\"-inf\")"], ["qinit", "        lo += self.size"], ["qinit", "        hi += self.size + 1"], ["qloop", "        while lo < hi:"], ["qleft", "            if lo & 1:"], ["qleft", "                res = max(res, self.t[lo])"], ["qleft", "                lo += 1"], ["qright", "            if hi & 1:"], ["qright", "                hi -= 1"], ["qright", "                res = max(res, self.t[hi])"], ["qup", "            lo //= 2"], ["qup", "            hi //= 2"], ["qret", "        return res"]], "ts": [[null, "class MaxTree {"], [null, "  size = 1; t: number[];"], [null, "  constructor(n: number) {"], ["init", "    while (this.size < n) this.size *= 2;"], ["init", "    this.t = new Array(2 * this.size).fill(-Infinity);"], [null, "  }"], [null, ""], [null, "  set(i: number, val: number): void {"], ["sleaf", "    i += this.size;"], ["sleaf", "    this.t[i] = val;"], ["sup", "    for (i >>= 1; i > 0; i >>= 1) {"], ["sup", "      this.t[i] = Math.max(this.t[2 * i], this.t[2 * i + 1]);"], [null, "    }"], [null, "  }"], [null, ""], [null, "  query(lo: number, hi: number): number {                // inclusive lo..hi"], ["qinit", "    let res = -Infinity;"], ["qinit", "    lo += this.size;"], ["qinit", "    hi += this.size + 1;"], ["qloop", "    while (lo < hi) {"], ["qleft", "      if (lo & 1) res = Math.max(res, this.t[lo++]);"], ["qright", "      if (hi & 1) res = Math.max(res, this.t[--hi]);"], ["qup", "      lo >>= 1;"], ["qup", "      hi >>= 1;"], [null, "    }"], ["qret", "    return res;"], [null, "  }"], [null, "}"]], "java": [[null, "static class MaxTree {"], [null, "    int size = 1; int[] t;"], [null, "    MaxTree(int n) {"], ["init", "        while (size < n) size *= 2;"], ["init", "        t = new int[2 * size];"], ["init", "        Arrays.fill(t, Integer.MIN_VALUE);"], [null, "    }"], [null, ""], [null, "    void set(int i, int val) {"], ["sleaf", "        i += size;"], ["sleaf", "        t[i] = val;"], ["sup", "        for (i >>= 1; i > 0; i >>= 1) {"], ["sup", "            t[i] = Math.max(t[2 * i], t[2 * i + 1]);"], [null, "        }"], [null, "    }"], [null, ""], [null, "    int query(int lo, int hi) {                          // inclusive lo..hi"], ["qinit", "        int res = Integer.MIN_VALUE;"], ["qinit", "        lo += size;"], ["qinit", "        hi += size + 1;"], ["qloop", "        while (lo < hi) {"], ["qleft", "            if ((lo & 1) == 1) res = Math.max(res, t[lo++]);"], ["qright", "            if ((hi & 1) == 1) res = Math.max(res, t[--hi]);"], ["qup", "            lo >>= 1;"], ["qup", "            hi >>= 1;"], [null, "        }"], ["qret", "        return res;"], [null, "    }"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: res = 0", code: {"py": [[null, "class MaxTree:"], [null, "    def query(self, lo, hi):                  # inclusive lo..hi"], ["qinit", "        res = 0"], ["qinit", "        lo += self.size"], ["qinit", "        hi += self.size + 1"], ["qloop", "        while lo < hi:"], ["qleft", "            if lo & 1:"], ["qleft", "                res = max(res, self.t[lo])"], ["qleft", "                lo += 1"], ["qright", "            if hi & 1:"], ["qright", "                hi -= 1"], ["qright", "                res = max(res, self.t[hi])"], ["qup", "            lo //= 2"], ["qup", "            hi //= 2"], ["qret", "        return res"]]}, steps: tl24B([-5, -2, -7], 0, 2, true).steps, diverge: undefined, why: "0 isn't in the range, but it's bigger than every value that is." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

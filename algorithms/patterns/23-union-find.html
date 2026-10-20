@@ -2313,51 +2313,110 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(α(n))</code> amortised per operation with path compression and union by size (α grows so slowly it's ≤ 4 for any realistic n); <code>O(n)</code> space.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Union-Find (a disjoint-set union, DSU) keeps groups of items and answers "are these two in the same group?" in almost O(1). There's one template with two operations: <strong>find</strong> follows parent pointers to the group's root (shortening the path as it goes) and <strong>union</strong> hangs the smaller tree under the larger one's root. If <code>union</code> returns False, the two items were already connected: that's how cycles are detected.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · DSU with path halving and union by size</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Merge groups and ask whether two items are in the same group, many times.</div><div><b>What it keeps</b><code>parent[x]</code> (x's boss), <code>size[root]</code>, and the number of components.</div><div><b>When it checks for an answer</b>union compares the two <em>roots</em>; equal roots mean the items were already connected.</div><div><b>Use it when</b>Number of provinces/components (LC 547, 323), redundant connection / cycle in an undirected graph (LC 684), Kruskal's MST, accounts merge (LC 721).</div><div><b>Not for</b>Splitting groups apart (DSU can't undo unions); shortest paths.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Ask for the boss's boss until you reach the CEO; merge companies by their CEOs"</strong>Each person reports to a boss; the CEO reports to themself. Two people are in the same company if they have the same CEO. To merge two companies, the smaller company's CEO starts reporting to the bigger company's CEO. While climbing to the CEO, people skip a level (report to their grand-boss), which keeps the chains short.</div>
+    <p><strong>The story, mapped to the code.</strong> Each node is an employee; parent is their boss.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Everyone is their own CEO</td><td data-h="In the code"><code>parent = list(range(n))</code></td><td data-h="What it means">n separate companies.</td></tr><tr><td data-h="In the story">Climb to the CEO</td><td data-h="In the code"><code>find(x)</code></td><td data-h="What it means">Follow parent until parent[x] == x.</td></tr><tr><td data-h="In the story">Skip a level on the way</td><td data-h="In the code"><code>parent[x] = parent[parent[x]]</code></td><td data-h="What it means">Path halving: future finds are faster.</td></tr><tr><td data-h="In the story">Already the same CEO</td><td data-h="In the code"><code>ra == rb → return False</code></td><td data-h="What it means">Already connected (a cycle, if this is an edge).</td></tr><tr><td data-h="In the story">Smaller company joins the bigger</td><td data-h="In the code"><code>parent[rb] = ra after swapping by size</code></td><td data-h="What it means">Keeps trees shallow.</td></tr><tr><td data-h="In the story">One fewer company</td><td data-h="In the code"><code>components -= 1</code></td><td data-h="What it means">Count groups.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two short methods; both optimisations together make each operation nearly O(1).</p>
     <pre><code class="python">class DSU:
     def __init__(self, n):
-        self.parent = list(range(n))   # every node starts as its own root
+        self.parent = list(range(n))
         self.size = [1] * n
         self.components = n
 
     def find(self, x):
         while self.parent[x] != x:
-            self.parent[x] = self.parent[self.parent[x]]   # path halving
+            self.parent[x] = self.parent[self.parent[x]]
             x = self.parent[x]
         return x
 
     def union(self, a, b):
         ra, rb = self.find(a), self.find(b)
         if ra == rb:
-            return False                # already in the same set
+            return False
         if self.size[ra] &lt; self.size[rb]:
-            ra, rb = rb, ra             # attach the smaller tree under the larger
+            ra, rb = rb, ra
         self.parent[rb] = ra
         self.size[ra] += self.size[rb]
         self.components -= 1
         return True</code></pre>
-<!-- explain-23:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><code>parent[x] == x</code> marks a root. Every set is a small tree pointing up to its root.</li>
-  <li>Path halving (<code>parent[x] = parent[parent[x]]</code>) makes every visited node skip a level, so later finds are shorter.</li>
-  <li><code>union</code> returns <code>False</code> when the two are already connected: that's how cycle detection and "redundant connection" work.</li>
-  <li>Attaching the smaller tree under the larger keeps trees shallow; <code>size</code> also answers "how big is this group?".</li>
-  <li><code>components</code> starts at <code>n</code> and drops by one per successful union.</li>
-</ol>
-<p><strong>Dry run</strong> on 6 nodes with unions (0,1), (2,3), (1,3), (4,5), (0,2):</p>
-<table>
-  <thead><tr><th>union</th><th>roots found</th><th>action</th><th>components</th></tr></thead>
-  <tbody>
-    <tr><td>(0, 1)</td><td>0, 1</td><td>parent[1] = 0</td><td>5</td></tr>
-    <tr><td>(2, 3)</td><td>2, 3</td><td>parent[3] = 2</td><td>4</td></tr>
-    <tr><td>(1, 3)</td><td>0, 2</td><td>sizes equal: parent[2] = 0</td><td>3</td></tr>
-    <tr><td>(4, 5)</td><td>4, 5</td><td>parent[5] = 4</td><td>2</td></tr>
-    <tr><td>(0, 2)</td><td>0, 0</td><td>same root → nothing (would close a cycle)</td><td>2</td></tr>
-  </tbody>
-</table>
-<!-- /explain-23:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">class DSU {
+  parent: number[]; size: number[]; components: number;
+  constructor(n: number) {
+    this.parent = Array.from({ length: n }, (_, i) =&gt; i);
+    this.size = new Array(n).fill(1);
+    this.components = n;
+  }
 
+  find(x: number): number {
+    while (this.parent[x] !== x) {
+      this.parent[x] = this.parent[this.parent[x]];
+      x = this.parent[x];
+    }
+    return x;
+  }
+
+  union(a: number, b: number): boolean {
+    let ra = this.find(a), rb = this.find(b);
+    if (ra === rb) return false;
+    if (this.size[ra] &lt; this.size[rb]) [ra, rb] = [rb, ra];
+    this.parent[rb] = ra;
+    this.size[ra] += this.size[rb];
+    this.components--;
+    return true;
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static class DSU {
+    int[] parent, size;
+    int components;
+
+    DSU(int n) {
+        parent = new int[n];
+        size = new int[n];
+        for (int i = 0; i &lt; n; i++) { parent[i] = i; size[i] = 1; }
+        components = n;
+    }
+
+    int find(int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    }
+
+    boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;
+        if (size[ra] &lt; size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra;
+        size[ra] += size[rb];
+        components--;
+        return true;
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>while self.parent[x] != x</code></td><td data-h="What it does">Climb until the root (its own parent).</td><td data-h="In the story">Up to the CEO.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>self.parent[x] = self.parent[self.parent[x]]</code></td><td data-h="What it does">Path halving.</td><td data-h="In the story">Report to your grand-boss.</td><td data-h="Why here, and what breaks if it moves">Optional for correctness, but without it (and without union by size) a chain of n unions makes find O(n).</td></tr><tr><td data-h="Line"><code>ra, rb = self.find(a), self.find(b)</code></td><td data-h="What it does">Compare roots, not the items.</td><td data-h="In the story">Ask for both CEOs.</td><td data-h="Why here, and what breaks if it moves">Linking <code>a</code> and <code>b</code> directly (no find) corrupts the trees and miscounts components (see the bug player).</td></tr><tr><td data-h="Line"><code>if self.size[ra] &lt; self.size[rb]: ra, rb = rb, ra</code></td><td data-h="What it does">Smaller tree under bigger.</td><td data-h="In the story">Smaller company joins.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>self.parent[rb] = ra</code></td><td data-h="What it does">Links roots.</td><td data-h="In the story">rb's CEO now reports to ra.</td><td data-h="Why here, and what breaks if it moves"><code>parent[a] = b</code> links non-roots.</td></tr><tr><td data-h="Line"><code>self.components -= 1</code></td><td data-h="What it does">One fewer group, only on a real merge.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">Decrementing when ra == rb undercounts.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through 5 nodes and unions <code>(0,1)</code>, <code>(1,2)</code>, <code>(3,4)</code>, <code>(2,0)</code>. The last union finds equal roots: a cycle. The second player links the items without calling find.</p>
+    <div id="tl-23a"></div><div id="tl-23a-bug"></div><p>Linking items directly never notices that 2 and 0 are already connected: the last union returns True, rewires node 2, and the component count drops to 1 instead of 2.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-23a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Every node's parent chain ends at its group's root; two nodes are connected iff they have the same root; components = number of roots.</p>
+    <p><strong>Complexity.</strong> Almost O(1) per operation (inverse Ackermann α(n), effectively ≤ 4) with both optimisations; O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Comparing items instead of roots.</strong> Ask for both CEOs.</li><li><strong>Linking non-roots.</strong> Only a root's parent changes in union.</li><li><strong>Decrementing components on a no-op union.</strong> Only when ra != rb.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Climb to the CEO; merge companies by their CEOs.</dd>
+      <dt>Choose this template when</dt><dd>Dynamic connectivity / cycle in undirected edges / Kruskal → DSU.</dd>
+      <dt>Invariant</dt><dd>Same root ⇔ same group.</dd>
+      <dt>The line people get wrong</dt><dd><code>ra, rb = find(a), find(b)</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>union(2, 0) after (0,1), (1,2)?</summary><p>False: already connected (a cycle).</p></details><details><summary>Components after the example?</summary><p>2: {0,1,2}, {3,4}.</p></details><details><summary>Kruskal in one line?</summary><p>Sort edges by weight; add each edge whose union returns True.</p></details>
+    </div>
+    </section>
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
     <div class="callout memory"><strong>Memory hook: "Ask the boss"</strong>Two people are in the same group if they have the same boss. Merging groups = one boss starts reporting to the other.</div>
@@ -4764,5 +4823,48 @@ class Solution:
   Viz.stepper("#viz-dsu", { title: "The DSU template: unions on 6 nodes", sub: "Blue = root that was just attached, green = the root it now reports to.", frames: f, speed: 1500 });
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl23(edges, noFind) {
+    const n = 5, parent = [0, 1, 2, 3, 4], size = [1, 1, 1, 1, 1], steps = [], rows = []; let comps = n;
+    const depth = (x) => { let d = 0, seen = 0; while (parent[x] !== x && seen++ < 10) { x = parent[x]; d++; } return d; };
+    const view = (hl) => Viz.graph(parent.map((_, i) => ({ id: i, x: 50 + i * 90, y: 30 + depth(i) * 60 })), parent.map((p, i) => [i, p]).filter(([i, p]) => i !== p),
+        { directed: true, hl: Object.assign(Object.fromEntries(parent.map((p, i) => [i, p === i ? "found" : ""])), hl || {}), width: 440, height: 180 })
+      + `<p class="idx">parent = [${parent.join(", ")}] · components = ${comps}</p>`;
+    const root = (x) => { while (parent[x] !== x) x = parent[x]; return x; };
+    const find = (x) => { const path = [x]; while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; path.push(x); } return [x, path]; };
+    steps.push({ line: "init", vars: { components: n }, view: view(), analogy: "Five one-person companies.", note: "<code>parent = [0, 1, 2, 3, 4]</code>." });
+    edges.forEach(([a, b]) => {
+      let ra, rb;
+      if (noFind) { ra = a; rb = b; } else { [ra] = find(a); [rb] = find(b); }
+      const same = ra === rb;
+      steps.push({ line: ["roots", "same"], vars: { a, b, ra, rb, same_root: same }, view: view({ [a]: "active", [b]: "active" }),
+        analogy: noFind ? `Compare ${a} and ${b} themselves (no CEOs looked up).` + (root(a) === root(b) ? " ⚠ They already share a CEO." : "") : `CEO of ${a}: ${ra}; CEO of ${b}: ${rb}.`, note: noFind ? "<code>ra, rb = a, b</code>." : `<code>find(${a}) = ${ra}</code>, <code>find(${b}) = ${rb}</code>.`,
+        ask: noFind ? undefined : { q: `Does union(${a}, ${b}) merge anything?`, options: ["yes", "no"], answer: same ? "no" : "yes", why: same ? "Same root: already connected." : "Different roots." } });
+      if (same) { rows.push([`union(${a}, ${b})`, `${ra} = ${rb}`, "False (already connected)", comps]); steps.push({ line: "same", vars: { result: "False" }, view: view({ [a]: "bad", [b]: "bad" }), analogy: "Same CEO: already one company. If this is an edge, it closes a cycle.", note: "Return <code>False</code>." }); return; }
+      if (size[ra] < size[rb]) [ra, rb] = [rb, ra];
+      parent[rb] = ra; size[ra] += size[rb]; comps--;
+      rows.push([`union(${a}, ${b})`, `${rb} → ${ra}`, "True", comps]);
+      steps.push({ line: ["swap", "link", "count"], vars: { linked: `${rb} → ${ra}`, components: comps }, view: view({ [rb]: "active" }), analogy: noFind ? `⚠ ${rb} now reports to ${ra}, ignoring the existing chain.` : `Company of ${rb} joins company of ${ra}.`, note: `<code>parent[${rb}] = ${ra}</code>.` });
+    });
+    steps.push({ line: "count", vars: { components: comps }, view: view(), analogy: `${comps} companies.`, note: `components = ${comps}.` });
+    return { steps, table: { head: ["Call", "Roots / link", "Returns", "components"], rows } };
+  }
+
+  { const run = tl23([[0, 1], [1, 2], [3, 4], [2, 0]], false);
+    Viz.tlab("#tl-23a", { title: "Template A \u00b7 unions on 5 nodes", sub: "Arrows point to the parent; roots are at the top. Green = roots.", code: {"py": [[null, "class DSU:"], [null, "    def __init__(self, n):"], ["init", "        self.parent = list(range(n))"], ["init", "        self.size = [1] * n"], ["init", "        self.components = n"], [null, ""], [null, "    def find(self, x):"], ["climb", "        while self.parent[x] != x:"], ["halve", "            self.parent[x] = self.parent[self.parent[x]]"], ["climb", "            x = self.parent[x]"], ["root", "        return x"], [null, ""], [null, "    def union(self, a, b):"], ["roots", "        ra, rb = self.find(a), self.find(b)"], ["same", "        if ra == rb:"], ["same", "            return False"], ["swap", "        if self.size[ra] < self.size[rb]:"], ["swap", "            ra, rb = rb, ra"], ["link", "        self.parent[rb] = ra"], ["link", "        self.size[ra] += self.size[rb]"], ["count", "        self.components -= 1"], ["count", "        return True"]], "ts": [[null, "class DSU {"], [null, "  parent: number[]; size: number[]; components: number;"], [null, "  constructor(n: number) {"], ["init", "    this.parent = Array.from({ length: n }, (_, i) => i);"], ["init", "    this.size = new Array(n).fill(1);"], ["init", "    this.components = n;"], [null, "  }"], [null, ""], [null, "  find(x: number): number {"], ["climb", "    while (this.parent[x] !== x) {"], ["halve", "      this.parent[x] = this.parent[this.parent[x]];"], ["climb", "      x = this.parent[x];"], [null, "    }"], ["root", "    return x;"], [null, "  }"], [null, ""], [null, "  union(a: number, b: number): boolean {"], ["roots", "    let ra = this.find(a), rb = this.find(b);"], ["same", "    if (ra === rb) return false;"], ["swap", "    if (this.size[ra] < this.size[rb]) [ra, rb] = [rb, ra];"], ["link", "    this.parent[rb] = ra;"], ["link", "    this.size[ra] += this.size[rb];"], ["count", "    this.components--;"], ["count", "    return true;"], [null, "  }"], [null, "}"]], "java": [[null, "static class DSU {"], [null, "    int[] parent, size;"], [null, "    int components;"], [null, ""], [null, "    DSU(int n) {"], ["init", "        parent = new int[n];"], ["init", "        size = new int[n];"], ["init", "        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }"], ["init", "        components = n;"], [null, "    }"], [null, ""], [null, "    int find(int x) {"], ["climb", "        while (parent[x] != x) {"], ["halve", "            parent[x] = parent[parent[x]];"], ["climb", "            x = parent[x];"], [null, "        }"], ["root", "        return x;"], [null, "    }"], [null, ""], [null, "    boolean union(int a, int b) {"], ["roots", "        int ra = find(a), rb = find(b);"], ["same", "        if (ra == rb) return false;"], ["swap", "        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }"], ["link", "        parent[rb] = ra;"], ["link", "        size[ra] += size[rb];"], ["count", "        components--;"], ["count", "        return true;"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-23a-table").innerHTML = TL.table(run.table); }
+  { const run = tl23([[0, 1], [1, 2], [3, 4], [2, 0]], false);
+    Viz.tlab("#tl-23a-bug", { title: "Why find the roots", sub: "Switch between union by roots and linking items directly.", code: {"py": [[null, "class DSU:"], [null, "    def __init__(self, n):"], ["init", "        self.parent = list(range(n))"], ["init", "        self.size = [1] * n"], ["init", "        self.components = n"], [null, ""], [null, "    def find(self, x):"], ["climb", "        while self.parent[x] != x:"], ["halve", "            self.parent[x] = self.parent[self.parent[x]]"], ["climb", "            x = self.parent[x]"], ["root", "        return x"], [null, ""], [null, "    def union(self, a, b):"], ["roots", "        ra, rb = self.find(a), self.find(b)"], ["same", "        if ra == rb:"], ["same", "            return False"], ["swap", "        if self.size[ra] < self.size[rb]:"], ["swap", "            ra, rb = rb, ra"], ["link", "        self.parent[rb] = ra"], ["link", "        self.size[ra] += self.size[rb]"], ["count", "        self.components -= 1"], ["count", "        return True"]], "ts": [[null, "class DSU {"], [null, "  parent: number[]; size: number[]; components: number;"], [null, "  constructor(n: number) {"], ["init", "    this.parent = Array.from({ length: n }, (_, i) => i);"], ["init", "    this.size = new Array(n).fill(1);"], ["init", "    this.components = n;"], [null, "  }"], [null, ""], [null, "  find(x: number): number {"], ["climb", "    while (this.parent[x] !== x) {"], ["halve", "      this.parent[x] = this.parent[this.parent[x]];"], ["climb", "      x = this.parent[x];"], [null, "    }"], ["root", "    return x;"], [null, "  }"], [null, ""], [null, "  union(a: number, b: number): boolean {"], ["roots", "    let ra = this.find(a), rb = this.find(b);"], ["same", "    if (ra === rb) return false;"], ["swap", "    if (this.size[ra] < this.size[rb]) [ra, rb] = [rb, ra];"], ["link", "    this.parent[rb] = ra;"], ["link", "    this.size[ra] += this.size[rb];"], ["count", "    this.components--;"], ["count", "    return true;"], [null, "  }"], [null, "}"]], "java": [[null, "static class DSU {"], [null, "    int[] parent, size;"], [null, "    int components;"], [null, ""], [null, "    DSU(int n) {"], ["init", "        parent = new int[n];"], ["init", "        size = new int[n];"], ["init", "        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }"], ["init", "        components = n;"], [null, "    }"], [null, ""], [null, "    int find(int x) {"], ["climb", "        while (parent[x] != x) {"], ["halve", "            parent[x] = parent[parent[x]];"], ["climb", "            x = parent[x];"], [null, "        }"], ["root", "        return x;"], [null, "    }"], [null, ""], [null, "    boolean union(int a, int b) {"], ["roots", "        int ra = find(a), rb = find(b);"], ["same", "        if (ra == rb) return false;"], ["swap", "        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }"], ["link", "        parent[rb] = ra;"], ["link", "        size[ra] += size[rb];"], ["count", "        components--;"], ["count", "        return true;"], [null, "    }"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: link items, not roots", code: {"py": [[null, "class DSU:"], [null, "    def union(self, a, b):"], ["roots", "        ra, rb = a, b"], ["same", "        if ra == rb:"], ["same", "            return False"], ["swap", "        if self.size[ra] < self.size[rb]:"], ["swap", "            ra, rb = rb, ra"], ["link", "        self.parent[rb] = ra"], ["link", "        self.size[ra] += self.size[rb]"], ["count", "        self.components -= 1"], ["count", "        return True"]]}, steps: tl23([[0, 1], [1, 2], [3, 4], [2, 0]], true).steps, diverge: undefined, why: "2 and 0 already share a root, but comparing the items themselves (2 \u2260 0) misses it." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

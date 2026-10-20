@@ -2315,58 +2315,161 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> fast power is <code>O(log n)</code>, per-bit loops are <code>O(32 · n)</code>, the sieve is <code>O(n log log n)</code>, and gcd counting over multiples is <code>O(M log M)</code> by the harmonic series.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) binary exponentiation: x**n mod m in O(log n)
-def fast_pow(x, n, m):
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Three math templates that show up again and again: <strong>A</strong> fast exponentiation (square-and-multiply, O(log n) multiplications), <strong>B</strong> XOR to cancel pairs (find the single number), <strong>C</strong> the sieve of Eratosthenes (all primes below n). Each is a few lines; each rests on one fact worth saying out loud in the interview.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Fast power (square and multiply, modulo m)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Compute x<sup>n</sup> mod m for large n.</div><div><b>What it keeps</b><code>result</code>; <code>x</code> = the current power x<sup>2^k</sup>; <code>n</code> shrinking by one bit per step.</div><div><b>When it checks for an answer</b>Each bit of n: if it's 1, multiply that power of x into the result.</div><div><b>Use it when</b>Pow(x, n) (LC 50), modular inverses, matrix exponentiation (Fibonacci in O(log n)), counting with huge exponents.</div><div><b>Not for</b>Small fixed exponents (just multiply).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Read n in binary; every 1 bit buys one power of x"</strong>13 = 1101 in binary = 8 + 4 + 1, so x¹³ = x⁸ · x⁴ · x¹. Walk the bits from the right: keep squaring x (x, x², x⁴, x⁸ …) and multiply it into the result whenever the current bit is 1.</div>
+    <p><strong>The story, mapped to the code.</strong> n's bits are a shopping list; x, x², x⁴ … are the items on the shelf.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Current shelf item</td><td data-h="In the code"><code>x (= original x^(2^k))</code></td><td data-h="What it means">Squared every step.</td></tr><tr><td data-h="In the story">Is this item on the list?</td><td data-h="In the code"><code>n &amp; 1</code></td><td data-h="What it means">The lowest bit.</td></tr><tr><td data-h="In the story">Buy it</td><td data-h="In the code"><code>result = result * x % m</code></td><td data-h="What it means">Multiply in.</td></tr><tr><td data-h="In the story">Next shelf</td><td data-h="In the code"><code>x = x * x % m; n &gt;&gt;= 1</code></td><td data-h="What it means">Square, drop the bit.</td></tr><tr><td data-h="In the story">Keep numbers small</td><td data-h="In the code"><code>% m</code></td><td data-h="What it means">After every multiplication.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Use the bit first, then square: the order matters.</p>
+    <pre><code class="python">def fast_pow(x, n, m):
     result = 1
     x %= m
     while n:
-        if n & 1:                 # this bit of n is set
+        if n &amp; 1:
             result = result * x % m
-        x = x * x % m             # x, x^2, x^4, x^8, ...
-        n >>= 1
-    return result
-
-
-# B) XOR cancelling: the value that appears an odd number of times
-def odd_one_out(nums):
+        x = x * x % m
+        n &gt;&gt;= 1
+    return result</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function fastPow(x: bigint, n: bigint, m: bigint): bigint {
+  let result = 1n;
+  x %= m;
+  while (n &gt; 0n) {
+    if (n &amp; 1n) result = (result * x) % m;
+    x = (x * x) % m;
+    n &gt;&gt;= 1n;
+  }
+  return result;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static long fastPow(long x, long n, long m) {
+    long result = 1;
+    x %= m;
+    while (n &gt; 0) {
+        if ((n &amp; 1) == 1) result = result * x % m;
+        x = x * x % m;
+        n &gt;&gt;= 1;
+    }
+    return result;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if n &amp; 1: result = result * x % m</code></td><td data-h="What it does">The current bit is set: use this power.</td><td data-h="In the story">Buy the item.</td><td data-h="Why here, and what breaks if it moves">Squaring before this line uses x² for bit 0, so every bit buys the wrong power (see the bug player).</td></tr><tr><td data-h="Line"><code>x = x * x % m</code></td><td data-h="What it does">Next power of two.</td><td data-h="In the story">Next shelf item.</td><td data-h="Why here, and what breaks if it moves">Without % m, Java longs overflow (and Python slows down on huge numbers).</td></tr><tr><td data-h="Line"><code>n &gt;&gt;= 1</code></td><td data-h="What it does">Drops the bit just used.</td><td data-h="In the story">Cross it off the list.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>TypeScript uses bigint</code></td><td data-h="What it does">number loses precision above 2⁵³.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">result * x can reach 10¹⁸; a plain number silently rounds.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>fast_pow(3, 13, 1000)</code> (13 = 1101₂). The second player squares before using the bit.</p>
+    <div id="tl-22a"></div><div id="tl-22a-bug"></div><p>Squaring first multiplies in x², x⁴, x¹⁶ instead of x, x⁴, x⁸: the result is 3²⁶ mod 1000 = 329 instead of 323.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-22a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the top of each loop: result × x<sup>n</sup> ≡ (original x)<sup>(original n)</sup> (mod m).</p>
+    <p><strong>Complexity.</strong> O(log n) multiplications, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Squaring before using the bit.</strong> Use the bit, then square.</li><li><strong>Overflow.</strong> Mod after every multiply; bigint in TypeScript.</li><li><strong>Negative n (LC 50).</strong> Compute 1 / x^(−n).</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Every 1 bit buys one power of x.</dd>
+      <dt>Choose this template when</dt><dd>Huge exponent → square and multiply.</dd>
+      <dt>Invariant</dt><dd>result · xⁿ is constant.</dd>
+      <dt>The line people get wrong</dt><dd>Order: multiply, then square.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Multiplications for n = 10⁹?</summary><p>About 2 × 30.</p></details><details><summary>3¹³ mod 1000?</summary><p>323.</p></details><details><summary>Python built-in?</summary><p>pow(x, n, m).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · XOR cancels pairs (single number)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Every value appears twice except one. Find it in O(n) time, O(1) space.</div><div><b>What it keeps</b>One accumulator <code>acc</code>.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Single Number (LC 136), missing number (XOR with 0..n), find the two odd-count numbers (split by a set bit).</div><div><b>Not for</b>Values appearing three times (needs bit counting, LC 137).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Pairs switch the light on and off again"</strong>Each bit is a light switch. XOR flips the switches for the bits that are 1. A value seen twice flips the same switches twice, leaving them as they were; only the lonely value's switches stay flipped.</div>
+    <p><strong>The story, mapped to the code.</strong> Bits are light switches.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">All lights off</td><td data-h="In the code"><code>acc = 0</code></td><td data-h="What it means">x ^ 0 = x.</td></tr><tr><td data-h="In the story">Flip switches</td><td data-h="In the code"><code>acc ^= v</code></td><td data-h="What it means">Order doesn't matter.</td></tr><tr><td data-h="In the story">Flipped twice</td><td data-h="In the code"><code>v ^ v = 0</code></td><td data-h="What it means">Pairs cancel.</td></tr><tr><td data-h="In the story">Still on</td><td data-h="In the code"><code>return acc</code></td><td data-h="What it means">The single value.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Three facts: x ^ x = 0, x ^ 0 = x, and XOR is commutative.</p>
+    <pre><code class="python">def single_number(nums):
     acc = 0
     for v in nums:
-        acc ^= v                  # a ^ a = 0, so pairs vanish
-    return acc
-
-
-# C) sieve of Eratosthenes: is_prime for every number below n
-def sieve(n):
+        acc ^= v
+    return acc</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function singleNumber(nums: number[]): number {
+  let acc = 0;
+  for (const v of nums) acc ^= v;
+  return acc;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int singleNumber(int[] nums) {
+    int acc = 0;
+    for (int v : nums) acc ^= v;
+    return acc;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>acc = 0</code></td><td data-h="What it does">XOR's identity.</td><td data-h="In the story">All lights off.</td><td data-h="Why here, and what breaks if it moves">Starting at nums[0] and also XOR-ing it cancels it.</td></tr><tr><td data-h="Line"><code>acc ^= v</code></td><td data-h="What it does">Flip v's bits.</td><td data-h="In the story">Flip the switches.</td><td data-h="Why here, and what breaks if it moves">Using + or | doesn't cancel pairs.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[4, 1, 2, 1, 2]</code> and watch the bits.</p>
+    <div id="tl-22b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-22b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> acc = XOR of the values seen so far = XOR of the values seen an odd number of times.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Using a set.</strong> Works, but O(n) space.</li><li><strong>Thrice-repeated values.</strong> Count each bit mod 3 instead.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Pairs switch the light on and off again.</dd>
+      <dt>Choose this template when</dt><dd>"Every value twice except one" → XOR everything.</dd>
+      <dt>Invariant</dt><dd>acc = XOR of odd-count values.</dd>
+      <dt>The line people get wrong</dt><dd>Start from 0.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>4^1^2^1^2?</summary><p>4.</p></details><details><summary>Missing number in 0..n?</summary><p>XOR all indices and all values.</p></details><details><summary>Two singles?</summary><p>XOR all, split by its lowest set bit, XOR each group.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Sieve of Eratosthenes</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>All primes below n.</div><div><b>What it keeps</b><code>is_prime</code> flags for 0..n−1.</div><div><b>When it checks for an answer</b>Each prime p crosses out its multiples starting at p·p.</div><div><b>Use it when</b>Count primes (LC 204), prime factorisation of many numbers (smallest prime factor sieve), number theory prep.</div><div><b>Not for</b>Testing a single number (trial division up to √n).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Each prime crosses out its multiples, starting at its square"</strong>Write 2..n−1 on a board. Circle the first uncrossed number (a prime) and cross out its multiples. Start at p·p, because smaller multiples (2p, 3p …) were already crossed out by smaller primes. Stop when p·p ≥ n.</div>
+    <p><strong>The story, mapped to the code.</strong> The array is a board of numbers.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Everything possibly prime</td><td data-h="In the code"><code>is_prime = [True] * n</code></td><td data-h="What it means">0 and 1 are not.</td></tr><tr><td data-h="In the story">Next survivor</td><td data-h="In the code"><code>if is_prime[p]</code></td><td data-h="What it means">p is prime.</td></tr><tr><td data-h="In the story">Cross out multiples</td><td data-h="In the code"><code>range(p * p, n, p)</code></td><td data-h="What it means">From p², step p.</td></tr><tr><td data-h="In the story">Stop early</td><td data-h="In the code"><code>while p * p &lt; n</code></td><td data-h="What it means">Larger p have no new multiples below n.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two loops; the inner one starts at p·p.</p>
+    <pre><code class="python">def sieve(n):
     is_prime = [True] * n
     is_prime[0:2] = [False, False]
     p = 2
-    while p * p < n:
+    while p * p &lt; n:
         if is_prime[p]:
             for multiple in range(p * p, n, p):
                 is_prime[multiple] = False
         p += 1
-    return is_prime</code></pre>
-<!-- explain-22:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><code>n &amp; 1</code> reads the lowest bit of the exponent; <code>n &gt;&gt;= 1</code> moves to the next bit. Each set bit multiplies in the matching power <code>x^(2^k)</code>.</li>
-  <li>Reducing modulo <code>m</code> after every multiplication keeps the numbers small (in Python it's about speed; in other languages it prevents overflow).</li>
-  <li>XOR is commutative and associative, so the order doesn't matter: every value that occurs an even number of times cancels to 0.</li>
-  <li>The sieve starts crossing out at <code>p * p</code>: smaller multiples of <code>p</code> have a smaller prime factor and were crossed out already.</li>
-</ol>
-<p><strong>Dry run</strong> of template A for <code>3¹³ mod 1000</code> (13 = 1101 in binary):</p>
-<table>
-  <thead><tr><th>bit of n</th><th>x (before squaring)</th><th>result</th></tr></thead>
-  <tbody>
-    <tr><td>1</td><td>3</td><td>3</td></tr>
-    <tr><td>0</td><td>9</td><td>3</td></tr>
-    <tr><td>1</td><td>81</td><td>243</td></tr>
-    <tr><td>1</td><td>561 (= 6561 mod 1000)</td><td>323 (= 243 · 561 mod 1000)</td></tr>
-  </tbody>
-</table>
-<p>Four squarings instead of twelve multiplications; 3¹³ = 1,594,323, so the last three digits 323 check out.</p>
-<!-- /explain-22:template -->
+    return [i for i in range(n) if is_prime[i]]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function sieve(n: number): number[] {
+  const isPrime: boolean[] = new Array(n).fill(true);
+  isPrime[0] = isPrime[1] = false;
+  for (let p = 2; p * p &lt; n; p++) {
+    if (isPrime[p]) {
+      for (let m = p * p; m &lt; n; m += p) isPrime[m] = false;
+    }
+  }
+  return isPrime.flatMap((ok, i) =&gt; (ok ? [i] : []));
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; sieve(int n) {
+    boolean[] isPrime = new boolean[n];
+    Arrays.fill(isPrime, true);
+    isPrime[0] = isPrime[1] = false;
+    for (int p = 2; (long) p * p &lt; n; p++) {
+        if (isPrime[p]) {
+            for (int m = p * p; m &lt; n; m += p) isPrime[m] = false;
+        }
+    }
+    List&lt;Integer&gt; primes = new ArrayList&lt;&gt;();
+    for (int i = 0; i &lt; n; i++) if (isPrime[i]) primes.add(i);
+    return primes;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>while p * p &lt; n</code></td><td data-h="What it does">Only primes up to √n cross anything new.</td><td data-h="In the story">Stop early.</td><td data-h="Why here, and what breaks if it moves"><code>p &lt; n</code> is still correct, just slower.</td></tr><tr><td data-h="Line"><code>range(p * p, n, p)</code></td><td data-h="What it does">Start at p², step p.</td><td data-h="In the story">Cross out from the square.</td><td data-h="Why here, and what breaks if it moves">Starting at <code>p</code> crosses out p itself, marking primes as composite.</td></tr><tr><td data-h="Line"><code>is_prime[0:2] = [False, False]</code></td><td data-h="What it does">0 and 1 aren't prime.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">Assumes n ≥ 2; guard small n.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>sieve(30)</code>, one prime at a time.</p>
+    <div id="tl-22c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-22c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After processing all p ≤ k, every composite number whose smallest prime factor is ≤ k is crossed out.</p>
+    <p><strong>Complexity.</strong> O(n log log n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Starting at p instead of p².</strong> p itself is prime.</li><li><strong>Off-by-one on n ("less than n" vs "up to n").</strong> Read the prompt; size n or n + 1.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Each prime crosses out its multiples from its square.</dd>
+      <dt>Choose this template when</dt><dd>All primes up to a limit → sieve.</dd>
+      <dt>Invariant</dt><dd>Composites with a small factor are crossed out.</dd>
+      <dt>The line people get wrong</dt><dd><code>range(p * p, n, p)</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Primes below 30?</summary><p>2 3 5 7 11 13 17 19 23 29.</p></details><details><summary>Why start at p²?</summary><p>Smaller multiples have a smaller prime factor already processed.</p></details><details><summary>Single number?</summary><p>Trial division up to √n.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · fast power</th><th>B · XOR</th><th>C · sieve</th></tr></thead><tbody><tr><td data-h="Question">Key fact</td><td data-h="A · fast power">n in binary = sum of powers of two</td><td data-h="B · XOR">x ^ x = 0, x ^ 0 = x</td><td data-h="C · sieve">Composites have a prime factor ≤ √n</td></tr><tr><td data-h="Question">Loop runs</td><td data-h="A · fast power">log₂ n times</td><td data-h="B · XOR">n times</td><td data-h="C · sieve">~n log log n crossings</td></tr><tr><td data-h="Question">Watch out for</td><td data-h="A · fast power">Overflow; use the bit before squaring</td><td data-h="B · XOR">Start at 0</td><td data-h="C · sieve">Start crossing at p²</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · fast power">LC 50, 372</td><td data-h="B · XOR">LC 136, 268, 260</td><td data-h="C · sieve">LC 204</td></tr></tbody></table>
+    <p>These are tools you combine with other patterns: fast power inside DP over huge n, XOR inside bit-mask problems, the sieve before factorising many numbers.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -6159,5 +6262,74 @@ HammingDistance(4, 14) + HammingDistance(4, 2) + HammingDistance(14, 2) = 2 + 2 
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl22A(x0, n0, m, bug) {
+    let x = x0 % m, n = n0, result = 1; const steps = [], rows = [], bits = n0.toString(2).split("").reverse(); let k = 0;
+    const view = () => Viz.array(bits, { label: "bits of n (low → high)", hl: Object.fromEntries(bits.map((b, i) => [i, i < k ? "dim" : i === k ? "active" : ""])) }) + `<p class="idx">x = ${x} · result = ${result}</p>`;
+    steps.push({ line: "init", vars: { x, n, result }, view: view(), analogy: `${n0} = ${n0.toString(2)}₂. Shelf item: ${x0}¹.`, note: "<code>result = 1</code>." });
+    while (n) {
+      if (bug) x = (x * x) % m;
+      const bit = n & 1, before = result, used = x; if (bit) result = (result * x) % m;
+      if (!bug) x = (x * x) % m;
+      rows.push([k, bit, bit ? `${before} × ${used} mod ${m} = ${result}` : "skip", result, x]);
+      steps.push({ line: bug ? ["loop", "sq", "bit", "mul"] : ["loop", "bit", "mul", "sq"], vars: { bit_k: k, bit, result, x_next: x }, view: view(),
+        analogy: bit ? `Bit ${k} is 1: buy ${x0}^${bug ? 2 ** (k + 1) : 2 ** k}.` + (bug ? " ⚠ (one power too high)" : "") : `Bit ${k} is 0: skip.`, note: `<code>result = ${result}</code>, then <code>x</code> squares.`,
+        ask: { q: `Is bit ${k} of ${n0} set?`, options: ["1", "0"], answer: String(bit), why: `${n0} = ${n0.toString(2)}₂.` } });
+      n >>= 1; k++;
+    }
+    steps.push({ line: "ret", vars: { result }, view: view(), analogy: `${x0}^${n0} mod ${m} = ${result}${bug ? " (wrong)" : ""}.`, note: `Return <code>${result}</code>.` });
+    return { steps, table: { head: ["Bit #", "Bit", "Multiply", "result", "x after squaring"], rows } };
+  }
+
+  function tl22B(nums) {
+    let acc = 0; const steps = [], rows = [], b = (v) => v.toString(2).padStart(3, "0");
+    const view = (i) => Viz.array(nums.map((v) => `${v} (${b(v)})`), { label: "nums", hl: i >= 0 ? { [i]: "active" } : {} }) + Viz.array(b(acc).split(""), { label: "acc bits", showIdx: false });
+    steps.push({ line: "init", vars: { acc: "000" }, view: view(-1), analogy: "All lights off.", note: "<code>acc = 0</code>." });
+    nums.forEach((v, i) => { const before = acc; acc ^= v; rows.push([v, b(before), b(v), b(acc), acc]);
+      steps.push({ line: ["loop", "xor"], vars: { v, acc: `${b(acc)} (${acc})` }, view: view(i), analogy: `Flip the switches of ${v} (${b(v)}): ${b(before)} → ${b(acc)}.`, note: `<code>acc ^= ${v}</code>.`,
+        ask: { q: "acc after this XOR?", options: [...new Set([acc, before, before + v])].map(String), answer: acc, why: `${b(before)} XOR ${b(v)} = ${b(acc)}.` } }); });
+    steps.push({ line: "ret", vars: { result: acc }, view: view(-1), analogy: `Only ${acc}'s switches stay on.`, note: `Return <code>${acc}</code>.` });
+    return { steps, table: { head: ["v", "acc before", "v in binary", "acc after", "acc"], rows } };
+  }
+
+  function tl22C(n) {
+    const isP = new Array(n).fill(true); isP[0] = isP[1] = false; const steps = [], rows = [];
+    const cols = 10, view = (p) => Viz.grid(Array.from({ length: Math.ceil(n / cols) }, (_, r) => Array.from({ length: cols }, (_, c) => (r * cols + c < n ? r * cols + c : ""))),
+      { small: true, hl: Object.fromEntries(Array.from({ length: n }, (_, i) => [Math.floor(i / cols) + "," + (i % cols), i === p ? "active" : !isP[i] ? "bad" : p !== undefined && i < p * p && i >= 2 ? "found" : ""])) });
+    steps.push({ line: "init", vars: {}, view: view(), analogy: "Every number from 2 might be prime.", note: "0 and 1 crossed out." });
+    for (let p = 2; p * p < n; p++) {
+      if (!isP[p]) { steps.push({ line: ["loop", "prime"], vars: { p, prime: false }, view: view(p), analogy: `${p} is already crossed out: skip.`, note: `is_prime[${p}] is False.` }); continue; }
+      const crossed = []; for (let m = p * p; m < n; m += p) if (isP[m]) { isP[m] = false; crossed.push(m); }
+      rows.push([p, crossed.join(", ") || "—"]);
+      steps.push({ line: ["loop", "prime", "cross"], vars: { p, crossed: crossed.length }, view: view(p), analogy: `${p} is prime: cross out ${p * p}, ${p * p + p}, … (${crossed.length} new).`, note: `Multiples of ${p} from ${p * p}.`,
+        ask: { q: `First number ${p} crosses out?`, options: [...new Set([p * p, 2 * p, p])].map(String), answer: p * p, why: "Start at p²." } });
+    }
+    const primes = isP.flatMap((ok, i) => (ok ? [i] : []));
+    steps.push({ line: "ret", vars: { primes: primes.length }, view: view(n), analogy: `Survivors: ${primes.join(", ")}.`, note: `Return the ${primes.length} primes.` });
+    return { steps, table: { head: ["Prime p", "Newly crossed out"], rows } };
+  }
+
+  { const run = tl22A(3, 13, 1000, false);
+    Viz.tlab("#tl-22a", { title: "Template A \u00b7 3^13 mod 1000", sub: "Bits of n, right to left; blue = the bit being used.", code: {"py": [[null, "def fast_pow(x, n, m):"], ["init", "    result = 1"], ["init", "    x %= m"], ["loop", "    while n:"], ["bit", "        if n & 1:"], ["mul", "            result = result * x % m"], ["sq", "        x = x * x % m"], ["shift", "        n >>= 1"], ["ret", "    return result"]], "ts": [[null, "function fastPow(x: bigint, n: bigint, m: bigint): bigint {"], ["init", "  let result = 1n;"], ["init", "  x %= m;"], ["loop", "  while (n > 0n) {"], ["mul", "    if (n & 1n) result = (result * x) % m;"], ["sq", "    x = (x * x) % m;"], ["shift", "    n >>= 1n;"], [null, "  }"], ["ret", "  return result;"], [null, "}"]], "java": [[null, "static long fastPow(long x, long n, long m) {"], ["init", "    long result = 1;"], ["init", "    x %= m;"], ["loop", "    while (n > 0) {"], ["mul", "        if ((n & 1) == 1) result = result * x % m;"], ["sq", "        x = x * x % m;"], ["shift", "        n >>= 1;"], [null, "    }"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-22a-table").innerHTML = TL.table(run.table); }
+  { const run = tl22A(3, 13, 1000, false);
+    Viz.tlab("#tl-22a-bug", { title: "Use the bit, then square", sub: "Switch between the two orders.", code: {"py": [[null, "def fast_pow(x, n, m):"], ["init", "    result = 1"], ["init", "    x %= m"], ["loop", "    while n:"], ["bit", "        if n & 1:"], ["mul", "            result = result * x % m"], ["sq", "        x = x * x % m"], ["shift", "        n >>= 1"], ["ret", "    return result"]], "ts": [[null, "function fastPow(x: bigint, n: bigint, m: bigint): bigint {"], ["init", "  let result = 1n;"], ["init", "  x %= m;"], ["loop", "  while (n > 0n) {"], ["mul", "    if (n & 1n) result = (result * x) % m;"], ["sq", "    x = (x * x) % m;"], ["shift", "    n >>= 1n;"], [null, "  }"], ["ret", "  return result;"], [null, "}"]], "java": [[null, "static long fastPow(long x, long n, long m) {"], ["init", "    long result = 1;"], ["init", "    x %= m;"], ["loop", "    while (n > 0) {"], ["mul", "        if ((n & 1) == 1) result = result * x % m;"], ["sq", "        x = x * x % m;"], ["shift", "        n >>= 1;"], [null, "    }"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: square before the bit", code: {"py": [[null, "def fast_pow(x, n, m):"], ["init", "    result = 1"], ["init", "    x %= m"], ["loop", "    while n:"], ["sq", "        x = x * x % m"], ["bit", "        if n & 1:"], ["mul", "            result = result * x % m"], ["shift", "        n >>= 1"], ["ret", "    return result"]]}, steps: tl22A(3, 13, 1000, true).steps, diverge: undefined, why: "x was squared before this bit used it, so the bit buys x\u00b2 instead of x." } });
+     }
+  { const run = tl22B([4, 1, 2, 1, 2]);
+    Viz.tlab("#tl-22b", { title: "Template B \u00b7 [4, 1, 2, 1, 2]", sub: "acc shown in binary (3 bits).", code: {"py": [[null, "def single_number(nums):"], ["init", "    acc = 0"], ["loop", "    for v in nums:"], ["xor", "        acc ^= v"], ["ret", "    return acc"]], "ts": [[null, "function singleNumber(nums: number[]): number {"], ["init", "  let acc = 0;"], ["xor", "  for (const v of nums) acc ^= v;"], ["ret", "  return acc;"], [null, "}"]], "java": [[null, "static int singleNumber(int[] nums) {"], ["init", "    int acc = 0;"], ["xor", "    for (int v : nums) acc ^= v;"], ["ret", "    return acc;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-22b-table").innerHTML = TL.table(run.table); }
+  { const run = tl22C(30);
+    Viz.tlab("#tl-22c", { title: "Template C \u00b7 sieve(30)", sub: "Red = crossed out; blue = the prime crossing out its multiples; green = prime.", code: {"py": [[null, "def sieve(n):"], ["init", "    is_prime = [True] * n"], ["init", "    is_prime[0:2] = [False, False]"], ["init", "    p = 2"], ["loop", "    while p * p < n:"], ["prime", "        if is_prime[p]:"], ["cross", "            for multiple in range(p * p, n, p):"], ["cross", "                is_prime[multiple] = False"], ["next", "        p += 1"], ["ret", "    return [i for i in range(n) if is_prime[i]]"]], "ts": [[null, "function sieve(n: number): number[] {"], ["init", "  const isPrime: boolean[] = new Array(n).fill(true);"], ["init", "  isPrime[0] = isPrime[1] = false;"], ["loop", "  for (let p = 2; p * p < n; p++) {"], ["prime", "    if (isPrime[p]) {"], ["cross", "      for (let m = p * p; m < n; m += p) isPrime[m] = false;"], [null, "    }"], [null, "  }"], ["ret", "  return isPrime.flatMap((ok, i) => (ok ? [i] : []));"], [null, "}"]], "java": [[null, "static List<Integer> sieve(int n) {"], ["init", "    boolean[] isPrime = new boolean[n];"], ["init", "    Arrays.fill(isPrime, true);"], ["init", "    isPrime[0] = isPrime[1] = false;"], ["loop", "    for (int p = 2; (long) p * p < n; p++) {"], ["prime", "        if (isPrime[p]) {"], ["cross", "            for (int m = p * p; m < n; m += p) isPrime[m] = false;"], [null, "        }"], [null, "    }"], ["ret", "    List<Integer> primes = new ArrayList<>();"], ["ret", "    for (int i = 0; i < n; i++) if (isPrime[i]) primes.add(i);"], ["ret", "    return primes;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-22c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
