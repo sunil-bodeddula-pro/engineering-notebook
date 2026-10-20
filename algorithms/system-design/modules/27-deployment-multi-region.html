@@ -2421,6 +2421,128 @@ svg.flow .fn { transition: opacity .35s ease; }
       <tr><td><a href="https://www.crowdstrike.com/wp-content/uploads/2024/08/Channel-File-291-Incident-Root-Cause-Analysis-08.06.2024.pdf" target="_blank" rel="noopener">CrowdStrike, 19 July 2024</a></td><td>A security content update with a field-count mismatch made the Windows sensor read out of bounds and crash at boot. It went to all hosts at once; Microsoft estimated about 8.5 million Windows devices were affected.</td><td>Staged rollouts and canaries apply to data and configuration, not just code; validate inputs; let customers control rollout timing.</td></tr>
     </tbody></table>
 
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>Deployment needs one sentence: <q>canary releases with automatic rollback on error rate and latency; risky features behind flags; infrastructure in Terraform; database changes expand-and-contract.</q> When the prompt says global or "survive a region", state active-passive or active-active, the RPO and RTO, how data replicates, and how traffic moves. And always: backups with point-in-time recovery, tested.</div>
+
+    <section class="tech" id="t-flags">
+      <div class="tech-h"><h3>Feature flags</h3><span class="tech-status s-default">The default · separate deploy from release</span></div>
+      <p>A runtime switch around new code: the code ships dark, then is turned on for staff, then 1% of users, then everyone, without a deploy. Turning it off is the fastest rollback there is.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Evaluation:</strong> SDKs download the flag rules and evaluate them locally in microseconds (by user, tenant, country, percentage), streaming updates; no network call per check.</li>
+        <li><strong>Percentage rollouts</strong> hash the user ID so each user consistently sees the same variant.</li>
+        <li><strong>Kinds:</strong> release flags (short-lived), operational kill switches (long-lived), experiments (A/B tests), and entitlements (plan features).</li>
+        <li><strong>Debt:</strong> every flag is a branch in the code. Remove release flags once they reach 100%.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>LaunchDarkly, Unleash, Flagsmith, GrowthBook, Statsig, cloud services (AWS AppConfig, Firebase Remote Config) and in-house tables. OpenFeature, a CNCF incubating project, standardises the SDK API across vendors.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Risky changes, gradual rollouts, kill switches for expensive features</li><li>Trunk-based development: merge unfinished work behind a flag</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Database schema changes: those need expand-and-contract migrations</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The new ranking ships behind a flag: staff first, then 1%, 10%, 100%, watching error rate and latency; turning the flag off is the rollback.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Hundreds of stale flags</strong> nobody dares delete.</li><li><strong>A remote call per flag check</strong> on the request path.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-k8sdeploy">
+      <div class="tech-h"><h3>Rolling, blue-green and canary on Kubernetes</h3><span class="tech-status s-default">The default deploy strategies</span></div>
+      <p>Three ways to replace running code. Rolling swaps pods a few at a time; blue-green runs a full new copy and switches traffic at once; canary sends a small share of traffic to the new version and grows it while metrics stay healthy.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Strategy</th><th>How</th><th>Rollback</th><th>Cost</th></tr></thead><tbody>
+        <tr><td>Rolling</td><td>Deployment replaces pods gradually (<code>maxSurge</code>, <code>maxUnavailable</code>); readiness probes gate traffic</td><td>Roll the Deployment back (another rolling update)</td><td>None extra</td></tr>
+        <tr><td>Blue-green</td><td>A full second environment; flip the Service or load balancer</td><td>Flip back: seconds</td><td>2× capacity during the switch</td></tr>
+        <tr><td>Canary</td><td>1% → 5% → 25% → 100% by traffic weight, with automated metric analysis</td><td>Automatic abort on bad metrics</td><td>Small; needs good metrics</td></tr>
+      </tbody></table>
+      <p>Both versions run side by side in every strategy, so APIs, events and database schemas must be compatible with old and new code at once.</p>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Built-in Deployments do rolling updates. Argo Rollouts and Flagger add blue-green and canary with automatic analysis (querying Prometheus or Datadog), using a service mesh or Gateway API for traffic weights.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Rolling for routine changes</li><li>Canary with automatic rollback for user-facing services at scale</li><li>Blue-green when you need an instant, whole switch</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Blue-green for stateful systems whose data can't be shared or switched cleanly</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Canary through Argo Rollouts: 5% for 10 minutes, automatic analysis on error rate and p99, then 25%, 50%, 100%.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>No readiness probe</strong>: pods get traffic before they're ready.</li><li><strong>A canary nobody measures</strong>.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-iac">
+      <div class="tech-h"><h3>Infrastructure as code: Terraform and friends</h3><span class="tech-status s-default">The default for cloud resources</span></div>
+      <p>Cloud resources (networks, databases, queues, permissions) declared in files kept in Git, reviewed like code, and applied by a tool that compares what's declared with what exists.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Plan, then apply:</strong> Terraform reads its <em>state</em> (what it created before), queries the cloud, and shows a plan of creates, updates and destroys before changing anything.</li>
+        <li><strong>State</strong> lives in a remote backend with locking (S3, GCS, Terraform Cloud) so two people can't apply at once.</li>
+        <li><strong>Drift:</strong> someone changes a setting by hand; the next plan shows it and puts it back.</li>
+        <li><strong>Modules</strong> package repeatable pieces ("a service with its database and alarms").</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Terraform moved to the Business Source License in 2023 and HashiCorp became part of IBM in 2025; <strong>OpenTofu</strong>, the open-source fork, joined the CNCF in April 2025. Alternatives: Pulumi (general-purpose languages), AWS CDK and CloudFormation, Azure Bicep, and Crossplane (cloud resources managed from Kubernetes).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every cloud environment beyond a demo</li><li>Recreating a region or an environment from scratch</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>One-off experiments you'll delete today</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>All infrastructure is Terraform in Git, applied by CI after review, so a second region is mostly a new set of variables.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Hand-made production resources</strong> nobody can recreate.</li><li><strong>Secrets in state files</strong> stored unencrypted.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-gitops">
+      <div class="tech-h"><h3>GitOps</h3><span class="tech-status s-situational">Situational · Kubernetes deploys</span></div>
+      <p>The desired state of each environment is a Git repository; an agent inside the cluster continuously makes the cluster match it. A deploy is a commit; a rollback is a revert.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Pull, not push:</strong> CI builds and tests an image and updates a version in the config repo; the in-cluster agent pulls and applies it. CI needs no cluster credentials.</li>
+        <li><strong>Continuous reconciliation:</strong> manual changes in the cluster are detected and reverted (or flagged).</li>
+        <li><strong>Audit for free:</strong> Git history says who changed what, when, and who approved it.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Argo CD and Flux are both CNCF graduated projects and the common choices; they pair with Argo Rollouts or Flagger for progressive delivery.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Kubernetes with many services or clusters</li><li>Teams that need an audit trail of every production change</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Non-Kubernetes platforms where the provider's deploy pipeline is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>CI publishes images; Argo CD syncs each environment from its Git repo, so every production change is a reviewed commit.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>kubectl apply from laptops</strong> in production.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-failover">
+      <div class="tech-h"><h3>Global failover</h3><span class="tech-status s-situational">Situational · surviving a region</span></div>
+      <p>Moving traffic and writes to another region when one fails. Traffic is the easy half; data is the hard half, because the standby only has what was replicated.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Traffic:</strong> DNS failover with health checks (TTLs of 60 s or less), anycast global load balancers, or a routing control you flip deliberately (AWS Application Recovery Controller).</li>
+        <li><strong>Data:</strong> asynchronous cross-region replicas lose the last moments of writes (Aurora Global Database replicates with typically about a second of lag); synchronous options give an RPO of zero at the cost of write latency (Spanner, CockroachDB, DynamoDB global tables with multi-region strong consistency, GA since June 2025).</li>
+        <li><strong>Who decides?</strong> Fully automatic regional failover risks split-brain on a flaky network (GitHub 2018). Many teams automate detection and make the final switch a single, rehearsed human decision.</li>
+        <li><strong>Rehearse:</strong> game days that actually fail over; a plan never run doesn't work.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>All major clouds provide the pieces: Route 53, Cloud DNS and Azure Traffic Manager health-checked routing, global load balancers, cross-region database replicas and global tables.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Stated requirements to survive a region loss</li><li>Regulated or revenue-critical services with low RTO</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Most products: multi-zone in one region plus cross-region backups is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Active-passive: Aurora Global Database replicating to a second region with about a second of RPO; failover is a rehearsed runbook flipped through ARC, target RTO 15 minutes.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Never tested</strong> failover.</li><li><strong>Automatic promotion on any blip</strong>, causing split-brain.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-pitr">
+      <div class="tech-h"><h3>Backups and point-in-time recovery</h3><span class="tech-status s-default">The default · the last line of defence</span></div>
+      <p>Replicas copy mistakes instantly; backups let you go back. Point-in-time recovery (PITR) restores a database to any second in a window, such as one minute before a bad migration.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>How:</strong> periodic full snapshots plus a continuous archive of the write-ahead log (WAL). To restore to 14:31:59, start from the snapshot before it and replay the log up to that moment.</li>
+        <li><strong>Restore makes a new database</strong>, so a restore takes time proportional to data size and log replayed: measure it, because that's your real RTO.</li>
+        <li><strong>3-2-1:</strong> three copies, two kinds of storage, one off-site; for ransomware, an immutable or separate-account copy (S3 Object Lock, backup vault locks).</li>
+      </ul>
+      <div id="sc-pitr"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Managed databases do this for you: Amazon RDS and Aurora restore to any second within a retention of up to 35 days; Cloud SQL, Azure Database and others are similar. For self-managed PostgreSQL, pgBackRest, Barman and WAL-G handle base backups and WAL archiving.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every database holding data you can't regenerate</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Caches and derived data you can rebuild</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>PITR with 14 days of retention, plus daily snapshots copied to a locked vault in another account and region; we test a restore monthly.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We have replicas, so we don't need backups"</strong>: a DROP TABLE replicates too.</li><li><strong>Backups never restored</strong> in a test.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Taste in one branch; keep the recipes off-site"</strong>Release to a small slice first and roll back automatically; keep tested, off-site copies of data and decide in advance how much you can lose (RPO) and how long you can be closed (RTO).</div>
@@ -2503,6 +2625,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Why did GitHub's 43-second network partition in 2018 become 24 hours of degraded service?</p>
         <div class="opts"><button>The network stayed down for a day</button><button>Failover promoted primaries in the other region, so both coasts held writes the other lacked</button><button>Backups were missing</button></div>
         <div class="why">Cross-region automatic failover created divergent writes; reconciling them safely took a day.</div>
+      </div>
+      <div class="quiz-q" data-answer="They replicate the delete within milliseconds">
+        <p>An engineer runs DELETE without a WHERE clause. Why don't read replicas save you?</p>
+        <div class="opts"><button>They're too slow to promote</button><button>They replicate the delete within milliseconds</button><button>They don't store deletes</button></div>
+        <div class="why">Replicas protect against machine failure, not mistakes. Point-in-time recovery from backups does.</div>
+      </div>
+      <div class="quiz-q" data-answer="Turning off its feature flag">
+        <p>What makes rollback fastest for a risky new feature?</p>
+        <div class="opts"><button>Redeploying the previous image</button><button>Turning off its feature flag</button><button>Restoring a backup</button></div>
+        <div class="why">No build or deploy needed: the code path is switched off at runtime.</div>
       </div>
     </div>
 
@@ -2619,9 +2751,22 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-canary", title: "3 · A staged canary", text: "1%, 10%, then everyone, with automatic rollback." },
     { el: "#br", title: "4 · Bad release blast radius", text: "How many users each strategy exposes to a bug." },
     { el: "#drc", title: "5 · Disaster recovery", text: "Pick an RPO and RTO and see which strategy meets them." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Feature flags, Kubernetes deploy strategies, Terraform, GitOps, global failover and point-in-time recovery." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-pitr", {
+    title: "Point-in-time recovery", sub: "<b>Red</b> = the mistake; <b>green</b> = the recovered copy.",
+    nodes: [{ id: "db", x: 90, y: 120, w: 130, label: "Production DB" }, { id: "snap", x: 330, y: 50, w: 150, label: "Nightly snapshot", sub: "02:00" }, { id: "wal", x: 330, y: 190, w: 150, label: "WAL archive", sub: "every change since" }, { id: "new", x: 560, y: 120, w: 150, label: "Restored DB", sub: "as of 14:31:59" }],
+    edges: [["db", "snap"], ["db", "wal"], ["snap", "new"], ["wal", "new"]],
+    width: 650, height: 250,
+    steps: [
+      { hl: { db: "active", snap: "found", wal: "found" }, moves: [{ e: "db>snap", t: "02:00 snapshot", k: "req" }, { e: "db>wal", t: "log segments", k: "req", delay: 0.8 }], hold: 3, note: "Snapshots once a day, and every change streamed to the log archive continuously." },
+      { hl: { db: "bad" }, pops: [{ n: "db", t: "14:32 DELETE without WHERE", k: "bad", at: 0.3 }], hold: 2.8, note: "At 14:32 a bad command deletes rows. The replicas delete them too, instantly." },
+      { hl: { snap: "active", new: "active" }, moves: [{ e: "snap>new", t: "restore 02:00 copy", k: "evt" }], hold: 2.8, note: "Recovery creates a new database from the last snapshot before the mistake…" },
+      { hl: { wal: "active", new: "found" }, moves: [{ e: "wal>new", t: "replay to 14:31:59", k: "ok" }], hold: 3.2, note: "…then replays the log up to one second before it. Copy the lost rows back, or switch over to the restored database." },
+    ],
+  });
 })();
 </script>
 </body>
