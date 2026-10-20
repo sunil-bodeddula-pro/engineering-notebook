@@ -2371,6 +2371,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2721,6 +2722,157 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Evolution_of_HTTP" target="_blank" rel="noopener">Evolution of HTTP</a> (MDN)</td><td>15 min</td><td>From HTTP/0.9 to HTTP/3 on one page.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How TCP, TLS, HTTP, DNS, load balancers and rate limiters really behave. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-networking-proxies-and-rate-limiting">
+      <summary><span class="uth-t"><b>Networking, proxies and rate limiting</b><small>TCP congestion control with a lab, TLS 1.3 details, HTTP versions, DNS records, a CIDR calculator, load-balancing and rate-limiting algorithm labs, 7 products compared</small></span><span class="uth-m">about 45 min</span></summary>
+      <div class="uth-body">
+        <p>Most "the network is slow" problems are explained by a handful of mechanisms: how TCP decides how fast to send, what each HTTP version does with a lost packet, how a load balancer picks a server, and how a rate limiter counts. This deep dive works through each with something you can run.</p>
+
+        <h3 id="u06-tcp">TCP: windows and congestion control</h3>
+        <ul>
+          <li><strong>Reliability:</strong> every byte has a sequence number; the receiver acknowledges what arrived; missing data is retransmitted after a timeout or after three duplicate ACKs (fast retransmit).</li>
+          <li><strong>Flow control:</strong> the receiver advertises a window, how much it can buffer, so a fast sender can't overrun a slow reader.</li>
+          <li><strong>Congestion control:</strong> the sender keeps its own <em>congestion window</em> (how much may be unacknowledged in flight), starts small and doubles each round trip (slow start), then grows carefully and backs off when it sees loss. Throughput ≈ window ÷ round-trip time, so long-distance links need large windows.</li>
+          <li><strong>Small-packet traps:</strong> Nagle's algorithm holds small writes until the previous one is acknowledged, and delayed ACKs wait to piggyback: together they can add 40–200 ms to chatty request/response traffic, which is why RPC and interactive systems set <code>TCP_NODELAY</code>.</li>
+          <li><strong>Connection lifecycle:</strong> the side that closes first holds the connection in TIME_WAIT (typically 60 s on Linux) so late packets aren't mistaken for a new connection; a proxy opening thousands of short connections can run out of ports, another reason to reuse connections. SYN floods are blunted by SYN cookies, which avoid storing state until the handshake completes.</li>
+        </ul>
+        <p>Compare three congestion-control algorithms on a link that carries 40 packets per round trip, with a 20-packet router buffer:</p>
+        <div class="card widget" id="cc-lab">
+          <div class="ctl"><label><input type="checkbox" id="cc-loss"> Add random loss (about 1% of round trips, like a lossy Wi-Fi or mobile link)</label></div>
+          <div class="no-gl" id="cc-svg"></div>
+          <div class="tiles no-gl" id="cc-tiles"></div>
+          <div class="verdict no-gl" id="cc-why"></div>
+        </div>
+        <p><strong>CUBIC</strong> is the Linux default: after a loss it grows along a cubic curve back toward the window where the loss happened, then probes beyond it. <strong>BBR</strong> (from Google) instead measures the bottleneck bandwidth and minimum round-trip time and sends at that rate, so it doesn't fill buffers and doesn't treat random loss as congestion. Simplified models; real stacks add many refinements.</p>
+
+        <h3 id="u06-tls">TLS 1.3 details</h3>
+        <table>
+          <thead><tr><th>Piece</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>SNI</td><td>The client names the site it wants in the first message, so one IP can serve many certificates (Encrypted Client Hello hides it, where supported)</td></tr>
+            <tr><td>ALPN</td><td>Client and server agree on HTTP/2 or HTTP/1.1 inside the handshake, at no extra round trip</td></tr>
+            <tr><td>Certificate chain</td><td>Leaf certificate → intermediate(s) → a root the client already trusts; servers must send the intermediates</td></tr>
+            <tr><td>Revocation</td><td>CRLs and OCSP; Let's Encrypt shut down its OCSP service on 6 August 2025 and publishes CRLs instead, and short certificate lifetimes limit the damage of a stolen key</td></tr>
+            <tr><td>Resumption and 0-RTT</td><td>A returning client resumes with a pre-shared key; 0-RTT data can be replayed, so only for idempotent requests</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u06-http">HTTP/1.1, HTTP/2, HTTP/3 and friends</h3>
+        <table>
+          <thead><tr><th></th><th>HTTP/1.1</th><th>HTTP/2</th><th>HTTP/3</th></tr></thead>
+          <tbody>
+            <tr><td>Transport</td><td>TCP</td><td>TCP</td><td>QUIC over UDP</td></tr>
+            <tr><td>Concurrency</td><td>One request at a time per connection; browsers open about 6</td><td>Many streams multiplexed over one connection, as binary frames</td><td>Many independent streams</td></tr>
+            <tr><td>One lost packet</td><td>Stalls that connection</td><td>Stalls <em>every</em> stream (TCP head-of-line blocking)</td><td>Stalls only its own stream</td></tr>
+            <tr><td>Headers</td><td>Plain text, repeated</td><td>HPACK compression</td><td>QPACK compression</td></tr>
+            <tr><td>Changing networks</td><td>New connection</td><td>New connection</td><td>Connection IDs let it migrate from Wi-Fi to mobile</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><strong>gRPC</strong> runs over HTTP/2 with Protobuf: unary calls plus client, server and bidirectional streaming. Always set a <strong>deadline</strong>; it propagates to downstream calls so abandoned work stops.</li>
+          <li><strong>WebSocket</strong> starts as an HTTP/1.1 request with <code>Upgrade: websocket</code> (101 Switching Protocols), then exchanges framed messages both ways over the same TCP connection; load balancers must allow long-lived connections and idle timeouts above the ping interval.</li>
+        </ul>
+
+        <h3 id="u06-dns">DNS in depth</h3>
+        <table>
+          <thead><tr><th>Record</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td>A / AAAA</td><td>Name → IPv4 / IPv6 address</td></tr>
+            <tr><td>CNAME</td><td>Alias to another name; not allowed at the zone apex (example.com), which is why providers offer ALIAS/ANAME-style records</td></tr>
+            <tr><td>NS, SOA</td><td>Which servers are authoritative; zone settings, including how long to cache "no such name" (negative caching)</td></tr>
+            <tr><td>MX, TXT</td><td>Mail servers; verification and email policies (SPF, DKIM, DMARC)</td></tr>
+            <tr><td>SRV, HTTPS/SVCB</td><td>Service host and port; HTTPS records advertise HTTP/3 support and other connection hints up front</td></tr>
+            <tr><td>CAA</td><td>Which certificate authorities may issue for the domain</td></tr>
+          </tbody>
+        </table>
+        <p><strong>TTLs</strong> trade failover speed against query load and resilience: 60 s lets you move traffic in about a minute, but some resolvers and clients cache longer than asked. DNS over HTTPS or TLS encrypts lookups; GeoDNS answers by the resolver's location (EDNS Client Subnet passes part of the user's address to improve it).</p>
+
+        <h3 id="u06-cidr">Addresses and subnets</h3>
+        <p>CIDR notation <code>10.0.0.0/16</code> means the first 16 bits are the network and the rest (16 bits, 65,536 addresses) are hosts. Designing a VPC is mostly choosing non-overlapping ranges big enough for growth:</p>
+        <div class="card widget" id="ci-lab">
+          <div class="ctl"><label for="ci-in">Network</label><input id="ci-in" type="text" value="10.20.0.0/16"><label for="ci-s">Split into</label><input id="ci-s" type="range" min="17" max="28" value="20"><output id="ci-so"></output></div>
+          <div class="no-gl" id="ci-out"></div>
+          <div class="verdict no-gl" id="ci-why"></div>
+        </div>
+
+        <h3 id="u06-lb">Load-balancing algorithms</h3>
+        <p>Ten servers, requests arriving at random. Each server handles one request at a time and queues the rest. Pick the load and the kind of requests:</p>
+        <div class="card widget" id="lb-lab">
+          <div class="ctl"><label for="lb-u">Load</label><input id="lb-u" type="range" min="0" max="2" value="1"><output id="lb-uo"></output><span class="seg" id="lb-w"></span></div>
+          <div class="no-gl" id="lb-bars"></div>
+          <div class="verdict no-gl" id="lb-why"></div>
+        </div>
+        <table>
+          <thead><tr><th>Algorithm</th><th>How</th><th>Watch out for</th></tr></thead>
+          <tbody>
+            <tr><td>Round robin / weighted</td><td>Next server in turn (weights for bigger servers)</td><td>Ignores how busy each server is</td></tr>
+            <tr><td>Least connections / least request</td><td>Fewest in-flight requests</td><td>Many balancer instances each with a partial view can herd onto the same "idle" server</td></tr>
+            <tr><td>Power of two choices</td><td>Pick two at random, send to the less loaded</td><td>Nearly as good as least connections with tiny state; Envoy's least-request uses it</td></tr>
+            <tr><td>Latency-aware (EWMA)</td><td>Prefer servers with low recent latency</td><td>Needs decay so a recovered server gets traffic again</td></tr>
+            <tr><td>Consistent hashing</td><td>Same key → same server (caches, sticky sessions)</td><td>Hot keys; use bounded loads</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u06-rl">Rate-limiting algorithms</h3>
+        <p>The same traffic through five limiters, each set to 10 requests per 10 seconds:</p>
+        <div class="card widget" id="rl-lab">
+          <div class="ctl"><span class="seg" id="rl-s"></span></div>
+          <div class="no-gl" id="rl-out"></div>
+          <div class="verdict no-gl" id="rl-why"></div>
+        </div>
+        <ul>
+          <li><strong>Token bucket</strong> (AWS API Gateway, most SDKs) allows bursts up to the bucket size, then the refill rate. <strong>GCRA</strong> (redis-cell) is the same behaviour stored as a single timestamp.</li>
+          <li><strong>Leaky bucket</strong> (NGINX <code>limit_req</code>) smooths traffic to a steady outflow; a burst setting decides how much may queue.</li>
+          <li><strong>Fixed window</strong> is one counter per minute: cheap, but allows up to twice the limit across a window boundary. <strong>Sliding log</strong> is exact but stores every timestamp. <strong>Sliding-window counter</strong> weights the previous window's count, nearly exact with two counters (Cloudflare describes using this approximation).</li>
+          <li><strong>Distributed limits:</strong> a central Redis call per request (accurate, adds latency) or local buckets synchronised in the background (fast, briefly over the limit). <strong>Adaptive concurrency limits</strong> (Netflix's library, Envoy) adjust the limit from observed latency instead of a fixed number.</li>
+        </ul>
+
+        <h3 id="u06-k8s">Inside a Kubernetes cluster</h3>
+        <p>A Service gets a virtual IP; <strong>kube-proxy</strong> programs iptables or IPVS rules on every node that translate it to a pod address. iptables rules are evaluated in sequence, so very large clusters prefer IPVS or <strong>eBPF</strong> (Cilium), which replaces kube-proxy with hash lookups in the kernel. Each translated connection also takes an entry in the kernel's connection-tracking table, which can fill up under heavy short-lived traffic.</p>
+
+        <h3 id="u06-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>How it works</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>NGINX</td><td>A master process and event-loop workers (epoll); round robin, least connections, IP hash or consistent hash upstreams</td><td><code>limit_req</code> is a leaky bucket with a burst setting</td></tr>
+            <tr><td>HAProxy</td><td>Event-driven, multi-threaded, L4 and L7; detailed health checks</td><td>Stick tables give rate limiting and affinity without an external store</td></tr>
+            <tr><td>Envoy</td><td>Event-loop worker threads; live configuration via xDS; outlier detection, circuit breaking, rate limiting</td><td>Data plane under Istio and many gateways; least-request uses power of two choices</td></tr>
+            <tr><td>AWS ALB and NLB</td><td>ALB: L7 routing by host, path, header. NLB: L4, static IPs, keeps the client's source IP</td><td>Content-based routing needs ALB</td></tr>
+            <tr><td>Google Cloud global load balancer</td><td>Anycast IPs served by Google Front Ends near users</td><td>One IP worldwide</td></tr>
+            <tr><td>Maglev, Katran</td><td>Software L4 balancers behind ECMP routers; Maglev hashing; Katran in the kernel with XDP/eBPF</td><td>Connections stay on their backend as backends change</td></tr>
+            <tr><td>Kubernetes Services</td><td>kube-proxy iptables or IPVS; Cilium eBPF</td><td>iptables rule count grows with services</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u06-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"Why is HTTP/3 better on mobile?"</strong> A lost packet only stalls its own stream instead of every stream on the connection, setup is one round trip including TLS, and connections survive switching networks.</li>
+          <li><strong>"Which load-balancing algorithm?"</strong> Least-request with power of two choices: close to the best possible with almost no shared state; consistent hashing only when the backend caches per key.</li>
+          <li><strong>"Fixed window or token bucket for the API?"</strong> Token bucket per API key: it allows short bursts but caps the average, and has no boundary spike; keep the counter in Redis or approximate locally.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="A single lost packet stalls every stream on the connection">
+            <p>What is TCP head-of-line blocking in HTTP/2?</p>
+            <div class="opts"><button>Only one request can be sent at a time</button><button>A single lost packet stalls every stream on the connection</button><button>Headers are sent before bodies</button></div>
+            <div class="why">TCP delivers bytes in order, so all multiplexed streams wait for the retransmission. QUIC fixes it.</div>
+          </div>
+          <div class="quiz-q" data-answer="Up to twice the limit, across a window boundary">
+            <p>A fixed-window limiter allows 100 requests per minute. What's the most a client can send within any 60 seconds?</p>
+            <div class="opts"><button>100</button><button>Up to twice the limit, across a window boundary</button><button>Unlimited</button></div>
+            <div class="why">100 at the end of one window and 100 at the start of the next.</div>
+          </div>
+          <div class="quiz-q" data-answer="Pick two servers at random and send to the less loaded one">
+            <p>What is "power of two choices" load balancing?</p>
+            <div class="opts"><button>Always use two servers</button><button>Pick two servers at random and send to the less loaded one</button><button>Double the weight of fast servers</button></div>
+            <div class="why">It avoids herding and needs no global view, yet performs close to least-connections.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://www.rfc-editor.org/rfc/rfc9293" target="_blank" rel="noopener">RFC 9293: TCP</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9438" target="_blank" rel="noopener">RFC 9438: CUBIC</a></li><li><a href="https://research.google/pubs/bbr-congestion-based-congestion-control-2/" target="_blank" rel="noopener">BBR (Google)</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446: TLS 1.3</a></li><li><a href="https://letsencrypt.org/2024/12/05/ending-ocsp/" target="_blank" rel="noopener">Let's Encrypt: ending OCSP support</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9113" target="_blank" rel="noopener">RFC 9113: HTTP/2</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9114" target="_blank" rel="noopener">RFC 9114: HTTP/3</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc9460" target="_blank" rel="noopener">RFC 9460: SVCB and HTTPS records</a></li><li><a href="https://docs.aws.amazon.com/vpc/latest/userguide/subnet-sizing.html" target="_blank" rel="noopener">AWS: VPC subnet sizing</a></li><li><a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers" target="_blank" rel="noopener">Envoy: load balancing</a></li><li><a href="https://www.eecs.harvard.edu/~michaelm/postscripts/mythesis.pdf" target="_blank" rel="noopener">The power of two choices (Mitzenmacher)</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html" target="_blank" rel="noopener">NGINX: limit_req</a></li><li><a href="https://blog.cloudflare.com/counting-things-a-lot-of-different-things/" target="_blank" rel="noopener">Cloudflare: counting things, a lot of different things</a></li><li><a href="https://kubernetes.io/docs/reference/networking/virtual-ips/" target="_blank" rel="noopener">Kubernetes: virtual IPs and service proxies</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="05-the-design-method.html"><small>Previous module</small>← 05 · The design method</a>
       <a class="next" href="07-api-design.html"><small>Next module</small>07 · API design →</a>
@@ -2855,6 +3007,83 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "Everyone else using this resolver gets the cached answer instantly until the TTL runs out. That's also why DNS failover is only as fast as the TTL." },
     ],
   });
+  /* ---------- Under the hood: networking ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), BDP = 40, BUF = 20, R = 120;
+    const lossAt = new Set([17, 29, 44, 58, 71, 86, 99, 111]);
+    const reno = (rl) => { let w = 1, ss = 64; const out = []; for (let t = 0; t < R; t++) { out.push(w); if (w > BDP + BUF || (rl && lossAt.has(t))) { ss = Math.max(2, w / 2); w = ss; } else w = w < ss ? w * 2 : w + 1; } return out; };
+    const cubic = (rl) => { let w = 1, ss = 64, wmax = 0, tl = -1, K = 0; const out = []; for (let t = 0; t < R; t++) { out.push(w); if (w > BDP + BUF || (rl && lossAt.has(t))) { wmax = w; w = Math.max(2, w * 0.7); ss = w; tl = t; K = Math.cbrt((wmax * 0.3) / 0.4); } else if (tl < 0 && w < ss) w = w * 2; else { const dt = (t - tl) * 0.1; w = Math.max(w + 0.5, 0.4 * Math.pow(dt - K, 3) + wmax); } } return out; };
+    const bbr = () => { let w = 1; const out = [], gain = [1.25, 0.75, 1, 1, 1, 1, 1, 1]; let ph = 0; for (let t = 0; t < R; t++) { out.push(w); if (w < BDP && ph === 0 && t < 12) w = Math.min(w * 2, BDP * 1.5); else { ph++; w = BDP * gain[ph % 8]; } } return out; };
+    const run = () => {
+      const rl = g("cc-loss").checked, S = [["Reno", reno(rl), "#e76f51"], ["CUBIC", cubic(rl), "#457b9d"], ["BBR", bbr(), "#2a9d8f"]];
+      const W = 560, H = 220, X = (t) => ((t / (R - 1)) * (W - 40) + 30).toFixed(1), Y = (v) => (H - 20 - (Math.min(v, 90) / 90) * (H - 30)).toFixed(1);
+      g("cc-svg").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;display:block;margin:6px auto" role="img" aria-label="Congestion window over time"><rect x="30" y="${Y(BDP + BUF)}" width="${W - 40}" height="${Y(BDP) - Y(BDP + BUF)}" fill="var(--warm)" opacity=".12"/><line x1="30" x2="${W - 10}" y1="${Y(BDP)}" y2="${Y(BDP)}" stroke="var(--ink-3)" stroke-dasharray="4 4"/><text x="${W - 12}" y="${Y(BDP) + 12}" text-anchor="end" font-size="10" fill="var(--ink-3)">link capacity (40)</text><text x="${W - 12}" y="${Y(BDP + BUF) - 4}" text-anchor="end" font-size="10" fill="var(--ink-3)">buffer full (60): overflow = loss</text>${S.map(([n, s, c]) => `<polyline fill="none" stroke="${c}" stroke-width="2" points="${s.map((v, t) => X(t) + "," + Y(v)).join(" ")}"/>`).join("")}<text x="30" y="${H - 4}" font-size="10" fill="var(--ink-3)">round trips →</text>${S.map(([n, , c], i) => `<text x="${W - 150 + i * 50}" y="14" font-size="11" font-weight="700" fill="${c}">${n}</text>`).join("")}</svg>`;
+      const tp = (s) => Math.round((s.reduce((a, v) => a + Math.min(v, BDP), 0) / (R * BDP)) * 100);
+      g("cc-tiles").innerHTML = S.map(([n, s]) => [n + " average throughput", tp(s) + "% of link"]).map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("cc-why").innerHTML = rl ? "With random loss, Reno and CUBIC halve (or cut) their window at every lost packet even though the link isn't full, so throughput suffers; BBR keeps sending at the measured bandwidth." : "Without random loss, Reno and CUBIC fill the buffer until it overflows (the sawtooth), adding queueing delay; BBR sends at about the link rate and keeps the buffer nearly empty.";
+    };
+    g("cc-loss").onchange = run; run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const ip2n = (s) => s.split(".").reduce((a, o) => a * 256 + (+o), 0), n2ip = (n) => [24, 16, 8, 0].map((sh) => Math.floor(n / 2 ** sh) % 256).join(".");
+    const run = () => {
+      const m = g("ci-in").value.trim().match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/), sp = +g("ci-s").value; g("ci-so").textContent = "/" + sp;
+      if (!m || m[1].split(".").some((o) => +o > 255) || +m[2] > 30) { g("ci-out").innerHTML = ""; g("ci-why").textContent = "Enter a network like 10.20.0.0/16."; return; }
+      const p = +m[2], size = 2 ** (32 - p), base = Math.floor(ip2n(m[1]) / size) * size;
+      if (sp <= p) { g("ci-out").innerHTML = ""; g("ci-why").innerHTML = `Pick a split prefix longer than /${p}.`; return; }
+      const sub = 2 ** (32 - sp), count = 2 ** (sp - p), show = Math.min(count, 8);
+      const priv = (base >= ip2n("10.0.0.0") && base < ip2n("11.0.0.0")) || (base >= ip2n("172.16.0.0") && base < ip2n("172.32.0.0")) || (base >= ip2n("192.168.0.0") && base < ip2n("192.169.0.0"));
+      g("ci-out").innerHTML = `<table><thead><tr><th>Subnet</th><th>Range</th><th>Addresses</th><th>Usable in AWS</th></tr></thead><tbody>${Array.from({ length: show }, (_, i) => { const b = base + i * sub; return `<tr><td><code>${n2ip(b)}/${sp}</code></td><td>${n2ip(b)} – ${n2ip(b + sub - 1)}</td><td>${sub.toLocaleString("en-US")}</td><td>${Math.max(0, sub - 5).toLocaleString("en-US")}</td></tr>`; }).join("")}${count > show ? `<tr><td colspan="4">… ${(count - show).toLocaleString("en-US")} more</td></tr>` : ""}</tbody></table>`;
+      g("ci-why").innerHTML = `<code>${n2ip(base)}/${p}</code> holds ${size.toLocaleString("en-US")} addresses (${n2ip(base)} – ${n2ip(base + size - 1)})${priv ? ", a private (RFC 1918) range" : ""}. Split into ${count.toLocaleString("en-US")} subnets of /${sp}. AWS reserves 5 addresses in every subnet; VPCs you'll ever connect (peering, VPN, transit) must not overlap.`;
+    };
+    g("ci-in").oninput = run; g("ci-s").oninput = run; run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id), LOADS = [0.5, 0.8, 0.95];
+    let heavy = 0;
+    function sim(alg, load, hv) { let s = 1; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      const N = 10, mean = 10, lam = (load * N) / mean, T = 20000, busy = Array(N).fill(0), q = Array.from({ length: N }, () => []); let t = 0, rr = 0; const lat = [];
+      const svc = () => (hv ? (r() < 0.05 ? mean * 10.5 : mean * 0.5) : -Math.log(1 - r()) * mean);
+      while (t < T) { t += -Math.log(1 - r()) / lam; for (let i = 0; i < N; i++) while (q[i].length && q[i][0] <= t) q[i].shift(); let k;
+        if (alg === 0) k = rr++ % N; else if (alg === 1) k = Math.floor(r() * N); else if (alg === 2) { k = 0; for (let i = 1; i < N; i++) if (q[i].length < q[k].length) k = i; } else { const a = Math.floor(r() * N), b = Math.floor(r() * N); k = q[a].length <= q[b].length ? a : b; }
+        const st = Math.max(t, busy[k]), end = st + svc(); busy[k] = end; q[k].push(end); lat.push(end - t); }
+      lat.sort((a, b) => a - b); return [lat.reduce((a, b) => a + b, 0) / lat.length, lat[Math.floor(lat.length * 0.99)]]; }
+    g("lb-w").innerHTML = ["Similar requests", "Mostly fast, 5% very slow"].map((l, i) => `<button type="button" aria-pressed="${i === heavy}">${l}</button>`).join("");
+    g("lb-w").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; heavy = [...g("lb-w").children].indexOf(b); [...g("lb-w").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === heavy))); run(); };
+    function run() {
+      const load = LOADS[+g("lb-u").value]; g("lb-uo").textContent = Math.round(load * 100) + "% busy";
+      const NAMES = ["Round robin", "Random", "Least connections", "Power of two choices"], res = NAMES.map((n, a) => [n, ...sim(a, load, heavy)]), mx = Math.max(...res.map((r) => r[2]));
+      g("lb-bars").innerHTML = `<div class="idx" style="margin:6px 0">p99 latency (bar) and average, in ms; each request needs 10 ms of work on average</div>` + res.map(([n, avg, p99]) => `<div style="display:grid;grid-template-columns:minmax(0,11em) minmax(40px,1fr) minmax(0,7.5em);gap:8px;align-items:center;margin:6px 0"><span style="font-size:.86rem">${n}</span><span style="height:14px;border-radius:7px;background:${p99 === Math.min(...res.map((r) => r[2])) ? "var(--accent)" : "var(--line)"};width:${(p99 / mx) * 100}%"></span><span class="idx" style="white-space:normal">p99 ${Math.round(p99)} · avg ${Math.round(avg)}</span></div>`).join("");
+      const [rr, , lc, p2] = res.map((r) => r[2]);
+      g("lb-why").innerHTML = `Least connections knows every queue and wins; power of two choices gets most of the benefit by looking at just two servers (p99 ${Math.round(p2)} vs ${Math.round(lc)} ms), while round robin, blind to how busy servers are, reaches ${Math.round(rr)} ms. ${load >= 0.9 ? "Near full load the gap explodes: queues form on unlucky servers." : "Raise the load to see the gap widen."}`;
+    }
+    g("lb-u").oninput = run; run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id), LIM = 10, WIN = 10;
+    const SC = [["Burst at a window boundary", () => [...Array.from({ length: 12 }, (_, i) => 9 + i * 0.08), ...Array.from({ length: 12 }, (_, i) => 10.05 + i * 0.08)]],
+      ["Steady at 1.5× the limit", () => Array.from({ length: 30 }, (_, i) => i * (WIN / (LIM * 1.5)))],
+      ["Quiet, then a burst of 25", () => Array.from({ length: 25 }, (_, i) => 12 + i * 0.05)]];
+    let sc = 0;
+    const algs = {
+      "Token bucket (10, refill 1/s)": (ts) => { let tok = LIM, last = 0; return ts.map((t) => { tok = Math.min(LIM, tok + (t - last) * (LIM / WIN)); last = t; if (tok >= 1) { tok--; return 1; } return 0; }); },
+      "Leaky bucket (queue 10, 1/s out)": (ts) => { let level = 0, last = 0; return ts.map((t) => { level = Math.max(0, level - (t - last) * (LIM / WIN)); last = t; if (level + 1 <= LIM) { level++; return 2; } return 0; }); },
+      "Fixed window (10 per 10 s)": (ts) => { const c = {}; return ts.map((t) => { const w = Math.floor(t / WIN); c[w] = (c[w] || 0) + 1; return c[w] <= LIM ? 1 : 0; }); },
+      "Sliding log": (ts) => { const ok = []; return ts.map((t) => { while (ok.length && ok[0] <= t - WIN) ok.shift(); if (ok.length < LIM) { ok.push(t); return 1; } return 0; }); },
+      "Sliding-window counter": (ts) => { const c = {}; return ts.map((t) => { const w = Math.floor(t / WIN), frac = (t - w * WIN) / WIN, est = (c[w - 1] || 0) * (1 - frac) + (c[w] || 0); if (est + 1 <= LIM + 1e-9) { c[w] = (c[w] || 0) + 1; return 1; } return 0; }); },
+    };
+    g("rl-s").innerHTML = SC.map((s, i) => `<button type="button" aria-pressed="${i === sc}">${s[0]}</button>`).join("");
+    g("rl-s").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; sc = [...g("rl-s").children].indexOf(b); [...g("rl-s").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === sc))); run(); };
+    const maxIn = (ts, ok) => { const a = ts.filter((_, i) => ok[i]); let m = 0; a.forEach((t, i) => { let n = 0; for (let j = i; j < a.length && a[j] < t + WIN; j++) n++; m = Math.max(m, n); }); return m; };
+    function run() {
+      const ts = SC[sc][1](), rows = Object.entries(algs).map(([n, f]) => [n, f(ts)]);
+      g("rl-out").innerHTML = `<table><thead><tr><th>Limiter</th><th>Each request (✓ allowed · q queued · ✗ rejected)</th><th>Allowed</th><th>Most in any 10 s</th></tr></thead><tbody>${rows.map(([n, d]) => `<tr><td>${n}</td><td style="font:.72rem var(--mono);letter-spacing:.5px;word-break:break-all">${d.map((x) => (x === 1 ? "✓" : x === 2 ? "q" : "✗")).join("")}</td><td>${d.filter(Boolean).length} of ${ts.length}</td><td>${maxIn(ts, d)}${maxIn(ts, d) > LIM ? " ⚠" : ""}</td></tr>`).join("")}</tbody></table>`;
+      const cnt = (n) => rows.find((r) => r[0].startsWith(n))[1].filter(Boolean).length;
+      g("rl-why").innerHTML = sc === 0 ? `The fixed window's counter resets at 10 s, so it lets ${cnt("Fixed")} requests through within about 2 seconds: twice the limit. Sliding log and the sliding-window counter allow exactly 10. The buckets allow their 10-request burst plus about 1 per second of refill, which is their design: a burst allowance plus an average rate.` : sc === 1 ? "Every limiter converges on about 1 request per second over time. The buckets start full, so they front-load an extra burst; the leaky bucket queues requests (adding delay) instead of rejecting them; the window limiters cap each 10 seconds." : "After a quiet period every limiter allows a burst of about 10, then throttles. The leaky bucket accepts the burst into its queue and releases it at a steady 1 per second, smoothing the load on the backend.";
+    }
+    run();
+  })();
 })();
 </script>
 </body>
