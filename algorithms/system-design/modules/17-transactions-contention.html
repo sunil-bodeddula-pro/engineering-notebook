@@ -618,6 +618,32 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tech h4 .idx { text-transform: none; letter-spacing: 0; font-weight: 500; }
 @media (max-width: 700px) { .tech { padding: 14px 14px 6px; } .tech-when { grid-template-columns: 1fr; } }
 
+/* System design "Under the hood" deep dives: collapsed, optional sections at the end of a module */
+.uth-lead { color: var(--ink-2); }
+details.uth { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); margin: 18px 0; }
+details.uth > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+details.uth > summary::-webkit-details-marker { display: none; }
+details.uth > summary .uth-t { display: grid; gap: 2px; }
+details.uth > summary .uth-t b { font: 700 1.05rem var(--serif, var(--sans)); }
+details.uth > summary .uth-t small { color: var(--ink-3); }
+details.uth > summary .uth-m { flex: none; font: 600 .74rem var(--sans); color: var(--accent); background: var(--surface-2); border-radius: 999px; padding: 4px 12px; }
+details.uth > summary .uth-m::after { content: " · open ▾"; }
+details.uth[open] > summary .uth-m::after { content: " · close ▴"; }
+details.uth[open] > summary { border-bottom: 1px solid var(--line); }
+details.uth > .uth-body { padding: 4px 20px 16px; }
+.uth-body > h3 { margin-top: 28px; }
+.uth-body .uth-src { font-size: .9rem; }
+.bpt { display: grid; gap: 12px; justify-items: center; margin: 8px 0; font: .82rem var(--mono); }
+.bpt .lv { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.bpt .nd { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.bpt .nd span { min-width: 2.4em; padding: 4px 6px; text-align: center; border-right: 1px solid var(--line); }
+.bpt .nd span:last-child { border-right: 0; }
+.bpt .nd span.e { color: var(--ink-3); opacity: .5; }
+.bpt .nd.split { border-color: var(--warm); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warm) 35%, transparent); }
+.bpt .nd span.new { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); font-weight: 700; }
+.bpt .nd span.up { background: color-mix(in srgb, var(--warm) 25%, var(--surface)); font-weight: 700; }
+@media (max-width: 700px) { details.uth > summary { padding: 14px; flex-wrap: wrap; } details.uth > .uth-body { padding: 4px 14px 14px; } }
+
 /* System design widgets: stacked time bars, legends, result tiles, verdicts */
 .sbar { display: flex; height: 28px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
 .sbar > i { display: block; height: 100%; min-width: 2px; transition: width .25s; }
@@ -2331,7 +2357,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 <nav class="sidenav" id="sidenav" aria-label="System design">
   <div class="sn-tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a></div>
   <a class="sn-title" href="../../system-design/index.html">System design</a>
-  <div class="sn-group"><div class="sn-h">Get started</div><a href="../../system-design/index.html">Overview</a><a href="../../system-design/start-here.html">Start here</a><a href="../../system-design/framework.html">Interview framework</a><a href="../../system-design/index.html#modules">Module map</a><a href="../../system-design/index.html#designs">Worked designs</a><a href="../../system-design/index.html#patterns">Patterns map</a><a href="../../system-design/index.html#roadmap">Study roadmap</a><a href="../../system-design/review.html">Review deck</a></div><details class="sn-group"><summary>Level 0 · Basics</summary><a href="../../system-design/modules/b1-what-a-system-is-made-of.html">B1 · What a system is made of</a><a href="../../system-design/modules/b2-inside-one-machine.html">B2 · Inside one machine</a><a href="../../system-design/modules/b3-networks-in-plain-terms.html">B3 · Networks in plain terms</a><a href="../../system-design/modules/b4-storing-data.html">B4 · Storing data</a><a href="../../system-design/modules/b5-data-structures-behind-systems.html">B5 · Data structures behind systems</a><a href="../../system-design/modules/b6-one-server-to-millions.html">B6 · From one server to millions</a></details><details class="sn-group"><summary>Level 1 · Foundations</summary><a href="../../system-design/modules/01-how-a-request-travels.html">01 · How a request travels</a><a href="../../system-design/modules/02-latency-throughput-numbers.html">02 · Latency, throughput, numbers</a><a href="../../system-design/modules/03-back-of-envelope-estimation.html">03 · Back-of-the-envelope estimation</a><a href="../../system-design/modules/04-availability-slos.html">04 · Availability and SLOs</a><a href="../../system-design/modules/05-the-design-method.html">05 · The design method</a></details><details class="sn-group"><summary>Level 2 · Building blocks</summary><a href="../../system-design/modules/06-networking-protocols.html">06 · Networking and protocols</a><a href="../../system-design/modules/07-api-design.html">07 · API design</a><a href="../../system-design/modules/08-load-balancing-scaling.html">08 · Load balancing and scaling out</a><a href="../../system-design/modules/09-caching.html">09 · Caching</a><a href="../../system-design/modules/10-blob-storage-cdn.html">10 · Blob storage and CDNs</a></details><details class="sn-group" open><summary>Level 3 · Data</summary><a href="../../system-design/modules/11-relational-data-modeling.html">11 · Relational data and modeling</a><a href="../../system-design/modules/12-indexes-storage-engines.html">12 · Indexes and storage engines</a><a href="../../system-design/modules/13-choosing-a-database.html">13 · Choosing a database</a><a href="../../system-design/modules/14-replication.html">14 · Replication</a><a href="../../system-design/modules/15-sharding-consistent-hashing.html">15 · Sharding and consistent hashing</a><a href="../../system-design/modules/16-consistency-cap.html">16 · Consistency, CAP and PACELC</a><a href="../../system-design/modules/17-transactions-contention.html" aria-current="page">17 · Transactions and contention</a></details><details class="sn-group"><summary>Level 4 · Distributed and async</summary><a href="../../system-design/modules/18-queues-streams.html">18 · Queues and event streams</a><a href="../../system-design/modules/19-real-time-updates.html">19 · Real-time updates</a><a href="../../system-design/modules/20-time-ordering-ids.html">20 · Time, ordering and IDs</a><a href="../../system-design/modules/21-consensus-coordination.html">21 · Consensus and coordination</a><a href="../../system-design/modules/22-workflows-sagas.html">22 · Workflows, sagas and outbox</a><a href="../../system-design/modules/23-batch-stream-processing.html">23 · Batch, stream and background jobs</a></details><details class="sn-group"><summary>Level 5 · Production and architecture</summary><a href="../../system-design/modules/24-reliability-patterns.html">24 · Reliability patterns</a><a href="../../system-design/modules/25-observability.html">25 · Observability</a><a href="../../system-design/modules/26-security.html">26 · Security</a><a href="../../system-design/modules/27-deployment-multi-region.html">27 · Deployment, multi-region, DR</a><a href="../../system-design/modules/28-architecture-styles.html">28 · Architecture styles</a><a href="../../system-design/modules/29-ai-systems.html">29 · Designing AI systems</a></details><details class="sn-group"><summary>Worked designs</summary><a href="../../system-design/designs/01-url-shortener.html">D01 · URL shortener</a><a href="../../system-design/designs/02-rate-limiter.html">D02 · Rate limiter</a><a href="../../system-design/designs/03-key-value-store.html">D03 · Distributed key-value store</a><a href="../../system-design/designs/04-distributed-cache.html">D04 · Distributed cache</a><a href="../../system-design/designs/05-notification-system.html">D05 · Notification system</a><a href="../../system-design/designs/06-news-feed.html">D06 · News feed</a><a href="../../system-design/designs/07-chat.html">D07 · Chat and messaging</a><a href="../../system-design/designs/08-news-aggregator.html">D08 · News aggregator</a><a href="../../system-design/designs/09-web-crawler.html">D09 · Web crawler</a><a href="../../system-design/designs/10-typeahead.html">D10 · Search typeahead</a><a href="../../system-design/designs/11-video-platform.html">D11 · Video platform</a><a href="../../system-design/designs/12-file-sync.html">D12 · File storage and sync</a><a href="../../system-design/designs/13-ride-hailing.html">D13 · Ride hailing</a><a href="../../system-design/designs/14-proximity-search.html">D14 · Nearby places</a><a href="../../system-design/designs/15-ticket-booking.html">D15 · Ticket booking</a><a href="../../system-design/designs/16-payments.html">D16 · Payment system</a><a href="../../system-design/designs/17-ad-click-aggregator.html">D17 · Ad click aggregator</a><a href="../../system-design/designs/18-metrics-monitoring.html">D18 · Metrics monitoring</a><a href="../../system-design/designs/19-collaborative-editor.html">D19 · Collaborative editor</a><a href="../../system-design/designs/20-top-k-leaderboard.html">D20 · Top-K and leaderboards</a><a href="../../system-design/designs/21-job-scheduler.html">D21 · Distributed job scheduler</a><a href="../../system-design/designs/22-live-comments.html">D22 · Live comments</a><a href="../../system-design/designs/23-llm-chat-platform.html">D23 · LLM chat platform</a><a href="../../system-design/designs/24-flash-sale.html">D24 · Flash-sale checkout</a><a href="../../system-design/designs/25-maps-navigation.html">D25 · Maps and navigation</a><a href="../../system-design/designs/26-search-engine.html">D26 · Web search engine</a><a href="../../system-design/designs/27-code-judge.html">D27 · Online code judge</a><a href="../../system-design/designs/28-deployment-system.html">D28 · Deployment system</a><a href="../../system-design/designs/29-qa-site.html">D29 · Q&amp;A site</a><a href="../../system-design/designs/30-data-platform.html">D30 · Data platform</a><a href="../../system-design/designs/31-ai-support-assistant.html">D31 · AI support assistant</a><a href="../../system-design/designs/32-ai-code-assistant.html">D32 · AI code assistant</a></details>
+  <div class="sn-group"><div class="sn-h">Get started</div><a href="../../system-design/index.html">Overview</a><a href="../../system-design/start-here.html">Start here</a><a href="../../system-design/framework.html">Interview framework</a><a href="../../system-design/index.html#modules">Module map</a><a href="../../system-design/index.html#designs">Worked designs</a><a href="../../system-design/index.html#patterns">Patterns map</a><a href="../../system-design/index.html#roadmap">Study roadmap</a><a href="../../system-design/review.html">Review deck</a><a href="../../system-design/modules/under-the-hood.html">Under the hood</a></div><details class="sn-group"><summary>Level 0 · Basics</summary><a href="../../system-design/modules/b1-what-a-system-is-made-of.html">B1 · What a system is made of</a><a href="../../system-design/modules/b2-inside-one-machine.html">B2 · Inside one machine</a><a href="../../system-design/modules/b3-networks-in-plain-terms.html">B3 · Networks in plain terms</a><a href="../../system-design/modules/b4-storing-data.html">B4 · Storing data</a><a href="../../system-design/modules/b5-data-structures-behind-systems.html">B5 · Data structures behind systems</a><a href="../../system-design/modules/b6-one-server-to-millions.html">B6 · From one server to millions</a></details><details class="sn-group"><summary>Level 1 · Foundations</summary><a href="../../system-design/modules/01-how-a-request-travels.html">01 · How a request travels</a><a href="../../system-design/modules/02-latency-throughput-numbers.html">02 · Latency, throughput, numbers</a><a href="../../system-design/modules/03-back-of-envelope-estimation.html">03 · Back-of-the-envelope estimation</a><a href="../../system-design/modules/04-availability-slos.html">04 · Availability and SLOs</a><a href="../../system-design/modules/05-the-design-method.html">05 · The design method</a></details><details class="sn-group"><summary>Level 2 · Building blocks</summary><a href="../../system-design/modules/06-networking-protocols.html">06 · Networking and protocols</a><a href="../../system-design/modules/07-api-design.html">07 · API design</a><a href="../../system-design/modules/08-load-balancing-scaling.html">08 · Load balancing and scaling out</a><a href="../../system-design/modules/09-caching.html">09 · Caching</a><a href="../../system-design/modules/10-blob-storage-cdn.html">10 · Blob storage and CDNs</a></details><details class="sn-group" open><summary>Level 3 · Data</summary><a href="../../system-design/modules/11-relational-data-modeling.html">11 · Relational data and modeling</a><a href="../../system-design/modules/12-indexes-storage-engines.html">12 · Indexes and storage engines</a><a href="../../system-design/modules/13-choosing-a-database.html">13 · Choosing a database</a><a href="../../system-design/modules/14-replication.html">14 · Replication</a><a href="../../system-design/modules/15-sharding-consistent-hashing.html">15 · Sharding and consistent hashing</a><a href="../../system-design/modules/16-consistency-cap.html">16 · Consistency, CAP and PACELC</a><a href="../../system-design/modules/17-transactions-contention.html" aria-current="page">17 · Transactions and contention</a></details><details class="sn-group"><summary>Level 4 · Distributed and async</summary><a href="../../system-design/modules/18-queues-streams.html">18 · Queues and event streams</a><a href="../../system-design/modules/19-real-time-updates.html">19 · Real-time updates</a><a href="../../system-design/modules/20-time-ordering-ids.html">20 · Time, ordering and IDs</a><a href="../../system-design/modules/21-consensus-coordination.html">21 · Consensus and coordination</a><a href="../../system-design/modules/22-workflows-sagas.html">22 · Workflows, sagas and outbox</a><a href="../../system-design/modules/23-batch-stream-processing.html">23 · Batch, stream and background jobs</a></details><details class="sn-group"><summary>Level 5 · Production and architecture</summary><a href="../../system-design/modules/24-reliability-patterns.html">24 · Reliability patterns</a><a href="../../system-design/modules/25-observability.html">25 · Observability</a><a href="../../system-design/modules/26-security.html">26 · Security</a><a href="../../system-design/modules/27-deployment-multi-region.html">27 · Deployment, multi-region, DR</a><a href="../../system-design/modules/28-architecture-styles.html">28 · Architecture styles</a><a href="../../system-design/modules/29-ai-systems.html">29 · Designing AI systems</a></details><details class="sn-group"><summary>Worked designs</summary><a href="../../system-design/designs/01-url-shortener.html">D01 · URL shortener</a><a href="../../system-design/designs/02-rate-limiter.html">D02 · Rate limiter</a><a href="../../system-design/designs/03-key-value-store.html">D03 · Distributed key-value store</a><a href="../../system-design/designs/04-distributed-cache.html">D04 · Distributed cache</a><a href="../../system-design/designs/05-notification-system.html">D05 · Notification system</a><a href="../../system-design/designs/06-news-feed.html">D06 · News feed</a><a href="../../system-design/designs/07-chat.html">D07 · Chat and messaging</a><a href="../../system-design/designs/08-news-aggregator.html">D08 · News aggregator</a><a href="../../system-design/designs/09-web-crawler.html">D09 · Web crawler</a><a href="../../system-design/designs/10-typeahead.html">D10 · Search typeahead</a><a href="../../system-design/designs/11-video-platform.html">D11 · Video platform</a><a href="../../system-design/designs/12-file-sync.html">D12 · File storage and sync</a><a href="../../system-design/designs/13-ride-hailing.html">D13 · Ride hailing</a><a href="../../system-design/designs/14-proximity-search.html">D14 · Nearby places</a><a href="../../system-design/designs/15-ticket-booking.html">D15 · Ticket booking</a><a href="../../system-design/designs/16-payments.html">D16 · Payment system</a><a href="../../system-design/designs/17-ad-click-aggregator.html">D17 · Ad click aggregator</a><a href="../../system-design/designs/18-metrics-monitoring.html">D18 · Metrics monitoring</a><a href="../../system-design/designs/19-collaborative-editor.html">D19 · Collaborative editor</a><a href="../../system-design/designs/20-top-k-leaderboard.html">D20 · Top-K and leaderboards</a><a href="../../system-design/designs/21-job-scheduler.html">D21 · Distributed job scheduler</a><a href="../../system-design/designs/22-live-comments.html">D22 · Live comments</a><a href="../../system-design/designs/23-llm-chat-platform.html">D23 · LLM chat platform</a><a href="../../system-design/designs/24-flash-sale.html">D24 · Flash-sale checkout</a><a href="../../system-design/designs/25-maps-navigation.html">D25 · Maps and navigation</a><a href="../../system-design/designs/26-search-engine.html">D26 · Web search engine</a><a href="../../system-design/designs/27-code-judge.html">D27 · Online code judge</a><a href="../../system-design/designs/28-deployment-system.html">D28 · Deployment system</a><a href="../../system-design/designs/29-qa-site.html">D29 · Q&amp;A site</a><a href="../../system-design/designs/30-data-platform.html">D30 · Data platform</a><a href="../../system-design/designs/31-ai-support-assistant.html">D31 · AI support assistant</a><a href="../../system-design/designs/32-ai-code-assistant.html">D32 · AI code assistant</a></details>
 </nav>
 <div class="sn-scrim" aria-hidden="true"></div>
 <!-- site-chrome:end -->
@@ -2349,6 +2375,7 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2642,6 +2669,128 @@ svg.flow .fn { transition: opacity .35s ease; }
         <tr><td><a href="https://jepsen.io/analyses" target="_blank" rel="noopener">Jepsen analyses</a></td><td>browse</td><td>Real databases tested against their isolation claims, and where they fell short.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How databases really isolate and commit transactions, and why the same level name means different things. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-transactions-and-isolation">
+      <summary><span class="uth-t"><b>Transactions and isolation</b><small>Isolation levels product by product, 2PL vs MVCC vs SSI vs OCC, where old versions live, WAL and recovery, 2PC and Percolator</small></span><span class="uth-m">about 40 min</span></summary>
+      <div class="uth-body">
+        <p>"Repeatable read" means something different in PostgreSQL, MySQL and Oracle, and "serializable" in Oracle isn't serializable at all. This deep dive shows what each level really prevents, how databases implement it (locks, versions, validation), where old row versions are kept, how a commit survives a crash, and how a transaction spans several machines.</p>
+
+        <h3 id="u17-lab">Three races, three isolation levels</h3>
+        <p>Pick a race and a PostgreSQL isolation level to see what two concurrent transactions do. Each row of the timeline is one moment; T1 and T2 run at the same time.</p>
+        <div class="card widget" id="iso-lab">
+          <div class="ctl"><span class="seg" id="iso-race"></span></div>
+          <div class="ctl"><span class="seg" id="iso-lvl"></span></div>
+          <div class="no-gl" id="iso-out"></div>
+          <div class="verdict no-gl" id="iso-why"></div>
+        </div>
+        <p>Two lessons: <strong>snapshot isolation is not serializable</strong> (write skew and "check, then insert" phantoms slip through), and <strong>stronger levels work by aborting</strong> one transaction, so the application must retry on serialization errors. Constraints (unique, exclusion, foreign keys) protect specific rules at any level.</p>
+
+        <h3 id="u17-names">What the names really mean</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Default</th><th>Its "repeatable read"</th><th>Its "serializable"</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td>Read committed</td><td>Snapshot isolation; also blocks phantoms; aborts on a concurrent update of the same row</td><td>Serializable snapshot isolation (SSI): truly serializable, by aborting</td></tr>
+            <tr><td>MySQL InnoDB</td><td>Repeatable read</td><td>Plain SELECTs read a snapshot, but locking reads and UPDATEs see the latest committed rows and take next-key locks</td><td>Two-phase locking: plain SELECTs become shared-lock reads (when autocommit is off)</td></tr>
+            <tr><td>Oracle</td><td>Read committed</td><td>(Not offered)</td><td>Actually snapshot isolation: write skew is possible</td></tr>
+            <tr><td>SQL Server</td><td>Read committed with locks (row versioning with RCSI; on by default in Azure SQL Database)</td><td>Locks held until commit; phantoms possible</td><td>Range locks (two-phase locking); SNAPSHOT is a separate level</td></tr>
+            <tr><td>CockroachDB</td><td>Serializable</td><td>Read committed also available</td><td>Serializable, with automatic retries where it can</td></tr>
+            <tr><td>Spanner</td><td>Serializable</td><td></td><td>External consistency: serializable and in real-time order (TrueTime, Module 20)</td></tr>
+          </tbody>
+        </table>
+        <p>PostgreSQL accepts "read uncommitted" but treats it as read committed: dirty reads can't happen there at all.</p>
+
+        <h3 id="u17-how">How isolation is implemented</h3>
+        <table>
+          <thead><tr><th>Technique</th><th>How</th><th>Cost</th><th>Used by</th></tr></thead>
+          <tbody>
+            <tr><td>Two-phase locking (2PL)</td><td>Take shared locks to read and exclusive locks to write; hold them until commit. Range or next-key locks cover rows that don't exist yet (phantoms).</td><td>Readers and writers block each other; deadlocks happen, so the database detects them and aborts one; many row locks may be escalated to a table lock</td><td>SQL Server (default), InnoDB serializable and locking reads, Db2</td></tr>
+            <tr><td>MVCC + snapshot isolation</td><td>Each transaction reads a snapshot as of its start; writers create new versions. Two writers to the same row: the first wins, the second aborts or waits.</td><td>Readers never block writers; old versions must be cleaned up; write skew allowed</td><td>PostgreSQL, Oracle, InnoDB, MongoDB, SQL Server SNAPSHOT</td></tr>
+            <tr><td>Serializable snapshot isolation (SSI)</td><td>Snapshot isolation plus tracking of read-write dependencies (PostgreSQL's non-blocking SIRead locks); a "dangerous structure" of two dependencies in a cycle aborts one transaction</td><td>Some false-positive aborts; memory for tracking</td><td>PostgreSQL serializable, CockroachDB (with its own variant)</td></tr>
+            <tr><td>Optimistic concurrency control (OCC)</td><td>Run without locks, then validate at commit that nothing read has changed; abort if it has</td><td>Wasted work under contention; great when conflicts are rare</td><td>FoundationDB (resolvers check conflicts at commit), many in-memory engines; application-level version columns</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u17-mvcc">Where old versions live</h3>
+        <div id="viz-u17-mvcc"></div>
+        <ul>
+          <li><strong>PostgreSQL:</strong> every version is a full row in the table, stamped with the transaction that created it (<code>xmin</code>) and the one that deleted or replaced it (<code>xmax</code>). <strong>VACUUM</strong> later reclaims versions no snapshot can still see. A transaction left open for hours holds back cleanup for the whole database, so tables and indexes bloat. Transaction IDs are 32-bit, so VACUUM must also "freeze" old rows to prevent wraparound.</li>
+          <li><strong>InnoDB:</strong> the row is updated in place and the previous values go to the <strong>undo log</strong>. A reader with an older snapshot rebuilds the version it needs by walking the undo chain; a purge thread discards undo nobody needs. Long transactions make the history list (and reads that walk it) grow.</li>
+          <li><strong>Oracle:</strong> undo segments, versioned by system change number (SCN); a long query can fail with "snapshot too old" once the undo it needs is overwritten.</li>
+          <li><strong>SQL Server:</strong> versions go to a version store (in tempdb, or in the database with accelerated database recovery) only when snapshot-based isolation is turned on.</li>
+        </ul>
+
+        <h3 id="u17-wal">Durability: the log, group commit and recovery</h3>
+        <ul>
+          <li><strong>Write-ahead logging:</strong> before a changed page is written, the log record describing the change must be on disk. Commit means "the commit record is durable in the log"; the data pages are written later by checkpoints.</li>
+          <li><strong>Group commit:</strong> an fsync costs tens of microseconds to milliseconds, so the database flushes the log for many transactions at once, which is how it reaches thousands of commits a second.</li>
+          <li><strong>Recovery (ARIES, 1992, the basis of most engines):</strong> after a crash, <em>analysis</em> finds what was in flight, <em>redo</em> replays the log from the last checkpoint to repeat history, and <em>undo</em> rolls back transactions that never committed. Checkpoints bound how much log must be replayed, and therefore recovery time.</li>
+        </ul>
+        <table>
+          <thead><tr><th>Setting</th><th>Safe default</th><th>Faster, riskier</th><th>What you can lose</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL <code>synchronous_commit</code></td><td><code>on</code></td><td><code>off</code></td><td>The last few hundred milliseconds of commits on a crash (no corruption)</td></tr>
+            <tr><td>MySQL <code>innodb_flush_log_at_trx_commit</code></td><td><code>1</code> (flush every commit)</td><td><code>2</code> or <code>0</code> (flush about once a second)</td><td>About a second of commits (with 2: only if the operating system or machine crashes)</td></tr>
+            <tr><td>MySQL <code>sync_binlog</code></td><td><code>1</code></td><td><code>0</code></td><td>Binary log events, so replicas can diverge</td></tr>
+            <tr><td>MongoDB write concern</td><td><code>w: "majority"</code> (journaled)</td><td><code>w: 1</code></td><td>Writes acknowledged by a primary that fails before replicating</td></tr>
+            <tr><td>Redis <code>appendfsync</code></td><td><code>everysec</code></td><td><code>no</code></td><td>About a second (or more) of writes</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u17-dist">Transactions across machines</h3>
+        <div id="sc-u17-2pc"></div>
+        <ul>
+          <li><strong>Two-phase commit (2PC):</strong> the coordinator asks every participant to <em>prepare</em> (make the change durable and promise to commit); if all say yes, it tells them to commit. The weakness: a participant that has prepared can't decide alone, so if the coordinator dies it stays <em>in doubt</em>, holding locks, until the coordinator returns. XA is the standard API for it.</li>
+          <li><strong>Making 2PC survivable:</strong> replicate the coordinator and every participant with consensus. Spanner runs 2PC across Paxos groups (plus commit wait); CockroachDB's <em>parallel commits</em> write the intents and a "staging" transaction record together, so a commit needs one round of consensus instead of two.</li>
+          <li><strong>Percolator</strong> (Google, 2010): transactions on top of Bigtable, with a timestamp oracle and one "primary" lock per transaction that decides its fate; other locks point at it. TiDB/TiKV use this model.</li>
+          <li><strong>Avoid it when you can:</strong> across services, use sagas and the outbox pattern (Module 22) rather than distributed transactions.</li>
+        </ul>
+
+        <h3 id="u17-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Old versions</th><th>Transactions</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td>In the table (xmin/xmax)</td><td>Read committed default; RR = snapshot; serializable = SSI</td><td>VACUUM and long transactions decide bloat</td></tr>
+            <tr><td>MySQL InnoDB</td><td>Undo log</td><td>Repeatable read default; next-key locks for locking reads</td><td>Gap locks can block inserts into ranges and cause deadlocks</td></tr>
+            <tr><td>Oracle</td><td>Undo segments (SCN)</td><td>Read committed default; "serializable" = snapshot</td><td>"Snapshot too old" on long queries</td></tr>
+            <tr><td>SQL Server</td><td>Version store, when enabled</td><td>Locking read committed; RCSI and SNAPSHOT optional</td><td>Turning on RCSI stops readers blocking writers</td></tr>
+            <tr><td>MongoDB</td><td>WiredTiger keeps versions in memory</td><td>Single-document writes are atomic; multi-document transactions since 4.0, across shards since 4.2</td><td>60-second default limit; design documents so most writes touch one</td></tr>
+            <tr><td>CockroachDB</td><td>MVCC with hybrid-logical-clock timestamps</td><td>Serializable default; read committed available</td><td>Clock uncertainty can force a read to restart</td></tr>
+            <tr><td>Spanner</td><td>MVCC with TrueTime timestamps</td><td>Externally consistent</td><td>Commit wait of a few milliseconds</td></tr>
+            <tr><td>DynamoDB</td><td>Not exposed</td><td>Conditional writes per item; transactions of up to 100 items</td><td>Transactions cost twice the capacity of plain writes</td></tr>
+            <tr><td>FoundationDB</td><td>A short MVCC window</td><td>Serializable, optimistic</td><td>Transactions are limited to about 5 seconds</td></tr>
+            <tr><td>Redis</td><td>None</td><td>MULTI/EXEC runs commands in a batch without interleaving; WATCH adds an optimistic check; Lua scripts are atomic</td><td>No rollback: a failing command inside EXEC doesn't undo the others</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u17-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"Is repeatable read enough to stop double booking?"</strong> Not if the check is "no overlapping booking exists" and two transactions insert different rows: that's a phantom that snapshot isolation allows. Use an exclusion or unique constraint, lock a parent row, or run serializable and retry.</li>
+          <li><strong>"Why is our PostgreSQL table bloated?"</strong> Long-running or idle-in-transaction sessions keep old versions alive, so VACUUM can't reclaim them. Find them, set timeouts, then let VACUUM catch up.</li>
+          <li><strong>"Why not a distributed transaction across the order and payment services?"</strong> 2PC blocks when the coordinator fails and couples availability of both services; a saga with an outbox and idempotent steps is the usual answer.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Write skew">
+            <p>Two doctors both check that two are on call, and each takes themselves off. Under snapshot isolation both commit. What is this anomaly called?</p>
+            <div class="opts"><button>Dirty read</button><button>Write skew</button><button>Lost update</button></div>
+            <div class="why">Each wrote a different row based on a read the other invalidated. SSI or an explicit lock prevents it.</div>
+          </div>
+          <div class="quiz-q" data-answer="In the undo log; readers rebuild old versions from it">
+            <p>Where does InnoDB keep the old version of a row a long-running reader still needs?</p>
+            <div class="opts"><button>In the table, as a separate row</button><button>In the undo log; readers rebuild old versions from it</button><button>It doesn't: the reader sees the new value</button></div>
+            <div class="why">PostgreSQL keeps versions in the table; InnoDB updates in place and keeps the past in undo.</div>
+          </div>
+          <div class="quiz-q" data-answer="It stays in doubt, holding its locks, until the coordinator recovers">
+            <p>In two-phase commit, a participant has voted yes and the coordinator crashes. What happens to the participant?</p>
+            <div class="opts"><button>It commits after a timeout</button><button>It rolls back after a timeout</button><button>It stays in doubt, holding its locks, until the coordinator recovers</button></div>
+            <div class="why">Having promised to commit, it can't decide alone. That blocking is why 2PC coordinators are replicated with consensus.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://www.postgresql.org/docs/current/transaction-iso.html" target="_blank" rel="noopener">PostgreSQL: transaction isolation</a></li><li><a href="https://www.postgresql.org/docs/current/routine-vacuuming.html" target="_blank" rel="noopener">PostgreSQL: routine vacuuming</a></li><li><a href="https://www.postgresql.org/docs/current/wal-intro.html" target="_blank" rel="noopener">PostgreSQL: write-ahead logging</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html" target="_blank" rel="noopener">MySQL 8.4: isolation levels</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-multi-versioning.html" target="_blank" rel="noopener">MySQL 8.4: InnoDB multi-versioning</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html" target="_blank" rel="noopener">MySQL 8.4: InnoDB startup options and variables</a></li><li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql" target="_blank" rel="noopener">SQL Server: SET TRANSACTION ISOLATION LEVEL</a></li><li><a href="https://docs.cockroachlabs.com/docs/stable/read-committed" target="_blank" rel="noopener">CockroachDB: read committed</a></li><li><a href="https://www.cockroachlabs.com/docs/stable/architecture/transaction-layer" target="_blank" rel="noopener">CockroachDB: transaction layer</a></li><li><a href="https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/" target="_blank" rel="noopener">Percolator paper (Google, 2010)</a></li><li><a href="https://arxiv.org/abs/1208.4179" target="_blank" rel="noopener">Serializable Snapshot Isolation in PostgreSQL (Ports and Grittner, 2012)</a></li><li><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transactions.html" target="_blank" rel="noopener">DynamoDB: transactions</a></li><li><a href="https://www.mongodb.com/docs/manual/core/transactions-production-consideration/" target="_blank" rel="noopener">MongoDB: transactions in production</a></li><li><a href="https://apple.github.io/foundationdb/known-limitations.html" target="_blank" rel="noopener">FoundationDB: known limitations</a></li><li><a href="https://redis.io/docs/latest/develop/interact/transactions/" target="_blank" rel="noopener">Redis: transactions</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="16-consistency-cap.html"><small>Previous module</small>← 16 · Consistency, CAP and PACELC</a>
       <a class="next" href="18-queues-streams.html"><small>Next module</small>18 · Queues and event streams →</a>
@@ -2764,6 +2913,56 @@ svg.flow .fn { transition: opacity .35s ease; }
         note: "B's condition no longer holds (the high bid is now $95), so zero rows change. Not an error: a signal to re-read." },
       { hl: { b: "found", db: "found" }, moves: [{ e: "b>db", t: "read: $95", k: "ok", back: true }, { e: "b>db", t: "$100 if high = $95", k: "req", delay: 1.0 }, { e: "b>db", t: "1 row ✓", k: "ok", back: true, delay: 2.1 }], pops: [{ n: "db", t: "high bid only rises: no ABA", k: "ok", at: 2.6 }], hold: 4.2,
         note: "B re-reads and retries. The high bid only goes up, so it can safely act as the version: no ABA problem." },
+    ],
+  });
+  /* ---------- Under the hood: transactions ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const RACES = ["Lost update (counter)", "Write skew (on-call doctors)", "Phantom (double booking)"];
+    const LVLS = ["Read committed", "Repeatable read (snapshot)", "Serializable (SSI)"];
+    let race = 1, lvl = 1;
+    const T = {
+      0: { steps: [["BEGIN; SELECT n FROM likes WHERE id=1 → 10", ""], ["", "BEGIN; SELECT n FROM likes WHERE id=1 → 10"], ["UPDATE likes SET n = 11 WHERE id=1", ""], ["COMMIT", ""], ["", "UPDATE likes SET n = 11 WHERE id=1"], ["", "COMMIT"]],
+        out: [["ok", "Both commit; n = 11. One like was lost: each wrote 10 + 1 from its own read."], ["abort", "T2's UPDATE fails: <code>could not serialize access due to concurrent update</code>. Retry it and n becomes 12."], ["abort", "T2 fails with a serialization error, as under repeatable read. Retry and n = 12."]],
+        fix: "At any level, write <code>SET n = n + 1</code> so the database reads and writes the row in one step, or use SELECT … FOR UPDATE." },
+      1: { steps: [["BEGIN; SELECT count(*) FROM doctors WHERE on_call → 2", ""], ["", "BEGIN; SELECT count(*) FROM doctors WHERE on_call → 2"], ["UPDATE doctors SET on_call = false WHERE name = 'Ana'", ""], ["", "UPDATE doctors SET on_call = false WHERE name = 'Ben'"], ["COMMIT", ""], ["", "COMMIT"]],
+        out: [["ok", "Both commit. Nobody is on call: each saw two doctors and removed only itself."], ["ok", "Both still commit: they updated <em>different</em> rows, so snapshot isolation sees no conflict. This is write skew."], ["abort", "T2's COMMIT fails: <code>could not serialize access due to read/write dependencies among transactions</code>. Retry it, and it sees only one doctor left."]],
+        fix: "Below serializable: lock the rows you read with SELECT … FOR UPDATE, or keep the rule in a single row (an on-call counter) that both must update." },
+      2: { steps: [["BEGIN; SELECT * FROM bookings WHERE room = 4 AND slot = '10:00' → none", ""], ["", "BEGIN; SELECT * FROM bookings WHERE room = 4 AND slot = '10:00' → none"], ["INSERT INTO bookings VALUES (4, '10:00', 'Ana')", ""], ["", "INSERT INTO bookings VALUES (4, '10:00', 'Ben')"], ["COMMIT", ""], ["", "COMMIT"]],
+        out: [["ok", "Both commit: room 4 is double-booked."], ["ok", "Both commit too. Each inserted a new row the other's snapshot couldn't see, so there's no write conflict."], ["abort", "One COMMIT fails with a serialization error; the retry finds Ana's booking and stops."]],
+        fix: "At any level: a unique constraint on (room, slot), or an exclusion constraint for overlapping time ranges, makes the second insert fail." },
+    };
+    const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === get()))); run(); }; };
+    seg("iso-race", RACES, () => race, (v) => (race = v));
+    seg("iso-lvl", LVLS, () => lvl, (v) => (lvl = v));
+    function run() {
+      const t = T[race], [kind, msg] = t.out[lvl];
+      const failAt = kind === "abort" ? (race === 0 ? 4 : 5) : -1;
+      g("iso-out").innerHTML = `<table><thead><tr><th>#</th><th>T1</th><th>T2</th></tr></thead><tbody>${t.steps.map(([a, b], i) => `<tr><td>${i + 1}</td><td>${a ? `<code>${a}</code>` : ""}</td><td>${b ? `<code>${b}</code>${i === failAt ? ' <b style="color:var(--red)">✗ error</b>' : ""}` : ""}</td></tr>`).join("")}</tbody></table>`;
+      g("iso-why").innerHTML = `<b>${LVLS[lvl]}:</b> ${msg} ${t.fix}`;
+      g("iso-why").className = "verdict no-gl" + (kind === "ok" ? " bad" : "");
+    }
+    run();
+  })();
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Version</th><th>balance</th><th>xmin (created by)</th><th>xmax (ended by)</th><th>Visible to</th></tr></thead><tbody>${rows.map((r) => `<tr${r[5] ? ' style="opacity:.45;text-decoration:line-through"' : ""}><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center;font-family:var(--sans)">${cap}</div></div>`;
+    Viz.stepper("#viz-u17-mvcc", { title: "One PostgreSQL row, several versions", sub: "Each UPDATE writes a new version; VACUUM removes the ones nobody can see.", speed: 3200, frames: [
+      { view: R([["v1", "100", "tx 500", "", "everyone"]], "One version, created by transaction 500."), note: "A row version records which transaction created it (xmin)." },
+      { view: R([["v1", "100", "tx 500", "tx 610", "snapshots older than tx 610"], ["v2", "80", "tx 610", "", "new snapshots"]], "UPDATE by tx 610: v1 is ended, v2 is written elsewhere in the table."), note: "Nothing is overwritten. Old snapshots still read v1; new ones read v2." },
+      { view: R([["v1", "100", "tx 500", "tx 610", "a report started at tx 605 (still running)"], ["v2", "80", "tx 610", "tx 640", "snapshots before tx 640"], ["v3", "95", "tx 640", "", "new snapshots"]], "Another UPDATE. A long report started before tx 610 is still open."), note: "While that report runs, VACUUM must keep v1: some snapshot can still see it. This is how long transactions cause bloat." },
+      { view: R([["v1", "100", "tx 500", "tx 610", "nobody", true], ["v2", "80", "tx 610", "tx 640", "nobody", true], ["v3", "95", "tx 640", "", "everyone"]], "The report finishes; VACUUM marks v1 and v2 as free space."), note: "Once no snapshot needs them, dead versions are reclaimed and the space is reused for new rows." },
+    ] });
+  })();
+  Viz.scene("#sc-u17-2pc", {
+    title: "Two-phase commit, and where it gets stuck", sub: "<b>Blue</b> = coordinator messages, <b>green</b> = votes, <b>red</b> = failure.",
+    nodes: [{ id: "co", x: 90, y: 140, w: 130, label: "Coordinator" }, { id: "a", x: 430, y: 60, w: 150, label: "Orders DB" }, { id: "b", x: 430, y: 220, w: 150, label: "Payments DB" }],
+    edges: [["co", "a"], ["co", "b"]],
+    width: 560, height: 280,
+    steps: [
+      { hl: { co: "active", a: "active", b: "active" }, moves: [{ e: "co>a", t: "PREPARE", k: "req" }, { e: "co>b", t: "PREPARE", k: "req" }], hold: 2.8, note: "Phase 1: each participant writes its changes and a prepare record durably, and keeps its locks." },
+      { hl: { co: "active", a: "found", b: "found" }, moves: [{ e: "co>a", t: "YES", k: "ok", back: true }, { e: "co>b", t: "YES", k: "ok", back: true }], hold: 2.8, note: "Both vote yes. From now on neither may decide alone: they promised to commit if told to." },
+      { hl: { co: "bad", a: "warm", b: "warm" }, pops: [{ n: "co", t: "crash before sending COMMIT", k: "bad", at: 0.3 }, { n: "a", t: "in doubt: locks held", k: "bad", at: 1.2 }, { n: "b", t: "in doubt: locks held", k: "bad", at: 1.4 }], hold: 3.6, note: "If the coordinator dies now, both participants are stuck in doubt, holding locks, until it comes back." },
+      { hl: { co: "found", a: "found", b: "found" }, moves: [{ e: "co>a", t: "COMMIT", k: "req" }, { e: "co>b", t: "COMMIT", k: "req" }], pops: [{ n: "co", t: "recovered from its log", k: "ok", at: 0.2 }], hold: 3.2, note: "Phase 2 finishes when the coordinator recovers. Systems like Spanner replicate the coordinator with consensus so this wait is short." },
     ],
   });
 })();

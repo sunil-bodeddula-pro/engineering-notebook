@@ -618,6 +618,32 @@ svg.flow .fn { transition: opacity .35s ease; }
 .tech h4 .idx { text-transform: none; letter-spacing: 0; font-weight: 500; }
 @media (max-width: 700px) { .tech { padding: 14px 14px 6px; } .tech-when { grid-template-columns: 1fr; } }
 
+/* System design "Under the hood" deep dives: collapsed, optional sections at the end of a module */
+.uth-lead { color: var(--ink-2); }
+details.uth { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); margin: 18px 0; }
+details.uth > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+details.uth > summary::-webkit-details-marker { display: none; }
+details.uth > summary .uth-t { display: grid; gap: 2px; }
+details.uth > summary .uth-t b { font: 700 1.05rem var(--serif, var(--sans)); }
+details.uth > summary .uth-t small { color: var(--ink-3); }
+details.uth > summary .uth-m { flex: none; font: 600 .74rem var(--sans); color: var(--accent); background: var(--surface-2); border-radius: 999px; padding: 4px 12px; }
+details.uth > summary .uth-m::after { content: " · open ▾"; }
+details.uth[open] > summary .uth-m::after { content: " · close ▴"; }
+details.uth[open] > summary { border-bottom: 1px solid var(--line); }
+details.uth > .uth-body { padding: 4px 20px 16px; }
+.uth-body > h3 { margin-top: 28px; }
+.uth-body .uth-src { font-size: .9rem; }
+.bpt { display: grid; gap: 12px; justify-items: center; margin: 8px 0; font: .82rem var(--mono); }
+.bpt .lv { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.bpt .nd { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.bpt .nd span { min-width: 2.4em; padding: 4px 6px; text-align: center; border-right: 1px solid var(--line); }
+.bpt .nd span:last-child { border-right: 0; }
+.bpt .nd span.e { color: var(--ink-3); opacity: .5; }
+.bpt .nd.split { border-color: var(--warm); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warm) 35%, transparent); }
+.bpt .nd span.new { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); font-weight: 700; }
+.bpt .nd span.up { background: color-mix(in srgb, var(--warm) 25%, var(--surface)); font-weight: 700; }
+@media (max-width: 700px) { details.uth > summary { padding: 14px; flex-wrap: wrap; } details.uth > .uth-body { padding: 4px 14px 14px; } }
+
 /* System design widgets: stacked time bars, legends, result tiles, verdicts */
 .sbar { display: flex; height: 28px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
 .sbar > i { display: block; height: 100%; min-width: 2px; transition: width .25s; }
@@ -2338,7 +2364,7 @@ svg.flow .fn { transition: opacity .35s ease; }
 <nav class="sidenav" id="sidenav" aria-label="System design">
   <div class="sn-tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a></div>
   <a class="sn-title" href="../../system-design/index.html">System design</a>
-  <div class="sn-group"><div class="sn-h">Get started</div><a href="../../system-design/index.html">Overview</a><a href="../../system-design/start-here.html">Start here</a><a href="../../system-design/framework.html">Interview framework</a><a href="../../system-design/index.html#modules">Module map</a><a href="../../system-design/index.html#designs">Worked designs</a><a href="../../system-design/index.html#patterns">Patterns map</a><a href="../../system-design/index.html#roadmap">Study roadmap</a><a href="../../system-design/review.html">Review deck</a></div><details class="sn-group"><summary>Level 0 · Basics</summary><a href="../../system-design/modules/b1-what-a-system-is-made-of.html">B1 · What a system is made of</a><a href="../../system-design/modules/b2-inside-one-machine.html">B2 · Inside one machine</a><a href="../../system-design/modules/b3-networks-in-plain-terms.html">B3 · Networks in plain terms</a><a href="../../system-design/modules/b4-storing-data.html">B4 · Storing data</a><a href="../../system-design/modules/b5-data-structures-behind-systems.html">B5 · Data structures behind systems</a><a href="../../system-design/modules/b6-one-server-to-millions.html">B6 · From one server to millions</a></details><details class="sn-group"><summary>Level 1 · Foundations</summary><a href="../../system-design/modules/01-how-a-request-travels.html">01 · How a request travels</a><a href="../../system-design/modules/02-latency-throughput-numbers.html">02 · Latency, throughput, numbers</a><a href="../../system-design/modules/03-back-of-envelope-estimation.html">03 · Back-of-the-envelope estimation</a><a href="../../system-design/modules/04-availability-slos.html">04 · Availability and SLOs</a><a href="../../system-design/modules/05-the-design-method.html">05 · The design method</a></details><details class="sn-group"><summary>Level 2 · Building blocks</summary><a href="../../system-design/modules/06-networking-protocols.html">06 · Networking and protocols</a><a href="../../system-design/modules/07-api-design.html">07 · API design</a><a href="../../system-design/modules/08-load-balancing-scaling.html">08 · Load balancing and scaling out</a><a href="../../system-design/modules/09-caching.html">09 · Caching</a><a href="../../system-design/modules/10-blob-storage-cdn.html">10 · Blob storage and CDNs</a></details><details class="sn-group" open><summary>Level 3 · Data</summary><a href="../../system-design/modules/11-relational-data-modeling.html">11 · Relational data and modeling</a><a href="../../system-design/modules/12-indexes-storage-engines.html" aria-current="page">12 · Indexes and storage engines</a><a href="../../system-design/modules/13-choosing-a-database.html">13 · Choosing a database</a><a href="../../system-design/modules/14-replication.html">14 · Replication</a><a href="../../system-design/modules/15-sharding-consistent-hashing.html">15 · Sharding and consistent hashing</a><a href="../../system-design/modules/16-consistency-cap.html">16 · Consistency, CAP and PACELC</a><a href="../../system-design/modules/17-transactions-contention.html">17 · Transactions and contention</a></details><details class="sn-group"><summary>Level 4 · Distributed and async</summary><a href="../../system-design/modules/18-queues-streams.html">18 · Queues and event streams</a><a href="../../system-design/modules/19-real-time-updates.html">19 · Real-time updates</a><a href="../../system-design/modules/20-time-ordering-ids.html">20 · Time, ordering and IDs</a><a href="../../system-design/modules/21-consensus-coordination.html">21 · Consensus and coordination</a><a href="../../system-design/modules/22-workflows-sagas.html">22 · Workflows, sagas and outbox</a><a href="../../system-design/modules/23-batch-stream-processing.html">23 · Batch, stream and background jobs</a></details><details class="sn-group"><summary>Level 5 · Production and architecture</summary><a href="../../system-design/modules/24-reliability-patterns.html">24 · Reliability patterns</a><a href="../../system-design/modules/25-observability.html">25 · Observability</a><a href="../../system-design/modules/26-security.html">26 · Security</a><a href="../../system-design/modules/27-deployment-multi-region.html">27 · Deployment, multi-region, DR</a><a href="../../system-design/modules/28-architecture-styles.html">28 · Architecture styles</a><a href="../../system-design/modules/29-ai-systems.html">29 · Designing AI systems</a></details><details class="sn-group"><summary>Worked designs</summary><a href="../../system-design/designs/01-url-shortener.html">D01 · URL shortener</a><a href="../../system-design/designs/02-rate-limiter.html">D02 · Rate limiter</a><a href="../../system-design/designs/03-key-value-store.html">D03 · Distributed key-value store</a><a href="../../system-design/designs/04-distributed-cache.html">D04 · Distributed cache</a><a href="../../system-design/designs/05-notification-system.html">D05 · Notification system</a><a href="../../system-design/designs/06-news-feed.html">D06 · News feed</a><a href="../../system-design/designs/07-chat.html">D07 · Chat and messaging</a><a href="../../system-design/designs/08-news-aggregator.html">D08 · News aggregator</a><a href="../../system-design/designs/09-web-crawler.html">D09 · Web crawler</a><a href="../../system-design/designs/10-typeahead.html">D10 · Search typeahead</a><a href="../../system-design/designs/11-video-platform.html">D11 · Video platform</a><a href="../../system-design/designs/12-file-sync.html">D12 · File storage and sync</a><a href="../../system-design/designs/13-ride-hailing.html">D13 · Ride hailing</a><a href="../../system-design/designs/14-proximity-search.html">D14 · Nearby places</a><a href="../../system-design/designs/15-ticket-booking.html">D15 · Ticket booking</a><a href="../../system-design/designs/16-payments.html">D16 · Payment system</a><a href="../../system-design/designs/17-ad-click-aggregator.html">D17 · Ad click aggregator</a><a href="../../system-design/designs/18-metrics-monitoring.html">D18 · Metrics monitoring</a><a href="../../system-design/designs/19-collaborative-editor.html">D19 · Collaborative editor</a><a href="../../system-design/designs/20-top-k-leaderboard.html">D20 · Top-K and leaderboards</a><a href="../../system-design/designs/21-job-scheduler.html">D21 · Distributed job scheduler</a><a href="../../system-design/designs/22-live-comments.html">D22 · Live comments</a><a href="../../system-design/designs/23-llm-chat-platform.html">D23 · LLM chat platform</a><a href="../../system-design/designs/24-flash-sale.html">D24 · Flash-sale checkout</a><a href="../../system-design/designs/25-maps-navigation.html">D25 · Maps and navigation</a><a href="../../system-design/designs/26-search-engine.html">D26 · Web search engine</a><a href="../../system-design/designs/27-code-judge.html">D27 · Online code judge</a><a href="../../system-design/designs/28-deployment-system.html">D28 · Deployment system</a><a href="../../system-design/designs/29-qa-site.html">D29 · Q&amp;A site</a><a href="../../system-design/designs/30-data-platform.html">D30 · Data platform</a><a href="../../system-design/designs/31-ai-support-assistant.html">D31 · AI support assistant</a><a href="../../system-design/designs/32-ai-code-assistant.html">D32 · AI code assistant</a></details>
+  <div class="sn-group"><div class="sn-h">Get started</div><a href="../../system-design/index.html">Overview</a><a href="../../system-design/start-here.html">Start here</a><a href="../../system-design/framework.html">Interview framework</a><a href="../../system-design/index.html#modules">Module map</a><a href="../../system-design/index.html#designs">Worked designs</a><a href="../../system-design/index.html#patterns">Patterns map</a><a href="../../system-design/index.html#roadmap">Study roadmap</a><a href="../../system-design/review.html">Review deck</a><a href="../../system-design/modules/under-the-hood.html">Under the hood</a></div><details class="sn-group"><summary>Level 0 · Basics</summary><a href="../../system-design/modules/b1-what-a-system-is-made-of.html">B1 · What a system is made of</a><a href="../../system-design/modules/b2-inside-one-machine.html">B2 · Inside one machine</a><a href="../../system-design/modules/b3-networks-in-plain-terms.html">B3 · Networks in plain terms</a><a href="../../system-design/modules/b4-storing-data.html">B4 · Storing data</a><a href="../../system-design/modules/b5-data-structures-behind-systems.html">B5 · Data structures behind systems</a><a href="../../system-design/modules/b6-one-server-to-millions.html">B6 · From one server to millions</a></details><details class="sn-group"><summary>Level 1 · Foundations</summary><a href="../../system-design/modules/01-how-a-request-travels.html">01 · How a request travels</a><a href="../../system-design/modules/02-latency-throughput-numbers.html">02 · Latency, throughput, numbers</a><a href="../../system-design/modules/03-back-of-envelope-estimation.html">03 · Back-of-the-envelope estimation</a><a href="../../system-design/modules/04-availability-slos.html">04 · Availability and SLOs</a><a href="../../system-design/modules/05-the-design-method.html">05 · The design method</a></details><details class="sn-group"><summary>Level 2 · Building blocks</summary><a href="../../system-design/modules/06-networking-protocols.html">06 · Networking and protocols</a><a href="../../system-design/modules/07-api-design.html">07 · API design</a><a href="../../system-design/modules/08-load-balancing-scaling.html">08 · Load balancing and scaling out</a><a href="../../system-design/modules/09-caching.html">09 · Caching</a><a href="../../system-design/modules/10-blob-storage-cdn.html">10 · Blob storage and CDNs</a></details><details class="sn-group" open><summary>Level 3 · Data</summary><a href="../../system-design/modules/11-relational-data-modeling.html">11 · Relational data and modeling</a><a href="../../system-design/modules/12-indexes-storage-engines.html" aria-current="page">12 · Indexes and storage engines</a><a href="../../system-design/modules/13-choosing-a-database.html">13 · Choosing a database</a><a href="../../system-design/modules/14-replication.html">14 · Replication</a><a href="../../system-design/modules/15-sharding-consistent-hashing.html">15 · Sharding and consistent hashing</a><a href="../../system-design/modules/16-consistency-cap.html">16 · Consistency, CAP and PACELC</a><a href="../../system-design/modules/17-transactions-contention.html">17 · Transactions and contention</a></details><details class="sn-group"><summary>Level 4 · Distributed and async</summary><a href="../../system-design/modules/18-queues-streams.html">18 · Queues and event streams</a><a href="../../system-design/modules/19-real-time-updates.html">19 · Real-time updates</a><a href="../../system-design/modules/20-time-ordering-ids.html">20 · Time, ordering and IDs</a><a href="../../system-design/modules/21-consensus-coordination.html">21 · Consensus and coordination</a><a href="../../system-design/modules/22-workflows-sagas.html">22 · Workflows, sagas and outbox</a><a href="../../system-design/modules/23-batch-stream-processing.html">23 · Batch, stream and background jobs</a></details><details class="sn-group"><summary>Level 5 · Production and architecture</summary><a href="../../system-design/modules/24-reliability-patterns.html">24 · Reliability patterns</a><a href="../../system-design/modules/25-observability.html">25 · Observability</a><a href="../../system-design/modules/26-security.html">26 · Security</a><a href="../../system-design/modules/27-deployment-multi-region.html">27 · Deployment, multi-region, DR</a><a href="../../system-design/modules/28-architecture-styles.html">28 · Architecture styles</a><a href="../../system-design/modules/29-ai-systems.html">29 · Designing AI systems</a></details><details class="sn-group"><summary>Worked designs</summary><a href="../../system-design/designs/01-url-shortener.html">D01 · URL shortener</a><a href="../../system-design/designs/02-rate-limiter.html">D02 · Rate limiter</a><a href="../../system-design/designs/03-key-value-store.html">D03 · Distributed key-value store</a><a href="../../system-design/designs/04-distributed-cache.html">D04 · Distributed cache</a><a href="../../system-design/designs/05-notification-system.html">D05 · Notification system</a><a href="../../system-design/designs/06-news-feed.html">D06 · News feed</a><a href="../../system-design/designs/07-chat.html">D07 · Chat and messaging</a><a href="../../system-design/designs/08-news-aggregator.html">D08 · News aggregator</a><a href="../../system-design/designs/09-web-crawler.html">D09 · Web crawler</a><a href="../../system-design/designs/10-typeahead.html">D10 · Search typeahead</a><a href="../../system-design/designs/11-video-platform.html">D11 · Video platform</a><a href="../../system-design/designs/12-file-sync.html">D12 · File storage and sync</a><a href="../../system-design/designs/13-ride-hailing.html">D13 · Ride hailing</a><a href="../../system-design/designs/14-proximity-search.html">D14 · Nearby places</a><a href="../../system-design/designs/15-ticket-booking.html">D15 · Ticket booking</a><a href="../../system-design/designs/16-payments.html">D16 · Payment system</a><a href="../../system-design/designs/17-ad-click-aggregator.html">D17 · Ad click aggregator</a><a href="../../system-design/designs/18-metrics-monitoring.html">D18 · Metrics monitoring</a><a href="../../system-design/designs/19-collaborative-editor.html">D19 · Collaborative editor</a><a href="../../system-design/designs/20-top-k-leaderboard.html">D20 · Top-K and leaderboards</a><a href="../../system-design/designs/21-job-scheduler.html">D21 · Distributed job scheduler</a><a href="../../system-design/designs/22-live-comments.html">D22 · Live comments</a><a href="../../system-design/designs/23-llm-chat-platform.html">D23 · LLM chat platform</a><a href="../../system-design/designs/24-flash-sale.html">D24 · Flash-sale checkout</a><a href="../../system-design/designs/25-maps-navigation.html">D25 · Maps and navigation</a><a href="../../system-design/designs/26-search-engine.html">D26 · Web search engine</a><a href="../../system-design/designs/27-code-judge.html">D27 · Online code judge</a><a href="../../system-design/designs/28-deployment-system.html">D28 · Deployment system</a><a href="../../system-design/designs/29-qa-site.html">D29 · Q&amp;A site</a><a href="../../system-design/designs/30-data-platform.html">D30 · Data platform</a><a href="../../system-design/designs/31-ai-support-assistant.html">D31 · AI support assistant</a><a href="../../system-design/designs/32-ai-code-assistant.html">D32 · AI code assistant</a></details>
 </nav>
 <div class="sn-scrim" aria-hidden="true"></div>
 <!-- site-chrome:end -->
@@ -2356,6 +2382,7 @@ svg.flow .fn { transition: opacity .35s ease; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2678,6 +2705,143 @@ svg.flow .fn { transition: opacity .35s ease; }
         <tr><td><a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Overview" target="_blank" rel="noopener">RocksDB overview</a></td><td>30 min</td><td>How a production LSM engine handles memtables, compaction and Bloom filters.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How each database really stores rows and indexes, and why it matters for performance. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-indexes-and-storage-engines">
+      <summary><span class="uth-t"><b>Indexes and storage engines</b><small>B-link trees, clustered vs heap tables, hash growth, LSM compaction, special indexes, 15 products compared</small></span><span class="uth-m">about 40 min</span></summary>
+      <div class="uth-body">
+        <p>Every database answers the same question ("where is the row with this key?"), and each answers it with a different structure. The differences explain most of their behaviour: why InnoDB secondary lookups cost two tree walks, why PostgreSQL updates can touch every index, why Cassandra writes are cheap and its reads aren't, why Redis never pauses to resize.</p>
+
+        <h3 id="u12-btree">B-tree, B+tree and B-link tree</h3>
+        <p>A database B-tree is built from <strong>pages</strong> (8 KB in PostgreSQL, 16 KB in InnoDB by default). Each page holds as many sorted keys as fit, so a node has hundreds of children (its <strong>fan-out</strong>), and four levels reach billions of rows.</p>
+        <ul>
+          <li><strong>B-tree</strong> (1970s): keys and their data live in every node.</li>
+          <li><strong>B+tree:</strong> internal nodes hold only separator keys; all keys and row data (or pointers) live in the <strong>leaves</strong>, which are linked to their neighbours. More keys fit per internal page (higher fan-out), and a range scan walks along the leaves. Almost every database "B-tree" is really a B+tree.</li>
+          <li><strong>B-link tree</strong> (Lehman and Yao, 1981): each page also stores a <em>high key</em> and a pointer to its right sibling. A reader that arrives at a page just after it split can follow the right-link to find keys that moved, so readers hold almost no locks. PostgreSQL's B-tree implements this design.</li>
+        </ul>
+        <p><strong>Splits:</strong> when a full leaf gets another key it splits in two, and a separator key is copied up into the parent; if the parent is full it splits too, and a root split adds a level. <strong>Fill factor</strong> is how full pages are left. Try it: a B+tree with room for 3 keys per page.</p>
+        <div class="card widget" id="bpt-lab">
+          <div class="ctl"><span class="seg" id="bp-seq"></span></div>
+          <div class="ctl"><span class="seg" id="bp-rule"></span></div>
+          <div class="ctl"><button class="btn primary" type="button" id="bp-one">Insert next key</button><button class="btn" type="button" id="bp-ten">Insert 10</button><button class="btn" type="button" id="bp-reset">Reset</button></div>
+          <div class="no-gl" id="bp-tree"></div>
+          <div class="tiles no-gl" id="bp-tiles"></div>
+          <div class="verdict no-gl" id="bp-why"></div>
+        </div>
+        <p>Real engines avoid the half-empty pages that sequential keys would cause: PostgreSQL fills leaves to its fillfactor (90% by default) when adding at the right edge, and InnoDB leaves about 1/16 of each page free, so sequential inserts give pages about 15/16 full while random inserts leave them between 1/2 and 15/16 full. PostgreSQL also <strong>deduplicates</strong> repeated keys in B-tree leaves (since version 13), and version 18 added <strong>skip scan</strong>, which can use a multicolumn index even when the query omits its leading column.</p>
+
+        <h3 id="u12-where">Where the row lives: clustered tables vs heaps</h3>
+        <div id="sc-u12-two"></div>
+        <table>
+          <thead><tr><th></th><th>Clustered (index-organised)</th><th>Heap + indexes</th></tr></thead>
+          <tbody>
+            <tr><td>Who</td><td>MySQL InnoDB, SQL Server (with a clustered index), SQLite, Oracle IOTs, MongoDB clustered collections</td><td>PostgreSQL, Oracle (default), SQL Server heaps</td></tr>
+            <tr><td>Table data</td><td>Lives in the leaves of the primary-key B+tree</td><td>Unordered pages; each row has a physical address (in PostgreSQL a tuple ID: page, slot)</td></tr>
+            <tr><td>Secondary index stores</td><td>The primary key</td><td>The physical address</td></tr>
+            <tr><td>Secondary lookup</td><td>Two tree walks: secondary, then primary</td><td>One tree walk, then one heap page</td></tr>
+            <tr><td>Range by primary key</td><td>Excellent: neighbouring rows share pages</td><td>Rows scattered unless the table is clustered occasionally</td></tr>
+            <tr><td>Update cost</td><td>Secondaries untouched unless their columns change</td><td>PostgreSQL writes a new row version at a new address, so every index needs a new entry, unless it's a <strong>HOT</strong> update (no indexed column changed and the page has room)</td></tr>
+            <tr><td>Design consequence</td><td>Keep the primary key short and increasing; it's copied into every secondary</td><td>Leave free space (fillfactor) on hot tables so HOT updates fit; watch index bloat</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Covering indexes</strong> avoid the second step entirely: if the index holds every column the query needs (InnoDB secondaries carry the primary key for free; PostgreSQL has <code>INCLUDE</code> columns), the answer comes from the index alone. PostgreSQL's index-only scans also need the page to be marked all-visible in its visibility map, which VACUUM maintains.</p>
+
+        <h3 id="u12-hash">Hash indexes and incremental rehashing</h3>
+        <p>A hash index maps a key straight to a bucket: one step for equality, nothing for ranges or ordering. The hard part is growing it without stopping.</p>
+        <ul>
+          <li><strong>Static hashing</strong> picks a bucket count up front; buckets overflow into chains as data grows.</li>
+          <li><strong>Extendible hashing</strong> keeps a directory indexed by the first bits of the hash; a full bucket splits on one more bit, doubling only the directory.</li>
+          <li><strong>Linear hashing</strong> splits buckets one at a time in a fixed order, so growth is smooth. PostgreSQL's hash index grows a bucket at a time in a similar way.</li>
+          <li><strong>Incremental rehashing</strong> (Redis): when the table gets too full, Redis allocates a table twice the size and moves one bucket at a time, during normal commands and in a background timer, so no single command pays for the whole resize.</li>
+        </ul>
+        <div id="viz-u12-rehash"></div>
+        <p>Where you meet hash indexes: Redis and Memcached (the whole store), the MySQL MEMORY engine (its default index), PostgreSQL's hash index type, SQL Server's in-memory tables, and hash joins inside every query engine. InnoDB's <em>adaptive</em> hash index, built automatically over hot B-tree pages, has been off by default since MySQL 8.4 because it caused contention under load.</p>
+
+        <h3 id="u12-lsm">LSM trees: append now, sort later</h3>
+        <div id="sc-u12-lsm"></div>
+        <ul>
+          <li><strong>Write path:</strong> append to the write-ahead log (for crash safety), insert into the in-memory <strong>memtable</strong> (a sorted structure, often a skip list), and acknowledge. When the memtable fills, it's written out as an immutable, sorted <strong>SSTable</strong> file. No page is ever updated in place.</li>
+          <li><strong>Read path:</strong> check the memtable, then SSTables from newest to oldest. Each SSTable has a <strong>Bloom filter</strong> that rules out files without the key, and a sparse index to find the right block in the ones that might.</li>
+          <li><strong>Deletes</strong> are writes too: a <strong>tombstone</strong> hides older values until compaction removes both. Lots of deletes (queues stored in Cassandra are the classic) mean reads wading through tombstones.</li>
+          <li><strong>Compaction</strong> merges SSTables, keeping only the newest version of each key. <em>Leveled</em> (LevelDB, RocksDB's default, Cassandra LCS) keeps each level's files non-overlapping: fewer files per read, more rewriting. <em>Tiered / size-tiered</em> (Cassandra STCS, RocksDB universal) merges similar-sized files: less rewriting, more files to check, more temporary space. Cassandra 5.0 adds a Unified Compaction Strategy that can behave like either; <em>time-window</em> compaction suits time-series data that expires.</li>
+        </ul>
+        <table>
+          <thead><tr><th>Rough comparison</th><th>Write amplification</th><th>Read amplification</th><th>Space amplification</th></tr></thead>
+          <tbody>
+            <tr><td>B+tree</td><td>Medium to high: changing a 100-byte row rewrites an 8–16 KB page (plus the log)</td><td>Low: one path, top levels cached</td><td>Medium: pages are partly empty after splits</td></tr>
+            <tr><td>LSM, leveled</td><td>High: data is rewritten once per level as it moves down</td><td>Low to medium: about one file per level, with Bloom filters</td><td>Low: about 10% extra</td></tr>
+            <tr><td>LSM, tiered</td><td>Low</td><td>Higher: several overlapping files per tier</td><td>High: up to about 2× during a big merge</td></tr>
+          </tbody>
+        </table>
+        <p>Amplification is the ratio of work done to work asked for (bytes written to disk per byte written by the user, and so on). You can't minimise all three at once: this is the core trade-off in storage-engine design.</p>
+
+        <h3 id="u12-special">Special-purpose indexes</h3>
+        <table>
+          <thead><tr><th>Index</th><th>The idea</th><th>Where you'll see it</th></tr></thead>
+          <tbody>
+            <tr><td>Bitmap</td><td>One bit array per distinct value; AND/OR of conditions is fast bit arithmetic</td><td>Oracle bitmap indexes, analytics engines; PostgreSQL builds bitmaps on the fly to combine indexes (bitmap scans)</td></tr>
+            <tr><td>Inverted (GIN)</td><td>Each word or element → the list of rows containing it</td><td>Lucene, PostgreSQL GIN (full text, arrays, JSONB), InnoDB FULLTEXT</td></tr>
+            <tr><td>GiST / SP-GiST</td><td>Generalised trees for overlapping shapes and ranges / for space-partitioning (quadtrees, k-d trees, tries)</td><td>PostGIS, range types, nearest-neighbour queries in PostgreSQL</td></tr>
+            <tr><td>BRIN</td><td>Just the min and max per block range: tiny, but only useful when values follow physical order</td><td>Huge append-only tables ordered by time (PostgreSQL)</td></tr>
+            <tr><td>Sparse index</td><td>One entry per block, not per row</td><td>ClickHouse's primary index (one entry per 8,192-row granule), SSTable index summaries</td></tr>
+            <tr><td>R-tree</td><td>Nested bounding boxes</td><td>InnoDB spatial indexes, SQLite R*Tree</td></tr>
+            <tr><td>Radix tree / ART</td><td>A trie over key bytes with node sizes that adapt to how many children exist</td><td>DuckDB's index, in-memory databases, Redis streams (its "rax")</td></tr>
+            <tr><td>Bw-tree</td><td>A latch-free B-tree: changes are delta records, pages found through a mapping table</td><td>SQL Server in-memory OLTP range indexes</td></tr>
+            <tr><td>Copy-on-write B-tree</td><td>Never overwrite a page; each commit writes new pages up to a new root</td><td>LMDB, Btrfs</td></tr>
+            <tr><td>Vector (HNSW, IVF)</td><td>Approximate nearest neighbours (Module 29)</td><td>pgvector, Lucene, dedicated vector databases</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u12-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Table data stored as</th><th>Secondary and special indexes</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td>Heap: rows in insertion order</td><td>B-tree (Lehman–Yao B-link), hash, GiST, SP-GiST, GIN, BRIN; extensions add more (pgvector, bloom)</td><td>Indexes point at tuple IDs; HOT updates skip index writes when no indexed column changes</td></tr>
+            <tr><td>MySQL InnoDB</td><td>Clustered B+tree on the primary key</td><td>B+tree secondaries holding the primary key; FULLTEXT; R-tree spatial; adaptive hash index (off by default since 8.4)</td><td>Secondary lookups walk two trees: keep primary keys short, use covering indexes</td></tr>
+            <tr><td>MySQL MEMORY</td><td>Rows in memory</td><td>Hash by default, B-tree optional</td><td>Hash: equality only</td></tr>
+            <tr><td>SQLite</td><td>B+tree keyed by rowid; WITHOUT ROWID tables cluster by primary key</td><td>B-tree indexes</td><td>One writer at a time; WAL mode lets readers continue during a write</td></tr>
+            <tr><td>SQL Server</td><td>Clustered B+tree, or a heap</td><td>Non-clustered B+trees, columnstore; in-memory tables use hash and Bw-tree indexes</td><td>Columnstore gives one table an analytics layout</td></tr>
+            <tr><td>Oracle</td><td>Heap by default; index-organised tables optional</td><td>B-tree, bitmap, function-based, reverse-key</td><td>Bitmap indexes suit analytics, not busy OLTP tables</td></tr>
+            <tr><td>MongoDB (WiredTiger)</td><td>B-tree keyed by an internal record ID (clustered collections optional)</td><td>Compound, multikey (arrays), hashed, text, 2dsphere, wildcard, TTL</td><td>Order compound index fields by the ESR rule: equality, sort, range</td></tr>
+            <tr><td>Cassandra / ScyllaDB</td><td>LSM: commit log, memtable, SSTables sorted by partition and clustering key</td><td>Per-SSTable Bloom filter and partition index; storage-attached indexes (SAI) for secondaries</td><td>Compaction strategy sets the read/write/space trade-off</td></tr>
+            <tr><td>RocksDB / LevelDB</td><td>LSM, leveled by default (RocksDB also universal)</td><td>Bloom or ribbon filters, prefix filters</td><td>The engine inside MyRocks, TiKV and Kafka Streams state stores; CockroachDB uses Pebble, modelled on it</td></tr>
+            <tr><td>Bigtable / HBase</td><td>LSM, sorted by row key, split into tablets or regions</td><td>None built in</td><td>The row key is the schema; sequential keys create hot spots</td></tr>
+            <tr><td>DynamoDB</td><td>Items hashed by partition key; ordered by sort key within one</td><td>Local secondary indexes (same partition) and global secondary indexes (a separate table updated asynchronously)</td><td>Every query names a partition key; anything else is a full scan</td></tr>
+            <tr><td>Redis</td><td>In-memory hash table, rehashed incrementally</td><td>None; sorted sets are a skip list plus a hash table; small collections use compact listpacks</td><td>Build secondary indexes yourself with sorted sets, or use the query engine</td></tr>
+            <tr><td>Lucene (Elasticsearch, OpenSearch, Solr)</td><td>Immutable segments, merged in the background</td><td>Inverted index with an FST term dictionary; doc values for sorting; BKD trees for numbers and geo; HNSW for vectors</td><td>Segment merges are LSM compaction by another name</td></tr>
+            <tr><td>ClickHouse</td><td>MergeTree: sorted column files in parts</td><td>Sparse primary index (8,192-row granules), data-skipping indexes</td><td>Built to skip blocks, not to find single rows</td></tr>
+            <tr><td>Neo4j</td><td>Native graph store; Enterprise's block format (default since 5.22) keeps a node's data and relationships together</td><td>Range, text, point and full-text indexes to find start nodes</td><td>Index-free adjacency: traversals follow stored pointers, not indexes</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u12-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"Why is a UUIDv4 primary key slow in MySQL?"</strong> InnoDB clusters the table by primary key, so random keys insert into random pages: more splits, half-empty pages, and a working set the size of the whole table. Every secondary index also stores that 16-byte key.</li>
+          <li><strong>"Why are Cassandra writes fast?"</strong> They're an append to the commit log plus a memtable insert; sorting and merging happen later in compaction. Reads pay for it, which Bloom filters and compaction strategy keep in check.</li>
+          <li><strong>"Why do PostgreSQL updates bloat indexes?"</strong> An update writes a new row version elsewhere, so each index gets a new entry unless it's a HOT update; old versions wait for VACUUM.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="InnoDB secondaries store the primary key; PostgreSQL indexes store the row's physical address">
+            <p>Why can a secondary-index lookup cost two tree walks in InnoDB but one in PostgreSQL?</p>
+            <div class="opts"><button>PostgreSQL caches more pages</button><button>InnoDB secondaries store the primary key; PostgreSQL indexes store the row's physical address</button><button>InnoDB indexes are hash-based</button></div>
+            <div class="why">InnoDB then looks the primary key up in the clustered tree; PostgreSQL goes straight to the heap page.</div>
+          </div>
+          <div class="quiz-q" data-answer="Leveled">
+            <p>Which LSM compaction style gives the fewest files to check per read, at the cost of rewriting data more often?</p>
+            <div class="opts"><button>Leveled</button><button>Size-tiered</button><button>None: all are equal</button></div>
+            <div class="why">Leveled keeps files in each level non-overlapping, so a read checks about one per level.</div>
+          </div>
+          <div class="quiz-q" data-answer="Most of them stay about half full">
+            <p>A naive B+tree that always splits pages in half receives keys in increasing order. What happens to its leaf pages?</p>
+            <div class="opts"><button>They're all full</button><button>Most of them stay about half full</button><button>They never split</button></div>
+            <div class="why">Each left half is never written again. Real engines detect the rightmost insert and fill pages first.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://www.postgresql.org/docs/current/btree.html" target="_blank" rel="noopener">PostgreSQL: B-tree indexes</a></li><li><a href="https://www.postgresql.org/docs/current/indexes-types.html" target="_blank" rel="noopener">PostgreSQL: index types</a></li><li><a href="https://www.postgresql.org/docs/current/storage-hot.html" target="_blank" rel="noopener">PostgreSQL: heap-only tuples (HOT)</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html" target="_blank" rel="noopener">MySQL 8.4: clustered and secondary indexes</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-physical-structure.html" target="_blank" rel="noopener">MySQL 8.4: physical structure of an InnoDB index</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-adaptive-hash.html" target="_blank" rel="noopener">MySQL 8.4: adaptive hash index</a></li><li><a href="https://www.sqlite.org/fileformat2.html" target="_blank" rel="noopener">SQLite file format</a></li><li><a href="https://github.com/facebook/rocksdb/wiki/Compaction" target="_blank" rel="noopener">RocksDB: compaction</a></li><li><a href="https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html" target="_blank" rel="noopener">Cassandra: storage engine</a></li><li><a href="https://clickhouse.com/docs/guides/best-practices/sparse-primary-indexes" target="_blank" rel="noopener">ClickHouse: sparse primary indexes</a></li><li><a href="https://github.com/redis/redis/blob/unstable/src/dict.c" target="_blank" rel="noopener">Redis: dict.c (incremental rehashing)</a></li><li><a href="https://neo4j.com/docs/operations-manual/current/database-internals/store-formats/" target="_blank" rel="noopener">Neo4j: store formats</a></li><li><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/SecondaryIndexes.html" target="_blank" rel="noopener">DynamoDB: secondary indexes</a></li><li><a href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/" target="_blank" rel="noopener">MongoDB: the ESR guideline</a></li><li><a href="https://duckdb.org/docs/stable/sql/indexes" target="_blank" rel="noopener">DuckDB: indexes</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="11-relational-data-modeling.html"><small>Previous module</small>← 11 · Relational data and modeling</a>
       <a class="next" href="13-choosing-a-database.html"><small>Next module</small>13 · Choosing a database →</a>
@@ -2819,6 +2983,103 @@ svg.flow .fn { transition: opacity .35s ease; }
         note: "The coordinator merges the candidates and re-ranks the best few hundred with richer signals (freshness, popularity, a model), then returns 10." },
     ],
   });
+  /* ---------- Under the hood: indexes and storage engines ---------- */
+  Viz.scene("#sc-u12-two", {
+    title: "Finding a user by email: InnoDB vs PostgreSQL", sub: "<b>Top</b>: clustered table (InnoDB). <b>Bottom</b>: heap (PostgreSQL).",
+    nodes: [{ id: "q", x: 80, y: 135, w: 120, label: "WHERE email = …" },
+      { id: "sec", x: 290, y: 55, w: 160, label: "Secondary index", sub: "email → primary key" }, { id: "pk", x: 510, y: 55, w: 160, label: "Clustered B+tree", sub: "id → whole row" },
+      { id: "pix", x: 290, y: 215, w: 160, label: "Index on email", sub: "email → (page, slot)" }, { id: "heap", x: 510, y: 215, w: 160, label: "Heap page 17", sub: "the row" }],
+    edges: [["q", "sec"], ["sec", "pk"], ["q", "pix"], ["pix", "heap"]],
+    width: 620, height: 270,
+    steps: [
+      { hl: { q: "active", sec: "found" }, moves: [{ e: "q>sec", t: "walk 3 levels", k: "req" }], pops: [{ n: "sec", t: "id = 42", k: "ok", at: 1.1 }], hold: 3, note: "InnoDB: the secondary index leaf holds the primary key, not the row." },
+      { hl: { sec: "active", pk: "found" }, moves: [{ e: "sec>pk", t: "look up id 42: 3 more levels", k: "req" }], pops: [{ n: "pk", t: "row", k: "ok", at: 1.1 }], hold: 3, note: "Then a second walk down the clustered tree, where the rows live. Short primary keys keep both trees small." },
+      { hl: { q: "active", pix: "found" }, moves: [{ e: "q>pix", t: "walk 3 levels", k: "req" }], pops: [{ n: "pix", t: "TID (17, 3)", k: "ok", at: 1.1 }], hold: 3, note: "PostgreSQL: the index leaf holds the row's physical address: page 17, slot 3." },
+      { hl: { pix: "active", heap: "found" }, moves: [{ e: "pix>heap", t: "read 1 page", k: "ok" }], hold: 3, note: "One more page read and it's done." },
+      { hl: { pix: "warm", heap: "warm", sec: "found", pk: "found" }, pops: [{ n: "heap", t: "update → new version, new address", k: "evt", at: 0.3 }, { n: "pix", t: "new entry in every index", k: "bad", at: 1.3 }], hold: 3.6, note: "The flip side: a PostgreSQL update writes a new row version at a new address, so indexes need new entries, unless it's a HOT update. InnoDB updates in place and leaves secondaries alone." },
+    ],
+  });
+  (function () {
+    const B = (lbl, keys, cls) => `<span class="nd ${cls || ""}" title="${lbl}"><span class="e">${lbl.split(" ")[1]}</span>${keys.length ? keys.map((k) => `<span class="${k[1] || ""}">${k[0]}</span>`).join("") : '<span class="e">·</span>'}</span>`;
+    const row = (title, buckets) => `<div><div class="idx" style="margin:4px 0">${title}</div><div class="lv">${buckets.join("")}</div></div>`;
+    const V = (o, n, cap, swap) => `<div class="bpt">${row(swap ? "Table (8 buckets)" : "Old table: 4 buckets (the bucket being moved is outlined)", o)}${n ? row("New table: 8 buckets", n) : ""}<div class="idx" style="white-space:normal;text-align:center;font-family:var(--sans)">${cap}</div></div>`;
+    const O = (b0, b1, b2, b3, at) => [b0, b1, b2, b3].map((b, i) => B("old " + i, b, i === at ? "split" : ""));
+    const N = (...bs) => bs.map((b, i) => B("new " + i, b));
+    const E = [];
+    Viz.stepper("#viz-u12-rehash", { title: "Redis growing its hash table without a pause", sub: "Keys a–f; each command moves one old bucket.", speed: 3000, frames: [
+      { view: V(O([["d"]], [["a"], ["c"]], [["b"]], [["e"]]), null, "5 keys in 4 buckets: load factor above 1, so a resize starts."), note: "The table is too full. Rehashing everything at once could stall Redis for a long time on a big table." },
+      { view: V(O(E, [["a"], ["c"]], [["b"]], [["e"]], 1), N(E, E, E, E, [["d", "new"]], E, E, E), "A command arrives: bucket 0 moves (d → new bucket 4)."), note: "Redis allocates a table twice the size and moves one bucket per command (and a little more in a background timer)." },
+      { view: V(O(E, E, [["b"]], [["e"]], 2), N(E, [["c", "new"]], E, E, [["d"]], [["a", "new"]], E, E), "Next command: bucket 1 moves (a → 5, c → 1)."), note: "While both tables exist, a lookup checks the old table, then the new one." },
+      { view: V(O(E, E, E, [["e"]], 3), N(E, [["c"]], [["b", "new"]], [["f", "up"]], [["d"]], [["a"]], E, E), "SET f goes straight to the new table; bucket 2 moves (b → 2)."), note: "New keys always go into the new table, so the old one only shrinks." },
+      { view: V(N(E, [["c"]], [["b"]], [["f"]], [["d"]], [["a"]], E, [["e", "new"]]), null, "Bucket 3 moves (e → 7). The old table is empty and is freed.", true), note: "Done: the cost was spread over many commands, so no single request paid for the resize." },
+    ] });
+  })();
+  Viz.scene("#sc-u12-lsm", {
+    title: "An LSM tree: write, flush, read, compact", sub: "<b>Blue</b> = writes, <b>green</b> = reads, <b>orange</b> = background work.",
+    nodes: [{ id: "c", x: 70, y: 140, w: 100, label: "Client" }, { id: "wal", x: 270, y: 50, w: 150, label: "Write-ahead log", sub: "append only, on disk" },
+      { id: "mem", x: 270, y: 140, w: 150, label: "Memtable", sub: "sorted, in memory" }, { id: "l0", x: 480, y: 140, w: 160, label: "Level 0 SSTables", sub: "newest, may overlap" },
+      { id: "l1", x: 480, y: 245, w: 160, label: "Level 1+", sub: "sorted, non-overlapping" }],
+    edges: [["c", "wal"], ["c", "mem"], ["mem", "l0"], ["l0", "l1"]],
+    width: 600, height: 290,
+    steps: [
+      { hl: { c: "active", wal: "found", mem: "found" }, moves: [{ e: "c>wal", t: "append put(k7)", k: "req" }, { e: "c>mem", t: "insert k7", k: "req", delay: 0.6 }], pops: [{ n: "c", t: "ack", k: "ok", at: 1.8 }], hold: 3.2, note: "A write is an append to the log plus a memory insert. No page on disk is read or rewritten." },
+      { hl: { mem: "warm", l0: "found" }, moves: [{ e: "mem>l0", t: "flush: new SSTable", k: "evt" }], hold: 3, note: "When the memtable fills, it's written out as one sorted, immutable file, and the log can be trimmed." },
+      { hl: { c: "active", mem: "active", l0: "found" }, moves: [{ e: "c>mem", t: "get(k3): not here", k: "ok" }, { e: "mem>l0", t: "Bloom filters: skip 3 files", k: "ok", delay: 1.0 }], pops: [{ n: "l0", t: "found in 1 file", k: "ok", at: 2.0 }], hold: 3.4, note: "A read checks the memtable, then files newest first. Bloom filters rule most files out without touching disk." },
+      { hl: { l0: "warm", l1: "warm" }, moves: [{ e: "l0>l1", t: "compact: merge, drop old versions and tombstones", k: "evt" }], hold: 3.4, note: "Compaction merges files in the background, keeping only the newest value per key. This is where the write amplification goes." },
+    ],
+  });
+  /* B+tree lab */
+  (function () {
+    const g = (id) => document.getElementById(id), MAX = 3;
+    let root, seqMode = 0, rule = 0, next = 1, pool = [], last = null;
+    const SEQ = ["Increasing keys (1, 2, 3…)", "Random keys"], RULE = ["Split in half", "Rightmost-aware split (like PostgreSQL and InnoDB)"];
+    const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === get()))); reset(); }; };
+    seg("bp-seq", SEQ, () => seqMode, (v) => (seqMode = v));
+    seg("bp-rule", RULE, () => rule, (v) => (rule = v));
+    function reset() {
+      root = { leaf: true, keys: [], kids: [], next: null }; next = 1; last = null;
+      pool = Array.from({ length: 99 }, (_, i) => i + 1); for (let i = pool.length - 1; i > 0; i--) { const j = (i * 7919 + 13) % (i + 1); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      draw("An empty tree: one leaf page with room for 3 keys.");
+    }
+    function insert(k) {
+      const path = []; let n = root;
+      while (!n.leaf) { let i = 0; while (i < n.keys.length && k >= n.keys[i]) i++; path.push([n, i]); n = n.kids[i]; }
+      let i = 0; while (i < n.keys.length && n.keys[i] < k) i++; n.keys.splice(i, 0, k);
+      last = { k, split: new Set(), up: new Set() }; let msg = `Inserted ${k} into a leaf.`;
+      if (n.keys.length <= MAX) return msg;
+      const rightmost = !n.next && k === n.keys[n.keys.length - 1];
+      const cut = rule === 1 && rightmost ? MAX : Math.ceil(n.keys.length / 2);
+      const r = { leaf: true, keys: n.keys.slice(cut), kids: [], next: n.next }; n.keys = n.keys.slice(0, cut); n.next = r;
+      let sep = r.keys[0], left = n, right = r; last.split.add(n); last.split.add(r); last.up.add(sep);
+      msg = `Inserted ${k}: the leaf overflowed, so it split into [${n.keys.join(" ")}] and [${r.keys.join(" ")}], and ${sep} was copied up to the parent.`;
+      while (true) {
+        if (!path.length) { root = { leaf: false, keys: [sep], kids: [left, right] }; msg += " The root split, so the tree grew a level."; break; }
+        const [p, idx] = path.pop(); p.keys.splice(idx, 0, sep); p.kids.splice(idx + 1, 0, right);
+        if (p.keys.length <= MAX) break;
+        const m = Math.floor(p.keys.length / 2), up = p.keys[m];
+        const pr = { leaf: false, keys: p.keys.slice(m + 1), kids: p.kids.slice(m + 1) }; p.keys = p.keys.slice(0, m); p.kids = p.kids.slice(0, m + 1);
+        last.split.add(p); last.split.add(pr); last.up.add(up); msg += ` The parent overflowed too and pushed ${up} up.`;
+        sep = up; left = p; right = pr;
+      }
+      return msg;
+    }
+    function draw(msg) {
+      const levels = []; let lv = [root];
+      while (lv.length) { levels.push(lv); lv = lv[0].leaf ? [] : lv.flatMap((n) => n.kids); }
+      const nd = (n) => { const ks = n.keys.map((k) => `<span class="${last && n.leaf && k === last.k ? "new" : last && !n.leaf && last.up.has(k) ? "up" : ""}">${k}</span>`); while (ks.length < MAX) ks.push('<span class="e">·</span>'); return `<span class="nd ${last && last.split.has(n) ? "split" : ""}">${ks.join("")}</span>`; };
+      g("bp-tree").innerHTML = `<div class="bpt">${levels.map((l) => `<div class="lv">${l.map(nd).join("")}</div>`).join("")}</div>`;
+      const leaves = levels[levels.length - 1], nk = leaves.reduce((a, n) => a + n.keys.length, 0);
+      const fill = leaves.length ? Math.round((nk / (leaves.length * MAX)) * 100) : 0;
+      g("bp-tiles").innerHTML = [["Keys", nk], ["Leaf pages", leaves.length], ["Height", levels.length], ["Average leaf fill", fill + "%"]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("bp-why").innerHTML = msg + (nk >= 12 ? (seqMode === 0 && rule === 0 ? " <b>Notice the fill:</b> with increasing keys, every left half is never touched again, so leaves stay only partly full (in a real engine, half a page)." : seqMode === 0 ? " <b>Notice the fill:</b> the rightmost-aware split keeps finished pages full." : " Random keys leave pages partly full; on average about two-thirds.") : "");
+      g("bp-why").className = "verdict no-gl" + (nk >= 12 && seqMode === 0 && rule === 0 ? " warn" : "");
+    }
+    const step = () => { const k = seqMode === 0 ? next++ : pool.shift(); if (k === undefined || k > 99) return draw("That's enough keys for this demo: reset to start again."); draw(insert(k)); };
+    g("bp-one").onclick = step;
+    g("bp-ten").onclick = () => { for (let i = 0; i < 10; i++) { const k = seqMode === 0 ? next++ : pool.shift(); if (k === undefined || k > 99) break; insert(k); } draw(`Inserted 10 keys (last: ${last ? last.k : "none"}).`); };
+    g("bp-reset").onclick = reset;
+    reset();
+  })();
 })();
 </script>
 </body>
