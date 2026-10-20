@@ -461,6 +461,15 @@ svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: vi
 .flow-wrap { max-width: 100%; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 @media (max-width: 640px) { svg.flow { max-width: none; width: min(var(--w, 560px), max(100%, 520px)); } }  /* shrink wide diagrams to 520px at most, keeping labels readable; the box scrolls sideways and follows each step */
 .sc-swipe { font: .72rem var(--sans); color: var(--ink-3); text-align: center; margin-top: 2px; }
+/* Tables that become labelled cards on phones: add class="stack-sm" and data-l="Label" on each <td> */
+@media (max-width: 600px) {
+  table.stack-sm, table.stack-sm tbody, table.stack-sm tr, table.stack-sm td { display: block; width: auto; }
+  table.stack-sm thead { display: none; }
+  table.stack-sm tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  table.stack-sm td { border: 0; padding: 2px 0; }
+  table.stack-sm td:empty { display: none; }
+  table.stack-sm td[data-l]::before { content: attr(data-l) " · "; font: 600 .74rem var(--sans); color: var(--ink-3); letter-spacing: 0; }
+}
 .sc-swipe[hidden] { display: none; }
 svg.flow .fn rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
 svg.flow .fn .fn-l { font-size: 13px; font-weight: 600; fill: var(--ink); }

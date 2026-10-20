@@ -491,6 +491,15 @@ svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: vi
 .flow-wrap { max-width: 100%; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 @media (max-width: 640px) { svg.flow { max-width: none; width: min(var(--w, 560px), max(100%, 520px)); } }  /* shrink wide diagrams to 520px at most, keeping labels readable; the box scrolls sideways and follows each step */
 .sc-swipe { font: .72rem var(--sans); color: var(--ink-3); text-align: center; margin-top: 2px; }
+/* Tables that become labelled cards on phones: add class="stack-sm" and data-l="Label" on each <td> */
+@media (max-width: 600px) {
+  table.stack-sm, table.stack-sm tbody, table.stack-sm tr, table.stack-sm td { display: block; width: auto; }
+  table.stack-sm thead { display: none; }
+  table.stack-sm tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  table.stack-sm td { border: 0; padding: 2px 0; }
+  table.stack-sm td:empty { display: none; }
+  table.stack-sm td[data-l]::before { content: attr(data-l) " · "; font: 600 .74rem var(--sans); color: var(--ink-3); letter-spacing: 0; }
+}
 .sc-swipe[hidden] { display: none; }
 svg.flow .fn rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
 svg.flow .fn .fn-l { font-size: 13px; font-weight: 600; fill: var(--ink); }
@@ -3118,7 +3127,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
     const maxIn = (ts, ok) => { const a = ts.filter((_, i) => ok[i]); let m = 0; a.forEach((t, i) => { let n = 0; for (let j = i; j < a.length && a[j] < t + WIN; j++) n++; m = Math.max(m, n); }); return m; };
     function run() {
       const ts = SC[sc][1](), rows = Object.entries(algs).map(([n, f]) => [n, f(ts)]);
-      g("rl-out").innerHTML = `<table><thead><tr><th>Limiter</th><th>Each request (✓ allowed · q queued · ✗ rejected)</th><th>Allowed</th><th>Most in any 10 s</th></tr></thead><tbody>${rows.map(([n, d]) => `<tr><td>${n}</td><td style="font:.72rem var(--mono);letter-spacing:.5px;word-break:break-all">${d.map((x) => (x === 1 ? "✓" : x === 2 ? "q" : "✗")).join("")}</td><td>${d.filter(Boolean).length} of ${ts.length}</td><td>${maxIn(ts, d)}${maxIn(ts, d) > LIM ? " ⚠" : ""}</td></tr>`).join("")}</tbody></table>`;
+      g("rl-out").innerHTML = `<table class="stack-sm"><thead><tr><th>Limiter</th><th>Each request (✓ allowed · q queued · ✗ rejected)</th><th>Allowed</th><th>Most in any 10 s</th></tr></thead><tbody>${rows.map(([n, d]) => `<tr><td data-l="Limiter"><b>${n}</b></td><td data-l="Requests" style="font:.72rem var(--mono);letter-spacing:.5px;word-break:break-all">${d.map((x) => (x === 1 ? "✓" : x === 2 ? "q" : "✗")).join("")}</td><td data-l="Allowed">${d.filter(Boolean).length} of ${ts.length}</td><td data-l="Most in any 10 s">${maxIn(ts, d)}${maxIn(ts, d) > LIM ? " ⚠" : ""}</td></tr>`).join("")}</tbody></table>`;
       const cnt = (n) => rows.find((r) => r[0].startsWith(n))[1].filter(Boolean).length;
       g("rl-why").innerHTML = sc === 0 ? `The fixed window's counter resets at 10 s, so it lets ${cnt("Fixed")} requests through within about 2 seconds: twice the limit. Sliding log and the sliding-window counter allow exactly 10. The buckets allow their 10-request burst plus about 1 per second of refill, which is their design: a burst allowance plus an average rate.` : sc === 1 ? "Every limiter converges on about 1 request per second over time. The buckets start full, so they front-load an extra burst; the leaky bucket queues requests (adding delay) instead of rejecting them; the window limiters cap each 10 seconds." : "After a quiet period every limiter allows a burst of about 10, then throttles. The leaky bucket accepts the burst into its queue and releases it at a steady 1 per second, smoothing the load on the backend.";
     }
