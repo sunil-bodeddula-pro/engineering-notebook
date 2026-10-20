@@ -2372,6 +2372,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise (20 minutes)</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2547,6 +2548,120 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://go.dev/blog/waza-talk" target="_blank" rel="noopener">Concurrency is not parallelism</a> (Rob Pike)</td><td>30 min</td><td>The distinction, explained by one of Go's designers.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">What the operating system, language runtime and orchestrator really do with your requests. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-runtimes-the-os-and-containers">
+      <summary><span class="uth-t"><b>Runtimes, the OS and containers</b><small>Concurrency models, page cache and fsync (animated), a CPU-throttling lab, the Kubernetes reconcile loop (animated), an autoscaler lab, serverless cold starts, 9 runtimes compared</small></span><span class="uth-m">about 35 min</span></summary>
+      <div class="uth-body">
+        <p>Capacity estimates assume a server does work at a steady rate. Real servers are processes and threads scheduled by an operating system, inside containers with limits, run by an orchestrator, sometimes created on demand. Each layer has behaviour that shows up as latency spikes, lost writes or wasted machines.</p>
+
+        <h3 id="ub2-conc">Concurrency models</h3>
+        <table>
+          <thead><tr><th>Model</th><th>How waiting is handled</th><th>Cost per in-flight request</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>Process per request</td><td>The OS switches processes</td><td>Megabytes; heavy</td><td>Classic CGI, Python servers with worker processes</td></tr>
+            <tr><td>Thread per request</td><td>A blocked thread sleeps; the OS runs another (a context switch costs microseconds)</td><td>A stack (often 1 MB reserved) plus kernel bookkeeping</td><td>Traditional Java and .NET servers</td></tr>
+            <tr><td>Event loop</td><td>One thread multiplexes many sockets with epoll/kqueue; callbacks or async/await resume work</td><td>Kilobytes</td><td>Node.js, NGINX, Netty, Python asyncio</td></tr>
+            <tr><td>M:N (green threads)</td><td>Cheap user-space threads scheduled onto a few OS threads; blocking calls park only the lightweight thread</td><td>Kilobytes</td><td>Go goroutines, Java virtual threads, Erlang processes, Tokio tasks</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><strong>Readiness vs completion I/O:</strong> epoll and kqueue tell you a socket is <em>ready</em>, then you read; io_uring (Linux) and IOCP (Windows) let you submit operations and collect <em>completions</em> through shared queues, with fewer system calls.</li>
+          <li><strong>The event-loop trap:</strong> one slow synchronous call (a large JSON parse, a regex, a sync file read) blocks every request on that loop. Node.js offloads file, DNS and crypto work to a small libuv thread pool (4 threads by default).</li>
+          <li><strong>Garbage collection pauses</strong> add to tail latency: Java's G1 is the default; ZGC and Shenandoah keep pauses around a millisecond; Go's collector is concurrent with short pauses; Rust has no collector at all.</li>
+        </ul>
+
+        <h3 id="ub2-disk">Memory, the page cache and durable writes</h3>
+        <div id="viz-ub2-fsync"></div>
+        <ul>
+          <li><strong>The page cache:</strong> Linux keeps recently read and written file pages in spare RAM. Reads of hot files never touch the disk, and <code>write()</code> returns once data is in memory, not on disk.</li>
+          <li><strong>fsync</strong> forces the file's dirty pages and metadata to stable storage; <code>fdatasync</code> skips metadata not needed to read the data; <code>O_DIRECT</code> bypasses the cache (databases with their own buffer pools). Databases call fsync at commit, which is why commit latency follows disk flush latency.</li>
+          <li><strong>Zero-copy:</strong> <code>sendfile</code> and <code>splice</code> move file bytes to a socket inside the kernel; Kafka and NGINX use this.</li>
+          <li><strong>Out of memory:</strong> when memory runs out, the kernel's OOM killer kills a process; inside a container, exceeding the memory limit kills the container. Memory limits are hard; CPU limits are not (next).</li>
+          <li><strong>Limits per process:</strong> open file descriptors (every socket is one) and the TCP accept backlog cap how many connections a server can hold or queue; raise them on busy servers.</li>
+        </ul>
+
+        <h3 id="ub2-cg">Containers: namespaces, cgroups and CPU throttling</h3>
+        <p>A container is an ordinary Linux process with <strong>namespaces</strong> (its own view of processes, network, mounts and hostname) and <strong>cgroups</strong> (limits on CPU, memory and I/O). Images are stacks of read-only layers merged by OverlayFS with a thin writable layer on top.</p>
+        <p>A CPU <em>limit</em> is enforced as a quota per period: a limit of 1 CPU means 100 ms of CPU time per 100 ms period, shared by all the container's threads. A request that runs on several threads at once can burn the quota early and then wait, doing nothing, until the next period, even on an idle machine:</p>
+        <div class="card widget" id="th-lab">
+          <div class="ctl"><label for="th-l">CPU limit</label><input id="th-l" type="range" min="1" max="8" value="2"><output id="th-lo"></output></div>
+          <div class="ctl"><label for="th-p">Threads working in parallel</label><input id="th-p" type="range" min="1" max="16" value="8"><output id="th-po"></output></div>
+          <div class="ctl"><label for="th-w">CPU work per request</label><input id="th-w" type="range" min="20" max="800" step="20" value="300"><output id="th-wo"></output></div>
+          <div class="no-gl" id="th-bar"></div>
+          <div class="tiles no-gl" id="th-tiles"></div>
+          <div class="verdict no-gl" id="th-why"></div>
+        </div>
+        <p>Runtimes that size thread pools from the number of host CPUs make this worse: a Go or JVM process on a 64-core node with a 2-CPU limit starts 64 workers. Go 1.25 now sets GOMAXPROCS from the container's CPU limit automatically; modern JVMs read cgroup limits too. Many teams set CPU <em>requests</em> (for scheduling) but no CPU <em>limit</em>, and always set memory limits.</p>
+
+        <h3 id="ub2-k8s">Kubernetes: the reconcile loop</h3>
+        <div id="sc-ub2-rec"></div>
+        <ul>
+          <li><strong>Desired vs actual state:</strong> you store what you want (a Deployment with 3 replicas) through the API server into etcd; controllers watch for differences and act until reality matches. Nothing is a one-off command.</li>
+          <li><strong>Scheduling:</strong> the scheduler filters nodes that fit the pod's <em>requests</em>, scores the rest (spreading, affinity), and binds the pod. Requests and limits set the QoS class: Guaranteed (requests = limits), Burstable, or BestEffort (none), which decides who is evicted first under pressure.</li>
+          <li><strong>Probes:</strong> readiness decides whether a pod receives traffic; liveness restarts a stuck pod; startup probes protect slow starters. A liveness probe that checks a database turns a database blip into a restart storm.</li>
+        </ul>
+        <div class="card widget" id="hpa-lab">
+          <div class="ctl"><label for="hpa-r">Current replicas</label><input id="hpa-r" type="range" min="1" max="30" value="4"><output id="hpa-ro"></output></div>
+          <div class="ctl"><label for="hpa-m">Current average CPU</label><input id="hpa-m" type="range" min="5" max="200" step="5" value="90"><output id="hpa-mo"></output></div>
+          <div class="ctl"><label for="hpa-t">Target CPU</label><input id="hpa-t" type="range" min="30" max="90" step="5" value="60"><output id="hpa-to"></output></div>
+          <div class="tiles no-gl" id="hpa-tiles"></div>
+          <div class="verdict no-gl" id="hpa-why"></div>
+        </div>
+
+        <h3 id="ub2-sls">Serverless: instances, isolation and cold starts</h3>
+        <div id="sc-ub2-cold"></div>
+        <ul>
+          <li><strong>AWS Lambda</strong> runs functions in Firecracker microVMs; each execution environment handles one request at a time, so concurrency = instances. SnapStart and provisioned concurrency hide cold starts.</li>
+          <li><strong>Cloud Run</strong> runs containers that can each serve many concurrent requests (80 by default), so fewer instances and fewer cold starts.</li>
+          <li><strong>Cloudflare Workers</strong> run V8 isolates inside a shared process: starting one takes milliseconds, but only JavaScript/WebAssembly with tight CPU and memory limits.</li>
+          <li><strong>Cold start costs</strong> come from creating the sandbox, starting the runtime and running your initialisation (loading libraries, opening connections); keep packages small and initialise lazily.</li>
+        </ul>
+
+        <h3 id="ub2-products">Runtime by runtime</h3>
+        <table>
+          <thead><tr><th>Runtime or platform</th><th>Concurrency and memory</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Node.js</td><td>One JavaScript thread on the libuv event loop; a small thread pool; worker threads for CPU work</td><td>One slow synchronous function stalls the whole process</td></tr>
+            <tr><td>Go</td><td>Goroutines scheduled M:N onto OS threads (G-M-P); network poller on epoll; concurrent GC</td><td>Hundreds of thousands of goroutines are normal; GOMAXPROCS follows container CPU limits since 1.25</td></tr>
+            <tr><td>Java</td><td>Platform threads 1:1; virtual threads (Java 21) M:N; Netty event loops; G1 default, ZGC and Shenandoah for low pauses</td><td>Virtual threads make thread-per-request code scale like async</td></tr>
+            <tr><td>Python</td><td>The GIL limits CPU parallelism per process; the free-threaded build is officially supported (optional) since 3.14; asyncio for I/O</td><td>Servers run several worker processes to use every core</td></tr>
+            <tr><td>Rust (Tokio)</td><td>Async tasks on a work-stealing scheduler; no GC</td><td>Predictable latency</td></tr>
+            <tr><td>Erlang / Elixir (BEAM)</td><td>Millions of lightweight processes, preemptive schedulers, per-process GC, supervisors</td><td>Fault isolation by design</td></tr>
+            <tr><td>Containers</td><td>Namespaces, cgroups, OverlayFS layers</td><td>CPU limits throttle by time slice</td></tr>
+            <tr><td>Kubernetes</td><td>API server and etcd, scheduler, controllers, kubelets</td><td>HPA: desired = ceil(replicas × current ÷ target)</td></tr>
+            <tr><td>Lambda, Cloud Run, Workers</td><td>MicroVM per request stream; containers with concurrency; V8 isolates</td><td>Cold starts come from creating instances</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="ub2-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"p99 latency jumped after moving to Kubernetes, but CPU looks low. Why?"</strong> Likely CFS throttling: a multi-threaded burst used the quota early in each 100 ms period. Check throttling metrics, right-size the thread pool to the limit, or remove the CPU limit and keep the request.</li>
+          <li><strong>"Is the write durable when write() returns?"</strong> No: it's in the page cache. It's durable after fsync (or after the database commits, which fsyncs its log).</li>
+          <li><strong>"Lambda or containers?"</strong> Lambda for spiky, event-driven work with no servers to manage; containers for steady traffic, long connections or when cold starts and per-request pricing hurt.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="It runs out of CPU quota early in the period and waits for the next one">
+            <p>A container with a 1-CPU limit runs an 8-thread burst. Why can a request stall even though the host is idle?</p>
+            <div class="opts"><button>The host is overcommitted</button><button>It runs out of CPU quota early in the period and waits for the next one</button><button>Memory is swapped out</button></div>
+            <div class="why">8 threads consume 100 ms of quota in about 12.5 ms, then the container is throttled for the rest of the 100 ms period.</div>
+          </div>
+          <div class="quiz-q" data-answer="6">
+            <p>4 replicas average 90% CPU against a 60% target. How many replicas does the Horizontal Pod Autoscaler want?</p>
+            <div class="opts"><button>5</button><button>6</button><button>8</button></div>
+            <div class="why">ceil(4 × 90 ÷ 60) = 6.</div>
+          </div>
+          <div class="quiz-q" data-answer="When fsync (or a database commit) completes">
+            <p>When is data written by an application actually safe from a power loss?</p>
+            <div class="opts"><button>When write() returns</button><button>When fsync (or a database commit) completes</button><button>When the file is closed</button></div>
+            <div class="why">write() and close() can leave data in the page cache.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://docs.libuv.org/en/v1.x/threadpool.html" target="_blank" rel="noopener">libuv: thread pool</a></li><li><a href="https://go.dev/blog/container-aware-gomaxprocs" target="_blank" rel="noopener">Go: container-aware GOMAXPROCS</a></li><li><a href="https://openjdk.org/jeps/444" target="_blank" rel="noopener">JEP 444: virtual threads</a></li><li><a href="https://openjdk.org/jeps/491" target="_blank" rel="noopener">JEP 491: synchronize virtual threads without pinning</a></li><li><a href="https://peps.python.org/pep-0779/" target="_blank" rel="noopener">PEP 779: free-threaded Python supported</a></li><li><a href="https://tokio.rs/tokio/tutorial" target="_blank" rel="noopener">Tokio tutorial</a></li><li><a href="https://www.erlang.org/doc/system/design_principles.html" target="_blank" rel="noopener">Erlang/OTP design principles</a></li><li><a href="https://docs.kernel.org/scheduler/sched-bwc.html" target="_blank" rel="noopener">Linux: CFS bandwidth control</a></li><li><a href="https://man7.org/linux/man-pages/man2/fsync.2.html" target="_blank" rel="noopener">fsync(2)</a></li><li><a href="https://man7.org/linux/man-pages/man7/io_uring.7.html" target="_blank" rel="noopener">io_uring(7)</a></li><li><a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/" target="_blank" rel="noopener">Kubernetes: horizontal pod autoscaling</a></li><li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/" target="_blank" rel="noopener">Kubernetes: pod QoS classes</a></li><li><a href="https://kubernetes.io/docs/concepts/architecture/controller/" target="_blank" rel="noopener">Kubernetes: controllers</a></li><li><a href="https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html" target="_blank" rel="noopener">AWS Lambda execution environment</a></li><li><a href="https://cloud.google.com/run/docs/about-concurrency" target="_blank" rel="noopener">Cloud Run: concurrency</a></li><li><a href="https://developers.cloudflare.com/workers/reference/how-workers-works/" target="_blank" rel="noopener">Cloudflare Workers: how it works</a></li><li><a href="https://firecracker-microvm.github.io/" target="_blank" rel="noopener">Firecracker</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="b1-what-a-system-is-made-of.html"><small>Previous module</small>← B1 · What a system is made of</a>
       <a class="next" href="b3-networks-in-plain-terms.html"><small>Next module</small>B3 · Networks in plain terms →</a>
@@ -2642,6 +2757,65 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       : `The CPU is the limit: ${cores} cores × 1000 ÷ ${cpu} ms = ${Math.round(cpuLimit).toLocaleString()} per second. More threads won't help; less CPU per request or more cores will.`;
   }
   run();
+  /* ---------- Under the hood: runtimes, OS, containers ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), PER = 100;
+    const run = () => {
+      const L = +g("th-l").value / 2, P = +g("th-p").value, W = +g("th-w").value;
+      g("th-lo").textContent = L + " CPU" + (L === 1 ? "" : "s") + ` (${L * PER} ms per ${PER} ms)`; g("th-po").textContent = P; g("th-wo").textContent = W + " ms CPU";
+      let left = W, t = 0; const segs = []; const quota = L * PER;
+      while (left > 1e-9 && t < 100000) { const room = Math.min(quota, left); const runMs = room / P; segs.push(["run", runMs]); left -= room; t += runMs; if (left > 1e-9) { const wait = PER - runMs; if (wait > 0) { segs.push(["wait", wait]); t += wait; } } }
+      const ideal = W / P, tot = t, throttled = segs.filter((s) => s[0] === "wait").reduce((a, s) => a + s[1], 0);
+      g("th-bar").innerHTML = `<div style="display:flex;height:16px;border-radius:8px;overflow:hidden;margin:10px 0;background:var(--surface-2)">${segs.map(([k, ms]) => `<span title="${k === "run" ? "running" : "throttled"} ${ms.toFixed(1)} ms" style="flex:${ms} 0 0;background:${k === "run" ? "var(--accent)" : "var(--red-soft, #f6d5d5)"}"></span>`).join("")}</div><div class="idx">green = running on ${P} threads · red = throttled, waiting for the next ${PER} ms period</div>`;
+      g("th-tiles").innerHTML = [["Request time with the limit", tot.toFixed(0) + " ms"], ["Without the limit", ideal.toFixed(0) + " ms"], ["Time spent throttled", throttled.toFixed(0) + " ms"]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("th-why").innerHTML = throttled > 0 ? `${P} threads burn the ${L * PER} ms quota in ${(quota / P).toFixed(1)} ms, then wait ${(PER - quota / P).toFixed(0)} ms per period. The request takes <b>${(tot / ideal).toFixed(1)}×</b> longer than it would unthrottled, while average CPU use still looks modest.` : "The work fits inside one period's quota: no throttling.";
+      g("th-why").className = "verdict no-gl" + (throttled > ideal ? " warn" : "");
+    };
+    ["th-l", "th-p", "th-w"].forEach((id) => (g(id).oninput = run)); run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const run = () => {
+      const r = +g("hpa-r").value, m = +g("hpa-m").value, t = +g("hpa-t").value; g("hpa-ro").textContent = r; g("hpa-mo").textContent = m + "%"; g("hpa-to").textContent = t + "%";
+      const ratio = m / t, within = Math.abs(ratio - 1) <= 0.1, want = within ? r : Math.ceil(r * ratio);
+      g("hpa-tiles").innerHTML = [["Ratio current ÷ target", ratio.toFixed(2)], ["Desired replicas", want], ["Change", want === r ? "none" : (want > r ? "+" : "") + (want - r)]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("hpa-why").innerHTML = within ? "Within the default 10% tolerance of the target, so the autoscaler does nothing (this avoids flapping)." : `desired = ceil(${r} × ${m} ÷ ${t}) = ${want}. ${want < r ? "Scale-down waits through a stabilisation window (5 minutes by default) so a short dip doesn't remove capacity." : "New pods help only once they pass readiness, so slow starts and cold caches delay relief: scale on a leading signal, or keep headroom."}`;
+    };
+    ["hpa-r", "hpa-m", "hpa-t"].forEach((id) => (g(id).oninput = run)); run();
+  })();
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Step</th><th>Application</th><th>Page cache (RAM)</th><th>Disk</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center">${cap}</div></div>`;
+    const A = [["1", "write(\"order 42\") returns", "dirty page: order 42", "old data"]];
+    Viz.stepper("#viz-ub2-fsync", { title: "Where a write really is", sub: "write() vs fsync()", speed: 3000, frames: [
+      { view: R(A, "write() copied the bytes into the page cache and returned in microseconds."), note: "The data is in RAM only, marked dirty." },
+      { view: R([...A, ["2", "(power cut)", "lost", "old data"]], "A crash now loses order 42, even though write() succeeded."), note: "This is why 'it returned OK' isn't 'it's durable'." },
+      { view: R([...A, ["2", "fsync() … returns after the flush", "clean", "order 42"]], "fsync waits for the device to confirm the data (and metadata) are on stable storage."), note: "Milliseconds on SSD, more on network disks: databases pay this on every commit, so they batch commits (group commit)." },
+      { view: R([...A, ["2", "(no fsync)", "flushed by the kernel ~30 s later", "order 42"]], "Without fsync the kernel writes dirty pages back eventually, on its own schedule."), note: "Fine for logs you can lose; not for anything acknowledged to a user." },
+    ] });
+  })();
+  Viz.scene("#sc-ub2-rec", {
+    title: "Kubernetes replaces a crashed pod", sub: "<b>Blue</b> = watches and API calls, <b>red</b> = failure, <b>green</b> = reconciled.",
+    nodes: [{ id: "api", x: 300, y: 50, w: 150, label: "API server", sub: "state in etcd" }, { id: "ctl", x: 90, y: 150, w: 150, label: "ReplicaSet controller" }, { id: "sch", x: 300, y: 250, w: 140, label: "Scheduler" }, { id: "kub", x: 520, y: 150, w: 150, label: "kubelet on node 2" }],
+    edges: [["ctl", "api"], ["sch", "api"], ["kub", "api"]],
+    width: 640, height: 300,
+    steps: [
+      { hl: { kub: "bad", api: "active" }, moves: [{ e: "kub>api", t: "pod web-7 failed", k: "bad" }], hold: 3, note: "A node or pod dies. The kubelet (or node controller) reports it." },
+      { hl: { ctl: "active", api: "active" }, moves: [{ e: "ctl>api", t: "watch: 2 running, want 3", k: "req", back: true }, { e: "ctl>api", t: "create pod web-9", k: "req", delay: 1.0 }], hold: 3.2, note: "The controller compares desired (3) with actual (2) and creates a new pod object. It doesn't run anything itself." },
+      { hl: { sch: "active", api: "active" }, moves: [{ e: "sch>api", t: "unscheduled pod web-9", k: "req", back: true }, { e: "sch>api", t: "bind web-9 → node 2", k: "req", delay: 1.0 }], hold: 3.2, note: "The scheduler filters nodes with room for the pod's requests, scores them and binds it." },
+      { hl: { kub: "found", api: "found", ctl: "found" }, moves: [{ e: "kub>api", t: "web-9 running, ready", k: "ok" }], hold: 3, note: "The kubelet starts the containers; once the readiness probe passes, the pod gets traffic. Each component only watches and nudges state." },
+    ],
+  });
+  Viz.scene("#sc-ub2-cold", {
+    title: "Cold start vs warm invocation", sub: "<b>Orange</b> = one-time startup cost.",
+    nodes: [{ id: "c", x: 80, y: 120, w: 110, label: "Request" }, { id: "fn", x: 330, y: 120, w: 180, label: "Function instance" }],
+    edges: [["c", "fn"]],
+    width: 560, height: 220,
+    steps: [
+      { hl: { c: "active", fn: "warm" }, moves: [{ e: "c>fn", t: "invoke", k: "req" }], pops: [{ n: "fn", t: "create microVM ~100 ms", k: "evt", at: 0.8 }, { n: "fn", t: "start runtime + your init ~300 ms+", k: "evt", at: 1.8 }], hold: 3.6, note: "No warm instance: the platform creates a sandbox, starts the runtime and runs your initialisation code before handling the request." },
+      { hl: { fn: "found" }, moves: [{ e: "c>fn", t: "response (cold: ~500 ms)", k: "ok", back: true }], hold: 2.8, note: "The first request pays the whole startup cost." },
+      { hl: { c: "active", fn: "found" }, moves: [{ e: "c>fn", t: "invoke", k: "req" }, { e: "c>fn", t: "response (warm: ~20 ms)", k: "ok", back: true, delay: 0.9 }], hold: 3, note: "Later requests reuse the warm instance. Concurrent bursts need new instances, so they hit cold starts again; provisioned concurrency or SnapStart pre-warm them." },
+    ],
+  });
 })();
 </script>
 </body>
