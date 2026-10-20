@@ -2374,6 +2374,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2662,6 +2663,60 @@ async function placeOrder(order) {
         <tr><td><a href="https://www.hellointerview.com/learn/system-design/patterns/multi-step-processes" target="_blank" rel="noopener">Multi-step processes</a> (Hello Interview)</td><td>25 min</td><td>The interview framing: when to reach for sagas and workflow engines.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How workflow engines survive crashes and how schedulers keep millions of timers. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-workflow-engines-and-timers">
+      <summary><span class="uth-t"><b>Workflow engines and timers</b><small>Durable execution and replay (animated), Temporal vs Step Functions vs Airflow, hierarchical timing wheels (animated), delay queues and cron in a cluster</small></span><span class="uth-m">about 20 min</span></summary>
+      <div class="uth-body">
+        <p>Workflow engines promise that a multi-step process (charge, reserve, ship, email) finishes even if machines crash halfway, and schedulers promise that something happens at the right time. Both rest on a few mechanisms: a durable history, deterministic replay, retries with idempotency, and efficient timer structures.</p>
+
+        <h3 id="u22-replay">Durable execution: how Temporal survives a crash</h3>
+        <div id="sc-u22-replay"></div>
+        <ul>
+          <li><strong>Event history:</strong> the server records every step of a workflow (started, activity scheduled, activity completed with its result, timer fired) in an append-only history.</li>
+          <li><strong>Replay:</strong> when a worker dies, another worker re-runs the workflow function from the start, but instead of calling activities again it feeds them their recorded results from the history, until it catches up to the point of failure and continues live.</li>
+          <li><strong>Determinism is the price:</strong> workflow code must make the same decisions on replay, so no direct clock reads, random numbers, network calls or unordered map iteration in it; those go in <em>activities</em> or use the SDK's deterministic versions.</li>
+          <li><strong>Activities</strong> (the side effects) are retried with backoff until they succeed, so they must be idempotent. <strong>Durable timers</strong> ("sleep 30 days") are just history events: no process waits for them.</li>
+        </ul>
+        <table>
+          <thead><tr><th>Engine</th><th>Model</th><th>Good for</th></tr></thead>
+          <tbody>
+            <tr><td>Temporal (and Cadence)</td><td>Workflows as ordinary code, made durable by history and replay</td><td>Long, complex business processes; sagas</td></tr>
+            <tr><td>AWS Step Functions</td><td>JSON state machines; Standard workflows run up to a year with exactly-once steps, Express up to 5 minutes at-least-once</td><td>Orchestrating AWS services without running servers</td></tr>
+            <tr><td>Apache Airflow (and Dagster)</td><td>A scheduler parses DAG files and hands tasks to executors on a schedule</td><td>Batch data pipelines, not per-request business flows</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u22-timers">Timers at scale: timing wheels</h3>
+        <p>Millions of pending timeouts (request deadlines, delayed retries, session expiries) can't each be a sorted-heap entry costing O(log n) to add and remove. A <strong>timing wheel</strong> is a circular array of buckets, one per tick; adding a timer drops it into the bucket for its expiry, and each tick fires one bucket: O(1) per operation. <strong>Hierarchical</strong> wheels (seconds, minutes, hours, like a clock's hands) handle long delays with few buckets, moving timers down as their time approaches. Kafka uses one to track requests waiting for replication, Netty for connection timeouts.</p>
+        <div id="viz-u22-wheel"></div>
+        <ul>
+          <li><strong>Delay queues in Redis:</strong> a sorted set scored by due time; workers poll for <code>ZRANGEBYSCORE key -inf now</code> and claim items atomically (a Lua script or <code>ZPOPMIN</code> with a check).</li>
+          <li><strong>Cron in a cluster:</strong> elect one scheduler (a lease in etcd or the database) so jobs don't run on every replica; record each run so a restart doesn't skip or double-run it; decide explicitly what happens to missed runs (catch up or skip) and overlapping runs (queue, skip or allow). Design D21 builds a distributed job scheduler.</li>
+        </ul>
+
+        <h3 id="u22-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"What if the order service crashes between charging and reserving stock?"</strong> With a durable workflow engine, another worker replays the history, sees the charge already completed, and continues with the reservation; activities are idempotent so a retried charge can't double-bill.</li>
+          <li><strong>"How do you schedule a reminder in 30 days for 50 million users?"</strong> Not 50 million sleeping threads: store due times in a time-partitioned table or delay queue, and have workers pick up what's due each minute (or a workflow engine's durable timers).</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Replay must make the same decisions using recorded results">
+            <p>Why must Temporal workflow code be deterministic?</p>
+            <div class="opts"><button>For speed</button><button>Replay must make the same decisions using recorded results</button><button>To avoid locks</button></div>
+            <div class="why">After a crash the code is re-run against the history; a different decision would diverge from what already happened.</div>
+          </div>
+          <div class="quiz-q" data-answer="O(1)">
+            <p>What does adding a timer to a timing wheel cost?</p>
+            <div class="opts"><button>O(log n)</button><button>O(1)</button><button>O(n)</button></div>
+            <div class="why">Compute the bucket from the expiry and append to it.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://docs.temporal.io/workflow-execution" target="_blank" rel="noopener">Temporal: workflow execution</a></li><li><a href="https://docs.temporal.io/encyclopedia/event-history" target="_blank" rel="noopener">Temporal: event history</a></li><li><a href="https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html" target="_blank" rel="noopener">Step Functions: Standard vs Express</a></li><li><a href="https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html" target="_blank" rel="noopener">Airflow: the scheduler</a></li><li><a href="https://www.cs.columbia.edu/~nahum/w6998/papers/sosp87-timing-wheels.pdf" target="_blank" rel="noopener">Hashed and hierarchical timing wheels (Varghese and Lauck, 1987)</a></li><li><a href="https://www.confluent.io/blog/apache-kafka-purgatory-hierarchical-timing-wheels/" target="_blank" rel="noopener">Kafka purgatory and hierarchical timing wheels</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="21-consensus-coordination.html"><small>Previous module</small>← 21 · Consensus and coordination</a>
       <a class="next" href="23-batch-stream-processing.html"><small>Next module</small>23 · Batch, stream and background jobs →</a>
@@ -2797,6 +2852,31 @@ async function placeOrder(order) {
         note: "It continues exactly where Worker 1 stopped. The customer was charged once." },
     ],
   });
+  /* ---------- Under the hood: workflows and timers ---------- */
+  Viz.scene("#sc-u22-replay", {
+    title: "A worker crashes mid-workflow", sub: "<b>Blue</b> = live calls, <b>green</b> = results replayed from history.",
+    nodes: [{ id: "w1", x: 90, y: 60, w: 130, label: "Worker 1" }, { id: "w2", x: 90, y: 220, w: 130, label: "Worker 2" }, { id: "srv", x: 330, y: 140, w: 160, label: "Temporal server", sub: "event history" }, { id: "pay", x: 550, y: 60, w: 130, label: "Payment API" }, { id: "inv", x: 550, y: 220, w: 130, label: "Inventory API" }],
+    edges: [["w1", "srv"], ["w2", "srv"], ["w1", "pay"], ["w2", "inv"]],
+    width: 660, height: 290,
+    steps: [
+      { hl: { w1: "active", pay: "found", srv: "found" }, moves: [{ e: "w1>pay", t: "charge $40", k: "req" }, { e: "w1>pay", t: "ok, ch_91", k: "ok", back: true, delay: 1.0 }, { e: "w1>srv", t: "record: charged ch_91", k: "req", delay: 1.9 }], hold: 3.4, note: "Step 1 runs as an activity; its result is recorded in the history." },
+      { hl: { w1: "bad", srv: "warm" }, pops: [{ n: "w1", t: "crash before step 2", k: "bad", at: 0.3 }], hold: 2.8, note: "The worker dies. Nothing is lost: the history knows exactly how far the workflow got." },
+      { hl: { w2: "active", srv: "found" }, moves: [{ e: "w2>srv", t: "fetch history", k: "req" }, { e: "w2>srv", t: "charged = ch_91", k: "ok", back: true, delay: 1.0 }], pops: [{ n: "w2", t: "replay: skip the charge", k: "ok", at: 2.0 }], hold: 3.4, note: "Worker 2 re-runs the workflow code; when it reaches the charge, the recorded result is returned instead of calling the payment API again." },
+      { hl: { w2: "found", inv: "found" }, moves: [{ e: "w2>inv", t: "reserve stock", k: "req" }, { e: "w2>inv", t: "ok", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "Caught up, it continues live with step 2. The customer was charged exactly once." },
+    ],
+  });
+  (function () {
+    const W = (slots, cur, cap, over) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><div class="idx">Seconds wheel (8 slots, 1 tick = 1 s)</div><div class="lv">${slots.map((s, i) => `<span class="nd ${i === cur ? "split" : ""}"><span class="e" style="min-width:1.6em">${i}</span><span style="min-width:4.5em">${s.join(" ") || "·"}</span></span>`).join("")}</div>${over ? `<div class="idx" style="margin-top:6px">Minutes wheel: ${over}</div>` : ""}<div class="idx" style="white-space:normal;text-align:center;margin-top:6px">${cap}</div></div>`;
+    const E = () => Array.from({ length: 8 }, () => []);
+    const a = E(); a[3] = ["A"]; a[5] = ["B", "C"];
+    const b = E(); b[5] = ["B", "C"];
+    Viz.stepper("#viz-u22-wheel", { title: "A hierarchical timing wheel", sub: "Timers drop into the bucket for their expiry.", speed: 3000, frames: [
+      { view: W(a, 0, "At t = 0: timer A expires in 3 s, B and C in 5 s, D in 70 s.", "slot 1 (60–119 s): D"), note: "Adding a timer computes its slot: O(1). D is too far out for the seconds wheel, so it sits in the minutes wheel." },
+      { view: W(b, 3, "Tick 3: the pointer reaches slot 3 and fires A. Only that slot is examined."), note: "Each tick does work proportional to the timers firing, not the timers pending." },
+      { view: W(E(), 5, "Tick 5: B and C fire together."), note: "Cancelling a timer is O(1) too (remove it from its bucket's list)." },
+      { view: W((() => { const x = E(); x[6] = ["D"]; return x; })(), 0, "At t = 64 (pointer back at slot 0) the minutes wheel's slot comes due: D moves down into the seconds wheel at slot 6 (70 mod 8), 6 ticks from now."), note: "Like clock hands: few buckets cover long delays, and timers cascade down as their time approaches." },
+    ] });
+  })();
 })();
 </script>
 </body>

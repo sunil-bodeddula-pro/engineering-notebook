@@ -2374,6 +2374,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2673,6 +2674,75 @@ Content-Type: application/problem+json
         <tr><td><a href="https://graphql.org/learn/" target="_blank" rel="noopener">Learn GraphQL</a> and <a href="https://grpc.io/docs/guides/deadlines/" target="_blank" rel="noopener">gRPC deadlines</a></td><td>45 min</td><td>The official introductions to the two alternatives.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How API payloads are really encoded, evolved and compressed. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-data-formats-and-compression">
+      <summary><span class="uth-t"><b>Data formats and compression</b><small>A live JSON vs Protobuf vs gzip size lab, schema evolution rules for JSON, Protobuf, Avro and friends, codecs from gzip to zstd and LZ4</small></span><span class="uth-m">about 20 min</span></summary>
+      <div class="uth-body">
+        <p>Every API and message has two hidden choices: how data becomes bytes (the format) and how those bytes are squeezed (compression). They decide payload size, CPU cost, and whether old and new versions of a service can still talk to each other.</p>
+
+        <h3 id="u07-size">What a payload really costs</h3>
+        <p>A list of order records, encoded as JSON and as Protobuf, each with and without gzip. The gzip sizes are computed by your browser's own compressor; the Protobuf bytes follow the real encoding:</p>
+        <div class="card widget" id="fz-lab">
+          <div class="ctl"><label for="fz-n">Records</label><input id="fz-n" type="range" min="1" max="1000" value="100"><output id="fz-no"></output></div>
+          <div class="no-gl" id="fz-out"></div>
+          <div class="verdict no-gl" id="fz-why"></div>
+        </div>
+
+        <h3 id="u07-formats">Formats and schema evolution</h3>
+        <table>
+          <thead><tr><th>Format</th><th>Self-describing?</th><th>How it evolves</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>JSON</td><td>Yes (field names in every record)</td><td>Ignore unknown fields; never change a field's meaning or type</td><td>Public APIs, configuration, logs</td></tr>
+            <tr><td>MessagePack, CBOR</td><td>Yes, binary</td><td>Like JSON, smaller and faster to parse</td><td>Caches, IoT (CBOR is an IETF standard), Redis clients</td></tr>
+            <tr><td>Protocol Buffers</td><td>No: numbered fields; the schema maps numbers to names</td><td>Add fields with new numbers; never reuse or change a number (mark removed ones <code>reserved</code>); unknown fields are kept and passed through</td><td>gRPC, Google, internal services</td></tr>
+            <tr><td>Avro</td><td>No: values only, in schema order</td><td>The reader resolves the writer's schema against its own (defaults fill missing fields), so the writer's schema must travel with the data or sit in a schema registry</td><td>Kafka with a schema registry, Hadoop data files</td></tr>
+            <tr><td>Thrift</td><td>No: numbered fields</td><td>Like Protobuf</td><td>Older RPC stacks (Meta, Apache projects)</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><strong>Backward compatible</strong> = new code reads old data; <strong>forward compatible</strong> = old code reads new data. Rolling deploys need both, because old and new versions run side by side.</li>
+          <li><strong>Safe changes:</strong> add an optional field with a default. <strong>Unsafe:</strong> rename (in JSON), renumber (in Protobuf), change a type, make an optional field required.</li>
+        </ul>
+
+        <h3 id="u07-compress">Compression</h3>
+        <table>
+          <thead><tr><th>Codec</th><th>Strength</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>gzip / DEFLATE</td><td>Supported everywhere; moderate ratio and speed</td><td>HTTP default, files</td></tr>
+            <tr><td>Brotli</td><td>Better ratio than gzip for text, slower to compress at high levels; has a built-in web dictionary</td><td>Static web assets (all modern browsers)</td></tr>
+            <tr><td>Zstandard (zstd)</td><td>gzip-like or better ratios at much higher speed; tunable levels; trained dictionaries for small messages</td><td>Kafka, databases, file systems; HTTP in Chrome and Firefox since 2024 (check Safari before relying on it)</td></tr>
+            <tr><td>LZ4, Snappy</td><td>Very fast, lower ratio</td><td>Databases, RPC, Kafka, Parquet pages</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><strong>The trade-off is CPU vs bytes:</strong> compress across the internet and on mobile, where bandwidth and latency dominate; inside a data centre, a fast codec or none may be cheaper.</li>
+          <li><strong>Small messages compress poorly</strong> because there's little repetition to find; batching (Kafka compresses whole batches) or a shared dictionary fixes that.</li>
+          <li><strong>Don't compress twice:</strong> images, video and already-compressed files gain nothing and waste CPU. And never compress secrets together with attacker-controlled data in one response (the BREACH attack class).</li>
+        </ul>
+
+        <h3 id="u07-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"JSON or Protobuf?"</strong> JSON at the public edge for reach and debuggability; Protobuf (gRPC) between services for size, speed and enforced schemas. With gzip, JSON's size penalty shrinks; the parsing cost doesn't.</li>
+          <li><strong>"How do you change a message without breaking consumers?"</strong> Only add optional fields with defaults, never reuse field numbers, and check compatibility in CI with a schema registry.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Never reuse or renumber a field">
+            <p>What is the one rule you must never break when evolving a Protobuf message?</p>
+            <div class="opts"><button>Never add fields</button><button>Never reuse or renumber a field</button><button>Never use optional fields</button></div>
+            <div class="why">Old data and old code identify fields by number; a reused number is silently misread.</div>
+          </div>
+          <div class="quiz-q" data-answer="There's too little repetition in one small message">
+            <p>Why does compressing each tiny message separately save little?</p>
+            <div class="opts"><button>Compression only works on text</button><button>There's too little repetition in one small message</button><button>Small messages are already compressed</button></div>
+            <div class="why">Batch messages, or use a trained dictionary (zstd).</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://protobuf.dev/programming-guides/proto3/" target="_blank" rel="noopener">Protocol Buffers: proto3 language guide</a></li><li><a href="https://avro.apache.org/docs/1.12.0/specification/" target="_blank" rel="noopener">Apache Avro specification</a></li><li><a href="https://msgpack.org/" target="_blank" rel="noopener">MessagePack</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc8949" target="_blank" rel="noopener">RFC 8949: CBOR</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc8878" target="_blank" rel="noopener">RFC 8878: Zstandard</a></li><li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Encoding" target="_blank" rel="noopener">MDN: Content-Encoding</a></li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API" target="_blank" rel="noopener">MDN: Compression Streams API</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="06-networking-protocols.html"><small>Previous module</small>← 06 · Networking and protocols</a>
       <a class="next" href="08-load-balancing-scaling.html"><small>Next module</small>08 · Load balancing and scaling out →</a>
@@ -2806,6 +2876,28 @@ Content-Type: application/problem+json
         note: "One round trip, no wasted fields. The price: harder HTTP caching, field-level authorization, and limits on expensive queries." },
     ],
   });
+  /* ---------- Under the hood: formats and compression ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), enc = new TextEncoder();
+    const CITIES = ["London", "Paris", "Berlin", "Madrid", "Rome", "Lisbon"], ST = ["paid", "shipped", "delivered"];
+    const recs = (n) => Array.from({ length: n }, (_, i) => ({ id: 100000 + i * 7, customer: "cust_" + (1000 + ((i * 37) % 400)), city: CITIES[i % 6], status: ST[(i * 5) % 3], amount_cents: 1000 + ((i * 7919) % 50000), items: 1 + (i % 4) }));
+    const varint = (v) => { const o = []; do { let b = v & 0x7f; v = Math.floor(v / 128); if (v > 0) b |= 0x80; o.push(b); } while (v > 0); return o; };
+    const fld = (n, t, v) => t === 0 ? [...varint(n * 8), ...varint(v)] : (() => { const b = [...enc.encode(v)]; return [...varint(n * 8 + 2), ...varint(b.length), ...b]; })();
+    const pbRec = (r) => [...fld(1, 0, r.id), ...fld(2, 2, r.customer), ...fld(3, 2, r.city), ...fld(4, 2, r.status), ...fld(5, 0, r.amount_cents), ...fld(6, 0, r.items)];
+    const pbList = (rs) => rs.flatMap((r) => { const b = pbRec(r); return [...varint(1 * 8 + 2), ...varint(b.length), ...b]; });
+    const gz = async (bytes) => { if (!window.CompressionStream) return null; const s = new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream("gzip")); return (await new Response(s).arrayBuffer()).byteLength; };
+    const kb = (b) => (b == null ? "n/a" : b >= 10240 ? (b / 1024).toFixed(0) + " KB" : b >= 1024 ? (b / 1024).toFixed(1) + " KB" : b + " B");
+    let tok = 0;
+    async function run() {
+      const n = +g("fz-n").value, my = ++tok; g("fz-no").textContent = n;
+      const rs = recs(n), js = [...enc.encode(JSON.stringify(rs))], pb = pbList(rs);
+      const [jg, pg] = await Promise.all([gz(js), gz(pb)]); if (my !== tok) return;
+      const rows = [["JSON", js.length], ["JSON + gzip", jg], ["Protobuf", pb.length], ["Protobuf + gzip", pg]], mx = js.length;
+      g("fz-out").innerHTML = rows.map(([k, v]) => `<div style="display:grid;grid-template-columns:minmax(0,9em) minmax(40px,1fr) minmax(0,6em);gap:8px;align-items:center;margin:6px 0"><span style="font-size:.86rem">${k}</span><span style="height:14px;border-radius:7px;background:${k.includes("gzip") ? "var(--accent)" : "var(--line)"};width:${v == null ? 0 : (v / mx) * 100}%"></span><span class="idx">${kb(v)}</span></div>`).join("");
+      g("fz-why").innerHTML = jg == null ? "This browser has no CompressionStream, so gzip sizes can't be measured here." : `Protobuf is ${Math.round((pb.length / js.length) * 100)}% of the JSON size because field names become one-byte tags. gzip finds the repeated field names in JSON, so compressed JSON (${kb(jg)}) closes most of the gap${n < 5 ? "; with this few records there's little repetition, so gzip barely helps (or adds overhead)" : ""}. Parsing JSON still costs more CPU than decoding Protobuf.`;
+    }
+    g("fz-n").oninput = run; run();
+  })();
 })();
 </script>
 </body>

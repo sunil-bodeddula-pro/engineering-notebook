@@ -2792,6 +2792,58 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <ul class="uth-src"><li><a href="https://www.postgresql.org/docs/current/transaction-iso.html" target="_blank" rel="noopener">PostgreSQL: transaction isolation</a></li><li><a href="https://www.postgresql.org/docs/current/routine-vacuuming.html" target="_blank" rel="noopener">PostgreSQL: routine vacuuming</a></li><li><a href="https://www.postgresql.org/docs/current/wal-intro.html" target="_blank" rel="noopener">PostgreSQL: write-ahead logging</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html" target="_blank" rel="noopener">MySQL 8.4: isolation levels</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-multi-versioning.html" target="_blank" rel="noopener">MySQL 8.4: InnoDB multi-versioning</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html" target="_blank" rel="noopener">MySQL 8.4: InnoDB startup options and variables</a></li><li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql" target="_blank" rel="noopener">SQL Server: SET TRANSACTION ISOLATION LEVEL</a></li><li><a href="https://docs.cockroachlabs.com/docs/stable/read-committed" target="_blank" rel="noopener">CockroachDB: read committed</a></li><li><a href="https://www.cockroachlabs.com/docs/stable/architecture/transaction-layer" target="_blank" rel="noopener">CockroachDB: transaction layer</a></li><li><a href="https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/" target="_blank" rel="noopener">Percolator paper (Google, 2010)</a></li><li><a href="https://arxiv.org/abs/1208.4179" target="_blank" rel="noopener">Serializable Snapshot Isolation in PostgreSQL (Ports and Grittner, 2012)</a></li><li><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transactions.html" target="_blank" rel="noopener">DynamoDB: transactions</a></li><li><a href="https://www.mongodb.com/docs/manual/core/transactions-production-consideration/" target="_blank" rel="noopener">MongoDB: transactions in production</a></li><li><a href="https://apple.github.io/foundationdb/known-limitations.html" target="_blank" rel="noopener">FoundationDB: known limitations</a></li><li><a href="https://redis.io/docs/latest/develop/interact/transactions/" target="_blank" rel="noopener">Redis: transactions</a></li></ul>
       </div>
     </details>
+    <details class="uth" id="uth-money-and-ledgers">
+      <summary><span class="uth-t"><b>Money and ledgers</b><small>A live double-entry ledger lab with refunds and idempotent retries, money-handling rules, reconciliation, PCI scope, ledger databases</small></span><span class="uth-m">about 15 min</span></summary>
+      <div class="uth-body">
+        <p>Money systems are where consistency mistakes become real losses. The accounting world solved the core data model centuries ago: double-entry bookkeeping with an immutable journal. Payment systems add idempotency, reconciliation and careful handling of card data.</p>
+
+        <h3 id="u17b-lab">Double entry, hands on</h3>
+        <p>Every transaction is recorded as entries that move money between accounts; debits always equal credits, nothing is ever edited, and balances are derived by adding up entries. Post some transactions:</p>
+        <div class="card widget" id="lg-lab">
+          <div class="ctl"><button class="btn primary" type="button" id="lg-top">Customer tops up $100</button><button class="btn primary" type="button" id="lg-pay">Customer pays merchant $40</button><button class="btn" type="button" id="lg-ref">Refund that payment</button><button class="btn" type="button" id="lg-dup">Retry the payment (same idempotency key)</button><button class="btn" type="button" id="lg-reset">Reset</button></div>
+          <div class="no-gl" id="lg-out"></div>
+          <div class="verdict no-gl" id="lg-why"></div>
+        </div>
+
+        <h3 id="u17b-rules">The rules that keep money correct</h3>
+        <ul>
+          <li><strong>Amounts in minor units</strong> (integer cents) or exact decimals, with a currency on every amount; never floating point. Round once, at defined points, with a stated rule.</li>
+          <li><strong>Immutable entries:</strong> mistakes are corrected by new, reversing entries, so history explains every balance. Balances are a cached sum, recomputable from the journal.</li>
+          <li><strong>Idempotency keys:</strong> the client sends a unique key with each payment request; the server stores the key with the result and returns the same result on a retry instead of charging again (Stripe keeps keys for 24 hours). Store the key in the same transaction as the ledger entries.</li>
+          <li><strong>Balance checks under concurrency:</strong> "don't let the wallet go negative" needs a conditional update or a lock on the account row (Module 17), or a ledger database that enforces it.</li>
+          <li><strong>Reconciliation:</strong> every day, match your ledger against the bank's and the card processor's settlement files. Differences are found by people or rules, never silently ignored.</li>
+          <li><strong>Card data:</strong> storing card numbers puts your systems in scope for PCI DSS. Use the processor's tokenization so raw card numbers never touch your servers.</li>
+        </ul>
+        <table>
+          <thead><tr><th>Option</th><th>When</th></tr></thead>
+          <tbody>
+            <tr><td>Ledger tables in PostgreSQL</td><td>The default: journal + entries tables, constraints and serializable or locked updates</td></tr>
+            <tr><td>A purpose-built ledger database (TigerBeetle)</td><td>Very high transaction rates with debits/credits and balance limits enforced by the database</td></tr>
+            <tr><td>A ledger service from a payments provider</td><td>When you'd rather buy than build (Modern Treasury, Stripe Treasury and similar)</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u17b-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"How do you store a wallet balance?"</strong> As the sum of immutable double-entry ledger lines, with a cached balance updated in the same transaction and a constraint or lock that prevents overdrafts.</li>
+          <li><strong>"The client timed out; did the payment go through?"</strong> It retries with the same idempotency key; the server returns the original result, so there's never a second charge.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Post a new reversing entry">
+            <p>A payment was recorded with the wrong amount. What do you do in a ledger?</p>
+            <div class="opts"><button>Update the entry</button><button>Delete it and insert the right one</button><button>Post a new reversing entry</button></div>
+            <div class="why">History stays complete and auditable; the balance is still the sum of entries.</div>
+          </div>
+          <div class="quiz-q" data-answer="Total debits equal total credits">
+            <p>What invariant must every transaction in a double-entry ledger satisfy?</p>
+            <div class="opts"><button>Total debits equal total credits</button><button>Every balance is positive</button><button>One entry per transaction</button></div>
+            <div class="why">Money is only ever moved between accounts, never created or lost.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://www.moderntreasury.com/journal/accounting-for-developers-part-i" target="_blank" rel="noopener">Modern Treasury: accounting for developers</a></li><li><a href="https://docs.stripe.com/api/idempotent_requests" target="_blank" rel="noopener">Stripe: idempotent requests</a></li><li><a href="https://docs.tigerbeetle.com/" target="_blank" rel="noopener">TigerBeetle documentation</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="16-consistency-cap.html"><small>Previous module</small>← 16 · Consistency, CAP and PACELC</a>
       <a class="next" href="18-queues-streams.html"><small>Next module</small>18 · Queues and event streams →</a>
@@ -2966,6 +3018,26 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       { hl: { co: "found", a: "found", b: "found" }, moves: [{ e: "co>a", t: "COMMIT", k: "req" }, { e: "co>b", t: "COMMIT", k: "req" }], pops: [{ n: "co", t: "recovered from its log", k: "ok", at: 0.2 }], hold: 3.2, note: "Phase 2 finishes when the coordinator recovers. Systems like Spanner replicate the coordinator with consensus so this wait is short." },
     ],
   });
+  /* ---------- Under the hood: ledgers ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const ACC = ["Card processor (receivable)", "Customer wallet (we owe)", "Merchant payable (we owe)", "Fee revenue"];
+    let J, keys, txn, lastPay;
+    const reset = () => { J = []; keys = new Set(); txn = 0; lastPay = null; draw("Empty ledger. Every balance is zero, and so is the total."); };
+    const post = (desc, lines) => { txn++; lines.forEach(([a, dr, cr]) => J.push({ t: txn, desc, a, dr, cr })); };
+    const bal = (a) => J.filter((e) => e.a === a).reduce((s, e) => s + e.dr - e.cr, 0);
+    const $ = (c) => (c < 0 ? "−" : "") + "$" + (Math.abs(c) / 100).toFixed(2);
+    function draw(msg) {
+      const dr = J.reduce((s, e) => s + e.dr, 0), cr = J.reduce((s, e) => s + e.cr, 0);
+      g("lg-out").innerHTML = `<table><thead><tr><th>#</th><th>Transaction</th><th>Account</th><th>Debit</th><th>Credit</th></tr></thead><tbody>${J.map((e) => `<tr><td>${e.t}</td><td>${e.desc}</td><td>${e.a}</td><td>${e.dr ? $(e.dr) : ""}</td><td>${e.cr ? $(e.cr) : ""}</td></tr>`).join("") || '<tr><td colspan="5">(no entries)</td></tr>'}</tbody></table><table><thead><tr><th>Account</th><th>Balance (debits − credits)</th></tr></thead><tbody>${ACC.map((a) => `<tr><td>${a}</td><td>${$(bal(a))}</td></tr>`).join("")}<tr><td><b>Total debits vs credits</b></td><td><b>${$(dr)} = ${$(cr)}</b> ✓</td></tr></tbody></table>`;
+      g("lg-why").innerHTML = msg;
+    }
+    g("lg-top").onclick = () => { post("Top-up $100", [[ACC[0], 10000, 0], [ACC[1], 0, 10000]]); draw("The processor owes us $100 (debit); we owe the customer $100 of wallet balance (credit)."); };
+    g("lg-pay").onclick = () => { if (-bal(ACC[1]) < 4000) return draw("<b>Rejected:</b> the wallet holds less than $40. In a real system this check and the posting happen in one transaction with a lock or conditional update."); post("Pay merchant $40 (key pay-7)", [[ACC[1], 4000, 0], [ACC[2], 0, 3880], [ACC[3], 0, 120]]); keys.add("pay-7"); lastPay = txn; draw("The wallet shrinks by $40; the merchant is owed $38.80 and we earn a $1.20 fee. Three lines, debits = credits."); };
+    g("lg-ref").onclick = () => { if (!lastPay) return draw("Nothing to refund yet."); post(`Refund of #${lastPay}`, [[ACC[2], 3880, 0], [ACC[3], 120, 0], [ACC[1], 0, 4000]]); lastPay = null; draw("The original entries stay untouched; new reversing entries undo them. History explains every balance."); };
+    g("lg-dup").onclick = () => { if (keys.has("pay-7")) return draw("<b>Idempotency key pay-7 already used:</b> the server returns the stored result of the first request. No new entries, no double charge."); draw("No payment with key pay-7 yet; post the payment first."); };
+    g("lg-reset").onclick = reset; reset();
+  })();
 })();
 </script>
 </body>
