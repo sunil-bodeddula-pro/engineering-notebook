@@ -369,6 +369,8 @@ svg.tree circle.found { fill: var(--green-soft); stroke: var(--green); }
 svg.tree circle.window { fill: var(--accent-soft); stroke: var(--accent); }
 svg.tree circle.warm { fill: var(--warm-soft); stroke: var(--warm); }
 svg.tree circle.bad { fill: var(--red-soft); stroke: var(--red); }
+svg.tree circle.gold { fill: var(--gold-soft); stroke: var(--gold); }
+svg.tree circle.dim { opacity: .4; }
 svg.tree line, svg.tree path.edge { stroke: var(--ink-3); stroke-width: 1.5; fill: none; }
 svg.tree path.edge.active, svg.tree line.active { stroke: var(--blue); stroke-width: 2.5; }
 
@@ -2321,203 +2323,317 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(V + E)</code> time (each node entered once, each edge looked at once or twice), <code>O(V)</code> space for <code>visited</code> plus up to <code>O(V)</code> recursion/stack depth. With an adjacency <em>matrix</em> it's <code>O(V²)</code>.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python templates (memorize these)</h2>
-    <p>Five small building blocks. Every DFS problem below is one of these, slightly changed. Each block is followed by a plain-English walk-through.</p>
-    <h3>0) Turn an edge list into an adjacency list</h3>
-    <pre><code class="python"># 0) Edge list -&gt; adjacency list
-# graph[node] will be the list of nodes you can step to from node.
-def build_graph(n, edges, directed=False):
-    graph = {}
-    # Give every node 0..n-1 an empty list first,
-    # so graph[node] works even for a node with no edges.
-    for node in range(n):
-        graph[node] = []
-    for edge in edges:
-        from_node = edge[0]
-        to_node = edge[1]
-        graph[from_node].append(to_node)      # edge from_node -&gt; to_node
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Graph DFS has five templates. <strong>0</strong> turns an edge list into an adjacency list (every graph problem starts here). <strong>A</strong> is recursive DFS with a visited set; <strong>B</strong> is the same walk with an explicit stack. <strong>C</strong> counts connected components by starting a DFS from every unvisited node. <strong>D</strong> uses three colours to detect cycles in a directed graph and produce a topological order.</p>
+
+    <section class="tmpl" id="tmpl-0">
+    <h3>Template 0 · Edge list → adjacency list</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Turn <code>n</code> and a list of edges into "for each node, who are its neighbours?".</div><div><b>What it keeps</b>One list of neighbours per node.</div><div><b>When it checks for an answer</b>—</div><div><b>Use it when</b>Every graph problem given as edges (LC 200-style grids are already adjacency in disguise).</div><div><b>Not for</b>Dense graphs where an n × n matrix is simpler; grids (neighbours are computed on the fly, page 13).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Every road goes in both towns' address books"</strong>Each town keeps an address book of towns it has a direct road to. A two-way road is written in both books; a one-way road only in the book of the town it leaves from.</div>
+    <p><strong>The story, mapped to the code.</strong> Nodes are towns; edges are roads.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Address books, one per town</td><td data-h="In the code"><code>graph = {node: []}</code></td><td data-h="What it means">Every node gets a list, even with no roads.</td></tr><tr><td data-h="In the story">A road from a to b</td><td data-h="In the code"><code>graph[a].append(b)</code></td><td data-h="What it means">Written in a's book.</td></tr><tr><td data-h="In the story">Two-way road</td><td data-h="In the code"><code>graph[b].append(a)</code></td><td data-h="What it means">Also in b's book (undirected).</td></tr><tr><td data-h="In the story">One-way road</td><td data-h="In the code"><code>directed=True</code></td><td data-h="What it means">Only a's book.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Create every list first, then add each edge.</p>
+    <pre><code class="python">def build_graph(n, edges, directed=False):
+    graph = {node: [] for node in range(n)}
+    for a, b in edges:
+        graph[a].append(b)
         if not directed:
-            graph[to_node].append(from_node)  # undirected: also add the way back
+            graph[b].append(a)
     return graph</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>We make an empty dict <code>graph</code>. It will map each node to the list of its neighbours.</li>
-      <li>The first loop gives every node <code>0..n-1</code> an empty list. Now <code>graph[node]</code> never fails, even for a node with no edges.</li>
-      <li>The second loop reads each edge <code>[from_node, to_node]</code> (one assignment per value, no unpacking) and appends <code>to_node</code> to <code>from_node</code>'s list.</li>
-      <li>If the graph is undirected (<code>directed=False</code>), the edge works both ways, so we also append <code>from_node</code> to <code>to_node</code>'s list.</li>
-    </ol>
-    <p><strong>Dry run</strong> on <code>build_graph(3, [[0, 1], [1, 2]])</code>:</p>
-    <table>
-      <thead><tr><th>Edge</th><th>graph after it</th></tr></thead>
-      <tbody>
-        <tr><td>(start)</td><td><code>{0: [], 1: [], 2: []}</code></td></tr>
-        <tr><td><code>[0, 1]</code></td><td><code>{0: [1], 1: [0], 2: []}</code></td></tr>
-        <tr><td><code>[1, 2]</code></td><td><code>{0: [1], 1: [0, 2], 2: [1]}</code></td></tr>
-      </tbody>
-    </table>
-    <h3>A) Recursive DFS + visited set</h3>
-    <pre><code class="python"># A) Recursive DFS + visited set
-# visited = set of nodes already entered, order = list that records the visit order.
-def dfs(node, graph, visited, order):
-    visited.add(node)                  # mark on ENTRY, before looking at neighbours
-    order.append(node)                 # "do the work" for this node (here: remember it)
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function buildGraph(n: number, edges: number[][], directed = false): number[][] {
+  const graph: number[][] = Array.from({ length: n }, () =&gt; []);
+  for (const [a, b] of edges) {
+    graph[a].push(b);
+    if (!directed) {
+      graph[b].push(a);
+    }
+  }
+  return graph;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;List&lt;Integer&gt;&gt; buildGraph(int n, int[][] edges, boolean directed) {
+    List&lt;List&lt;Integer&gt;&gt; graph = new ArrayList&lt;&gt;();
+    for (int i = 0; i &lt; n; i++) graph.add(new ArrayList&lt;&gt;());
+    for (int[] e : edges) {
+        graph.get(e[0]).add(e[1]);
+        if (!directed) {
+            graph.get(e[1]).add(e[0]);
+        }
+    }
+    return graph;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>graph = {node: [] for node in range(n)}</code></td><td data-h="What it does">Every node gets an empty list.</td><td data-h="In the story">A book for every town.</td><td data-h="Why here, and what breaks if it moves">Building lists only for nodes that appear in edges loses isolated nodes (they still count as components).</td></tr><tr><td data-h="Line"><code>graph[a].append(b)</code></td><td data-h="What it does">a → b.</td><td data-h="In the story">Write b in a's book.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if not directed: graph[b].append(a)</code></td><td data-h="What it does">b → a too for two-way edges.</td><td data-h="In the story">Write a in b's book.</td><td data-h="Why here, and what breaks if it moves">Forgetting it on an undirected graph makes DFS miss nodes reachable only "backwards".</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through 5 nodes with edges <code>[[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]]</code>.</p>
+    <div id="tl-11z"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-11z-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After processing k edges, each list contains exactly the endpoints of those k edges that touch the node.</p>
+    <p><strong>Complexity.</strong> O(n + m) time and space (m = edges).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Missing isolated nodes.</strong> A book for every town.</li><li><strong>One direction only on undirected input.</strong> Two-way roads go in both books.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Every road goes in both towns' address books.</dd>
+      <dt>Choose this template when</dt><dd>Edges given → build adjacency first.</dd>
+      <dt>Invariant</dt><dd>graph[x] lists x's direct neighbours.</dd>
+      <dt>The line people get wrong</dt><dd>The <code>if not directed</code> line.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Space for n nodes, m undirected edges?</summary><p>O(n + 2m).</p></details><details><summary>Directed edge [2, 3]: whose list?</summary><p>Only graph[2].</p></details><details><summary>Why create lists for all n nodes?</summary><p>Isolated nodes must exist (components, topological order).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Recursive DFS with a visited set</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Visit every node reachable from a start node.</div><div><b>What it keeps</b><code>visited</code>: nodes already entered.</div><div><b>When it checks for an answer</b>Each neighbour: skip it if visited, otherwise go deep into it now.</div><div><b>Use it when</b>Reachability, flood fill, counting/labelling components, path existence, clone graph.</div><div><b>Not for</b>Shortest paths in unweighted graphs (BFS, page 12); huge depth in Python (B).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Chalk the wall when you enter a room; never enter a chalked room"</strong>Exploring a cave: mark each chamber with chalk the moment you enter, then try its tunnels one by one, going as deep as you can before coming back. Chalked chambers are never entered again, so cycles can't trap you.</div>
+    <p><strong>The story, mapped to the code.</strong> Nodes are chambers, edges tunnels.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Chalk mark</td><td data-h="In the code"><code>visited.add(node)</code></td><td data-h="What it means">Done on entry, before exploring.</td></tr><tr><td data-h="In the story">Note the chamber in your log</td><td data-h="In the code"><code>order.append(node)</code></td><td data-h="What it means">The "work" for a node.</td></tr><tr><td data-h="In the story">Try each tunnel</td><td data-h="In the code"><code>for neighbour in graph[node]</code></td><td data-h="What it means">In list order.</td></tr><tr><td data-h="In the story">Chalked already?</td><td data-h="In the code"><code>neighbour not in visited</code></td><td data-h="What it means">Skip it.</td></tr><tr><td data-h="In the story">Go deep</td><td data-h="In the code"><code>dfs(neighbour, …)</code></td><td data-h="What it means">Come back when that branch is exhausted.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Mark, work, then recurse into unvisited neighbours.</p>
+    <pre><code class="python">def dfs(node, graph, visited, order):
+    visited.add(node)
+    order.append(node)
     for neighbour in graph[node]:
-        if neighbour not in visited:   # only walk into tunnels we have not chalked yet
-            dfs(neighbour, graph, visited, order)
-    # when the loop ends, the function returns = we back up to the previous node</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>visited.add(node)</code> chalks the node the moment we enter it. Doing this first is what stops infinite loops on cycles.</li>
-      <li><code>order.append(node)</code> is the "do the work" spot. Here we just record the visit order; in a real problem you might count, copy or check something.</li>
-      <li>The <code>for</code> loop looks at every neighbour. If it isn't chalked yet, we call <code>dfs</code> on it: we dive deeper right away.</li>
-      <li>When the loop finishes, the function returns. Python then continues the loop of the node that called us: that is the "back up the string" step, done for free by recursion.</li>
-    </ol>
-    <p><strong>Dry run</strong> on the graph <code>{0: [1, 2], 1: [0, 3], 2: [0, 4], 3: [1, 4], 4: [2, 3, 5], 5: [4]}</code> from node 0:</p>
-    <table>
-      <thead><tr><th>Call</th><th>What happens</th><th>order so far</th></tr></thead>
-      <tbody>
-        <tr><td><code>dfs(0)</code></td><td>mark 0, first neighbour 1 is new</td><td><code>[0]</code></td></tr>
-        <tr><td><code>dfs(1)</code></td><td>mark 1, neighbour 0 seen, 3 is new</td><td><code>[0, 1]</code></td></tr>
-        <tr><td><code>dfs(3)</code></td><td>mark 3, neighbour 1 seen, 4 is new</td><td><code>[0, 1, 3]</code></td></tr>
-        <tr><td><code>dfs(4)</code></td><td>mark 4, neighbour 2 is new</td><td><code>[0, 1, 3, 4]</code></td></tr>
-        <tr><td><code>dfs(2)</code></td><td>mark 2, neighbours 0 and 4 seen, return to 4</td><td><code>[0, 1, 3, 4, 2]</code></td></tr>
-        <tr><td><code>dfs(5)</code></td><td>back in 4: 3 seen, 5 is new; mark 5, then everything returns</td><td><code>[0, 1, 3, 4, 2, 5]</code></td></tr>
-      </tbody>
-    </table>
-    <h3>B) Iterative DFS with an explicit stack</h3>
-    <pre><code class="python"># B) Iterative DFS with an explicit stack (no recursion limit)
-def dfs_iter(start, graph):
-    visited = set()
-    order = []
-    stack = [start]                    # a plain list used as a stack
-    while len(stack) &gt; 0:
-        node = stack.pop()             # pop() removes and returns the LAST item (newest)
-        if node in visited:            # a node may be pushed twice: skip repeats
+        if neighbour not in visited:
+            dfs(neighbour, graph, visited, order)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function dfs(node: number, graph: number[][], visited: Set&lt;number&gt;, order: number[]): void {
+  visited.add(node);
+  order.push(node);
+  for (const neighbour of graph[node]) {
+    if (!visited.has(neighbour)) {
+      dfs(neighbour, graph, visited, order);
+    }
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void dfs(int node, List&lt;List&lt;Integer&gt;&gt; graph, Set&lt;Integer&gt; visited, List&lt;Integer&gt; order) {
+    visited.add(node);
+    order.add(node);
+    for (int neighbour : graph.get(node)) {
+        if (!visited.contains(neighbour)) {
+            dfs(neighbour, graph, visited, order);
+        }
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>visited.add(node)</code></td><td data-h="What it does">Marks on entry.</td><td data-h="In the story">Chalk first.</td><td data-h="Why here, and what breaks if it moves">Marking after the loop lets a cycle re-enter the node before it's marked.</td></tr><tr><td data-h="Line"><code>for neighbour in graph[node]</code></td><td data-h="What it does">Tries each tunnel.</td><td data-h="In the story">In address-book order.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if neighbour not in visited: dfs(...)</code></td><td data-h="What it does">Goes deep into new nodes only.</td><td data-h="In the story">Unchalked? Go in.</td><td data-h="Why here, and what breaks if it moves">Without the check, cycles recurse forever.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through DFS from node 0.</p>
+    <div id="tl-11a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-11a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Every node in <code>visited</code> has been entered once; when <code>dfs(node)</code> returns, every node reachable from node through unvisited nodes is visited.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space (visited + recursion depth).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Marking visited late.</strong> Chalk on entry.</li><li><strong>Recursion depth in Python.</strong> sys.setrecursionlimit or Template B.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Chalk when you enter; never enter a chalked room.</dd>
+      <dt>Choose this template when</dt><dd>Reachability / components / flood fill → A.</dd>
+      <dt>Invariant</dt><dd>visited = entered nodes.</dd>
+      <dt>The line people get wrong</dt><dd><code>visited.add(node)</code> first.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Order from 0 in the example?</summary><p>0, 1, 3, 2, 4.</p></details><details><summary>Why mark on entry?</summary><p>So a cycle back to this node sees it's visited.</p></details><details><summary>Complexity?</summary><p>O(n + m).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Iterative DFS with an explicit stack</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Same walk as A, without recursion.</div><div><b>What it keeps</b>A stack of nodes to try; <code>visited</code>.</div><div><b>When it checks for an answer</b>On pop: skip if visited; otherwise mark, work, push unvisited neighbours (reversed, to match A's order).</div><div><b>Use it when</b>Deep graphs (no recursion limit), when you need to control the order.</div><div><b>Not for</b>Postorder work (finish times) — the recursive form is far simpler (D).</div></div>
+    <div class="callout memory"><strong>Memory hook: "A pile of tunnels to try; the newest one first"</strong>Instead of remembering your way back, keep a pile of tunnel entrances. Take the newest, skip it if chalked, otherwise chalk it and add its tunnels to the pile.</div>
+    <p><strong>The story, mapped to the code.</strong> Same cave, with a pile of entrances.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Pile of entrances</td><td data-h="In the code"><code>stack</code></td><td data-h="What it means">Nodes waiting.</td></tr><tr><td data-h="In the story">Take the newest</td><td data-h="In the code"><code>node = stack.pop()</code></td><td data-h="What it means">LIFO gives depth-first.</td></tr><tr><td data-h="In the story">Already chalked</td><td data-h="In the code"><code>if node in visited: continue</code></td><td data-h="What it means">A node may be pushed twice.</td></tr><tr><td data-h="In the story">Add its tunnels</td><td data-h="In the code"><code>push neighbours reversed</code></td><td data-h="What it means">So the first neighbour is popped first, like A.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Mark on <em>pop</em> here, because a node can be pushed more than once.</p>
+    <pre><code class="python">def dfs_iter(start, graph):
+    visited, order = set(), []
+    stack = [start]
+    while stack:
+        node = stack.pop()
+        if node in visited:
             continue
         visited.add(node)
-        order.append(node)             # "do the work" for this node
-        # Push neighbours from LAST to FIRST, so the FIRST neighbour
-        # ends up on top of the stack and is popped next (same order as recursion).
-        neighbours = graph[node]
-        i = len(neighbours) - 1
-        while i &gt;= 0:
-            neighbour = neighbours[i]
+        order.append(node)
+        for neighbour in reversed(graph[node]):
             if neighbour not in visited:
                 stack.append(neighbour)
-            i = i - 1
     return order</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>Instead of recursion we keep our own <code>stack</code> (a list). <code>append</code> puts an item on top, <code>pop()</code> takes the top item off.</li>
-      <li>Each round pops one node. A node can be pushed twice (by two different neighbours) before it is visited, so if it is already in <code>visited</code> we <code>continue</code> (skip it).</li>
-      <li>Otherwise we mark it and record it.</li>
-      <li>We push the neighbours from the last one to the first one with a <code>while</code> loop counting <code>i</code> down. The first neighbour is pushed last, so it sits on top and gets popped next. That gives the same order as the recursive version.</li>
-      <li>When the stack is empty, every reachable node has been visited.</li>
-    </ol>
-    <p><strong>Dry run</strong> on the same graph from node 0 (the top of the stack is on the right):</p>
-    <table>
-      <thead><tr><th>Pop</th><th>Action</th><th>order</th><th>stack after</th></tr></thead>
-      <tbody>
-        <tr><td>0</td><td>visit, push 2 then 1</td><td><code>[0]</code></td><td><code>[2, 1]</code></td></tr>
-        <tr><td>1</td><td>visit, push 3</td><td><code>[0, 1]</code></td><td><code>[2, 3]</code></td></tr>
-        <tr><td>3</td><td>visit, push 4</td><td><code>[0, 1, 3]</code></td><td><code>[2, 4]</code></td></tr>
-        <tr><td>4</td><td>visit, push 5 then 2</td><td><code>[0, 1, 3, 4]</code></td><td><code>[2, 5, 2]</code></td></tr>
-        <tr><td>2</td><td>visit (nothing new to push)</td><td><code>[0, 1, 3, 4, 2]</code></td><td><code>[2, 5]</code></td></tr>
-        <tr><td>5</td><td>visit</td><td><code>[0, 1, 3, 4, 2, 5]</code></td><td><code>[2]</code></td></tr>
-        <tr><td>2</td><td>already visited: skip</td><td><code>[0, 1, 3, 4, 2, 5]</code></td><td><code>[]</code></td></tr>
-      </tbody>
-    </table>
-    <h3>C) Count connected components</h3>
-    <pre><code class="python"># C) Count connected components (uses dfs from block A)
-def count_components(n, graph):
-    visited = set()
-    components = 0
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function dfsIter(start: number, graph: number[][]): number[] {
+  const visited = new Set&lt;number&gt;(), order: number[] = [];
+  const stack = [start];
+  while (stack.length &gt; 0) {
+    const node = stack.pop()!;
+    if (visited.has(node)) continue;
+    visited.add(node);
+    order.push(node);
+    for (const neighbour of [...graph[node]].reverse()) {
+      if (!visited.has(neighbour)) stack.push(neighbour);
+    }
+  }
+  return order;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; dfsIter(int start, List&lt;List&lt;Integer&gt;&gt; graph) {
+    Set&lt;Integer&gt; visited = new HashSet&lt;&gt;();
+    List&lt;Integer&gt; order = new ArrayList&lt;&gt;();
+    Deque&lt;Integer&gt; stack = new ArrayDeque&lt;&gt;();
+    stack.push(start);
+    while (!stack.isEmpty()) {
+        int node = stack.pop();
+        if (visited.contains(node)) continue;
+        visited.add(node);
+        order.add(node);
+        List&lt;Integer&gt; nbrs = graph.get(node);
+        for (int i = nbrs.size() - 1; i &gt;= 0; i--) {
+            if (!visited.contains(nbrs.get(i))) stack.push(nbrs.get(i));
+        }
+    }
+    return order;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>node = stack.pop()</code></td><td data-h="What it does">Newest entrance first.</td><td data-h="In the story">Depth-first.</td><td data-h="Why here, and what breaks if it moves"><code>pop(0)</code> would make it BFS-like (and O(n)).</td></tr><tr><td data-h="Line"><code>if node in visited: continue</code></td><td data-h="What it does">Skips duplicates.</td><td data-h="In the story">Already chalked.</td><td data-h="Why here, and what breaks if it moves">Without it, a node pushed twice is processed twice.</td></tr><tr><td data-h="Line"><code>for neighbour in reversed(graph[node])</code></td><td data-h="What it does">Pushes in reverse so the first neighbour is on top.</td><td data-h="In the story">Match A's order.</td><td data-h="Why here, and what breaks if it moves">Not reversing is still a valid DFS, just a different order.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Same graph, now with a pile instead of recursion. Node 2 gets pushed twice; watch the second copy get skipped.</p>
+    <div id="tl-11b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-11b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Every node on the stack was a neighbour of a visited node; each node is marked exactly once, on its first pop.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n + m) stack in the worst case (duplicates).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Marking on push but also on pop.</strong> Pick one: this template marks on pop and skips repeats.</li><li><strong>Using pop(0).</strong> That's a queue.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>A pile of tunnels; newest first; skip chalked ones.</dd>
+      <dt>Choose this template when</dt><dd>DFS without recursion → B.</dd>
+      <dt>Invariant</dt><dd>Each node is processed on its first pop only.</dd>
+      <dt>The line people get wrong</dt><dd><code>if node in visited: continue</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Why can a node be pushed twice?</summary><p>Two visited nodes both see it before it's popped.</p></details><details><summary>Why reverse the neighbours?</summary><p>To pop them in the same order as recursive DFS.</p></details><details><summary>Which node is skipped in the example?</summary><p>The second copy of 2.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Count connected components</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>How many separate groups (islands, provinces) does the graph have?</div><div><b>What it keeps</b>One shared <code>visited</code> set across all DFS runs.</div><div><b>When it checks for an answer</b>Every unvisited node starts a new component, then a DFS chalks its whole group.</div><div><b>Use it when</b>Number of provinces (LC 547), number of islands (LC 200), connected components (LC 323).</div><div><b>Not for</b>Dynamic connections added over time (Union-Find, page 23).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Every time you find an unchalked cave, you've found a new cave system"</strong>Walk past every cave entrance in town. If it's unchalked, it belongs to a system nobody has explored: count it, then explore (and chalk) the whole system.</div>
+    <p><strong>The story, mapped to the code.</strong> Each component is a separate cave system.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Walk past every entrance</td><td data-h="In the code"><code>for node in range(n)</code></td><td data-h="What it means">Try every node.</td></tr><tr><td data-h="In the story">Unchalked entrance</td><td data-h="In the code"><code>node not in visited</code></td><td data-h="What it means">A new system.</td></tr><tr><td data-h="In the story">Count it</td><td data-h="In the code"><code>components += 1</code></td><td data-h="What it means">One per DFS start.</td></tr><tr><td data-h="In the story">Explore it all</td><td data-h="In the code"><code>dfs(node, …)</code></td><td data-h="What it means">Chalks the whole system (Template A).</td></tr></tbody></table>
+    <p><strong>The template.</strong> Uses <code>dfs</code> from Template A.</p>
+    <pre><code class="python">def count_components(n, graph):
+    visited, components = set(), 0
     for node in range(n):
-        if node not in visited:        # nobody reached this node yet...
-            components = components + 1  # ...so it starts a NEW component
-            order = []                 # dfs wants an order list; we do not need it here
-            dfs(node, graph, visited, order)  # chalk every node in this component
+        if node not in visited:
+            components += 1
+            dfs(node, graph, visited, [])
     return components</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>We try every node as a possible starting point.</li>
-      <li>If the node is not in <code>visited</code>, no earlier DFS reached it, so it belongs to a component we haven't seen: add 1.</li>
-      <li>Then we run <code>dfs</code> (block A) from it. That chalks the whole component, so none of its nodes will start a new count later.</li>
-      <li>At the end, <code>components</code> is the number of fresh starts, which is the number of components.</li>
-    </ol>
-    <p><strong>Dry run</strong> on <code>n = 5</code>, edges <code>[[0, 1], [1, 2], [3, 4]]</code>:</p>
-    <table>
-      <thead><tr><th>node</th><th>already visited?</th><th>components</th><th>visited after</th></tr></thead>
-      <tbody>
-        <tr><td>0</td><td>no: new component, dfs chalks 0, 1, 2</td><td>1</td><td><code>{0, 1, 2}</code></td></tr>
-        <tr><td>1</td><td>yes</td><td>1</td><td><code>{0, 1, 2}</code></td></tr>
-        <tr><td>2</td><td>yes</td><td>1</td><td><code>{0, 1, 2}</code></td></tr>
-        <tr><td>3</td><td>no: new component, dfs chalks 3, 4</td><td>2</td><td><code>{0, 1, 2, 3, 4}</code></td></tr>
-        <tr><td>4</td><td>yes</td><td>2</td><td><code>{0, 1, 2, 3, 4}</code></td></tr>
-      </tbody>
-    </table>
-    <h3>D) Cycle detection + topological sort (3 colours)</h3>
-    <pre><code class="python"># D) Cycle detection + topological sort (directed graph, 3 colours)
-WHITE = 0   # never visited
-GRAY = 1    # on the current path (we are still inside it)
-BLACK = 2   # finished: everything below it has been explored
-
-
-# Helper for topo_sort. Returns False if a cycle is found below node.
-def visit(node, graph, color, post):
-    color[node] = GRAY                 # node is now on the current path
-    for neighbour in graph[node]:
-        if color[neighbour] == GRAY:   # back edge to our own path -&gt; cycle!
-            return False
-        if color[neighbour] == WHITE:
-            found_no_cycle = visit(neighbour, graph, color, post)
-            if not found_no_cycle:
-                return False           # a cycle was found deeper down: pass it up
-    color[node] = BLACK                # all neighbours finished -&gt; node is finished
-    post.append(node)                  # record the node in FINISH order
-    return True
-
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function countComponents(n: number, graph: number[][]): number {
+  const visited = new Set&lt;number&gt;();
+  let components = 0;
+  for (let node = 0; node &lt; n; node++) {
+    if (!visited.has(node)) {
+      components++;
+      dfs(node, graph, visited, []);
+    }
+  }
+  return components;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int countComponents(int n, List&lt;List&lt;Integer&gt;&gt; graph) {
+    Set&lt;Integer&gt; visited = new HashSet&lt;&gt;();
+    int components = 0;
+    for (int node = 0; node &lt; n; node++) {
+        if (!visited.contains(node)) {
+            components++;
+            dfs(node, graph, visited, new ArrayList&lt;&gt;());
+        }
+    }
+    return components;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for node in range(n)</code></td><td data-h="What it does">Tries every node, including isolated ones.</td><td data-h="In the story">Walk past every entrance.</td><td data-h="Why here, and what breaks if it moves">Looping over edges instead misses isolated nodes.</td></tr><tr><td data-h="Line"><code>if node not in visited: components += 1</code></td><td data-h="What it does">An unreached node starts a new group.</td><td data-h="In the story">Unchalked: a new system.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>dfs(node, graph, visited, [])</code></td><td data-h="What it does">Chalks the whole group.</td><td data-h="In the story">Explore it all.</td><td data-h="Why here, and what breaks if it moves">A fresh visited set per DFS would count every node as its own component.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through 6 nodes with edges <code>[[0,1], [1,2], [3,4]]</code>.</p>
+    <div id="tl-11c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-11c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After the outer loop reaches node k, <code>components</code> equals the number of components containing at least one node &lt; k, and all their nodes are visited.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>New visited set per start.</strong> One shared chalk for the whole town.</li><li><strong>Forgetting isolated nodes.</strong> Loop over all n nodes.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Every unchalked entrance is a new cave system.</dd>
+      <dt>Choose this template when</dt><dd>"How many groups" → loop all nodes, DFS from unvisited.</dd>
+      <dt>Invariant</dt><dd>components = number of DFS starts.</dd>
+      <dt>The line people get wrong</dt><dd>One shared <code>visited</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Components for n = 6, edges [[0,1],[1,2],[3,4]]?</summary><p>3: {0,1,2}, {3,4}, {5}.</p></details><details><summary>Islands in a grid: what's a node?</summary><p>A land cell.</p></details><details><summary>Alternative structure?</summary><p>Union-Find.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Cycle detection + topological sort (three colours)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Can the tasks be ordered so every prerequisite comes first? If so, in what order?</div><div><b>What it keeps</b>A colour per node: WHITE (new), GRAY (on the current path), BLACK (finished); a finish list.</div><div><b>When it checks for an answer</b>Every edge into a GRAY node is a cycle. Each node is added to the finish list when it turns BLACK.</div><div><b>Use it when</b>Course Schedule (LC 207/210), build order, dependency resolution, deadlock detection in directed graphs.</div><div><b>Not for</b>Undirected cycle detection (use parent tracking or Union-Find).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Gray = I'm still inside it. Running into gray means a loop"</strong>Following a trail of breadcrumbs: grey crumbs mark the path you're on right now, black crumbs mark paths you've fully finished. If you reach a grey crumb, you've walked in a circle. Write down each place as you finish it; reversed, that list is a valid order.</div>
+    <p><strong>The story, mapped to the code.</strong> Nodes are tasks; an edge a → b means a must come before b.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Unvisited</td><td data-h="In the code"><code>WHITE</code></td><td data-h="What it means">Not explored yet.</td></tr><tr><td data-h="In the story">On my current path</td><td data-h="In the code"><code>GRAY</code></td><td data-h="What it means">Entered, not finished.</td></tr><tr><td data-h="In the story">Fully finished</td><td data-h="In the code"><code>BLACK</code></td><td data-h="What it means">All descendants done.</td></tr><tr><td data-h="In the story">Reaching a grey crumb</td><td data-h="In the code"><code>color[nb] == GRAY</code></td><td data-h="What it means">A cycle: no valid order.</td></tr><tr><td data-h="In the story">Finish list, reversed</td><td data-h="In the code"><code>post[::-1]</code></td><td data-h="What it means">Topological order.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Colour on entry, recurse into white neighbours, finish when all are done.</p>
+    <pre><code class="python">WHITE, GRAY, BLACK = 0, 1, 2
 
 def topo_sort(n, graph):
-    color = [WHITE] * n                # one colour per node, all start WHITE
-    post = []                          # nodes in the order they finished
+    color, post = [WHITE] * n, []
+
+    def visit(node):
+        color[node] = GRAY
+        for nb in graph[node]:
+            if color[nb] == GRAY:
+                return False
+            if color[nb] == WHITE and not visit(nb):
+                return False
+        color[node] = BLACK
+        post.append(node)
+        return True
+
     for node in range(n):
-        if color[node] == WHITE:
-            ok = visit(node, graph, color, post)
-            if not ok:
-                return None            # cycle: no valid order exists
-    # Reverse the finish order with a while loop -&gt; topological order.
-    order = []
-    i = len(post) - 1
-    while i &gt;= 0:
-        order.append(post[i])
-        i = i - 1
-    return order</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>Three named numbers: <code>WHITE</code> (never seen), <code>GRAY</code> (on the path we are walking right now), <code>BLACK</code> (finished).</li>
-      <li><code>visit</code> is a separate top-level helper (no nested functions). It paints the node GRAY, then looks at each neighbour.</li>
-      <li>A GRAY neighbour is on our own current path, so we have walked in a circle: return <code>False</code> (cycle).</li>
-      <li>A WHITE neighbour is unexplored: visit it. If that deeper call found a cycle, pass the <code>False</code> straight up.</li>
-      <li>A BLACK neighbour is already finished and safe, so we ignore it.</li>
-      <li>After all neighbours, paint the node BLACK and append it to <code>post</code>. A node is appended only after everything it points to, so <code>post</code> lists "later" nodes first.</li>
-      <li><code>topo_sort</code> calls <code>visit</code> from every WHITE node (to cover disconnected parts). If any call reports a cycle, there is no order: return <code>None</code>.</li>
-      <li>Finally it copies <code>post</code> backwards with a <code>while</code> loop. Reversed finish order = topological order.</li>
-    </ol>
-    <p><strong>Dry run</strong> on directed edges <code>0→1, 0→2, 1→3, 2→3</code>:</p>
-    <table>
-      <thead><tr><th>Step</th><th>color (nodes 0..3)</th><th>post</th></tr></thead>
-      <tbody>
-        <tr><td>visit 0</td><td><code>[1, 0, 0, 0]</code></td><td><code>[]</code></td></tr>
-        <tr><td>visit 1</td><td><code>[1, 1, 0, 0]</code></td><td><code>[]</code></td></tr>
-        <tr><td>visit 3 (no neighbours), 3 finishes</td><td><code>[1, 1, 0, 2]</code></td><td><code>[3]</code></td></tr>
-        <tr><td>1 finishes</td><td><code>[1, 2, 0, 2]</code></td><td><code>[3, 1]</code></td></tr>
-        <tr><td>visit 2 (3 is BLACK: skip), 2 finishes</td><td><code>[1, 2, 2, 2]</code></td><td><code>[3, 1, 2]</code></td></tr>
-        <tr><td>0 finishes</td><td><code>[2, 2, 2, 2]</code></td><td><code>[3, 1, 2, 0]</code></td></tr>
-        <tr><td>reverse post</td><td></td><td><code>[0, 2, 1, 3]</code></td></tr>
-      </tbody>
-    </table>
-    <p>(1 = GRAY, 2 = BLACK.) Every edge goes left to right in <code>[0, 2, 1, 3]</code>, so it is a valid order.</p>
+        if color[node] == WHITE and not visit(node):
+            return None
+    return post[::-1]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function topoSort(n: number, graph: number[][]): number[] | null {
+  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const color: number[] = new Array(n).fill(WHITE), post: number[] = [];
+  const visit = (node: number): boolean =&gt; {
+    color[node] = GRAY;
+    for (const nb of graph[node]) {
+      if (color[nb] === GRAY) return false;
+      if (color[nb] === WHITE &amp;&amp; !visit(nb)) return false;
+    }
+    color[node] = BLACK;
+    post.push(node);
+    return true;
+  };
+  for (let node = 0; node &lt; n; node++) {
+    if (color[node] === WHITE &amp;&amp; !visit(node)) return null;
+  }
+  return post.reverse();
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static final int WHITE = 0, GRAY = 1, BLACK = 2;
+
+static boolean visit(int node, List&lt;List&lt;Integer&gt;&gt; graph, int[] color, List&lt;Integer&gt; post) {
+    color[node] = GRAY;
+    for (int nb : graph.get(node)) {
+        if (color[nb] == GRAY) return false;
+        if (color[nb] == WHITE &amp;&amp; !visit(nb, graph, color, post)) return false;
+    }
+    color[node] = BLACK;
+    post.add(node);
+    return true;
+}
+
+static List&lt;Integer&gt; topoSort(int n, List&lt;List&lt;Integer&gt;&gt; graph) {
+    int[] color = new int[n];
+    List&lt;Integer&gt; post = new ArrayList&lt;&gt;();
+    for (int node = 0; node &lt; n; node++) {
+        if (color[node] == WHITE &amp;&amp; !visit(node, graph, color, post)) return null;
+    }
+    Collections.reverse(post);
+    return post;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>color[node] = GRAY</code></td><td data-h="What it does">Node is on the current path.</td><td data-h="In the story">Drop a grey crumb.</td><td data-h="Why here, and what breaks if it moves">A single visited set can't tell "on my path" from "finished" (see the bug player).</td></tr><tr><td data-h="Line"><code>if color[nb] == GRAY: return False</code></td><td data-h="What it does">An edge back into the current path.</td><td data-h="In the story">A grey crumb ahead: a loop.</td><td data-h="Why here, and what breaks if it moves">Treating BLACK as a cycle reports false cycles on diamonds (a→b, a→c, b→d, c→d).</td></tr><tr><td data-h="Line"><code>color[node] = BLACK; post.append(node)</code></td><td data-h="What it does">All descendants finished.</td><td data-h="In the story">Black crumb; write it down.</td><td data-h="Why here, and what breaks if it moves">Appending on entry gives preorder, which is not a valid topological order.</td></tr><tr><td data-h="Line"><code>return post[::-1]</code></td><td data-h="What it does">Reverse finish order.</td><td data-h="In the story">Read the list backwards.</td><td data-h="Why here, and what breaks if it moves">Forgetting to reverse puts every task after its prerequisites' dependents.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through 6 tasks with edges <code>5→2, 5→0, 4→0, 4→1, 2→3, 3→1</code>. The second player runs a 3-node cycle with a plain visited set.</p>
+    <div id="tl-11d"></div><div id="tl-11d-bug"></div><p>With only "visited", the edge 2 → 0 looks like an edge to an already-finished node and is ignored, so the function returns <code>[0, 1, 2]</code> for a graph that has no valid order. Three colours return <code>None</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-11d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> GRAY nodes are exactly the current recursion path. A node turns BLACK only after all its descendants are BLACK, so every node finishes after everything it points to; reversed finish order puts each node before its targets.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>One visited set for a directed graph.</strong> Grey (on path) ≠ black (finished).</li><li><strong>Recording on entry.</strong> Write it down when it turns black.</li><li><strong>Forgetting to reverse.</strong> Finish order backwards.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Gray = still inside; running into gray = a loop.</dd>
+      <dt>Choose this template when</dt><dd>Prerequisites / ordering / cycle in a directed graph → D (or Kahn's BFS, page 12).</dd>
+      <dt>Invariant</dt><dd>GRAY = current path; BLACK = finished.</dd>
+      <dt>The line people get wrong</dt><dd><code>if color[nb] == GRAY: return False</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>What does an edge to a BLACK node mean?</summary><p>A cross/forward edge: fine, no cycle.</p></details><details><summary>Topological order for the example?</summary><p>[5, 4, 2, 3, 1, 0] (one valid order).</p></details><details><summary>Undirected cycle check?</summary><p>Track the parent, or Union-Find.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>0 · build</th><th>A · recursive</th><th>B · iterative</th><th>C · components</th><th>D · 3 colours</th></tr></thead><tbody><tr><td data-h="Question">Answers</td><td data-h="0 · build">Who are my neighbours?</td><td data-h="A · recursive">What can I reach?</td><td data-h="B · iterative">Same, no recursion</td><td data-h="C · components">How many groups?</td><td data-h="D · 3 colours">Is there a cycle? What order?</td></tr><tr><td data-h="Question">State</td><td data-h="0 · build">Lists</td><td data-h="A · recursive">visited</td><td data-h="B · iterative">visited + stack</td><td data-h="C · components">visited + counter</td><td data-h="D · 3 colours">colour per node + finish list</td></tr><tr><td data-h="Question">Graph type</td><td data-h="0 · build">Both</td><td data-h="A · recursive">Both</td><td data-h="B · iterative">Both</td><td data-h="C · components">Undirected</td><td data-h="D · 3 colours">Directed</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="0 · build">Any edge list</td><td data-h="A · recursive">LC 133, 841</td><td data-h="B · iterative">Deep graphs</td><td data-h="C · components">LC 323, 547, 200</td><td data-h="D · 3 colours">LC 207, 210</td></tr><tr><td data-h="Question">Time</td><td data-h="0 · build">O(n + m)</td><td data-h="A · recursive">O(n + m)</td><td data-h="B · iterative">O(n + m)</td><td data-h="C · components">O(n + m)</td><td data-h="D · 3 colours">O(n + m)</td></tr></tbody></table>
+    <p>Always start with 0. Then: reach things → A (or B when deep); count groups → C (A in a loop); order with dependencies or detect directed cycles → D.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -8195,6 +8311,140 @@ class Solution:
   }
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  const TL11POS = { 5: [[60, 50], [170, 25], [170, 115], [280, 70], [390, 70]], 6: [[50, 40], [150, 40], [250, 40], [50, 120], [150, 120], [250, 120]] };
+  const tl11g = (n, edges, hl, opts) => Viz.graph(Array.from({ length: n }, (_, i) => ({ id: i, x: (opts && opts.pos ? opts.pos : TL11POS[n])[i][0], y: (opts && opts.pos ? opts.pos : TL11POS[n])[i][1] })), edges, Object.assign({ hl, width: 440, height: 160 }, opts || {}));
+  const tl11adj = (n, edges, directed) => { const g = Array.from({ length: n }, () => []); edges.forEach(([a, b]) => { g[a].push(b); if (!directed) g[b].push(a); }); return g; };
+  const tlF = (a) => "[" + a.join(", ") + "]";
+
+  function tl11G(edges, n) {
+    const g = Array.from({ length: n }, () => []), steps = [], rows = [];
+    const view = (e) => tl11g(n, edges.slice(0, e + 1), {}, { edgeHl: e >= 0 ? { [edges[e][0] + "-" + edges[e][1]]: "active" } : {} }) + Viz.chips(g.map((l, i) => `${i}: [${l.join(", ")}]`), "address books");
+    steps.push({ line: "init", vars: { graph: g.map((l, i) => `${i}: []`).join(", ") }, view: view(-1), analogy: `${n} empty address books.`, note: "One empty list per node." });
+    edges.forEach(([a, b], k) => {
+      g[a].push(b); g[b].push(a);
+      steps.push({ line: ["loop", "fwd", "back"], vars: { edge: `${a}–${b}`, [`graph[${a}]`]: tlF(g[a]), [`graph[${b}]`]: tlF(g[b]) }, view: view(k), analogy: `Road ${a}–${b}: write ${b} in ${a}'s book and ${a} in ${b}'s.`, note: `Edge [${a}, ${b}].`,
+        ask: { q: `After this road, how many entries does ${a}'s book have?`, options: [...new Set([g[a].length, g[a].length - 1, g[a].length + 1])].map(String), answer: g[a].length, why: `graph[${a}] = ${tlF(g[a])}.` } });
+      rows.push([`[${a}, ${b}]`, tlF(g[a]), tlF(g[b])]);
+    });
+    steps.push({ line: "ret", vars: {}, view: view(-1), analogy: "Every town knows its neighbours.", note: "Return the adjacency list." });
+    return { steps, table: { head: ["Edge", "List of first endpoint after", "List of second endpoint after"], rows } };
+  }
+
+  function tl11A(edges, n) {
+    const g = tl11adj(n, edges), vis = new Set(), order = [], stack = [], steps = [], rows = [];
+    const view = (cur, nb) => tl11g(n, edges, Object.assign(Object.fromEntries([...vis].map((v) => [v, "found"])), cur !== undefined ? { [cur]: "active" } : {}), nb !== undefined ? { edgeHl: { [cur + "-" + nb]: "active" } } : {}) + Viz.chips(stack.map(String), "call stack") + `<p class="idx">order ${tlF(order)}</p>`;
+    const dfs = (u) => {
+      stack.push(u); vis.add(u); order.push(u);
+      steps.push({ line: ["mark", "work"], vars: { node: u, visited: tlF([...vis]), order: tlF(order) }, view: view(u), analogy: `Enter chamber ${u} and chalk it.`, note: `Visit ${u}.` });
+      rows.push([u, tlF(stack), tlF(order)]);
+      for (const nb of g[u]) {
+        const seen = vis.has(nb);
+        steps.push({ line: ["loop", "check"], vars: { node: u, neighbour: nb, visited_already: seen }, view: view(u, nb), analogy: seen ? `Tunnel to ${nb}: already chalked, skip.` : `Tunnel to ${nb}: unchalked, go in.`, note: `${nb} in visited? ${seen}.`,
+          ask: { q: `Go into ${nb}?`, options: ["go in", "skip"], answer: seen ? "skip" : "go in", why: seen ? `${nb} is chalked.` : `${nb} is new.` } });
+        if (!seen) { dfs(nb); steps.push({ line: "recurse", vars: { back_at: u }, view: view(u), analogy: `Back in ${u} after exploring from ${nb}.`, note: `<code>dfs(${nb})</code> returned.` }); }
+      }
+      stack.pop();
+    };
+    dfs(0);
+    return { steps, table: { head: ["Entered", "Call stack", "order"], rows } };
+  }
+
+  function tl11B(edges, n) {
+    const g = tl11adj(n, edges), vis = new Set(), order = [], st = [0], steps = [], rows = [];
+    const view = (cur, bad) => tl11g(n, edges, Object.assign(Object.fromEntries([...vis].map((v) => [v, "found"])), cur !== undefined ? { [cur]: bad ? "bad" : "active" } : {})) + Viz.chips(st.map(String), "stack (bottom → top)") + `<p class="idx">order ${tlF(order)}</p>`;
+    steps.push({ line: "init", vars: { stack: "[0]" }, view: view(), analogy: "One entrance on the pile: 0.", note: "<code>stack = [0]</code>." });
+    while (st.length) {
+      const u = st.pop();
+      if (vis.has(u)) { steps.push({ line: ["pop", "skip"], vars: { node: u }, view: view(u, true), analogy: `${u} was pushed twice; it's already chalked, skip.`, note: "<code>continue</code>." }); rows.push([u, "skip (visited)", tlF(st), tlF(order)]); continue; }
+      vis.add(u); order.push(u);
+      const pushed = [...g[u]].reverse().filter((v) => !vis.has(v)); st.push(...pushed);
+      steps.push({ line: ["pop", "mark", "push"], vars: { node: u, pushed: tlF(pushed), order: tlF(order) }, view: view(u), analogy: `Chalk ${u}; add ${pushed.length ? pushed.join(", ") : "nothing"} to the pile.`, note: `Visit ${u}.`,
+        ask: st.length ? { q: "Which node is popped next?", options: [...new Set(st.map(String))], answer: st[st.length - 1], why: "The top of the pile." } : undefined });
+      rows.push([u, "visit", tlF(st), tlF(order)]);
+    }
+    steps.push({ line: "ret", vars: { order: tlF(order) }, view: view(), analogy: "The pile is empty.", note: `Return <code>${tlF(order)}</code>.` });
+    return { steps, table: { head: ["Popped", "Action", "Stack after", "order"], rows } };
+  }
+
+  function tl11C(edges, n) {
+    const g = tl11adj(n, edges), comp = {}, steps = [], rows = []; let c = 0;
+    const cls = ["found", "warm", "window", "gold"];
+    const view = (cur) => tl11g(n, edges, Object.assign(Object.fromEntries(Object.entries(comp).map(([v, k]) => [v, cls[(k - 1) % cls.length]])), cur !== undefined ? { [cur]: "active" } : {})) + `<p class="idx">components = ${c}</p>`;
+    steps.push({ line: "init", vars: { components: 0 }, view: view(), analogy: "Nothing chalked yet.", note: "<code>components = 0</code>." });
+    for (let u = 0; u < n; u++) {
+      const isNew = !(u in comp);
+      steps.push({ line: ["loop", "new"], vars: { node: u, visited: isNew ? "no" : "yes" }, view: view(u), analogy: isNew ? `Entrance ${u} is unchalked: a new system.` : `${u} is already chalked (system #${comp[u]}).`, note: `${u} in visited? ${!isNew}.`,
+        ask: { q: `Does node ${u} start a new component?`, options: ["yes", "no"], answer: isNew ? "yes" : "no", why: isNew ? "Nobody reached it yet." : "An earlier DFS chalked it." } });
+      if (isNew) {
+        c++; const group = []; const go = (v) => { comp[v] = c; group.push(v); g[v].forEach((w) => { if (!(w in comp)) go(w); }); }; go(u);
+        steps.push({ line: ["count", "explore"], vars: { components: c, group: tlF(group) }, view: view(), analogy: `System #${c}: ${group.join(", ")}.`, note: `DFS from ${u} chalks ${tlF(group)}.` });
+        rows.push([u, c, tlF(group)]);
+      }
+    }
+    steps.push({ line: "ret", vars: { components: c }, view: view(), analogy: `${c} cave systems.`, note: `Return <code>${c}</code>.` });
+    return { steps, table: { head: ["DFS started at", "components", "Nodes chalked"], rows } };
+  }
+
+  function tl11D(edges, n, plain) {
+    const g = tl11adj(n, edges, true), color = new Array(n).fill(0), post = [], steps = [], rows = [];
+    const pos = n === 6 ? [[60, 40], [390, 120], [170, 40], [280, 40], [170, 120], [60, 120]] : [[80, 40], [240, 40], [160, 120]];
+    const view = (cur, nb, bad) => tl11g(n, edges, Object.assign(Object.fromEntries(color.map((c, i) => [i, c === 1 ? "gold" : c === 2 ? "found" : ""])), cur !== undefined ? { [cur]: bad ? "bad" : "active" } : {}), { directed: true, pos, edgeHl: nb !== undefined ? { [cur + "-" + nb]: "active" } : {} })
+      + `<p class="idx">${plain ? "visited" : "GRAY (path)"}: ${tlF(color.map((c, i) => (c >= 1 && (plain || c === 1) ? i : null)).filter((x) => x !== null))} · finished: ${tlF(post)}</p>`;
+    let cyc = false;
+    const visit = (u) => {
+      color[u] = 1;
+      steps.push({ line: "gray", vars: { node: u }, view: view(u), analogy: plain ? `Mark ${u} visited.` : `Grey crumb on ${u}: it's on my current path.`, note: plain ? `<code>visited.add(${u})</code>.` : `<code>color[${u}] = GRAY</code>.` });
+      for (const nb of g[u]) {
+        const c = color[nb];
+        if (!plain && c === 1) { steps.push({ line: ["loop", "cycle"], vars: { node: u, neighbour: nb, "color[nb]": "GRAY" }, view: view(u, nb, true), analogy: `Edge ${u} → ${nb} leads to a grey crumb: a loop!`, note: "Cycle: return False." }); cyc = true; return false; }
+        const go = plain ? c === 0 : c === 0;
+        steps.push({ line: ["loop", go ? "recurse" : plain ? "recurse" : "cycle"], vars: { node: u, neighbour: nb, [plain ? "visited" : "color[nb]"]: plain ? c > 0 : ["WHITE", "GRAY", "BLACK"][c] }, view: view(u, nb),
+          analogy: go ? `Edge ${u} → ${nb}: new, go deeper.` : plain ? `Edge ${u} → ${nb}: already visited, ignore.${c === 1 ? " ⚠ But " + nb + " is still on the current path: this edge closes a loop." : ""}` : `Edge ${u} → ${nb}: ${nb} is finished (BLACK), fine.`,
+          note: `${nb} is ${plain ? (c ? "visited" : "new") : ["WHITE", "GRAY", "BLACK"][c]}.`,
+          ask: plain ? undefined : { q: `What happens on edge ${u} → ${nb}?`, options: ["go deeper", "cycle!", "ignore (finished)"], answer: c === 0 ? "go deeper" : c === 1 ? "cycle!" : "ignore (finished)", why: `${nb} is ${["WHITE", "GRAY", "BLACK"][c]}.` } });
+        if (go && !visit(nb)) return false;
+      }
+      color[u] = 2; post.push(u); rows.push([u, tlF(post)]);
+      steps.push({ line: "black", vars: { node: u, post: tlF(post) }, view: view(u), analogy: `Everything after ${u} is done: black crumb, write ${u} down.`, note: `<code>post.append(${u})</code>.` });
+      return true;
+    };
+    for (let u = 0; u < n; u++) {
+      if (color[u] === 0) { steps.push({ line: "outer", vars: { start: u }, view: view(u), analogy: `Start a walk at ${u}.`, note: `<code>visit(${u})</code>.` }); if (!visit(u)) break; }
+    }
+    if (cyc) steps.push({ line: "none", vars: { result: "None" }, view: view(), analogy: "There's a loop: no valid order.", note: "Return <code>None</code>." });
+    else { const r = [...post].reverse(); steps.push({ line: "ret", vars: { result: tlF(r) }, view: view(), analogy: `Finish list backwards: ${r.join(", ")}.`, note: `Return <code>${tlF(r)}</code>.` }); }
+    return { steps, table: { head: ["Finished (turned BLACK)", "post so far"], rows } };
+  }
+
+  { const run = tl11G([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]], 5);
+    Viz.tlab("#tl-11z", { title: "Template 0 \u00b7 build the address books", sub: "Blue = the road being added.", code: {"py": [[null, "def build_graph(n, edges, directed=False):"], ["init", "    graph = {node: [] for node in range(n)}"], ["loop", "    for a, b in edges:"], ["fwd", "        graph[a].append(b)"], ["back", "        if not directed:"], ["back", "            graph[b].append(a)"], ["ret", "    return graph"]], "ts": [[null, "function buildGraph(n: number, edges: number[][], directed = false): number[][] {"], ["init", "  const graph: number[][] = Array.from({ length: n }, () => []);"], ["loop", "  for (const [a, b] of edges) {"], ["fwd", "    graph[a].push(b);"], ["back", "    if (!directed) {"], ["back", "      graph[b].push(a);"], [null, "    }"], [null, "  }"], ["ret", "  return graph;"], [null, "}"]], "java": [[null, "static List<List<Integer>> buildGraph(int n, int[][] edges, boolean directed) {"], ["init", "    List<List<Integer>> graph = new ArrayList<>();"], ["init", "    for (int i = 0; i < n; i++) graph.add(new ArrayList<>());"], ["loop", "    for (int[] e : edges) {"], ["fwd", "        graph.get(e[0]).add(e[1]);"], ["back", "        if (!directed) {"], ["back", "            graph.get(e[1]).add(e[0]);"], [null, "        }"], [null, "    }"], ["ret", "    return graph;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-11z-table").innerHTML = TL.table(run.table); }
+  { const run = tl11A([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]], 5);
+    Viz.tlab("#tl-11a", { title: "Template A \u00b7 DFS from 0", sub: "Blue = current; green = chalked; chips = the call stack.", code: {"py": [[null, "def dfs(node, graph, visited, order):"], ["mark", "    visited.add(node)"], ["work", "    order.append(node)"], ["loop", "    for neighbour in graph[node]:"], ["check", "        if neighbour not in visited:"], ["recurse", "            dfs(neighbour, graph, visited, order)"]], "ts": [[null, "function dfs(node: number, graph: number[][], visited: Set<number>, order: number[]): void {"], ["mark", "  visited.add(node);"], ["work", "  order.push(node);"], ["loop", "  for (const neighbour of graph[node]) {"], ["check", "    if (!visited.has(neighbour)) {"], ["recurse", "      dfs(neighbour, graph, visited, order);"], [null, "    }"], [null, "  }"], [null, "}"]], "java": [[null, "static void dfs(int node, List<List<Integer>> graph, Set<Integer> visited, List<Integer> order) {"], ["mark", "    visited.add(node);"], ["work", "    order.add(node);"], ["loop", "    for (int neighbour : graph.get(node)) {"], ["check", "        if (!visited.contains(neighbour)) {"], ["recurse", "            dfs(neighbour, graph, visited, order);"], [null, "        }"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-11a-table").innerHTML = TL.table(run.table); }
+  { const run = tl11B([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]], 5);
+    Viz.tlab("#tl-11b", { title: "Template B \u00b7 iterative DFS from 0", sub: "Gold = on the stack; green = visited; blue = popped.", code: {"py": [[null, "def dfs_iter(start, graph):"], ["init", "    visited, order = set(), []"], ["init", "    stack = [start]"], ["loop", "    while stack:"], ["pop", "        node = stack.pop()"], ["skip", "        if node in visited:"], ["skip", "            continue"], ["mark", "        visited.add(node)"], ["mark", "        order.append(node)"], ["push", "        for neighbour in reversed(graph[node]):"], ["push", "            if neighbour not in visited:"], ["push", "                stack.append(neighbour)"], ["ret", "    return order"]], "ts": [[null, "function dfsIter(start: number, graph: number[][]): number[] {"], ["init", "  const visited = new Set<number>(), order: number[] = [];"], ["init", "  const stack = [start];"], ["loop", "  while (stack.length > 0) {"], ["pop", "    const node = stack.pop()!;"], ["skip", "    if (visited.has(node)) continue;"], ["mark", "    visited.add(node);"], ["mark", "    order.push(node);"], ["push", "    for (const neighbour of [...graph[node]].reverse()) {"], ["push", "      if (!visited.has(neighbour)) stack.push(neighbour);"], [null, "    }"], [null, "  }"], ["ret", "  return order;"], [null, "}"]], "java": [[null, "static List<Integer> dfsIter(int start, List<List<Integer>> graph) {"], ["init", "    Set<Integer> visited = new HashSet<>();"], ["init", "    List<Integer> order = new ArrayList<>();"], ["init", "    Deque<Integer> stack = new ArrayDeque<>();"], ["init", "    stack.push(start);"], ["loop", "    while (!stack.isEmpty()) {"], ["pop", "        int node = stack.pop();"], ["skip", "        if (visited.contains(node)) continue;"], ["mark", "        visited.add(node);"], ["mark", "        order.add(node);"], ["push", "        List<Integer> nbrs = graph.get(node);"], ["push", "        for (int i = nbrs.size() - 1; i >= 0; i--) {"], ["push", "            if (!visited.contains(nbrs.get(i))) stack.push(nbrs.get(i));"], [null, "        }"], [null, "    }"], ["ret", "    return order;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-11b-table").innerHTML = TL.table(run.table); }
+  { const run = tl11C([[0, 1], [1, 2], [3, 4]], 6);
+    Viz.tlab("#tl-11c", { title: "Template C \u00b7 count components", sub: "Each component gets its own colour as it's explored.", code: {"py": [[null, "def count_components(n, graph):"], ["init", "    visited, components = set(), 0"], ["loop", "    for node in range(n):"], ["new", "        if node not in visited:"], ["count", "            components += 1"], ["explore", "            dfs(node, graph, visited, [])"], ["ret", "    return components"]], "ts": [[null, "function countComponents(n: number, graph: number[][]): number {"], ["init", "  const visited = new Set<number>();"], ["init", "  let components = 0;"], ["loop", "  for (let node = 0; node < n; node++) {"], ["new", "    if (!visited.has(node)) {"], ["count", "      components++;"], ["explore", "      dfs(node, graph, visited, []);"], [null, "    }"], [null, "  }"], ["ret", "  return components;"], [null, "}"]], "java": [[null, "static int countComponents(int n, List<List<Integer>> graph) {"], ["init", "    Set<Integer> visited = new HashSet<>();"], ["init", "    int components = 0;"], ["loop", "    for (int node = 0; node < n; node++) {"], ["new", "        if (!visited.contains(node)) {"], ["count", "            components++;"], ["explore", "            dfs(node, graph, visited, new ArrayList<>());"], [null, "        }"], [null, "    }"], ["ret", "    return components;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-11c-table").innerHTML = TL.table(run.table); }
+  { const run = tl11D([[5, 2], [5, 0], [4, 0], [4, 1], [2, 3], [3, 1]], 6, false);
+    Viz.tlab("#tl-11d", { title: "Template D \u00b7 topological sort", sub: "White = new; gold = GRAY (on the path); green = BLACK (finished).", code: {"py": [[null, "WHITE, GRAY, BLACK = 0, 1, 2"], [null, ""], [null, "def topo_sort(n, graph):"], ["init", "    color, post = [WHITE] * n, []"], [null, ""], [null, "    def visit(node):"], ["gray", "        color[node] = GRAY"], ["loop", "        for nb in graph[node]:"], ["cycle", "            if color[nb] == GRAY:"], ["cycle", "                return False"], ["recurse", "            if color[nb] == WHITE and not visit(nb):"], ["recurse", "                return False"], ["black", "        color[node] = BLACK"], ["black", "        post.append(node)"], ["black", "        return True"], [null, ""], ["outer", "    for node in range(n):"], ["outer", "        if color[node] == WHITE and not visit(node):"], ["none", "            return None"], ["ret", "    return post[::-1]"]], "ts": [[null, "function topoSort(n: number, graph: number[][]): number[] | null {"], [null, "  const WHITE = 0, GRAY = 1, BLACK = 2;"], ["init", "  const color: number[] = new Array(n).fill(WHITE), post: number[] = [];"], [null, "  const visit = (node: number): boolean => {"], ["gray", "    color[node] = GRAY;"], ["loop", "    for (const nb of graph[node]) {"], ["cycle", "      if (color[nb] === GRAY) return false;"], ["recurse", "      if (color[nb] === WHITE && !visit(nb)) return false;"], [null, "    }"], ["black", "    color[node] = BLACK;"], ["black", "    post.push(node);"], ["black", "    return true;"], [null, "  };"], ["outer", "  for (let node = 0; node < n; node++) {"], ["none", "    if (color[node] === WHITE && !visit(node)) return null;"], [null, "  }"], ["ret", "  return post.reverse();"], [null, "}"]], "java": [[null, "static final int WHITE = 0, GRAY = 1, BLACK = 2;"], [null, ""], [null, "static boolean visit(int node, List<List<Integer>> graph, int[] color, List<Integer> post) {"], ["gray", "    color[node] = GRAY;"], ["loop", "    for (int nb : graph.get(node)) {"], ["cycle", "        if (color[nb] == GRAY) return false;"], ["recurse", "        if (color[nb] == WHITE && !visit(nb, graph, color, post)) return false;"], [null, "    }"], ["black", "    color[node] = BLACK;"], ["black", "    post.add(node);"], ["black", "    return true;"], [null, "}"], [null, ""], [null, "static List<Integer> topoSort(int n, List<List<Integer>> graph) {"], ["init", "    int[] color = new int[n];"], ["init", "    List<Integer> post = new ArrayList<>();"], ["outer", "    for (int node = 0; node < n; node++) {"], ["none", "        if (color[node] == WHITE && !visit(node, graph, color, post)) return null;"], [null, "    }"], ["ret", "    Collections.reverse(post);"], ["ret", "    return post;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-11d-table").innerHTML = TL.table(run.table); }
+  { const run = tl11D([[0, 1], [1, 2], [2, 0]], 3, false);
+    Viz.tlab("#tl-11d-bug", { title: "Why three colours \u00b7 cycle 0 \u2192 1 \u2192 2 \u2192 0", sub: "Switch between three colours and a plain visited set.", code: {"py": [[null, "WHITE, GRAY, BLACK = 0, 1, 2"], [null, ""], [null, "def topo_sort(n, graph):"], ["init", "    color, post = [WHITE] * n, []"], [null, ""], [null, "    def visit(node):"], ["gray", "        color[node] = GRAY"], ["loop", "        for nb in graph[node]:"], ["cycle", "            if color[nb] == GRAY:"], ["cycle", "                return False"], ["recurse", "            if color[nb] == WHITE and not visit(nb):"], ["recurse", "                return False"], ["black", "        color[node] = BLACK"], ["black", "        post.append(node)"], ["black", "        return True"], [null, ""], ["outer", "    for node in range(n):"], ["outer", "        if color[node] == WHITE and not visit(node):"], ["none", "            return None"], ["ret", "    return post[::-1]"]], "ts": [[null, "function topoSort(n: number, graph: number[][]): number[] | null {"], [null, "  const WHITE = 0, GRAY = 1, BLACK = 2;"], ["init", "  const color: number[] = new Array(n).fill(WHITE), post: number[] = [];"], [null, "  const visit = (node: number): boolean => {"], ["gray", "    color[node] = GRAY;"], ["loop", "    for (const nb of graph[node]) {"], ["cycle", "      if (color[nb] === GRAY) return false;"], ["recurse", "      if (color[nb] === WHITE && !visit(nb)) return false;"], [null, "    }"], ["black", "    color[node] = BLACK;"], ["black", "    post.push(node);"], ["black", "    return true;"], [null, "  };"], ["outer", "  for (let node = 0; node < n; node++) {"], ["none", "    if (color[node] === WHITE && !visit(node)) return null;"], [null, "  }"], ["ret", "  return post.reverse();"], [null, "}"]], "java": [[null, "static final int WHITE = 0, GRAY = 1, BLACK = 2;"], [null, ""], [null, "static boolean visit(int node, List<List<Integer>> graph, int[] color, List<Integer> post) {"], ["gray", "    color[node] = GRAY;"], ["loop", "    for (int nb : graph.get(node)) {"], ["cycle", "        if (color[nb] == GRAY) return false;"], ["recurse", "        if (color[nb] == WHITE && !visit(nb, graph, color, post)) return false;"], [null, "    }"], ["black", "    color[node] = BLACK;"], ["black", "    post.add(node);"], ["black", "    return true;"], [null, "}"], [null, ""], [null, "static List<Integer> topoSort(int n, List<List<Integer>> graph) {"], ["init", "    int[] color = new int[n];"], ["init", "    List<Integer> post = new ArrayList<>();"], ["outer", "    for (int node = 0; node < n; node++) {"], ["none", "        if (color[node] == WHITE && !visit(node, graph, color, post)) return null;"], [null, "    }"], ["ret", "    Collections.reverse(post);"], ["ret", "    return post;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: plain visited set", code: {"py": [[null, "def topo_sort(n, graph):"], ["init", "    visited, post = set(), []"], [null, ""], [null, "    def visit(node):"], ["gray", "        visited.add(node)"], ["loop", "        for nb in graph[node]:"], ["recurse", "            if nb not in visited:"], ["recurse", "                visit(nb)"], ["black", "        post.append(node)"], ["black", "        return True"], [null, ""], ["outer", "    for node in range(n):"], ["outer", "        if node not in visited:"], ["outer", "            visit(node)"], ["ret", "    return post[::-1]"]]}, steps: tl11D([[0, 1], [1, 2], [2, 0]], 3, true).steps, diverge: undefined, why: "node 0 is still on the current path, but a visited set can't tell that apart from \"finished\"." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

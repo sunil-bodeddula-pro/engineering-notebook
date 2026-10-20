@@ -369,6 +369,8 @@ svg.tree circle.found { fill: var(--green-soft); stroke: var(--green); }
 svg.tree circle.window { fill: var(--accent-soft); stroke: var(--accent); }
 svg.tree circle.warm { fill: var(--warm-soft); stroke: var(--warm); }
 svg.tree circle.bad { fill: var(--red-soft); stroke: var(--red); }
+svg.tree circle.gold { fill: var(--gold-soft); stroke: var(--gold); }
+svg.tree circle.dim { opacity: .4; }
 svg.tree line, svg.tree path.edge { stroke: var(--ink-3); stroke-width: 1.5; fill: none; }
 svg.tree path.edge.active, svg.tree line.active { stroke: var(--blue); stroke-width: 2.5; }
 
@@ -2318,194 +2320,307 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(V + E)</code> time and <code>O(V)</code> space (queue + seen). On an <code>R × C</code> grid that's <code>O(R·C)</code>. In implicit state graphs, V = number of reachable states (e.g. 10<sup>4</sup> lock codes).</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python templates (memorize these)</h2>
-    <!-- bfs12:templates:start -->
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>BFS has four templates, all built on one queue that is processed oldest-first. Because nodes leave the queue in order of distance, the first time BFS reaches a node is along a shortest path (in an unweighted graph). <strong>A</strong> records each node's distance. <strong>B</strong> groups nodes into levels. <strong>C</strong> remembers each node's parent to rebuild the actual shortest path. <strong>D</strong> starts from several sources at once ("rotting oranges", nearest exit). The graph is an adjacency list: <code>graph[node]</code> lists the neighbours.</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Distances from one source</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>How many edges is each node from <code>src</code> (unweighted)?</div><div><b>What it keeps</b><code>dist</code>: node → distance; doubles as the visited set. A FIFO queue.</div><div><b>When it checks for an answer</b>A node's distance is set the moment it's discovered, never changed.</div><div><b>Use it when</b>Shortest path length in unweighted graphs/grids, word ladder, minimum moves/steps.</div><div><b>Not for</b>Weighted edges (Dijkstra, page 20); 0/1 weights (0-1 BFS with a deque).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Ripples in a pond: everything at distance 1, then 2, then 3"</strong>Drop a stone at the source. The ripple reaches all neighbours first, then their neighbours. The first ripple that touches a node is the shortest way there, so you write its distance down once and never again.</div>
+    <p><strong>The story, mapped to the code.</strong> The source is where the stone lands.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Where the stone lands</td><td data-h="In the code"><code>dist[src] = 0</code></td><td data-h="What it means">Distance 0.</td></tr><tr><td data-h="In the story">Ripple front waiting to spread</td><td data-h="In the code"><code>queue</code></td><td data-h="What it means">Oldest first (FIFO).</td></tr><tr><td data-h="In the story">Ripple touches a dry spot</td><td data-h="In the code"><code>neighbour not in dist</code></td><td data-h="What it means">Discovered for the first time.</td></tr><tr><td data-h="In the story">Write its ring number</td><td data-h="In the code"><code>dist[neighbour] = dist[current] + 1</code></td><td data-h="What it means">One more than the node it came from.</td></tr><tr><td data-h="In the story">It will spread later</td><td data-h="In the code"><code>queue.append(neighbour)</code></td><td data-h="What it means">Joins the back of the line.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Set the distance when you <em>enqueue</em>, not when you dequeue.</p>
     <pre><code class="python">from collections import deque
 
-
-# A) Shortest distance from src to every node it can reach (unweighted graph).
-#    graph is a dict: node -&gt; list of neighbour nodes.
 def bfs_distances(graph, src):
-    # dist[node] = number of edges on the shortest route from src to node.
-    # It is also our "seen" record: a node counts as seen once it is in dist.
-    dist = {}
-    dist[src] = 0
-    # A deque is a list that is fast at both ends.
-    # append(x) adds x at the BACK, popleft() removes the item at the FRONT.
-    queue = deque()
-    queue.append(src)
-    while len(queue) &gt; 0:
-        # Take the node that has waited the longest (FIFO = closest node first).
+    dist = {src: 0}
+    queue = deque([src])
+    while queue:
         current = queue.popleft()
         for neighbour in graph[current]:
-            # Only look at neighbours we have never seen before.
             if neighbour not in dist:
-                # Mark it NOW, when it joins the queue, so it can't join twice.
                 dist[neighbour] = dist[current] + 1
                 queue.append(neighbour)
     return dist</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>from collections import deque</code> loads Python's double-ended queue. A plain list is slow at removing from the front; a deque is fast at both ends.</li>
-      <li><code>dist = {}</code> then <code>dist[src] = 0</code>: the start is 0 steps from itself. Being a key in <code>dist</code> also means "seen", so we don't need a separate set.</li>
-      <li><code>queue.append(src)</code> puts the start in line. <code>append</code> adds at the back.</li>
-      <li><code>while len(queue) &gt; 0:</code> keeps going as long as someone is waiting in line.</li>
-      <li><code>current = queue.popleft()</code> takes the node at the front. Because nodes join at the back and leave at the front (first in, first out), nodes come out in order of distance: all distance-1 nodes before any distance-2 node.</li>
-      <li>For each <code>neighbour</code> not yet in <code>dist</code>: its distance is one more than <code>current</code>'s, and it joins the back of the queue. We record it the moment it joins, so no node is ever queued twice.</li>
-      <li>When the queue is empty, every reachable node has its shortest distance in <code>dist</code>.</li>
-    </ol>
-    <p><strong>Dry run</strong> of <code>bfs_distances(graph, 0)</code>. Example graph used in every template dry run (from the tests): edges 0-1, 0-2, 1-3, 2-3, 3-4, 4-5, 2-6, so <code>graph = {0: [1, 2], 1: [0, 3], 2: [0, 3, 6], 3: [1, 2, 4], 4: [3, 5], 5: [4], 6: [2]}</code>.</p>
-    <table>
-      <thead><tr><th>Pop</th><th>New neighbours (distance)</th><th>Queue after this node</th></tr></thead>
-      <tbody>
-        <tr><td>(start)</td><td>0 (0)</td><td>[0]</td></tr>
-        <tr><td>0</td><td>1 (1), 2 (1)</td><td>[1, 2]</td></tr>
-        <tr><td>1</td><td>3 (2)</td><td>[2, 3]</td></tr>
-        <tr><td>2</td><td>6 (2) (3 is already seen)</td><td>[3, 6]</td></tr>
-        <tr><td>3</td><td>4 (3)</td><td>[6, 4]</td></tr>
-        <tr><td>6</td><td>none</td><td>[4]</td></tr>
-        <tr><td>4</td><td>5 (4)</td><td>[5]</td></tr>
-        <tr><td>5</td><td>none</td><td>[]</td></tr>
-      </tbody>
-    </table>
-    <p>Result: <code>{0: 0, 1: 1, 2: 1, 3: 2, 6: 2, 4: 3, 5: 4}</code>.</p>
-    <pre><code class="python"># B) Level by level: returns the levels, e.g. [[0], [1, 2], [3, 6], ...].
-#    The level number = distance from src (minutes, moves, tree depth ...).
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function bfsDistances(graph: number[][], src: number): Map&lt;number, number&gt; {
+  const dist = new Map&lt;number, number&gt;([[src, 0]]);
+  const queue = [src];
+  for (let head = 0; head &lt; queue.length; head++) {
+    const current = queue[head];
+    for (const neighbour of graph[current]) {
+      if (!dist.has(neighbour)) {
+        dist.set(neighbour, dist.get(current)! + 1);
+        queue.push(neighbour);
+      }
+    }
+  }
+  return dist;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static Map&lt;Integer, Integer&gt; bfsDistances(List&lt;List&lt;Integer&gt;&gt; graph, int src) {
+    Map&lt;Integer, Integer&gt; dist = new HashMap&lt;&gt;();
+    dist.put(src, 0);
+    Deque&lt;Integer&gt; queue = new ArrayDeque&lt;&gt;(List.of(src));
+    while (!queue.isEmpty()) {
+        int current = queue.poll();
+        for (int neighbour : graph.get(current)) {
+            if (!dist.containsKey(neighbour)) {
+                dist.put(neighbour, dist.get(current) + 1);
+                queue.offer(neighbour);
+            }
+        }
+    }
+    return dist;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>dist = {src: 0}</code></td><td data-h="What it does">The source is discovered at distance 0.</td><td data-h="In the story">The stone lands.</td><td data-h="Why here, and what breaks if it moves">Forgetting it lets the source be "discovered" again from a neighbour at distance 2.</td></tr><tr><td data-h="Line"><code>current = queue.popleft()</code></td><td data-h="What it does">Oldest first.</td><td data-h="In the story">Spread the oldest ripple.</td><td data-h="Why here, and what breaks if it moves"><code>pop()</code> is a stack: DFS order, distances become wrong (see Template C's bug player).</td></tr><tr><td data-h="Line"><code>if neighbour not in dist</code></td><td data-h="What it does">Only undiscovered nodes.</td><td data-h="In the story">Dry spot?</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>dist[neighbour] = dist[current] + 1; queue.append(neighbour)</code></td><td data-h="What it does">Mark on discovery.</td><td data-h="In the story">Write the ring number now.</td><td data-h="Why here, and what breaks if it moves">Marking on dequeue lets the same node be enqueued many times (slow, and wrong if you set the distance at push time without the check).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through BFS from node 0. Node 3 is reachable from both 1 and 2; watch it get its distance once.</p>
+    <div id="tl-12a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-12a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The queue holds nodes in non-decreasing distance order (at most two distinct values, d and d + 1), and every node in <code>dist</code> has its true shortest distance.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Marking visited on dequeue.</strong> Write the ring number when the ripple first touches.</li><li><strong>Using a list's pop(0) in Python.</strong> deque.popleft() is O(1).</li><li><strong>BFS on weighted edges.</strong> Ripples assume every edge has length 1.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Ripples: distance 1, then 2, then 3.</dd>
+      <dt>Choose this template when</dt><dd>Unweighted shortest distance / minimum steps → A.</dd>
+      <dt>Invariant</dt><dd>First discovery = shortest distance.</dd>
+      <dt>The line people get wrong</dt><dd>Set dist and enqueue together, on discovery.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>dist[3] from 0 in the example?</summary><p>2.</p></details><details><summary>Why is the first discovery shortest?</summary><p>Nodes are dequeued in order of distance.</p></details><details><summary>Grid version: what are neighbours?</summary><p>Up/down/left/right cells in bounds and open.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Level by level</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Group nodes by distance (levels), or answer per-level questions.</div><div><b>What it keeps</b><code>seen</code>; a queue holding exactly one level at the start of each round.</div><div><b>When it checks for an answer</b>Each round snapshots <code>len(queue)</code> and processes exactly that many.</div><div><b>Use it when</b>Word ladder length, minimum generations, "nodes at distance k", rotting oranges minutes (with D).</div><div><b>Not for</b>When only distances are needed (A is simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "One ring at a time: count the ring before spreading it"</strong>Same ripples, but you stop between rings. Count how many points are on the current ring, spread exactly those, and everything they touch forms the next ring.</div>
+    <p><strong>The story, mapped to the code.</strong> Each round is one ring of the ripple.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Points on this ring</td><td data-h="In the code"><code>level_size = len(queue)</code></td><td data-h="What it means">Snapshot.</td></tr><tr><td data-h="In the story">Spread one point</td><td data-h="In the code"><code>current = queue.popleft()</code></td><td data-h="What it means">Exactly level_size times.</td></tr><tr><td data-h="In the story">Next ring</td><td data-h="In the code"><code>queue.append(neighbour)</code></td><td data-h="What it means">Waits for the next round.</td></tr><tr><td data-h="In the story">Ring finished</td><td data-h="In the code"><code>levels.append(level)</code></td><td data-h="What it means">One list per ring.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Template A plus the level-size snapshot (the same trick as tree level order, page 10).</p>
+    <pre><code class="python">from collections import deque
+
 def bfs_levels(graph, src):
-    levels = []
-    # seen = every node that has ever been put in the queue.
-    seen = set()
-    seen.add(src)
-    # append(x) adds at the back, popleft() takes from the front.
-    queue = deque()
-    queue.append(src)
-    while len(queue) &gt; 0:
-        # Freeze the size: right now the queue holds exactly ONE level.
-        level_size = len(queue)
+    levels, seen = [], {src}
+    queue = deque([src])
+    while queue:
         level = []
-        for _ in range(level_size):
+        for _ in range(len(queue)):
             current = queue.popleft()
             level.append(current)
-            # (Looking for a target? Here: if current == target: return len(levels))
             for neighbour in graph[current]:
                 if neighbour not in seen:
                     seen.add(neighbour)
-                    # Added now, popped in the NEXT round, so it is in the next level.
                     queue.append(neighbour)
         levels.append(level)
     return levels</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>levels</code> collects the answer, one list per level. <code>seen</code> remembers every node that has been queued.</li>
-      <li>Start with only <code>src</code> in the queue and in <code>seen</code>.</li>
-      <li><code>level_size = len(queue)</code> is the key trick. At the start of each round, the queue holds exactly one whole level. Writing the size down first means the nodes we add during this round wait for the next round.</li>
-      <li>The <code>for _ in range(level_size):</code> loop pops exactly that many nodes, adds each one to <code>level</code>, and queues its unseen neighbours. (<code>_</code> is the usual name for a loop counter we don't use.)</li>
-      <li>After the round, <code>levels.append(level)</code> stores the finished level. The number of finished rounds is the distance, which is how "minutes" or "moves" are counted in problems.</li>
-      <li>To search for a target instead, return <code>len(levels)</code> when you pop it, and return -1 after the loop.</li>
-    </ol>
-    <p><strong>Dry run</strong> of <code>bfs_levels(graph, 0)</code> on the same graph:</p>
-    <table>
-      <thead><tr><th>Round</th><th>level_size</th><th>Popped this round</th><th>Queue at end of round</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td>1</td><td>0</td><td>[1, 2]</td></tr>
-        <tr><td>2</td><td>2</td><td>1, 2</td><td>[3, 6]</td></tr>
-        <tr><td>3</td><td>2</td><td>3, 6</td><td>[4]</td></tr>
-        <tr><td>4</td><td>1</td><td>4</td><td>[5]</td></tr>
-        <tr><td>5</td><td>1</td><td>5</td><td>[]</td></tr>
-      </tbody>
-    </table>
-    <p>Result: <code>[[0], [1, 2], [3, 6], [4], [5]]</code>.</p>
-    <pre><code class="python"># C) The shortest path itself, using parent pointers.
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function bfsLevels(graph: number[][], src: number): number[][] {
+  const levels: number[][] = [], seen = new Set([src]);
+  let queue = [src];
+  while (queue.length &gt; 0) {
+    const next: number[] = [];
+    for (const current of queue) {
+      for (const neighbour of graph[current]) {
+        if (!seen.has(neighbour)) {
+          seen.add(neighbour);
+          next.push(neighbour);
+        }
+      }
+    }
+    levels.push(queue);
+    queue = next;
+  }
+  return levels;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;List&lt;Integer&gt;&gt; bfsLevels(List&lt;List&lt;Integer&gt;&gt; graph, int src) {
+    List&lt;List&lt;Integer&gt;&gt; levels = new ArrayList&lt;&gt;();
+    Set&lt;Integer&gt; seen = new HashSet&lt;&gt;(List.of(src));
+    Deque&lt;Integer&gt; queue = new ArrayDeque&lt;&gt;(List.of(src));
+    while (!queue.isEmpty()) {
+        List&lt;Integer&gt; level = new ArrayList&lt;&gt;();
+        for (int k = queue.size(); k &gt; 0; k--) {
+            int current = queue.poll();
+            level.add(current);
+            for (int neighbour : graph.get(current)) {
+                if (seen.add(neighbour)) {
+                    queue.offer(neighbour);
+                }
+            }
+        }
+        levels.add(level);
+    }
+    return levels;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>for _ in range(len(queue))</code></td><td data-h="What it does">Python evaluates <code>len(queue)</code> once: the snapshot.</td><td data-h="In the story">Count the ring first.</td><td data-h="Why here, and what breaks if it moves">A <code>while queue</code> inner loop mixes rings together.</td></tr><tr><td data-h="Line"><code>level.append(current)</code></td><td data-h="What it does">Collects this ring.</td><td data-h="In the story">—</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>levels.append(level)</code></td><td data-h="What it does">Closes the ring.</td><td data-h="In the story">Ring done.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the rings from node 0.</p>
+    <div id="tl-12b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-12b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the top of each round, the queue holds exactly the nodes at distance d = number of rounds done.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>No snapshot.</strong> Count the ring before spreading it.</li><li><strong>Marking seen on dequeue.</strong> Mark on discovery, as in A.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>One ring at a time.</dd>
+      <dt>Choose this template when</dt><dd>Per-level answers or "how many rounds/minutes" → B.</dd>
+      <dt>Invariant</dt><dd>Queue = one ring at the top of each round.</dd>
+      <dt>The line people get wrong</dt><dd>The snapshot of len(queue).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Levels for the example?</summary><p>[[0], [1, 2], [3], [4], [5]].</p></details><details><summary>Rounds = ?</summary><p>Max distance + 1.</p></details><details><summary>Why does range(len(queue)) work in Python?</summary><p>range() is built once from the length at that moment.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · The shortest path itself (parent pointers)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Return the actual shortest path from <code>src</code> to <code>dst</code>.</div><div><b>What it keeps</b><code>parent</code>: node → the node it was discovered from (doubles as visited).</div><div><b>When it checks for an answer</b>Stop when <code>dst</code> is dequeued; walk parents back to <code>src</code> and reverse.</div><div><b>Use it when</b>Path reconstruction (word ladder II simplified, maze route), any "return the route" prompt.</div><div><b>Not for</b>Weighted graphs (Dijkstra + parents).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Each node remembers who told it the news"</strong>News spreads from the source. Every person remembers who told them. To find the fastest chain to a person, follow "who told you?" back to the source, then read the chain forwards.</div>
+    <p><strong>The story, mapped to the code.</strong> The ripple carries a note: who sent it.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Who told you?</td><td data-h="In the code"><code>parent[neighbour] = current</code></td><td data-h="What it means">Recorded on discovery.</td></tr><tr><td data-h="In the story">The source heard it first</td><td data-h="In the code"><code>parent[src] = None</code></td><td data-h="What it means">End of the chain.</td></tr><tr><td data-h="In the story">Follow the chain back</td><td data-h="In the code"><code>while step is not None: step = parent[step]</code></td><td data-h="What it means">dst → … → src.</td></tr><tr><td data-h="In the story">Read it forwards</td><td data-h="In the code"><code>path[::-1]</code></td><td data-h="What it means">src → dst.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Template A with <code>parent</code> instead of <code>dist</code>.</p>
+    <pre><code class="python">from collections import deque
+
 def shortest_path(graph, src, dst):
-    # parent[node] = the node we came from. The start has no parent (None).
-    parent = {}
-    parent[src] = None
-    # append(x) adds at the back, popleft() takes from the front.
-    queue = deque()
-    queue.append(src)
-    while len(queue) &gt; 0:
+    parent = {src: None}
+    queue = deque([src])
+    while queue:
         current = queue.popleft()
         if current == dst:
-            # The first time we pop dst, we reached it by a shortest route.
-            # Follow the parent pointers back to src (this gives the path backwards).
-            backwards = []
-            step = current
-            while step is not None:
-                backwards.append(step)
-                step = parent[step]
-            # Reverse it with a while loop so the path reads src -&gt; dst.
             path = []
-            i = len(backwards) - 1
-            while i &gt;= 0:
-                path.append(backwards[i])
-                i = i - 1
-            return path
+            while current is not None:
+                path.append(current)
+                current = parent[current]
+            return path[::-1]
         for neighbour in graph[current]:
             if neighbour not in parent:
-                parent[neighbour] = current    # remember how we got here
+                parent[neighbour] = current
                 queue.append(neighbour)
-    # The queue ran dry and we never reached dst: there is no path.
     return None</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>parent</code> plays two roles: it is the "seen" record, and it remembers which node led us to each node. The start's parent is <code>None</code>, meaning "nobody, this is where we began".</li>
-      <li>The loop is plain BFS. When a new neighbour is found, <code>parent[neighbour] = current</code> records the step we used to reach it.</li>
-      <li>When <code>current == dst</code> is popped, BFS guarantees this route is a shortest one. We walk backwards: dst, its parent, that node's parent, and so on until we hit <code>None</code>.</li>
-      <li>That list is backwards (dst first), so a <code>while</code> loop copies it from the last item to the first, giving src → dst.</li>
-      <li>If the queue empties without popping <code>dst</code>, it can't be reached, so we return <code>None</code>.</li>
-    </ol>
-    <p><strong>Dry run</strong> of <code>shortest_path(graph, 0, 5)</code>:</p>
-    <table>
-      <thead><tr><th>Pop</th><th>parent entries added</th><th>Queue after this node</th></tr></thead>
-      <tbody>
-        <tr><td>0</td><td>1←0, 2←0</td><td>[1, 2]</td></tr>
-        <tr><td>1</td><td>3←1</td><td>[2, 3]</td></tr>
-        <tr><td>2</td><td>6←2</td><td>[3, 6]</td></tr>
-        <tr><td>3</td><td>4←3</td><td>[6, 4]</td></tr>
-        <tr><td>6</td><td>none</td><td>[4]</td></tr>
-        <tr><td>4</td><td>5←4</td><td>[5]</td></tr>
-        <tr><td>5 = dst</td><td>walk back: 5, 4, 3, 1, 0</td><td>reverse → <code>[0, 1, 3, 4, 5]</code></td></tr>
-      </tbody>
-    </table>
-    <pre><code class="python"># D) Multi-source BFS: every source starts at distance 0.
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function shortestPath(graph: number[][], src: number, dst: number): number[] | null {
+  const parent = new Map&lt;number, number | null&gt;([[src, null]]);
+  const queue = [src];
+  for (let head = 0; head &lt; queue.length; head++) {
+    let current: number | null = queue[head];
+    if (current === dst) {
+      const path: number[] = [];
+      while (current !== null) {
+        path.push(current);
+        current = parent.get(current)!;
+      }
+      return path.reverse();
+    }
+    for (const neighbour of graph[current]) {
+      if (!parent.has(neighbour)) {
+        parent.set(neighbour, current);
+        queue.push(neighbour);
+      }
+    }
+  }
+  return null;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; shortestPath(List&lt;List&lt;Integer&gt;&gt; graph, int src, int dst) {
+    Map&lt;Integer, Integer&gt; parent = new HashMap&lt;&gt;();
+    parent.put(src, null);
+    Deque&lt;Integer&gt; queue = new ArrayDeque&lt;&gt;(List.of(src));
+    while (!queue.isEmpty()) {
+        Integer current = queue.poll();
+        if (current == dst) {
+            List&lt;Integer&gt; path = new ArrayList&lt;&gt;();
+            while (current != null) {
+                path.add(current);
+                current = parent.get(current);
+            }
+            Collections.reverse(path);
+            return path;
+        }
+        for (int neighbour : graph.get(current)) {
+            if (!parent.containsKey(neighbour)) {
+                parent.put(neighbour, current);
+                queue.offer(neighbour);
+            }
+        }
+    }
+    return null;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>parent = {src: None}</code></td><td data-h="What it does">The source has no parent; also marks it visited.</td><td data-h="In the story">The source heard it first.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if current == dst</code></td><td data-h="What it does">Stops at the first time dst leaves the queue.</td><td data-h="In the story">Reached the person.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>while current is not None: path.append(current); current = parent[current]</code></td><td data-h="What it does">Walks back to the source.</td><td data-h="In the story">Who told you? Who told them?</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return path[::-1]</code></td><td data-h="What it does">Forwards order.</td><td data-h="In the story">Read the chain src → dst.</td><td data-h="Why here, and what breaks if it moves">Forgetting it returns dst → src.</td></tr><tr><td data-h="Line"><code>parent[neighbour] = current</code></td><td data-h="What it does">Remembers the discoverer.</td><td data-h="In the story">Note who told them.</td><td data-h="Why here, and what breaks if it moves">Overwriting a parent later would break shortest-ness; the <code>not in parent</code> check prevents it.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through 0 → 5. The second player swaps <code>popleft()</code> for <code>pop()</code> on a 5-node ring (0 → 2).</p>
+    <div id="tl-12c"></div><div id="tl-12c-bug"></div><p>With <code>pop()</code> the newest node is explored first (depth-first), so 2 is first reached the long way round: <code>[0, 4, 3, 2]</code> instead of <code>[0, 1, 2]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-12c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Each node's parent was dequeued before it and is one step closer to the source, so following parents from any node gives a shortest path back to src.</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space (path length ≤ n).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Not reversing.</strong> Walk back, then read forwards.</li><li><strong>Using a stack.</strong> Ripples, not a dive.</li><li><strong>Returning [] vs None when unreachable.</strong> Check the prompt.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Each node remembers who told it the news.</dd>
+      <dt>Choose this template when</dt><dd>"Return the shortest route" (unweighted) → C.</dd>
+      <dt>Invariant</dt><dd>parent[x] is one step closer to src.</dd>
+      <dt>The line people get wrong</dt><dd>Reverse the walked-back list.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Path 0 → 5 in the example?</summary><p>[0, 1, 3, 4, 5].</p></details><details><summary>Why is node 3's parent 1, not 2?</summary><p>1 was dequeued first and discovered 3 first.</p></details><details><summary>Space for parents?</summary><p>O(n).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Multi-source BFS</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Distance from each node to its <em>nearest</em> source (several sources).</div><div><b>What it keeps</b><code>dist</code> with every source at 0; a queue seeded with all sources.</div><div><b>When it checks for an answer</b>Same as A.</div><div><b>Use it when</b>Rotting oranges (LC 994), 01 matrix (LC 542), walls and gates, nearest hospital/exit.</div><div><b>Not for</b>One source (A).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Drop all the stones at once"</strong>Throw several stones into the pond at the same moment. Their ripples spread together; each spot is reached first by the ripple from its nearest stone.</div>
+    <p><strong>The story, mapped to the code.</strong> Several stones, one pond.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">All stones land together</td><td data-h="In the code"><code>for s in sources: dist[s] = 0; queue.append(s)</code></td><td data-h="What it means">Seed every source at distance 0.</td></tr><tr><td data-h="In the story">Ripples spread together</td><td data-h="In the code"><code>the A loop</code></td><td data-h="What it means">Unchanged.</td></tr><tr><td data-h="In the story">First ripple to arrive wins</td><td data-h="In the code"><code>if neighbour not in dist</code></td><td data-h="What it means">Nearest source.</td></tr></tbody></table>
+    <p><strong>The template.</strong> A with a different starting line.</p>
+    <pre><code class="python">from collections import deque
+
 def multi_source_bfs(graph, sources):
-    dist = {}
-    # append(x) adds at the back, popleft() takes from the front.
-    queue = deque()
-    # Put ALL the sources in the queue before the loop starts.
-    for source in sources:
-        dist[source] = 0
-        queue.append(source)
-    while len(queue) &gt; 0:
+    dist = {s: 0 for s in sources}
+    queue = deque(sources)
+    while queue:
         current = queue.popleft()
         for neighbour in graph[current]:
             if neighbour not in dist:
                 dist[neighbour] = dist[current] + 1
                 queue.append(neighbour)
-    # dist[node] = distance from node to its NEAREST source.
     return dist</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>The only difference from template A is the start. The <code>for source in sources:</code> loop gives every source distance 0 and puts it in the queue <em>before</em> the main loop.</li>
-      <li>The main loop is exactly template A. Ripples spread from all sources at once, and a node is first reached by whichever source is closest to it.</li>
-      <li>So <code>dist[node]</code> ends up as the distance to the <em>nearest</em> source, after just one pass over the graph.</li>
-    </ol>
-    <p><strong>Dry run</strong> of <code>multi_source_bfs(graph, [0, 5])</code>:</p>
-    <table>
-      <thead><tr><th>Pop</th><th>New neighbours (distance)</th><th>Queue after this node</th></tr></thead>
-      <tbody>
-        <tr><td>(start)</td><td>0 (0), 5 (0)</td><td>[0, 5]</td></tr>
-        <tr><td>0</td><td>1 (1), 2 (1)</td><td>[5, 1, 2]</td></tr>
-        <tr><td>5</td><td>4 (1)</td><td>[1, 2, 4]</td></tr>
-        <tr><td>1</td><td>3 (2)</td><td>[2, 4, 3]</td></tr>
-        <tr><td>2</td><td>6 (2)</td><td>[4, 3, 6]</td></tr>
-        <tr><td>4</td><td>none (3 and 5 seen)</td><td>[3, 6]</td></tr>
-        <tr><td>3</td><td>none</td><td>[6]</td></tr>
-        <tr><td>6</td><td>none</td><td>[]</td></tr>
-      </tbody>
-    </table>
-    <p>Result: <code>{0: 0, 5: 0, 1: 1, 2: 1, 4: 1, 3: 2, 6: 2}</code>. Node 4 is 1 step from source 5, not 3 steps from source 0.</p>
-    <!-- bfs12:templates:end -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function multiSourceBfs(graph: number[][], sources: number[]): Map&lt;number, number&gt; {
+  const dist = new Map&lt;number, number&gt;(sources.map((s) =&gt; [s, 0]));
+  const queue = [...sources];
+  for (let head = 0; head &lt; queue.length; head++) {
+    const current = queue[head];
+    for (const neighbour of graph[current]) {
+      if (!dist.has(neighbour)) {
+        dist.set(neighbour, dist.get(current)! + 1);
+        queue.push(neighbour);
+      }
+    }
+  }
+  return dist;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static Map&lt;Integer, Integer&gt; multiSourceBfs(List&lt;List&lt;Integer&gt;&gt; graph, List&lt;Integer&gt; sources) {
+    Map&lt;Integer, Integer&gt; dist = new HashMap&lt;&gt;();
+    for (int s : sources) dist.put(s, 0);
+    Deque&lt;Integer&gt; queue = new ArrayDeque&lt;&gt;(sources);
+    while (!queue.isEmpty()) {
+        int current = queue.poll();
+        for (int neighbour : graph.get(current)) {
+            if (!dist.containsKey(neighbour)) {
+                dist.put(neighbour, dist.get(current) + 1);
+                queue.offer(neighbour);
+            }
+        }
+    }
+    return dist;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>dist = {s: 0 for s in sources}; queue = deque(sources)</code></td><td data-h="What it does">All sources start together at distance 0.</td><td data-h="In the story">All stones at once.</td><td data-h="Why here, and what breaks if it moves">Running A once per source is O(k·(n + m)) and still needs a min over results.</td></tr><tr><td data-h="Line"><code>the rest</code></td><td data-h="What it does">Identical to A.</td><td data-h="In the story">Ripples spread together.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through sources 0 and 5.</p>
+    <div id="tl-12d"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-12d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Same as A, with "distance from the nearest source".</p>
+    <p><strong>Complexity.</strong> O(n + m) time, O(n) space, however many sources.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>BFS from each source separately.</strong> One BFS, all stones together.</li><li><strong>Rotting oranges: forgetting fresh oranges that are never reached.</strong> Check for unreached cells at the end (answer −1).</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Drop all the stones at once.</dd>
+      <dt>Choose this template when</dt><dd>"Nearest X" from many starting points → D.</dd>
+      <dt>Invariant</dt><dd>Queue ordered by distance to the nearest source.</dd>
+      <dt>The line people get wrong</dt><dd>Seeding all sources at 0 before the loop.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>dist[4] with sources 0 and 5?</summary><p>1 (from 5).</p></details><details><summary>Rotting oranges: what are the sources?</summary><p>All initially rotten oranges.</p></details><details><summary>How many minutes?</summary><p>The max distance (rounds − 1).</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · distances</th><th>B · levels</th><th>C · path</th><th>D · multi-source</th></tr></thead><tbody><tr><td data-h="Question">Keeps</td><td data-h="A · distances">dist</td><td data-h="B · levels">seen + level lists</td><td data-h="C · path">parent</td><td data-h="D · multi-source">dist</td></tr><tr><td data-h="Question">Starts with</td><td data-h="A · distances">One source</td><td data-h="B · levels">One source</td><td data-h="C · path">One source</td><td data-h="D · multi-source">Every source at 0</td></tr><tr><td data-h="Question">Extra step</td><td data-h="A · distances">—</td><td data-h="B · levels">Snapshot the queue size</td><td data-h="C · path">Walk parents back, reverse</td><td data-h="D · multi-source">Seed all sources</td></tr><tr><td data-h="Question">Returns</td><td data-h="A · distances">Distance per node</td><td data-h="B · levels">List of levels</td><td data-h="C · path">The route</td><td data-h="D · multi-source">Distance to nearest source</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · distances">Min steps, LC 1091</td><td data-h="B · levels">Word ladder (LC 127)</td><td data-h="C · path">Maze route</td><td data-h="D · multi-source">LC 994, 542, 286</td></tr><tr><td data-h="Question">Time</td><td data-h="A · distances">O(n + m)</td><td data-h="B · levels">O(n + m)</td><td data-h="C · path">O(n + m)</td><td data-h="D · multi-source">O(n + m)</td></tr></tbody></table>
+    <p>All four are the same loop. Decide what to store when a node is discovered: its distance (A, D), its ring (B), or who discovered it (C).</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -8003,6 +8118,102 @@ class Solution:
   }
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  const TL12POS = { 6: [[50, 80], [150, 30], [150, 130], [250, 80], [350, 80], [450, 80]], 5: [[60, 80], [160, 30], [260, 50], [260, 120], [160, 140]] };
+  const tl12adj = (n, edges) => { const g = Array.from({ length: n }, () => []); edges.forEach(([a, b]) => { g[a].push(b); g[b].push(a); }); return g; };
+  const tl12g = (n, edges, hl, labels, edgeHl) => {
+    const P = TL12POS[n];
+    return Viz.graph(Array.from({ length: n }, (_, i) => ({ id: i, x: P[i][0], y: P[i][1], label: labels && labels[i] !== undefined ? `${i}·${labels[i]}` : String(i) })), edges, { hl, edgeHl: edgeHl || {}, width: 500, height: 170 });
+  };
+  const tlF12 = (a) => "[" + a.join(", ") + "]";
+
+  function tl12A(edges, sources, mode) {
+    const n = 6, g = tl12adj(n, edges), dist = {}, done = {}, steps = [], rows = [], levelCls = ["found", "window", "warm", "gold", "active"];
+    sources.forEach((s) => (dist[s] = 0)); let q = [...sources];
+    const view = (cur, nb) => tl12g(n, edges, Object.assign(Object.fromEntries(Object.keys(dist).map((k) => [k, mode === "levels" && done[k] !== undefined ? levelCls[dist[k] % levelCls.length] : done[k] !== undefined ? "found" : "gold"])), cur !== undefined ? { [cur]: "active" } : {}),
+      mode === "levels" ? undefined : dist, nb !== undefined ? { [cur + "-" + nb]: "active" } : {}) + Viz.chips(q.map(String), "queue (front → back)");
+    steps.push({ line: "init", vars: { queue: tlF12(q) }, view: view(), analogy: sources.length > 1 ? `Stones land at ${sources.join(" and ")} together.` : `The stone lands at ${sources[0]}.`, note: `${sources.map((s) => `dist[${s}] = 0`).join(", ")}.` });
+    if (mode === "levels") {
+      let d = 0;
+      while (q.length) {
+        const size = q.length, level = [], next = [];
+        steps.push({ line: ["loop", "size"], vars: { ring: d, level_size: size }, view: view(), analogy: `Ring ${d} has ${size} point${size > 1 ? "s" : ""}.`, note: `<code>len(queue) = ${size}</code>.`,
+          ask: { q: "How many nodes are on this ring?", options: [...new Set([size, size + 1, Math.max(1, size - 1)])].map(String), answer: size, why: "The queue's length now." } });
+        for (let k = 0; k < size; k++) {
+          const u = q.shift(); level.push(u); done[u] = true;
+          const found = g[u].filter((v) => dist[v] === undefined); found.forEach((v) => { dist[v] = d + 1; q.push(v); });
+          steps.push({ line: ["pop", "nbrs", "new", "push"], vars: { current: u, discovered: tlF12(found) }, view: view(u), analogy: `Spread from ${u}${found.length ? `: ${found.join(", ")} join the next ring` : ""}.`, note: `popleft ${u}.` });
+        }
+        rows.push([d, tlF12(level), tlF12(q)]);
+        steps.push({ line: "done", vars: { level: tlF12(level) }, view: view(), analogy: `Ring ${d} done: ${tlF12(level)}.`, note: `<code>levels.append(${tlF12(level)})</code>.` }); d++;
+      }
+      steps.push({ line: "ret", vars: {}, view: view(), analogy: "All rings done.", note: "Return the levels." });
+      return { steps, table: { head: ["Ring", "Nodes", "Queue after the ring"], rows } };
+    }
+    while (q.length) {
+      const u = q.shift(); done[u] = true;
+      steps.push({ line: ["loop", "pop"], vars: { current: u, ["dist[" + u + "]"]: dist[u], queue: tlF12(q) }, view: view(u), analogy: `Spread the ripple from ${u} (ring ${dist[u]}).`, note: `<code>popleft()</code> → ${u}.`,
+        ask: { q: "Which neighbours get a distance now?", options: [...new Set([tlF12(g[u].filter((v) => dist[v] === undefined)), tlF12(g[u]), "[]"])], answer: tlF12(g[u].filter((v) => dist[v] === undefined)), why: "Only those not in dist yet." } });
+      const found = [];
+      for (const v of g[u]) {
+        if (dist[v] === undefined) { dist[v] = dist[u] + 1; q.push(v); found.push(v);
+          steps.push({ line: ["nbrs", "new", "set", "push"], vars: { neighbour: v, ["dist[" + v + "]"]: dist[v] }, view: view(u, v), analogy: `Dry spot ${v}: ring ${dist[v]}.`, note: `<code>dist[${v}] = ${dist[u]} + 1 = ${dist[v]}</code>; enqueue ${v}.` }); }
+      }
+      rows.push([u, dist[u], found.length ? found.map((v) => `${v} (${dist[v]})`).join(", ") : "—", tlF12(q)]);
+    }
+    steps.push({ line: "ret", vars: { dist: tlF12([0, 1, 2, 3, 4, 5].map((i) => dist[i])) }, view: view(), analogy: "Every node has its ring number.", note: "Return <code>dist</code>." });
+    return { steps, table: { head: ["Dequeued", "Its distance", "Discovered (distance)", "Queue after"], rows } };
+  }
+
+  function tl12C(edges, n, src, dst, useStack) {
+    const g = tl12adj(n, edges), parent = { [src]: null }, steps = [], rows = []; let q = [src];
+    const pl = () => Object.fromEntries(Object.entries(parent).map(([k, v]) => [k, v === null ? "src" : "←" + v]));
+    const view = (cur, path) => tl12g(n, edges, Object.assign(Object.fromEntries(Object.keys(parent).map((k) => [k, "gold"])), path ? Object.fromEntries(path.map((p) => [p, "found"])) : {}, cur !== undefined && !path ? { [cur]: "active" } : {}), undefined,
+      path ? Object.fromEntries(path.slice(1).map((p, k) => [path[k] + "-" + p, "active"])) : {}) + Viz.chips(Object.entries(pl()).map(([k, v]) => `${k} ${v}`), "parent (who told whom)") + Viz.chips(q.map(String), useStack ? "stack (bottom → top)" : "queue (front → back)");
+    steps.push({ line: "init", vars: { parent: `{${src}: None}` }, view: view(), analogy: `${src} heard the news first.`, note: `<code>parent = {${src}: None}</code>.` });
+    while (q.length) {
+      const u = useStack ? q.pop() : q.shift();
+      if (u === dst) {
+        const back = []; for (let c = u; c !== null; c = parent[c]) back.push(c); const path = back.slice().reverse();
+        steps.push({ line: ["pop", "goal", "back"], vars: { current: u, walked_back: tlF12(back) }, view: view(u), analogy: `Reached ${dst}. Who told you? ${back.join(" ← ")}.`, note: `Walk parents: ${tlF12(back)}.` });
+        steps.push({ line: "rev", vars: { path: tlF12(path) }, view: view(u, path), analogy: `Read it forwards: ${path.join(" → ")}.`, note: `Return <code>${tlF12(path)}</code>.` });
+        rows.push([u, "goal", tlF12(path)]);
+        return { steps, table: { head: ["Dequeued", "Discovered (parent)", "Queue after"], rows } };
+      }
+      const found = g[u].filter((v) => !(v in parent)); found.forEach((v) => { parent[v] = u; q.push(v); });
+      steps.push({ line: ["loop", "pop", "goal", "nbrs", "new", "set", "push"], vars: { current: u, discovered: tlF12(found) }, view: view(u), analogy: found.length ? `${u} tells ${found.join(", ")}.` : `${u} has nobody new to tell.`, note: `${useStack ? "pop()" : "popleft()"} → ${u}.`,
+        ask: q.length ? { q: "Which node is taken next?", options: [...new Set(q.map(String))], answer: useStack ? q[q.length - 1] : q[0], why: useStack ? "pop() takes the newest." : "popleft() takes the oldest." } : undefined });
+      rows.push([u, found.length ? found.map((v) => `${v} (←${u})`).join(", ") : "—", tlF12(q)]);
+    }
+    steps.push({ line: "none", vars: {}, view: view(), analogy: "Never reached.", note: "Return <code>None</code>." });
+    return { steps, table: { head: ["Dequeued", "Discovered (parent)", "Queue after"], rows } };
+  }
+
+  { const run = tl12A([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 5]], [0], 'dist');
+    Viz.tlab("#tl-12a", { title: "Template A \u00b7 distances from 0", sub: "Numbers under nodes = distance. Blue = being spread; gold = in the queue; green = done.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def bfs_distances(graph, src):"], ["init", "    dist = {src: 0}"], ["init", "    queue = deque([src])"], ["loop", "    while queue:"], ["pop", "        current = queue.popleft()"], ["nbrs", "        for neighbour in graph[current]:"], ["new", "            if neighbour not in dist:"], ["set", "                dist[neighbour] = dist[current] + 1"], ["push", "                queue.append(neighbour)"], ["ret", "    return dist"]], "ts": [[null, "function bfsDistances(graph: number[][], src: number): Map<number, number> {"], ["init", "  const dist = new Map<number, number>([[src, 0]]);"], ["init", "  const queue = [src];"], ["loop", "  for (let head = 0; head < queue.length; head++) {"], ["pop", "    const current = queue[head];"], ["nbrs", "    for (const neighbour of graph[current]) {"], ["new", "      if (!dist.has(neighbour)) {"], ["set", "        dist.set(neighbour, dist.get(current)! + 1);"], ["push", "        queue.push(neighbour);"], [null, "      }"], [null, "    }"], [null, "  }"], ["ret", "  return dist;"], [null, "}"]], "java": [[null, "static Map<Integer, Integer> bfsDistances(List<List<Integer>> graph, int src) {"], ["init", "    Map<Integer, Integer> dist = new HashMap<>();"], ["init", "    dist.put(src, 0);"], ["init", "    Deque<Integer> queue = new ArrayDeque<>(List.of(src));"], ["loop", "    while (!queue.isEmpty()) {"], ["pop", "        int current = queue.poll();"], ["nbrs", "        for (int neighbour : graph.get(current)) {"], ["new", "            if (!dist.containsKey(neighbour)) {"], ["set", "                dist.put(neighbour, dist.get(current) + 1);"], ["push", "                queue.offer(neighbour);"], [null, "            }"], [null, "        }"], [null, "    }"], ["ret", "    return dist;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-12a-table").innerHTML = TL.table(run.table); }
+  { const run = tl12A([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 5]], [0], 'levels');
+    Viz.tlab("#tl-12b", { title: "Template B \u00b7 rings from 0", sub: "Each finished ring gets the next colour.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def bfs_levels(graph, src):"], ["init", "    levels, seen = [], {src}"], ["init", "    queue = deque([src])"], ["loop", "    while queue:"], ["size", "        level = []"], ["size", "        for _ in range(len(queue)):"], ["pop", "            current = queue.popleft()"], ["pop", "            level.append(current)"], ["nbrs", "            for neighbour in graph[current]:"], ["new", "                if neighbour not in seen:"], ["push", "                    seen.add(neighbour)"], ["push", "                    queue.append(neighbour)"], ["done", "        levels.append(level)"], ["ret", "    return levels"]], "ts": [[null, "function bfsLevels(graph: number[][], src: number): number[][] {"], ["init", "  const levels: number[][] = [], seen = new Set([src]);"], ["init", "  let queue = [src];"], ["loop", "  while (queue.length > 0) {"], ["size", "    const next: number[] = [];"], ["pop", "    for (const current of queue) {"], ["nbrs", "      for (const neighbour of graph[current]) {"], ["new", "        if (!seen.has(neighbour)) {"], ["push", "          seen.add(neighbour);"], ["push", "          next.push(neighbour);"], [null, "        }"], [null, "      }"], [null, "    }"], ["done", "    levels.push(queue);"], ["done", "    queue = next;"], [null, "  }"], ["ret", "  return levels;"], [null, "}"]], "java": [[null, "static List<List<Integer>> bfsLevels(List<List<Integer>> graph, int src) {"], ["init", "    List<List<Integer>> levels = new ArrayList<>();"], ["init", "    Set<Integer> seen = new HashSet<>(List.of(src));"], ["init", "    Deque<Integer> queue = new ArrayDeque<>(List.of(src));"], ["loop", "    while (!queue.isEmpty()) {"], ["size", "        List<Integer> level = new ArrayList<>();"], ["size", "        for (int k = queue.size(); k > 0; k--) {"], ["pop", "            int current = queue.poll();"], ["pop", "            level.add(current);"], ["nbrs", "            for (int neighbour : graph.get(current)) {"], ["new", "                if (seen.add(neighbour)) {"], ["push", "                    queue.offer(neighbour);"], [null, "                }"], [null, "            }"], [null, "        }"], ["done", "        levels.add(level);"], [null, "    }"], ["ret", "    return levels;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-12b-table").innerHTML = TL.table(run.table); }
+  { const run = tl12C([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 5]], 6, 0, 5, false);
+    Viz.tlab("#tl-12c", { title: "Template C \u00b7 path 0 \u2192 5", sub: "Gold = discovered; the parent row shows who told whom; green = the answer path.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def shortest_path(graph, src, dst):"], ["init", "    parent = {src: None}"], ["init", "    queue = deque([src])"], ["loop", "    while queue:"], ["pop", "        current = queue.popleft()"], ["goal", "        if current == dst:"], ["back", "            path = []"], ["back", "            while current is not None:"], ["back", "                path.append(current)"], ["back", "                current = parent[current]"], ["rev", "            return path[::-1]"], ["nbrs", "        for neighbour in graph[current]:"], ["new", "            if neighbour not in parent:"], ["set", "                parent[neighbour] = current"], ["push", "                queue.append(neighbour)"], ["none", "    return None"]], "ts": [[null, "function shortestPath(graph: number[][], src: number, dst: number): number[] | null {"], ["init", "  const parent = new Map<number, number | null>([[src, null]]);"], ["init", "  const queue = [src];"], ["loop", "  for (let head = 0; head < queue.length; head++) {"], ["pop", "    let current: number | null = queue[head];"], ["goal", "    if (current === dst) {"], ["back", "      const path: number[] = [];"], ["back", "      while (current !== null) {"], ["back", "        path.push(current);"], ["back", "        current = parent.get(current)!;"], [null, "      }"], ["rev", "      return path.reverse();"], [null, "    }"], ["nbrs", "    for (const neighbour of graph[current]) {"], ["new", "      if (!parent.has(neighbour)) {"], ["set", "        parent.set(neighbour, current);"], ["push", "        queue.push(neighbour);"], [null, "      }"], [null, "    }"], [null, "  }"], ["none", "  return null;"], [null, "}"]], "java": [[null, "static List<Integer> shortestPath(List<List<Integer>> graph, int src, int dst) {"], ["init", "    Map<Integer, Integer> parent = new HashMap<>();"], ["init", "    parent.put(src, null);"], ["init", "    Deque<Integer> queue = new ArrayDeque<>(List.of(src));"], ["loop", "    while (!queue.isEmpty()) {"], ["pop", "        Integer current = queue.poll();"], ["goal", "        if (current == dst) {"], ["back", "            List<Integer> path = new ArrayList<>();"], ["back", "            while (current != null) {"], ["back", "                path.add(current);"], ["back", "                current = parent.get(current);"], [null, "            }"], ["rev", "            Collections.reverse(path);"], ["rev", "            return path;"], [null, "        }"], ["nbrs", "        for (int neighbour : graph.get(current)) {"], ["new", "            if (!parent.containsKey(neighbour)) {"], ["set", "                parent.put(neighbour, current);"], ["push", "                queue.offer(neighbour);"], [null, "            }"], [null, "        }"], [null, "    }"], ["none", "    return null;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-12c-table").innerHTML = TL.table(run.table); }
+  { const run = tl12C([[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]], 5, 0, 2, false);
+    Viz.tlab("#tl-12c-bug", { title: "Why a queue \u00b7 ring 0\u20131\u20132\u20133\u20134\u20130, path 0 \u2192 2", sub: "Switch between popleft() and pop().", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def shortest_path(graph, src, dst):"], ["init", "    parent = {src: None}"], ["init", "    queue = deque([src])"], ["loop", "    while queue:"], ["pop", "        current = queue.popleft()"], ["goal", "        if current == dst:"], ["back", "            path = []"], ["back", "            while current is not None:"], ["back", "                path.append(current)"], ["back", "                current = parent[current]"], ["rev", "            return path[::-1]"], ["nbrs", "        for neighbour in graph[current]:"], ["new", "            if neighbour not in parent:"], ["set", "                parent[neighbour] = current"], ["push", "                queue.append(neighbour)"], ["none", "    return None"]], "ts": [[null, "function shortestPath(graph: number[][], src: number, dst: number): number[] | null {"], ["init", "  const parent = new Map<number, number | null>([[src, null]]);"], ["init", "  const queue = [src];"], ["loop", "  for (let head = 0; head < queue.length; head++) {"], ["pop", "    let current: number | null = queue[head];"], ["goal", "    if (current === dst) {"], ["back", "      const path: number[] = [];"], ["back", "      while (current !== null) {"], ["back", "        path.push(current);"], ["back", "        current = parent.get(current)!;"], [null, "      }"], ["rev", "      return path.reverse();"], [null, "    }"], ["nbrs", "    for (const neighbour of graph[current]) {"], ["new", "      if (!parent.has(neighbour)) {"], ["set", "        parent.set(neighbour, current);"], ["push", "        queue.push(neighbour);"], [null, "      }"], [null, "    }"], [null, "  }"], ["none", "  return null;"], [null, "}"]], "java": [[null, "static List<Integer> shortestPath(List<List<Integer>> graph, int src, int dst) {"], ["init", "    Map<Integer, Integer> parent = new HashMap<>();"], ["init", "    parent.put(src, null);"], ["init", "    Deque<Integer> queue = new ArrayDeque<>(List.of(src));"], ["loop", "    while (!queue.isEmpty()) {"], ["pop", "        Integer current = queue.poll();"], ["goal", "        if (current == dst) {"], ["back", "            List<Integer> path = new ArrayList<>();"], ["back", "            while (current != null) {"], ["back", "                path.add(current);"], ["back", "                current = parent.get(current);"], [null, "            }"], ["rev", "            Collections.reverse(path);"], ["rev", "            return path;"], [null, "        }"], ["nbrs", "        for (int neighbour : graph.get(current)) {"], ["new", "            if (!parent.containsKey(neighbour)) {"], ["set", "                parent.put(neighbour, current);"], ["push", "                queue.offer(neighbour);"], [null, "            }"], [null, "        }"], [null, "    }"], ["none", "    return null;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: pop() instead of popleft()", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def shortest_path(graph, src, dst):"], ["init", "    parent = {src: None}"], ["init", "    queue = deque([src])"], ["loop", "    while queue:"], ["pop", "        current = queue.pop()"], ["goal", "        if current == dst:"], ["back", "            path = []"], ["back", "            while current is not None:"], ["back", "                path.append(current)"], ["back", "                current = parent[current]"], ["rev", "            return path[::-1]"], ["nbrs", "        for neighbour in graph[current]:"], ["new", "            if neighbour not in parent:"], ["set", "                parent[neighbour] = current"], ["push", "                queue.append(neighbour)"], ["none", "    return None"]]}, steps: tl12C([[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]], 5, 0, 2, true).steps, diverge: undefined, why: "the newest node (4) was taken instead of the oldest (1), so the search goes deep instead of ring by ring." } });
+     }
+  { const run = tl12A([[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 5]], [0, 5], 'dist');
+    Viz.tlab("#tl-12d", { title: "Template D \u00b7 sources 0 and 5", sub: "Numbers = distance to the nearest source.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def multi_source_bfs(graph, sources):"], ["init", "    dist = {s: 0 for s in sources}"], ["init", "    queue = deque(sources)"], ["loop", "    while queue:"], ["pop", "        current = queue.popleft()"], ["nbrs", "        for neighbour in graph[current]:"], ["new", "            if neighbour not in dist:"], ["set", "                dist[neighbour] = dist[current] + 1"], ["push", "                queue.append(neighbour)"], ["ret", "    return dist"]], "ts": [[null, "function multiSourceBfs(graph: number[][], sources: number[]): Map<number, number> {"], ["init", "  const dist = new Map<number, number>(sources.map((s) => [s, 0]));"], ["init", "  const queue = [...sources];"], ["loop", "  for (let head = 0; head < queue.length; head++) {"], ["pop", "    const current = queue[head];"], ["nbrs", "    for (const neighbour of graph[current]) {"], ["new", "      if (!dist.has(neighbour)) {"], ["set", "        dist.set(neighbour, dist.get(current)! + 1);"], ["push", "        queue.push(neighbour);"], [null, "      }"], [null, "    }"], [null, "  }"], ["ret", "  return dist;"], [null, "}"]], "java": [[null, "static Map<Integer, Integer> multiSourceBfs(List<List<Integer>> graph, List<Integer> sources) {"], ["init", "    Map<Integer, Integer> dist = new HashMap<>();"], ["init", "    for (int s : sources) dist.put(s, 0);"], ["init", "    Deque<Integer> queue = new ArrayDeque<>(sources);"], ["loop", "    while (!queue.isEmpty()) {"], ["pop", "        int current = queue.poll();"], ["nbrs", "        for (int neighbour : graph.get(current)) {"], ["new", "            if (!dist.containsKey(neighbour)) {"], ["set", "                dist.put(neighbour, dist.get(current) + 1);"], ["push", "                queue.offer(neighbour);"], [null, "            }"], [null, "        }"], [null, "    }"], ["ret", "    return dist;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-12d-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 

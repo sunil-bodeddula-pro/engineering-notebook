@@ -369,6 +369,8 @@ svg.tree circle.found { fill: var(--green-soft); stroke: var(--green); }
 svg.tree circle.window { fill: var(--accent-soft); stroke: var(--accent); }
 svg.tree circle.warm { fill: var(--warm-soft); stroke: var(--warm); }
 svg.tree circle.bad { fill: var(--red-soft); stroke: var(--red); }
+svg.tree circle.gold { fill: var(--gold-soft); stroke: var(--gold); }
+svg.tree circle.dim { opacity: .4; }
 svg.tree line, svg.tree path.edge { stroke: var(--ink-3); stroke-width: 1.5; fill: none; }
 svg.tree path.edge.active, svg.tree line.active { stroke: var(--blue); stroke-width: 2.5; }
 
@@ -2319,257 +2321,365 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> every traversal is <code>O(n)</code> time (each node visited once). Space is <code>O(h)</code> for DFS (recursion/stack depth; <code>h = log n</code> if balanced, <code>n</code> if it's a stick) and <code>O(w)</code> for level order, where <code>w</code> is the widest level (up to <code>n/2</code>).</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python templates (memorize these)</h2>
-    <p>Each template below is written out in full, one small step per line. Read the code, then the plain-English walk-through underneath it. All of them use LeetCode's <code>TreeNode</code> (fields <code>val</code>, <code>left</code>, <code>right</code>).</p>
-    <h3>A) Recursive DFS: one skeleton, three orders</h3>
-    <pre><code class="python"># A) Recursive DFS skeleton: move ONE line to switch between pre / in / post
-def dfs(node):
-    # Base case: an empty subtree has nothing to visit, so stop here.
-    if node is None:
-        return
-    # visit(node)  &lt;- PREORDER  (work before children: pass info down)
-    dfs(node.left)
-    # visit(node)  &lt;- INORDER   (work between: sorted order in a BST)
-    dfs(node.right)
-    # visit(node)  &lt;- POSTORDER (work after: combine children's answers)</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>if node is None: return</code> is the base case. Every recursive tree function starts with it; without it you would crash on <code>None.left</code>.</li>
-      <li><code>dfs(node.left)</code> then <code>dfs(node.right)</code> visit the two subtrees, left before right.</li>
-      <li>The three <code># visit(node)</code> comments mark the three moments a node is "touched": before the children (preorder), between them (inorder), after them (postorder). Put your real work on exactly one of those lines.</li>
-    </ol>
-    <pre><code class="python"># A2) The three recursive orders, each one collecting values into a list.
-# The recursion lives in a separate top-level helper ("..._walk").
-# The helper receives the list "out" and adds values to it.
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Tree traversal has five templates. <strong>A</strong> is the one recursive skeleton: preorder, inorder and postorder differ only in <em>where</em> you record the node. <strong>B</strong> is postorder that <em>returns</em> a value up the tree (height, sums, "is balanced"). <strong>C</strong> and <strong>D</strong> do the same walks with an explicit stack (no recursion). <strong>E</strong> visits level by level with a queue. All examples use this tree:</p>
+<pre><code class="plaintext">      1
+    /   \
+   2     3
+  / \     \
+ 4   5     6</code></pre>
 
-def preorder_walk(node, out):
-    if node is None:              # empty subtree: nothing to add
-        return
-    out.append(node.val)          # PRE: record the node BEFORE its children
-    preorder_walk(node.left, out)
-    preorder_walk(node.right, out)
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Recursive DFS: one skeleton, three orders</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Visit every node once, in preorder, inorder or postorder.</div><div><b>What it keeps</b>The call stack: the path from the root to the current node.</div><div><b>When it checks for an answer</b>Each node is recorded at one of three moments: before its children, between them, or after them.</div><div><b>Use it when</b>Any "do something at every node" problem; inorder of a BST is sorted; preorder copies/serialises; postorder deletes or combines children.</div><div><b>Not for</b>Level-by-level questions (E); very deep trees in Python (recursion limit ≈ 1000: use C/D).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Pre = before the kids, In = between them, Post = after them"</strong>A tour guide walks around the outside of the tree, keeping the tree on their left. Every node is passed three times: arriving from above, coming back from the left child, and coming back from the right child. Preorder writes the name on the first pass, inorder on the second, postorder on the third.</div>
+    <p><strong>The story, mapped to the code.</strong> The guide walks the outline of the tree.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Arriving at a node from above</td><td data-h="In the code"><code>pre.append(node.val)</code></td><td data-h="What it means">First pass: preorder.</td></tr><tr><td data-h="In the story">Back from the left subtree</td><td data-h="In the code"><code>ino.append(node.val)</code></td><td data-h="What it means">Second pass: inorder.</td></tr><tr><td data-h="In the story">Back from the right subtree</td><td data-h="In the code"><code>post.append(node.val)</code></td><td data-h="What it means">Third pass: postorder.</td></tr><tr><td data-h="In the story">Walking off the tree</td><td data-h="In the code"><code>if node is None: return</code></td><td data-h="What it means">The base case.</td></tr><tr><td data-h="In the story">The guide's trail back up</td><td data-h="In the code"><code>the call stack</code></td><td data-h="What it means">Where to return to.</td></tr></tbody></table>
+    <p><strong>The template.</strong> One walk that records all three orders, to show they're the same skeleton. In an interview, keep only the line you need.</p>
+    <pre><code class="python">def traversals(root):
+    pre, ino, post = [], [], []
 
+    def walk(node):
+        if node is None:
+            return
+        pre.append(node.val)
+        walk(node.left)
+        ino.append(node.val)
+        walk(node.right)
+        post.append(node.val)
 
-def preorder_rec(root):
-    out = []                      # will hold the values in visiting order
-    preorder_walk(root, out)      # the helper fills the list
-    return out
+    walk(root)
+    return pre, ino, post</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function traversals(root: TreeNode | null): number[][] {
+  const pre: number[] = [], ino: number[] = [], post: number[] = [];
+  const walk = (node: TreeNode | null): void =&gt; {
+    if (node === null) return;
+    pre.push(node.val);
+    walk(node.left);
+    ino.push(node.val);
+    walk(node.right);
+    post.push(node.val);
+  };
+  walk(root);
+  return [pre, ino, post];
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static void walk(TreeNode node, List&lt;Integer&gt; pre, List&lt;Integer&gt; ino, List&lt;Integer&gt; post) {
+    if (node == null) return;
+    pre.add(node.val);
+    walk(node.left, pre, ino, post);
+    ino.add(node.val);
+    walk(node.right, pre, ino, post);
+    post.add(node.val);
+}
 
-
-def inorder_walk(node, out):
-    if node is None:
-        return
-    inorder_walk(node.left, out)
-    out.append(node.val)          # IN: record the node BETWEEN its children
-    inorder_walk(node.right, out)
-
-
-def inorder_rec(root):
-    out = []
-    inorder_walk(root, out)
-    return out
-
-
-def postorder_walk(node, out):
-    if node is None:
-        return
-    postorder_walk(node.left, out)
-    postorder_walk(node.right, out)
-    out.append(node.val)          # POST: record the node AFTER its children
-
-
-def postorder_rec(root):
-    out = []
-    postorder_walk(root, out)
-    return out</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>Each order has two functions: a small public one (<code>preorder_rec</code>) that creates the empty list <code>out</code>, and a recursive helper (<code>preorder_walk</code>) that fills it.</li>
-      <li>The helper takes <code>out</code> as a parameter, so every recursive call appends to the <em>same</em> list. No nested functions are needed.</li>
-      <li>The three helpers are identical except for <em>where</em> the line <code>out.append(node.val)</code> sits: first (pre), middle (in) or last (post).</li>
-    </ol>
-    <p><strong>Dry run</strong> on the tree <code>[4,2,6,1,3,5,7]</code> (4 at the root, 2 and 6 below it, then 1, 3, 5, 7):</p>
-    <table>
-      <thead><tr><th>Function</th><th>Result</th></tr></thead>
-      <tbody>
-        <tr><td><code>preorder_rec</code></td><td><code>[4, 2, 1, 3, 6, 5, 7]</code></td></tr>
-        <tr><td><code>inorder_rec</code></td><td><code>[1, 2, 3, 4, 5, 6, 7]</code> (sorted, because it's a BST)</td></tr>
-        <tr><td><code>postorder_rec</code></td><td><code>[1, 3, 2, 5, 7, 6, 4]</code></td></tr>
-      </tbody>
-    </table>
-    <h3>B) Postorder that returns a value</h3>
-    <pre><code class="python"># B) Postorder that RETURNS a value up (height, sums, best path...)
-def height(node):
-    # An empty subtree has height 0.
+static List&lt;List&lt;Integer&gt;&gt; traversals(TreeNode root) {
+    List&lt;Integer&gt; pre = new ArrayList&lt;&gt;(), ino = new ArrayList&lt;&gt;(), post = new ArrayList&lt;&gt;();
+    walk(root, pre, ino, post);
+    return List.of(pre, ino, post);
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if node is None: return</code></td><td data-h="What it does">Stops at missing children.</td><td data-h="In the story">Walking off the tree.</td><td data-h="Why here, and what breaks if it moves">Without it, <code>node.left</code> crashes on None.</td></tr><tr><td data-h="Line"><code>pre.append(node.val)</code></td><td data-h="What it does">Records before the children.</td><td data-h="In the story">First pass.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>walk(node.left)</code></td><td data-h="What it does">Explores the whole left subtree.</td><td data-h="In the story">Go down the left side.</td><td data-h="Why here, and what breaks if it moves">Swapping left/right gives the mirror order.</td></tr><tr><td data-h="Line"><code>ino.append(node.val)</code></td><td data-h="What it does">Records between the children.</td><td data-h="In the story">Second pass.</td><td data-h="Why here, and what breaks if it moves">For a BST, this is sorted order.</td></tr><tr><td data-h="Line"><code>post.append(node.val)</code></td><td data-h="What it does">Records after both children.</td><td data-h="In the story">Third pass.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Watch the guide walk the tree; each list grows at its own moment. (Calls on missing children return at once and are skipped in the player.)</p>
+    <div id="tl-10a"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-10a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> When <code>walk(node)</code> returns, every node in node's subtree has been added to all three lists, in the right relative order.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(h) space for the call stack (h = height: log n balanced, n worst case).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting the base case.</strong> Walking off the tree must stop.</li><li><strong>Recording in the wrong spot.</strong> Pre/In/Post = before/between/after the kids.</li><li><strong>Deep trees in Python.</strong> Recursion limit: use the iterative versions or raise the limit.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Pre = before the kids, In = between, Post = after.</dd>
+      <dt>Choose this template when</dt><dd>Visit every node → this skeleton; pick the recording spot.</dd>
+      <dt>Invariant</dt><dd>A returned call has finished its whole subtree.</dd>
+      <dt>The line people get wrong</dt><dd>Where the <code>append</code> sits.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Inorder of the example tree?</summary><p>4 2 5 1 3 6.</p></details><details><summary>Which order lists a node before all its descendants?</summary><p>Preorder.</p></details><details><summary>Which order is sorted for a BST?</summary><p>Inorder.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Postorder that returns a value (height)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Compute something for a node from its children's answers (height, size, sum, balanced?).</div><div><b>What it keeps</b>Nothing global: each call returns its subtree's answer.</div><div><b>When it checks for an answer</b>A node combines its children's returned values after both calls finish.</div><div><b>Use it when</b>Height/depth, diameter, balanced tree, path sums, subtree sizes, LCA.</div><div><b>Not for</b>Questions that need information from the parent (pass it down as a parameter instead: preorder style).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Ask the kids first, then answer your parent"</strong>A manager can only report the team's size after each sub-team lead reports theirs. Leaves report first; answers bubble up to the root.</div>
+    <p><strong>The story, mapped to the code.</strong> Each node is a manager reporting to its parent.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Nobody there</td><td data-h="In the code"><code>if node is None: return 0</code></td><td data-h="What it means">An empty team has height 0.</td></tr><tr><td data-h="In the story">Ask each child</td><td data-h="In the code"><code>height(node.left), height(node.right)</code></td><td data-h="What it means">Wait for both reports.</td></tr><tr><td data-h="In the story">Combine</td><td data-h="In the code"><code>1 + max(left_height, right_height)</code></td><td data-h="What it means">My answer from theirs.</td></tr><tr><td data-h="In the story">Report up</td><td data-h="In the code"><code>return …</code></td><td data-h="What it means">The parent uses it.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Call, call, combine, return.</p>
+    <pre><code class="python">def height(node):
     if node is None:
         return 0
-    # First ask both children for their heights (children before parent = postorder).
     left_height = height(node.left)
     right_height = height(node.right)
-    # This node adds one level on top of its taller child.
-    taller_child = max(left_height, right_height)
-    return 1 + taller_child       # the parent gets back one number</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>An empty subtree has height 0. That stops the recursion at the leaves' missing children.</li>
-      <li>Both children are asked for their height first. Because the node waits for its children, this is postorder.</li>
-      <li><code>max(left_height, right_height)</code> picks the taller child, and <code>1 +</code> counts the node itself.</li>
-      <li>The function <em>returns</em> the number to its caller, which is how information flows up the tree.</li>
-    </ol>
-    <p><strong>Dry run</strong> on <code>[4,2,6,1,3,5,7]</code>:</p>
-    <table>
-      <thead><tr><th>Node</th><th>left_height</th><th>right_height</th><th>returns</th></tr></thead>
-      <tbody>
-        <tr><td>1 (leaf)</td><td>0</td><td>0</td><td>1</td></tr>
-        <tr><td>3 (leaf)</td><td>0</td><td>0</td><td>1</td></tr>
-        <tr><td>2</td><td>1</td><td>1</td><td>2</td></tr>
-        <tr><td>6 (same as 2)</td><td>1</td><td>1</td><td>2</td></tr>
-        <tr><td>4 (root)</td><td>2</td><td>2</td><td>3</td></tr>
-      </tbody>
-    </table>
-    <h3>C) Iterative inorder</h3>
-    <pre><code class="python"># C) Iterative inorder (the one interviewers ask for)
-def inorder_iter(root):
-    out = []                      # the values, in inorder
-    stack = []                    # ancestors we still have to come back to
-    current = root                # the node we are about to explore
-    # Keep going while there is a node to explore OR an ancestor waiting on the stack.
-    while current is not None or len(stack) &gt; 0:
-        # 1) Slide down-left, pushing every node we pass on the way.
+    return 1 + max(left_height, right_height)</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function height(node: TreeNode | null): number {
+  if (node === null) return 0;
+  const leftHeight = height(node.left);
+  const rightHeight = height(node.right);
+  return 1 + Math.max(leftHeight, rightHeight);
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int height(TreeNode node) {
+    if (node == null) return 0;
+    int leftHeight = height(node.left);
+    int rightHeight = height(node.right);
+    return 1 + Math.max(leftHeight, rightHeight);
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if node is None: return 0</code></td><td data-h="What it does">The empty tree's answer.</td><td data-h="In the story">No team: height 0.</td><td data-h="Why here, and what breaks if it moves">Returning −1 counts edges instead of nodes; both exist, so check the prompt.</td></tr><tr><td data-h="Line"><code>left_height = height(node.left)</code></td><td data-h="What it does">Waits for the left answer.</td><td data-h="In the story">Ask the left lead.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>return 1 + max(left_height, right_height)</code></td><td data-h="What it does">Combines the answers.</td><td data-h="In the story">Answer the parent.</td><td data-h="Why here, and what breaks if it moves">Forgetting <code>1 +</code> returns 0 for every tree.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Numbers under the nodes are the heights each call returned.</p>
+    <div id="tl-10b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-10b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> <code>height(node)</code> returns the number of nodes on the longest downward path from node, computed only after both children's heights are known.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(h) stack.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Using a global and forgetting to reset it between tests.</strong> Return values instead.</li><li><strong>Calling height() twice per node.</strong> Store each child's answer once (otherwise balanced-tree checks become O(n²)).</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Ask the kids first, then answer your parent.</dd>
+      <dt>Choose this template when</dt><dd>A node's answer depends on its children's answers → return values (postorder).</dd>
+      <dt>Invariant</dt><dd>Return = the subtree's answer.</dd>
+      <dt>The line people get wrong</dt><dd>The base case value (0 vs −1).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Height of a single node?</summary><p>1 (0 if you count edges).</p></details><details><summary>Diameter uses which values?</summary><p>left_height + right_height at each node.</p></details><details><summary>Why postorder?</summary><p>Children must answer before the parent can.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Iterative inorder (explicit stack)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Inorder traversal without recursion (or: the kth smallest in a BST, BST iterator).</div><div><b>What it keeps</b>A stack of ancestors still waiting to be recorded; <code>current</code> = node to explore.</div><div><b>When it checks for an answer</b>Each pop records one node, then moves to its right subtree.</div><div><b>Use it when</b>Deep trees, BST iterator (LC 173), kth smallest (LC 230), validate BST.</div><div><b>Not for</b>Pre/postorder (D).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Slide left as far as you can, pop one, step right"</strong>Going down a staircase of left children, you leave a bookmark on every step. At the bottom, pick up the last bookmark, read that node, then take one step right and slide left again.</div>
+    <p><strong>The story, mapped to the code.</strong> Bookmarks on the way down the left side.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Leave a bookmark and go left</td><td data-h="In the code"><code>stack.append(current); current = current.left</code></td><td data-h="What it means">Slide left.</td></tr><tr><td data-h="In the story">Pick up the last bookmark</td><td data-h="In the code"><code>current = stack.pop()</code></td><td data-h="What it means">The leftmost unrecorded node.</td></tr><tr><td data-h="In the story">Read it</td><td data-h="In the code"><code>out.append(current.val)</code></td><td data-h="What it means">Inorder record.</td></tr><tr><td data-h="In the story">Step right</td><td data-h="In the code"><code>current = current.right</code></td><td data-h="What it means">Then slide left again.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two nested loops: the inner one slides left.</p>
+    <pre><code class="python">def inorder_iter(root):
+    out, stack = [], []
+    current = root
+    while current is not None or stack:
         while current is not None:
             stack.append(current)
             current = current.left
-        # 2) The top of the stack is the leftmost node we have not visited yet.
         current = stack.pop()
         out.append(current.val)
-        # 3) Now explore that node's right subtree.
         current = current.right
     return out</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>out</code> collects the answer, <code>stack</code> remembers ancestors we must come back to, <code>current</code> is where we are.</li>
-      <li>The outer <code>while</code> runs as long as there is either a node to explore or an ancestor waiting.</li>
-      <li>Step 1, the inner <code>while</code>: walk left as far as possible, pushing each node. This is exactly what the recursive version does when it calls <code>dfs(node.left)</code> again and again.</li>
-      <li>Step 2: pop. The popped node has no unvisited left side any more, so it is next in inorder. Record it.</li>
-      <li>Step 3: move to its right child and repeat. If there is no right child, <code>current</code> is None and the next loop pops an ancestor.</li>
-    </ol>
-    <p><strong>Dry run</strong> on <code>[4,2,6,1,3,5,7]</code>:</p>
-    <table>
-      <thead><tr><th>Step</th><th>Stack after sliding left</th><th>Popped (recorded)</th><th>out so far</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td><code>[4, 2, 1]</code></td><td>1</td><td><code>[1]</code></td></tr>
-        <tr><td>2</td><td><code>[4, 2]</code></td><td>2</td><td><code>[1, 2]</code></td></tr>
-        <tr><td>3</td><td><code>[4, 3]</code></td><td>3</td><td><code>[1, 2, 3]</code></td></tr>
-        <tr><td>4</td><td><code>[4]</code></td><td>4</td><td><code>[1, 2, 3, 4]</code></td></tr>
-        <tr><td>5</td><td><code>[6, 5]</code></td><td>5</td><td><code>[1, 2, 3, 4, 5]</code></td></tr>
-        <tr><td>6</td><td><code>[6]</code></td><td>6</td><td><code>[1, 2, 3, 4, 5, 6]</code></td></tr>
-        <tr><td>7</td><td><code>[7]</code></td><td>7</td><td><code>[1, 2, 3, 4, 5, 6, 7]</code></td></tr>
-      </tbody>
-    </table>
-    <h3>D) Iterative preorder and postorder</h3>
-    <pre><code class="python"># D) Iterative preorder: stack, push RIGHT before LEFT
-def preorder_iter(root):
-    if root is None:              # empty tree: nothing to visit
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function inorderIter(root: TreeNode | null): number[] {
+  const out: number[] = [], stack: TreeNode[] = [];
+  let current = root;
+  while (current !== null || stack.length &gt; 0) {
+    while (current !== null) {
+      stack.push(current);
+      current = current.left;
+    }
+    current = stack.pop()!;
+    out.push(current.val);
+    current = current.right;
+  }
+  return out;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; inorderIter(TreeNode root) {
+    List&lt;Integer&gt; out = new ArrayList&lt;&gt;();
+    Deque&lt;TreeNode&gt; stack = new ArrayDeque&lt;&gt;();
+    TreeNode current = root;
+    while (current != null || !stack.isEmpty()) {
+        while (current != null) {
+            stack.push(current);
+            current = current.left;
+        }
+        current = stack.pop();
+        out.add(current.val);
+        current = current.right;
+    }
+    return out;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>while current is not None or stack</code></td><td data-h="What it does">Continue while there's a node to explore or a bookmark left.</td><td data-h="In the story">Anything left to read?</td><td data-h="Why here, and what breaks if it moves">Checking only <code>stack</code> stops before the first slide (the stack starts empty).</td></tr><tr><td data-h="Line"><code>while current is not None: stack.append(current); current = current.left</code></td><td data-h="What it does">Slides to the leftmost node, saving ancestors.</td><td data-h="In the story">Bookmarks down the left side.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>current = stack.pop(); out.append(current.val)</code></td><td data-h="What it does">Records the deepest saved node.</td><td data-h="In the story">Read the last bookmark.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>current = current.right</code></td><td data-h="What it does">Explores the right subtree next.</td><td data-h="In the story">Step right.</td><td data-h="Why here, and what breaks if it moves">Skipping it loops forever on the same node.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the example tree.</p>
+    <div id="tl-10c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-10c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The stack holds exactly the ancestors whose left subtree is being explored and who haven't been recorded; everything recorded so far is the inorder prefix.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(h) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Loop condition with only the stack.</strong> "current or stack".</li><li><strong>Forgetting to step right.</strong> Pop, read, step right.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Slide left, pop one, step right.</dd>
+      <dt>Choose this template when</dt><dd>Inorder without recursion / BST iterator → C.</dd>
+      <dt>Invariant</dt><dd>Stack = unrecorded ancestors on the left spine.</dd>
+      <dt>The line people get wrong</dt><dd><code>while current is not None or stack</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>First node recorded?</summary><p>The leftmost node, 4.</p></details><details><summary>What does a BST iterator's next() do?</summary><p>One pop-record-step-right plus a slide.</p></details><details><summary>Max stack size?</summary><p>The tree's height.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-d">
+    <h3>Template D · Iterative preorder (and postorder by mirroring)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Preorder (or postorder) without recursion.</div><div><b>What it keeps</b>A stack of nodes still to visit.</div><div><b>When it checks for an answer</b>Each pop records a node and pushes its children: <em>right first</em>, so left is popped first.</div><div><b>Use it when</b>Preorder on deep trees, serialisation, flattening (LC 114); postorder via the mirror trick.</div><div><b>Not for</b>Inorder (C).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Pop, record, push right then left"</strong>A to-do pile: take the top card, write it down, then put its right child and then its left child on the pile, so the left one is on top. For postorder, push left then right (a mirrored preorder: root, right, left) and read the result backwards.</div>
+    <p><strong>The story, mapped to the code.</strong> A pile of to-do cards.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">The pile</td><td data-h="In the code"><code>stack</code></td><td data-h="What it means">Nodes still to visit.</td></tr><tr><td data-h="In the story">Take the top card</td><td data-h="In the code"><code>node = stack.pop()</code></td><td data-h="What it means">Next node in preorder.</td></tr><tr><td data-h="In the story">Right goes in first</td><td data-h="In the code"><code>stack.append(node.right)</code></td><td data-h="What it means">So it comes out after left.</td></tr><tr><td data-h="In the story">Read backwards</td><td data-h="In the code"><code>mirrored[::-1]</code></td><td data-h="What it means">Root-right-left reversed = left-right-root = postorder.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Preorder, plus the two-line change that gives postorder.</p>
+    <pre><code class="python">def preorder_iter(root):
+    if root is None:
         return []
-    out = []
-    stack = [root]                # start with only the root on the stack
-    while len(stack) &gt; 0:
-        node = stack.pop()        # take the most recently pushed node
-        out.append(node.val)      # PRE: record it straight away
-        # Push RIGHT first, so that LEFT ends up on top and is popped first.
-        if node.right is not None:
+    out, stack = [], [root]
+    while stack:
+        node = stack.pop()
+        out.append(node.val)
+        if node.right:
             stack.append(node.right)
-        if node.left is not None:
+        if node.left:
             stack.append(node.left)
     return out
 
 
-# Iterative postorder: collect "root, right, left", then read it backwards.
 def postorder_iter(root):
     if root is None:
         return []
-    mirrored = []                 # will hold root, right, left order
-    stack = [root]
-    while len(stack) &gt; 0:
+    mirrored, stack = [], [root]
+    while stack:
         node = stack.pop()
         mirrored.append(node.val)
-        # Push LEFT first, so that RIGHT is popped first.
-        if node.left is not None:
+        if node.left:
             stack.append(node.left)
-        if node.right is not None:
+        if node.right:
             stack.append(node.right)
-    # Read "mirrored" from the last item to the first: that gives left, right, root.
-    out = []
-    i = len(mirrored) - 1
-    while i &gt;= 0:
-        out.append(mirrored[i])
-        i = i - 1
-    return out</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li><code>preorder_iter</code>: the stack starts with just the root. Each loop pops one node and records it immediately (that's "me first").</li>
-      <li>A stack is last-in-first-out, so the right child is pushed <em>before</em> the left child. That way the left child is on top and gets handled first.</li>
-      <li><code>postorder_iter</code> runs the same loop but pushes left before right, which produces "root, right, left" in <code>mirrored</code>.</li>
-      <li>The final <code>while i >= 0</code> loop copies <code>mirrored</code> from the last item to the first. Reversed, "root, right, left" becomes "left, right, root", which is postorder.</li>
-    </ol>
-    <p><strong>Dry run</strong> of <code>preorder_iter</code> on <code>[4,2,6,1,3,5,7]</code>:</p>
-    <table>
-      <thead><tr><th>Popped</th><th>out so far</th><th>Stack after pushing children (top is last)</th></tr></thead>
-      <tbody>
-        <tr><td>4</td><td><code>[4]</code></td><td><code>[6, 2]</code></td></tr>
-        <tr><td>2</td><td><code>[4, 2]</code></td><td><code>[6, 3, 1]</code></td></tr>
-        <tr><td>1</td><td><code>[4, 2, 1]</code></td><td><code>[6, 3]</code></td></tr>
-        <tr><td>3</td><td><code>[4, 2, 1, 3]</code></td><td><code>[6]</code></td></tr>
-        <tr><td>6</td><td><code>[4, 2, 1, 3, 6]</code></td><td><code>[7, 5]</code></td></tr>
-        <tr><td>5</td><td><code>[4, 2, 1, 3, 6, 5]</code></td><td><code>[7]</code></td></tr>
-        <tr><td>7</td><td><code>[4, 2, 1, 3, 6, 5, 7]</code></td><td><code>[]</code></td></tr>
-      </tbody>
-    </table>
-    <h3>E) Level order (BFS on a tree)</h3>
-    <pre><code class="python"># E) Level order (BFS on a tree)
-from collections import deque
+    return mirrored[::-1]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function preorderIter(root: TreeNode | null): number[] {
+  if (root === null) return [];
+  const out: number[] = [], stack: TreeNode[] = [root];
+  while (stack.length &gt; 0) {
+    const node = stack.pop()!;
+    out.push(node.val);
+    if (node.right) stack.push(node.right);
+    if (node.left) stack.push(node.left);
+  }
+  return out;
+}
 
+function postorderIter(root: TreeNode | null): number[] {
+  if (root === null) return [];
+  const mirrored: number[] = [], stack: TreeNode[] = [root];
+  while (stack.length &gt; 0) {
+    const node = stack.pop()!;
+    mirrored.push(node.val);
+    if (node.left) stack.push(node.left);
+    if (node.right) stack.push(node.right);
+  }
+  return mirrored.reverse();
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;Integer&gt; preorderIter(TreeNode root) {
+    List&lt;Integer&gt; out = new ArrayList&lt;&gt;();
+    if (root == null) return out;
+    Deque&lt;TreeNode&gt; stack = new ArrayDeque&lt;&gt;();
+    stack.push(root);
+    while (!stack.isEmpty()) {
+        TreeNode node = stack.pop();
+        out.add(node.val);
+        if (node.right != null) stack.push(node.right);
+        if (node.left != null) stack.push(node.left);
+    }
+    return out;
+}
+
+static List&lt;Integer&gt; postorderIter(TreeNode root) {
+    List&lt;Integer&gt; mirrored = new ArrayList&lt;&gt;();
+    if (root == null) return mirrored;
+    Deque&lt;TreeNode&gt; stack = new ArrayDeque&lt;&gt;();
+    stack.push(root);
+    while (!stack.isEmpty()) {
+        TreeNode node = stack.pop();
+        mirrored.add(node.val);
+        if (node.left != null) stack.push(node.left);
+        if (node.right != null) stack.push(node.right);
+    }
+    Collections.reverse(mirrored);
+    return mirrored;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>node = stack.pop(); out.append(node.val)</code></td><td data-h="What it does">Records the node as soon as it's popped.</td><td data-h="In the story">Take the top card, write it down.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>stack.append(node.right) then stack.append(node.left)</code></td><td data-h="What it does">Right first, so left is on top.</td><td data-h="In the story">Right card under, left card on top.</td><td data-h="Why here, and what breaks if it moves">Pushing left first gives root-right-left (that's the mirrored order postorder uses).</td></tr><tr><td data-h="Line"><code>postorder: push left then right, reverse at the end</code></td><td data-h="What it does">Root-right-left, reversed, is left-right-root.</td><td data-h="In the story">Read the pile's log backwards.</td><td data-h="Why here, and what breaks if it moves">Forgetting the reverse returns the mirrored preorder.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through preorder on the example tree.</p>
+    <div id="tl-10d"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-10d-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The stack holds roots of subtrees not yet visited, ordered so the one preorder needs next is on top.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(h) to O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Pushing left before right in preorder.</strong> Right goes in first.</li><li><strong>Using the mirror trick and forgetting to reverse.</strong> Read the log backwards.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Pop, record, push right then left.</dd>
+      <dt>Choose this template when</dt><dd>Preorder/postorder without recursion → D.</dd>
+      <dt>Invariant</dt><dd>Top of the stack = next preorder node.</dd>
+      <dt>The line people get wrong</dt><dd>Push order (right, then left).</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Stack after visiting 1?</summary><p>[3, 2] with 2 on top.</p></details><details><summary>How do you get postorder?</summary><p>Push left then right, collect, reverse.</p></details><details><summary>Why does the order of pushes matter?</summary><p>A stack pops the last push first.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-e">
+    <h3>Template E · Level order (BFS on a tree)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Return the values level by level (or the rightmost per level, level averages, min depth…).</div><div><b>What it keeps</b>A queue holding exactly one level at the start of each round.</div><div><b>When it checks for an answer</b>Each round snapshots the queue size and processes exactly that many nodes.</div><div><b>Use it when</b>Level order (LC 102), right side view (LC 199), zigzag, minimum depth, connect next pointers.</div><div><b>Not for</b>Path/subtree questions (DFS is simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Count the people in the room before letting anyone's children in"</strong>A lift takes one floor at a time. Before it leaves, count who's on this floor; serve exactly that many. Their children queue up for the next trip.</div>
+    <p><strong>The story, mapped to the code.</strong> The queue is a waiting room; each round is one floor.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">People on this floor</td><td data-h="In the code"><code>level_size = len(queue)</code></td><td data-h="What it means">Snapshot before the loop.</td></tr><tr><td data-h="In the story">Serve the oldest</td><td data-h="In the code"><code>node = queue.popleft()</code></td><td data-h="What it means">FIFO.</td></tr><tr><td data-h="In the story">Their children wait for the next trip</td><td data-h="In the code"><code>queue.append(child)</code></td><td data-h="What it means">Next level.</td></tr><tr><td data-h="In the story">One floor done</td><td data-h="In the code"><code>result.append(level)</code></td><td data-h="What it means">One inner list.</td></tr></tbody></table>
+    <p><strong>The template.</strong> The snapshot <code>level_size</code> is what separates the levels.</p>
+    <pre><code class="python">from collections import deque
 
 def level_order(root):
-    if root is None:              # empty tree: no levels at all
+    if root is None:
         return []
-    result = []                   # one inner list per level
-    # deque is a "double-ended queue":
-    #   queue.append(x)  adds x at the BACK of the line
-    #   queue.popleft()  removes and returns the item at the FRONT
-    queue = deque()
-    queue.append(root)
-    while len(queue) &gt; 0:
-        # Freeze the size: exactly this many nodes belong to the current level.
+    result, queue = [], deque([root])
+    while queue:
         level_size = len(queue)
         level = []
-        for _ in range(level_size):     # "_" means: we don't need the counter
-            node = queue.popleft()      # oldest node first
+        for _ in range(level_size):
+            node = queue.popleft()
             level.append(node.val)
-            # Children go to the BACK: they belong to the NEXT level.
-            if node.left is not None:
+            if node.left:
                 queue.append(node.left)
-            if node.right is not None:
+            if node.right:
                 queue.append(node.right)
         result.append(level)
     return result</code></pre>
-    <p><strong>What the code is doing, line by line:</strong></p>
-    <ol>
-      <li>An empty tree has no levels, so return <code>[]</code> right away.</li>
-      <li>The queue starts with only the root. <code>append</code> adds at the back and <code>popleft</code> takes from the front, so nodes come out in the order they went in.</li>
-      <li><code>level_size = len(queue)</code> is read <em>before</em> the inner loop. At that moment the queue holds exactly one full level.</li>
-      <li>The inner loop pops exactly <code>level_size</code> nodes, records their values, and pushes their children to the back. Those children wait for the next round.</li>
-      <li>After the inner loop, <code>level</code> is complete and is added to <code>result</code>.</li>
-    </ol>
-    <p><strong>Dry run</strong> on <code>[4,2,6,1,3,5,7]</code>:</p>
-    <table>
-      <thead><tr><th>Round</th><th>Queue at start</th><th>level_size</th><th>level</th><th>Queue after</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td><code>[4]</code></td><td>1</td><td><code>[4]</code></td><td><code>[2, 6]</code></td></tr>
-        <tr><td>2</td><td><code>[2, 6]</code></td><td>2</td><td><code>[2, 6]</code></td><td><code>[1, 3, 5, 7]</code></td></tr>
-        <tr><td>3</td><td><code>[1, 3, 5, 7]</code></td><td>4</td><td><code>[1, 3, 5, 7]</code></td><td><code>[]</code></td></tr>
-      </tbody>
-    </table>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function levelOrder(root: TreeNode | null): number[][] {
+  if (root === null) return [];
+  const result: number[][] = [];
+  let queue: TreeNode[] = [root];
+  while (queue.length &gt; 0) {
+    const next: TreeNode[] = [], level: number[] = [];
+    for (const node of queue) {
+      level.push(node.val);
+      if (node.left) next.push(node.left);
+      if (node.right) next.push(node.right);
+    }
+    result.push(level);
+    queue = next;
+  }
+  return result;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static List&lt;List&lt;Integer&gt;&gt; levelOrder(TreeNode root) {
+    List&lt;List&lt;Integer&gt;&gt; result = new ArrayList&lt;&gt;();
+    if (root == null) return result;
+    Deque&lt;TreeNode&gt; queue = new ArrayDeque&lt;&gt;();
+    queue.offer(root);
+    while (!queue.isEmpty()) {
+        int levelSize = queue.size();
+        List&lt;Integer&gt; level = new ArrayList&lt;&gt;();
+        for (int k = 0; k &lt; levelSize; k++) {
+            TreeNode node = queue.poll();
+            level.add(node.val);
+            if (node.left != null) queue.offer(node.left);
+            if (node.right != null) queue.offer(node.right);
+        }
+        result.add(level);
+    }
+    return result;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>level_size = len(queue)</code></td><td data-h="What it does">Snapshots how many nodes are on this level.</td><td data-h="In the story">Count the people on this floor.</td><td data-h="Why here, and what breaks if it moves">Looping <code>while queue</code> instead serves the children in the same round: one big level (see the bug player).</td></tr><tr><td data-h="Line"><code>node = queue.popleft()</code></td><td data-h="What it does">Oldest first.</td><td data-h="In the story">Serve in arrival order.</td><td data-h="Why here, and what breaks if it moves"><code>pop()</code> takes the newest: that's a stack, not BFS. (TypeScript: <code>shift()</code> is O(n); swapping in a fresh array per level avoids it.)</td></tr><tr><td data-h="Line"><code>queue.append(node.left) / (node.right)</code></td><td data-h="What it does">Children wait for the next round.</td><td data-h="In the story">They queue for the next trip.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>result.append(level)</code></td><td data-h="What it does">Closes the level.</td><td data-h="In the story">One floor done.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the example tree. The second player drops the snapshot and loops until the queue is empty.</p>
+    <div id="tl-10e"></div><div id="tl-10e-bug"></div><p>Without the snapshot, the inner loop keeps serving the children it just added: every node lands in one level, <code>[[1, 2, 3, 4, 5, 6]]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-10e-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the top of every outer round, the queue holds exactly the nodes of one level, left to right.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(w) space (w = widest level, up to n/2).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>No level-size snapshot.</strong> Count before serving.</li><li><strong>Using a list's pop(0) in Python.</strong> O(n) each: use deque.popleft().</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Count the people in the room before letting the children in.</dd>
+      <dt>Choose this template when</dt><dd>Anything "per level" or "minimum depth" → E.</dd>
+      <dt>Invariant</dt><dd>Queue = one whole level at the top of each round.</dd>
+      <dt>The line people get wrong</dt><dd><code>level_size = len(queue)</code> before the inner loop.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Right side view?</summary><p>The last value of each level.</p></details><details><summary>Minimum depth?</summary><p>The first level containing a leaf.</p></details><details><summary>Space for a complete tree?</summary><p>O(n/2) for the last level.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · recursive orders</th><th>B · return values</th><th>C · iterative inorder</th><th>D · iterative pre/post</th><th>E · level order</th></tr></thead><tbody><tr><td data-h="Question">Structure</td><td data-h="A · recursive orders">Call stack</td><td data-h="B · return values">Call stack</td><td data-h="C · iterative inorder">Explicit stack</td><td data-h="D · iterative pre/post">Explicit stack</td><td data-h="E · level order">Queue</td></tr><tr><td data-h="Question">Visits</td><td data-h="A · recursive orders">Pre / in / post</td><td data-h="B · return values">Postorder</td><td data-h="C · iterative inorder">Inorder</td><td data-h="D · iterative pre/post">Preorder (post by mirror)</td><td data-h="E · level order">Level by level</td></tr><tr><td data-h="Question">Info flows</td><td data-h="A · recursive orders">Down (and into a list)</td><td data-h="B · return values">Up (return values)</td><td data-h="C · iterative inorder">—</td><td data-h="D · iterative pre/post">—</td><td data-h="E · level order">Across a level</td></tr><tr><td data-h="Question">Pick it when</td><td data-h="A · recursive orders">Default for visiting every node</td><td data-h="B · return values">Answer depends on children</td><td data-h="C · iterative inorder">BST order / deep trees</td><td data-h="D · iterative pre/post">Deep trees, serialise</td><td data-h="E · level order">"per level", nearest leaf</td></tr><tr><td data-h="Question">Space</td><td data-h="A · recursive orders">O(h)</td><td data-h="B · return values">O(h)</td><td data-h="C · iterative inorder">O(h)</td><td data-h="D · iterative pre/post">O(h)–O(n)</td><td data-h="E · level order">O(width)</td></tr></tbody></table>
+    <p>Start with A or B (recursion is shortest). Reach for C/D only when recursion depth is a risk or the prompt asks for an iterator, and for E whenever the word "level" or "depth" (minimum) appears.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -11773,6 +11883,141 @@ class Solution:
   }
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  const tlKids = (T, i) => [2 * i + 1, 2 * i + 2].map((c) => (c < T.length && T[c] !== null ? c : null));
+  const tlFmt = (a) => "[" + a.join(", ") + "]";
+
+  function tl10A(T) {
+    const pre = [], ino = [], post = [], stack = [], done = {}, steps = [], rows = [];
+    const view = (i) => Viz.tree(T, { hl: Object.assign({}, done, i !== undefined ? { [i]: "active" } : {}) }) + Viz.chips(stack.map((k) => String(T[k])), "call stack (root → current)")
+      + `<p class="idx">pre ${tlFmt(pre)} · in ${tlFmt(ino)} · post ${tlFmt(post)}</p>`;
+    steps.push({ line: ["init", "start"], vars: { pre: "[]", ino: "[]", post: "[]" }, view: view(), analogy: "The guide starts at the root.", note: "<code>walk(root)</code>." });
+    const walk = (i) => {
+      stack.push(i); const [l, r] = tlKids(T, i);
+      pre.push(T[i]); rows.push([T[i], "arrive (pre)", tlFmt(pre), tlFmt(ino), tlFmt(post)]);
+      steps.push({ line: "pre", vars: { node: T[i], pre: tlFmt(pre) }, view: view(i), analogy: `First pass at ${T[i]} (arriving from above): preorder records it.`, note: `<code>pre.append(${T[i]})</code>.`,
+        ask: { q: "Which list grows first when arriving at a node?", options: ["pre", "ino", "post"], answer: "pre", why: "Before the children." } });
+      steps.push({ line: "left", vars: { node: T[i], left: l === null ? "None" : T[l] }, view: view(i), analogy: l === null ? `${T[i]} has no left child: that call returns at once.` : `Go down to the left child, ${T[l]}.`, note: `<code>walk(node.left)</code>.` });
+      if (l !== null) walk(l);
+      ino.push(T[i]); rows.push([T[i], "back from left (in)", tlFmt(pre), tlFmt(ino), tlFmt(post)]);
+      steps.push({ line: "in", vars: { node: T[i], ino: tlFmt(ino) }, view: view(i), analogy: `Second pass at ${T[i]} (back from the left): inorder records it.`, note: `<code>ino.append(${T[i]})</code>.` });
+      steps.push({ line: "right", vars: { node: T[i], right: r === null ? "None" : T[r] }, view: view(i), analogy: r === null ? `${T[i]} has no right child.` : `Go down to the right child, ${T[r]}.`, note: `<code>walk(node.right)</code>.` });
+      if (r !== null) walk(r);
+      post.push(T[i]); done[i] = "found"; rows.push([T[i], "back from right (post)", tlFmt(pre), tlFmt(ino), tlFmt(post)]);
+      steps.push({ line: "post", vars: { node: T[i], post: tlFmt(post) }, view: view(i), analogy: `Third pass at ${T[i]}: postorder records it, and the call returns.`, note: `<code>post.append(${T[i]})</code>.`,
+        ask: { q: `Next value appended to post?`, options: [...new Set([T[i], ...stack.map((k) => T[k])])].map(String), answer: T[i], why: "Both subtrees are finished." } });
+      stack.pop();
+    };
+    walk(0);
+    steps.push({ line: "ret", vars: { pre: tlFmt(pre), ino: tlFmt(ino), post: tlFmt(post) }, view: view(), analogy: "The guide is back at the start.", note: "Return the three lists." });
+    return { steps, table: { head: ["Node", "Moment", "pre", "in", "post"], rows } };
+  }
+
+  function tl10B(T) {
+    const labels = {}, hl = {}, steps = [], rows = [];
+    const view = (i) => Viz.tree(T, { labels, hl: Object.assign({}, hl, i !== undefined ? { [i]: "active" } : {}) });
+    const h = (i) => {
+      if (i === null) return 0;
+      const [l, r] = tlKids(T, i);
+      steps.push({ line: "left", vars: { node: T[i] }, view: view(i), analogy: `${T[i]} asks its children before answering.`, note: `<code>height(${l === null ? "None" : T[l]})</code> for the left child.` });
+      const lh = h(l);
+      steps.push({ line: "right", vars: { node: T[i], left_height: lh }, view: view(i), analogy: `Left report: ${lh}. Now ask the right child.`, note: `<code>height(${r === null ? "None" : T[r]})</code>.` });
+      const rh = h(r), v = 1 + Math.max(lh, rh); labels[i] = "h=" + v; hl[i] = "found";
+      steps.push({ line: "combine", vars: { node: T[i], left_height: lh, right_height: rh, returns: v }, view: view(i), analogy: `${T[i]} reports 1 + max(${lh}, ${rh}) = <b>${v}</b>.`, note: `<code>return ${v}</code>.`,
+        ask: { q: `height(${T[i]}) = ?`, options: [...new Set([v, v - 1, v + 1, Math.max(lh, rh)])].map(String), answer: v, why: `1 + max(${lh}, ${rh}).` } });
+      rows.push([T[i], lh, rh, v]); return v;
+    };
+    const ans = h(0);
+    steps.push({ line: "combine", vars: { result: ans }, view: view(), analogy: `The root reports ${ans}.`, note: `<code>height(root) = ${ans}</code>.` });
+    return { steps, table: { head: ["Node (in return order)", "Left height", "Right height", "Returns"], rows } };
+  }
+
+  function tl10C(T) {
+    const out = [], st = [], rec = {}, steps = [], rows = []; let cur = 0;
+    const view = () => Viz.tree(T, { hl: Object.assign({}, rec, Object.fromEntries(st.map((k) => [k, "gold"])), cur !== null ? { [cur]: "active" } : {}) }) + Viz.chips(st.map((k) => String(T[k])), "stack (bottom → top)") + `<p class="idx">out ${tlFmt(out)}</p>`;
+    steps.push({ line: "init", vars: { current: T[0] }, view: view(), analogy: "Start at the root with no bookmarks.", note: "<code>current = root</code>." });
+    while (cur !== null || st.length) {
+      const slid = [];
+      while (cur !== null) { st.push(cur); slid.push(T[cur]); cur = tlKids(T, cur)[0]; }
+      if (slid.length) steps.push({ line: ["loop", "slide"], vars: { pushed: slid.join(", "), current: "None" }, view: view(), analogy: `Slide left, bookmarking ${slid.join(", ")}.`, note: `Pushed ${slid.join(", ")}.` });
+      const top = st[st.length - 1];
+      steps.push({ line: "pop", vars: { stack: tlFmt(st.map((k) => T[k])) }, view: view(), analogy: "Pick up the last bookmark.", note: "Pop.",
+        ask: { q: "Which node is popped next?", options: [...new Set(st.map((k) => String(T[k])))], answer: T[top], why: "The top of the stack." } });
+      cur = st.pop(); out.push(T[cur]); rec[cur] = "found";
+      steps.push({ line: "visit", vars: { node: T[cur], out: tlFmt(out) }, view: view(), analogy: `Read ${T[cur]}.`, note: `<code>out.append(${T[cur]})</code>.` });
+      const r = tlKids(T, cur)[1]; rows.push([T[cur], tlFmt(st.map((k) => T[k])), r === null ? "None" : T[r], tlFmt(out)]);
+      cur = r;
+      steps.push({ line: "right", vars: { current: cur === null ? "None" : T[cur] }, view: view(), analogy: cur === null ? "No right child: next, the next bookmark." : `Step right to ${T[cur]}.`, note: `<code>current = current.right</code>.` });
+    }
+    steps.push({ line: "ret", vars: { out: tlFmt(out) }, view: view(), analogy: "No node and no bookmarks left.", note: `Return <code>${tlFmt(out)}</code>.` });
+    return { steps, table: { head: ["Recorded", "Stack after pop", "Step right to", "out"], rows } };
+  }
+
+  function tl10D(T) {
+    const out = [], st = [0], rec = {}, steps = [], rows = [];
+    const view = (i) => Viz.tree(T, { hl: Object.assign({}, rec, Object.fromEntries(st.map((k) => [k, "gold"])), i !== undefined ? { [i]: "active" } : {}) }) + Viz.chips(st.map((k) => String(T[k])), "stack (bottom → top)") + `<p class="idx">out ${tlFmt(out)}</p>`;
+    steps.push({ line: "init", vars: { stack: tlFmt([T[0]]) }, view: view(), analogy: "The pile starts with the root card.", note: "<code>stack = [root]</code>." });
+    while (st.length) {
+      const i = st.pop(); out.push(T[i]); rec[i] = "found";
+      steps.push({ line: ["loop", "pop", "visit"], vars: { node: T[i], out: tlFmt(out) }, view: view(i), analogy: `Take ${T[i]} off the pile and write it down.`, note: `Pop and record ${T[i]}.` });
+      const [l, r] = tlKids(T, i);
+      if (r !== null) st.push(r); if (l !== null) st.push(l);
+      steps.push({ line: ["pushr", "pushl"], vars: { stack: tlFmt(st.map((k) => T[k])) }, view: view(i), analogy: l === null && r === null ? "A leaf: nothing to add." : `Add ${[r, l].filter((x) => x !== null).map((x) => T[x]).join(" then ")}${l !== null ? `; ${T[l]} is on top` : ""}.`, note: "Push right, then left.",
+        ask: st.length ? { q: "Which node is popped next?", options: [...new Set(st.map((k) => String(T[k])))], answer: T[st[st.length - 1]], why: "The last one pushed." } : undefined });
+      rows.push([T[i], tlFmt(st.map((k) => T[k])), tlFmt(out)]);
+    }
+    steps.push({ line: "ret", vars: { out: tlFmt(out) }, view: view(), analogy: "The pile is empty.", note: `Return <code>${tlFmt(out)}</code>.` });
+    return { steps, table: { head: ["Popped", "Stack after pushes", "out"], rows } };
+  }
+
+  function tl10E(T, bug) {
+    const result = [], rec = {}, steps = [], rows = []; let q = [0];
+    const view = (i) => Viz.tree(T, { hl: Object.assign({}, rec, Object.fromEntries(q.map((k) => [k, "gold"])), i !== undefined ? { [i]: "active" } : {}) }) + Viz.chips(q.map((k) => String(T[k])), "queue (front → back)") + `<p class="idx">result ${JSON.stringify(result).replace(/,/g, ", ")}</p>`;
+    steps.push({ line: "init", vars: { queue: tlFmt([T[0]]) }, view: view(), analogy: "The root waits on the ground floor.", note: "<code>queue = deque([root])</code>." });
+    while (q.length) {
+      const size = q.length, level = [];
+      steps.push({ line: ["loop", "size"], vars: bug ? { queue: tlFmt(q.map((k) => T[k])) } : { level_size: size, queue: tlFmt(q.map((k) => T[k])) }, view: view(), analogy: bug ? "No head count: serve until the room is empty." : `${size} on this floor.`, note: bug ? "<code>while queue</code>: no snapshot." : `<code>level_size = ${size}</code>.`,
+        ask: bug ? undefined : { q: "How many nodes are on this level?", options: [...new Set([size, size + 1, size * 2])].map(String), answer: size, why: "The queue's size right now." } });
+      for (let n = 0; bug ? q.length > 0 : n < size; n++) {
+        const i = q.shift(); level.push(T[i]); rec[i] = "found";
+        const kids = tlKids(T, i).filter((x) => x !== null); q.push(...kids);
+        steps.push({ line: ["for", "pop", "visit", "kids"], vars: { node: T[i], level: tlFmt(level), queue: tlFmt(q.map((k) => T[k])) }, view: view(i), analogy: `Serve ${T[i]}${kids.length ? `; ${kids.map((k) => T[k]).join(", ")} queue for the next trip` : ""}.`, note: `popleft ${T[i]}.` });
+      }
+      result.push(level); rows.push([result.length - 1, tlFmt(level), tlFmt(q.map((k) => T[k]))]);
+      steps.push({ line: "done", vars: { result: JSON.stringify(result).replace(/,/g, ", ") }, view: view(), analogy: `Floor done: ${tlFmt(level)}.`, note: `<code>result.append(${tlFmt(level)})</code>.` });
+    }
+    steps.push({ line: "ret", vars: { result: JSON.stringify(result).replace(/,/g, ", ") }, view: view(), analogy: "Everyone served.", note: "Return the levels." });
+    return { steps, table: { head: ["Level", "Values", "Queue after the level"], rows } };
+  }
+
+  { const run = tl10A([1, 2, 3, 4, 5, null, 6]);
+    Viz.tlab("#tl-10a", { title: "Template A \u00b7 three orders in one walk", sub: "Blue = current node; green = finished (all three passes done). The chips show the call stack.", code: {"py": [[null, "def traversals(root):"], ["init", "    pre, ino, post = [], [], []"], [null, ""], [null, "    def walk(node):"], ["base", "        if node is None:"], ["base", "            return"], ["pre", "        pre.append(node.val)"], ["left", "        walk(node.left)"], ["in", "        ino.append(node.val)"], ["right", "        walk(node.right)"], ["post", "        post.append(node.val)"], [null, ""], ["start", "    walk(root)"], ["ret", "    return pre, ino, post"]], "ts": [[null, "function traversals(root: TreeNode | null): number[][] {"], ["init", "  const pre: number[] = [], ino: number[] = [], post: number[] = [];"], [null, "  const walk = (node: TreeNode | null): void => {"], ["base", "    if (node === null) return;"], ["pre", "    pre.push(node.val);"], ["left", "    walk(node.left);"], ["in", "    ino.push(node.val);"], ["right", "    walk(node.right);"], ["post", "    post.push(node.val);"], [null, "  };"], ["start", "  walk(root);"], ["ret", "  return [pre, ino, post];"], [null, "}"]], "java": [[null, "static void walk(TreeNode node, List<Integer> pre, List<Integer> ino, List<Integer> post) {"], ["base", "    if (node == null) return;"], ["pre", "    pre.add(node.val);"], ["left", "    walk(node.left, pre, ino, post);"], ["in", "    ino.add(node.val);"], ["right", "    walk(node.right, pre, ino, post);"], ["post", "    post.add(node.val);"], [null, "}"], [null, ""], [null, "static List<List<Integer>> traversals(TreeNode root) {"], ["init", "    List<Integer> pre = new ArrayList<>(), ino = new ArrayList<>(), post = new ArrayList<>();"], ["start", "    walk(root, pre, ino, post);"], ["ret", "    return List.of(pre, ino, post);"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-10a-table").innerHTML = TL.table(run.table); }
+  { const run = tl10B([1, 2, 3, 4, 5, null, 6]);
+    Viz.tlab("#tl-10b", { title: "Template B \u00b7 height of the example tree", sub: "Blue = call in progress; green with a number = returned value.", code: {"py": [[null, "def height(node):"], ["base", "    if node is None:"], ["base", "        return 0"], ["left", "    left_height = height(node.left)"], ["right", "    right_height = height(node.right)"], ["combine", "    return 1 + max(left_height, right_height)"]], "ts": [[null, "function height(node: TreeNode | null): number {"], ["base", "  if (node === null) return 0;"], ["left", "  const leftHeight = height(node.left);"], ["right", "  const rightHeight = height(node.right);"], ["combine", "  return 1 + Math.max(leftHeight, rightHeight);"], [null, "}"]], "java": [[null, "static int height(TreeNode node) {"], ["base", "    if (node == null) return 0;"], ["left", "    int leftHeight = height(node.left);"], ["right", "    int rightHeight = height(node.right);"], ["combine", "    return 1 + Math.max(leftHeight, rightHeight);"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-10b-table").innerHTML = TL.table(run.table); }
+  { const run = tl10C([1, 2, 3, 4, 5, null, 6]);
+    Viz.tlab("#tl-10c", { title: "Template C \u00b7 iterative inorder", sub: "Blue = current; gold = bookmarks on the stack; green = recorded.", code: {"py": [[null, "def inorder_iter(root):"], ["init", "    out, stack = [], []"], ["init", "    current = root"], ["loop", "    while current is not None or stack:"], ["slide", "        while current is not None:"], ["slide", "            stack.append(current)"], ["slide", "            current = current.left"], ["pop", "        current = stack.pop()"], ["visit", "        out.append(current.val)"], ["right", "        current = current.right"], ["ret", "    return out"]], "ts": [[null, "function inorderIter(root: TreeNode | null): number[] {"], ["init", "  const out: number[] = [], stack: TreeNode[] = [];"], ["init", "  let current = root;"], ["loop", "  while (current !== null || stack.length > 0) {"], ["slide", "    while (current !== null) {"], ["slide", "      stack.push(current);"], ["slide", "      current = current.left;"], [null, "    }"], ["pop", "    current = stack.pop()!;"], ["visit", "    out.push(current.val);"], ["right", "    current = current.right;"], [null, "  }"], ["ret", "  return out;"], [null, "}"]], "java": [[null, "static List<Integer> inorderIter(TreeNode root) {"], ["init", "    List<Integer> out = new ArrayList<>();"], ["init", "    Deque<TreeNode> stack = new ArrayDeque<>();"], ["init", "    TreeNode current = root;"], ["loop", "    while (current != null || !stack.isEmpty()) {"], ["slide", "        while (current != null) {"], ["slide", "            stack.push(current);"], ["slide", "            current = current.left;"], [null, "        }"], ["pop", "        current = stack.pop();"], ["visit", "        out.add(current.val);"], ["right", "        current = current.right;"], [null, "    }"], ["ret", "    return out;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-10c-table").innerHTML = TL.table(run.table); }
+  { const run = tl10D([1, 2, 3, 4, 5, null, 6]);
+    Viz.tlab("#tl-10d", { title: "Template D \u00b7 iterative preorder", sub: "Blue = popped; gold = on the stack; green = recorded.", code: {"py": [[null, "def preorder_iter(root):"], ["empty", "    if root is None:"], ["empty", "        return []"], ["init", "    out, stack = [], [root]"], ["loop", "    while stack:"], ["pop", "        node = stack.pop()"], ["visit", "        out.append(node.val)"], ["pushr", "        if node.right:"], ["pushr", "            stack.append(node.right)"], ["pushl", "        if node.left:"], ["pushl", "            stack.append(node.left)"], ["ret", "    return out"], [null, ""], [null, ""], [null, "def postorder_iter(root):"], [null, "    if root is None:"], [null, "        return []"], [null, "    mirrored, stack = [], [root]"], [null, "    while stack:"], [null, "        node = stack.pop()"], [null, "        mirrored.append(node.val)"], [null, "        if node.left:"], [null, "            stack.append(node.left)"], [null, "        if node.right:"], [null, "            stack.append(node.right)"], [null, "    return mirrored[::-1]"]], "ts": [[null, "function preorderIter(root: TreeNode | null): number[] {"], ["empty", "  if (root === null) return [];"], ["init", "  const out: number[] = [], stack: TreeNode[] = [root];"], ["loop", "  while (stack.length > 0) {"], ["pop", "    const node = stack.pop()!;"], ["visit", "    out.push(node.val);"], ["pushr", "    if (node.right) stack.push(node.right);"], ["pushl", "    if (node.left) stack.push(node.left);"], [null, "  }"], ["ret", "  return out;"], [null, "}"], [null, ""], [null, "function postorderIter(root: TreeNode | null): number[] {"], [null, "  if (root === null) return [];"], [null, "  const mirrored: number[] = [], stack: TreeNode[] = [root];"], [null, "  while (stack.length > 0) {"], [null, "    const node = stack.pop()!;"], [null, "    mirrored.push(node.val);"], [null, "    if (node.left) stack.push(node.left);"], [null, "    if (node.right) stack.push(node.right);"], [null, "  }"], [null, "  return mirrored.reverse();"], [null, "}"]], "java": [[null, "static List<Integer> preorderIter(TreeNode root) {"], [null, "    List<Integer> out = new ArrayList<>();"], ["empty", "    if (root == null) return out;"], ["init", "    Deque<TreeNode> stack = new ArrayDeque<>();"], ["init", "    stack.push(root);"], ["loop", "    while (!stack.isEmpty()) {"], ["pop", "        TreeNode node = stack.pop();"], ["visit", "        out.add(node.val);"], ["pushr", "        if (node.right != null) stack.push(node.right);"], ["pushl", "        if (node.left != null) stack.push(node.left);"], [null, "    }"], ["ret", "    return out;"], [null, "}"], [null, ""], [null, "static List<Integer> postorderIter(TreeNode root) {"], [null, "    List<Integer> mirrored = new ArrayList<>();"], [null, "    if (root == null) return mirrored;"], [null, "    Deque<TreeNode> stack = new ArrayDeque<>();"], [null, "    stack.push(root);"], [null, "    while (!stack.isEmpty()) {"], [null, "        TreeNode node = stack.pop();"], [null, "        mirrored.add(node.val);"], [null, "        if (node.left != null) stack.push(node.left);"], [null, "        if (node.right != null) stack.push(node.right);"], [null, "    }"], [null, "    Collections.reverse(mirrored);"], [null, "    return mirrored;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-10d-table").innerHTML = TL.table(run.table); }
+  { const run = tl10E([1, 2, 3, 4, 5, null, 6], false);
+    Viz.tlab("#tl-10e", { title: "Template E \u00b7 level order", sub: "Blue = being served; gold = waiting in the queue; green = done.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def level_order(root):"], ["empty", "    if root is None:"], ["empty", "        return []"], ["init", "    result, queue = [], deque([root])"], ["loop", "    while queue:"], ["size", "        level_size = len(queue)"], ["size", "        level = []"], ["for", "        for _ in range(level_size):"], ["pop", "            node = queue.popleft()"], ["visit", "            level.append(node.val)"], ["kids", "            if node.left:"], ["kids", "                queue.append(node.left)"], ["kids", "            if node.right:"], ["kids", "                queue.append(node.right)"], ["done", "        result.append(level)"], ["ret", "    return result"]], "ts": [[null, "function levelOrder(root: TreeNode | null): number[][] {"], ["empty", "  if (root === null) return [];"], ["init", "  const result: number[][] = [];"], ["init", "  let queue: TreeNode[] = [root];"], ["loop", "  while (queue.length > 0) {"], ["size", "    const next: TreeNode[] = [], level: number[] = [];"], ["for", "    for (const node of queue) {"], ["visit", "      level.push(node.val);"], ["kids", "      if (node.left) next.push(node.left);"], ["kids", "      if (node.right) next.push(node.right);"], [null, "    }"], ["done", "    result.push(level);"], ["done", "    queue = next;"], [null, "  }"], ["ret", "  return result;"], [null, "}"]], "java": [[null, "static List<List<Integer>> levelOrder(TreeNode root) {"], [null, "    List<List<Integer>> result = new ArrayList<>();"], ["empty", "    if (root == null) return result;"], ["init", "    Deque<TreeNode> queue = new ArrayDeque<>();"], ["init", "    queue.offer(root);"], ["loop", "    while (!queue.isEmpty()) {"], ["size", "        int levelSize = queue.size();"], ["size", "        List<Integer> level = new ArrayList<>();"], ["for", "        for (int k = 0; k < levelSize; k++) {"], ["pop", "            TreeNode node = queue.poll();"], ["visit", "            level.add(node.val);"], ["kids", "            if (node.left != null) queue.offer(node.left);"], ["kids", "            if (node.right != null) queue.offer(node.right);"], [null, "        }"], ["done", "        result.add(level);"], [null, "    }"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-10e-table").innerHTML = TL.table(run.table); }
+  { const run = tl10E([1, 2, 3, 4, 5, null, 6], false);
+    Viz.tlab("#tl-10e-bug", { title: "Why snapshot the size", sub: "Switch between for range(level_size) and while queue.", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def level_order(root):"], ["empty", "    if root is None:"], ["empty", "        return []"], ["init", "    result, queue = [], deque([root])"], ["loop", "    while queue:"], ["size", "        level_size = len(queue)"], ["size", "        level = []"], ["for", "        for _ in range(level_size):"], ["pop", "            node = queue.popleft()"], ["visit", "            level.append(node.val)"], ["kids", "            if node.left:"], ["kids", "                queue.append(node.left)"], ["kids", "            if node.right:"], ["kids", "                queue.append(node.right)"], ["done", "        result.append(level)"], ["ret", "    return result"]], "ts": [[null, "function levelOrder(root: TreeNode | null): number[][] {"], ["empty", "  if (root === null) return [];"], ["init", "  const result: number[][] = [];"], ["init", "  let queue: TreeNode[] = [root];"], ["loop", "  while (queue.length > 0) {"], ["size", "    const next: TreeNode[] = [], level: number[] = [];"], ["for", "    for (const node of queue) {"], ["visit", "      level.push(node.val);"], ["kids", "      if (node.left) next.push(node.left);"], ["kids", "      if (node.right) next.push(node.right);"], [null, "    }"], ["done", "    result.push(level);"], ["done", "    queue = next;"], [null, "  }"], ["ret", "  return result;"], [null, "}"]], "java": [[null, "static List<List<Integer>> levelOrder(TreeNode root) {"], [null, "    List<List<Integer>> result = new ArrayList<>();"], ["empty", "    if (root == null) return result;"], ["init", "    Deque<TreeNode> queue = new ArrayDeque<>();"], ["init", "    queue.offer(root);"], ["loop", "    while (!queue.isEmpty()) {"], ["size", "        int levelSize = queue.size();"], ["size", "        List<Integer> level = new ArrayList<>();"], ["for", "        for (int k = 0; k < levelSize; k++) {"], ["pop", "            TreeNode node = queue.poll();"], ["visit", "            level.add(node.val);"], ["kids", "            if (node.left != null) queue.offer(node.left);"], ["kids", "            if (node.right != null) queue.offer(node.right);"], [null, "        }"], ["done", "        result.add(level);"], [null, "    }"], ["ret", "    return result;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: no level_size snapshot", code: {"py": [[null, "from collections import deque"], [null, ""], [null, "def level_order(root):"], ["empty", "    if root is None:"], ["empty", "        return []"], ["init", "    result, queue = [], deque([root])"], ["loop", "    while queue:"], ["size", "        level = []"], ["for", "        while queue:"], ["pop", "            node = queue.popleft()"], ["visit", "            level.append(node.val)"], ["kids", "            if node.left:"], ["kids", "                queue.append(node.left)"], ["kids", "            if node.right:"], ["kids", "                queue.append(node.right)"], ["done", "        result.append(level)"], ["ret", "    return result"]]}, steps: tl10E([1, 2, 3, 4, 5, null, 6], true).steps, diverge: undefined, why: "the inner loop doesn't stop at the end of the level, so the children are served in the same round." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
 
