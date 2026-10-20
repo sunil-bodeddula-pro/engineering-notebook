@@ -2392,6 +2392,140 @@ svg.flow .fn { transition: opacity .35s ease; }
     </ul>
     <p><strong>In an interview</strong> (design ChatGPT-like chat, an AI support agent, a RAG search), cover: streaming over SSE; an AI gateway with per-user token limits and model fallbacks; conversation storage; retrieval with permission filters; a queue for long agent tasks; cost per request estimated in tokens; evals and tracing; and prompt-injection boundaries. Design D23 works one through.</p>
 
+        <h3 id="up-close">The technologies up close</h3>
+    <div class="callout tip"><strong>The default answer in an interview</strong>For an AI product, say the pipeline in one breath: <q>requests go through an LLM gateway (budgets, fallbacks, logging); retrieval is hybrid with permission filters and a re-ranker; answers stream over SSE; long agent tasks run on a queue; tools are exposed through MCP with per-user authorization; an eval set gates every prompt or model change.</q> Then go deep on retrieval quality, cost or safety, whichever the prompt stresses.</div>
+
+    <section class="tech" id="t-vector">
+      <div class="tech-h"><h3>Vector search: HNSW, IVF and quantization</h3><span class="tech-status s-default">The default retrieval building block</span></div>
+      <p>Text, images and code are turned into embedding vectors (hundreds to a few thousand numbers) so that similar meaning means nearby vectors. Vector search finds the nearest ones; exact search over millions is too slow, so indexes find <em>approximately</em> nearest neighbours.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Index</th><th>How it works</th><th>Trade-off</th></tr></thead><tbody>
+        <tr><td>HNSW</td><td>A layered graph: greedy hops on sparse upper layers, refined on dense lower ones</td><td>Fast, high recall; memory-hungry, slower to build</td></tr>
+        <tr><td>IVF</td><td>Cluster vectors (k-means); search only the closest few clusters</td><td>Less memory; recall depends on how many clusters you probe</td></tr>
+        <tr><td>Product / binary quantization</td><td>Compress each vector (e.g. 1,536 floats = 6 KB down to tens of bytes), then re-score the top candidates exactly</td><td>Much less memory; some accuracy lost</td></tr>
+        <tr><td>DiskANN-style</td><td>Graph index on SSD with compressed vectors in memory</td><td>Billions of vectors per machine</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>Recall is a dial:</strong> HNSW's <code>ef_search</code> or IVF's <code>nprobe</code> trades latency for finding more of the true nearest neighbours. Measure recall@k against exact search.</li>
+        <li><strong>Filters are the hard part:</strong> "nearest documents this user may see" needs filtering during the search, not after, or results come back empty.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>pgvector adds HNSW and IVFFlat indexes to PostgreSQL and covers many products; dedicated engines (Pinecone, Qdrant, Weaviate, Milvus) and search engines (OpenSearch, Elasticsearch, Vespa) scale further. Amazon S3 Vectors, generally available since December 2025, stores up to 2 billion vectors per index at much lower cost, with around 100 ms queries when frequently used.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Semantic search and RAG</li><li>Recommendations and deduplication by similarity</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Exact lookups (IDs, SKUs, error codes): keyword search wins</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Chunks are embedded and indexed with HNSW in pgvector, filtered by tenant and permissions inside the query; past ~50 million vectors I'd move to a dedicated engine.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Post-filtering permissions</strong> after a top-10 search: users see nothing, or worse, leaked titles.</li><li><strong>Mixing embedding models</strong> in one index.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-rerank">
+      <div class="tech-h"><h3>Hybrid search and re-rankers</h3><span class="tech-status s-default">The default for good retrieval</span></div>
+      <p>Run keyword search (BM25) and vector search together, merge the two ranked lists, then let a slower, more accurate re-ranker model reorder the top few dozen. Each step fixes the other's blind spots.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Why both:</strong> vectors catch paraphrases ("reset password" ≈ "forgot login"); keywords catch exact terms that embeddings blur ("ERR_4012", product codes, names).</li>
+        <li><strong>Reciprocal rank fusion (RRF):</strong> each document scores Σ 1 / (k + rank) across the lists, with k usually 60. It needs no score calibration between the two systems.</li>
+        <li><strong>Re-rankers</strong> are cross-encoders: they read the query and each candidate together, so they judge relevance far better than embeddings, but cost a model call per pair. Re-rank the top 50–100, keep the top 5–10.</li>
+      </ul>
+      <div class="card widget" id="rrf-lab">
+        <div class="ctl"><label for="rrf-k">RRF constant k</label><input id="rrf-k" type="range" min="1" max="100" value="60"><output id="rrf-ko">60</output></div>
+        <div class="ctl"><span class="seg" id="rrf-q"></span></div>
+        <div class="no-gl" id="rrf-out"></div>
+        <div class="verdict no-gl" id="rrf-why"></div>
+      </div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Elasticsearch, OpenSearch, Vespa, Weaviate and Qdrant support hybrid queries with RRF; re-rankers are available from Cohere, Voyage and others, or as open models (BGE, Jina) you host.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any RAG or search over real documents</li><li>Domains full of codes, names and jargon</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Tiny corpora where you can put everything in the prompt</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Hybrid retrieval: BM25 and vectors fused with RRF, top 50 re-ranked by a cross-encoder, best 8 chunks into the prompt.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Vector-only search</strong> for error codes or part numbers.</li><li><strong>Re-ranking thousands of candidates</strong> per query: latency and cost explode.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-vllm">
+      <div class="tech-h"><h3>Serving models: vLLM and friends</h3><span class="tech-status s-situational">Situational · self-hosted models</span></div>
+      <p>Inference servers that run open-weight models on GPUs efficiently. The tricks that matter: batching many requests together, and managing the KV cache (each conversation's attention state) without wasting GPU memory.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Continuous batching:</strong> new requests join the running batch at every generation step instead of waiting for the batch to finish, which raises throughput several-fold.</li>
+        <li><strong>PagedAttention</strong> (vLLM): the KV cache is stored in fixed-size blocks like virtual-memory pages, so little memory is wasted and shared prefixes can be stored once.</li>
+        <li><strong>Prefix caching:</strong> requests sharing a system prompt reuse its cached KV blocks (SGLang's RadixAttention does this across requests).</li>
+        <li><strong>Speculative decoding:</strong> a small draft model proposes tokens, the big model checks several at once.</li>
+        <li><strong>Prefill vs decode:</strong> reading the prompt is compute-bound; generating tokens is memory-bandwidth-bound. Large deployments run them on separate GPU pools (disaggregated serving).</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>vLLM (part of the PyTorch Foundation) and SGLang are the leading open-source servers; NVIDIA offers TensorRT-LLM, Triton and Dynamo; Hugging Face TGI and llama.cpp/Ollama cover smaller setups. Managed alternatives: Bedrock, Vertex AI, Azure AI Foundry and hosted-inference providers.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Open-weight models for cost, privacy or customisation at steady high volume</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Low or spiky volume: a provider API is cheaper than idle GPUs</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>We serve the fine-tuned 8B model on vLLM with continuous batching and prefix caching for the shared system prompt, autoscaling on queue depth and KV-cache usage.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Autoscaling GPUs on CPU utilisation</strong>.</li><li><strong>One request per GPU</strong> with no batching.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-gateway">
+      <div class="tech-h"><h3>LLM gateways</h3><span class="tech-status s-default">The default in front of model APIs</span></div>
+      <p>A proxy between your services and model providers: one API, with keys, quotas, routing, fallbacks, caching, logging and cost tracking in one place.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Routing and fallback:</strong> send each request to a model by task or tier; on errors, rate limits or timeouts, retry another region or model.</li>
+        <li><strong>Limits per user and team</strong> in tokens, not just requests, since one request can cost a thousand times another.</li>
+        <li><strong>Caching:</strong> exact-match response caching, and passing through providers' prompt caching; semantic caching only where a slightly different answer is acceptable.</li>
+        <li><strong>Observability:</strong> tokens, latency (time to first token), cost and errors per feature; prompts logged with redaction.</li>
+      </ul>
+      <div id="sc-gw"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Open-source and commercial options include LiteLLM, Portkey, Kong AI Gateway, Envoy AI Gateway and Cloudflare AI Gateway; cloud platforms offer their own routing.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>More than one team or model calling LLMs</li><li>Any production feature with cost or rate limits to enforce</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A prototype calling one model</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>All model calls go through a gateway that enforces per-tenant token budgets, falls back to a second provider on 429s and logs cost per feature.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Provider keys spread across services</strong>.</li><li><strong>Request-count rate limits</strong> on a token-priced resource.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-evals">
+      <div class="tech-h"><h3>Evals and guardrails</h3><span class="tech-status s-default">The default · how you know it works</span></div>
+      <p>Evals measure quality before and after every change; guardrails check inputs and outputs at runtime. Without evals you're shipping by vibes; without guardrails, one bad input can make the model do something harmful.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Offline evals:</strong> a versioned set of real questions with expected answers or rubrics, scored by code (exact match, JSON validity), by an LLM judge checked against human labels, or by people. Run on every prompt or model change, like tests.</li>
+        <li><strong>Online:</strong> thumbs, edits, escalations, task success, and sampled traces reviewed weekly.</li>
+        <li><strong>Guardrails:</strong> input checks (prompt injection, abuse), output checks (personal data, policy, grounded in the retrieved sources), and structural ones (schema validation, allow-listed tools, human confirmation before irreversible actions).</li>
+        <li><strong>Prompt injection</strong> is the top risk (LLM01 in the OWASP Top 10 for LLM Applications): text in a document or web page can instruct the model. The real defence is limiting what the model's tools can do, not filters alone.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Eval and tracing tools include Braintrust, LangSmith, Langfuse, Arize Phoenix and promptfoo; guardrail options include Llama Guard, NVIDIA NeMo Guardrails, Bedrock Guardrails and Azure AI Content Safety.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every LLM feature in production</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Never skip evals; scale guardrails to the harm the feature can do</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A 300-question eval set runs in CI on every prompt change; outputs are checked for grounding and PII; tools that change data need user confirmation.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>No eval set</strong>: "it looked good when I tried it".</li><li><strong>Relying on the system prompt</strong> to stop prompt injection.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-mcp">
+      <div class="tech-h"><h3>MCP: connecting models to tools</h3><span class="tech-status s-situational">Situational · tools for agents</span></div>
+      <p>The Model Context Protocol is an open standard for exposing tools, data and prompts to AI applications. Write an MCP server once and any MCP-capable client (assistants, IDEs, agents) can use it.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Servers expose</strong> tools (actions with JSON-schema inputs), resources (readable data) and prompts. <strong>Clients</strong> inside the AI app list them, and the model decides which tool to call.</li>
+        <li><strong>Transports:</strong> stdio for local servers; HTTP for remote ones, with OAuth-based authorization.</li>
+        <li><strong>Since the 2026-07-28 spec the core is stateless:</strong> each request carries its protocol version and client capabilities, with no session handshake, so remote servers can sit behind ordinary load balancers. Long-running work moved to a tasks extension; the older HTTP+SSE transport is deprecated.</li>
+        <li><strong>Security is yours:</strong> a tool runs with whatever permissions you give it. Scope tokens per user, allow-list tools, and confirm destructive actions.</li>
+      </ul>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Introduced by Anthropic in November 2024 and now hosted by the Linux Foundation's Agentic AI Foundation; supported by the major AI assistants, IDEs and agent frameworks, with SDKs in TypeScript, Python, Go, C# and more.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Letting assistants and agents use your product's data and actions</li><li>Reusing one integration across many AI clients</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>One fixed tool call inside your own backend: a normal function call is simpler</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>We expose search and ticket creation as an MCP server; it authenticates the user with OAuth and only offers tools their role allows.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A tool server with an admin token</strong> shared by every user.</li><li><strong>Trusting tool output</strong> as instructions (injection).</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "An expensive, slow, brilliant, gullible dependency"</strong>Budget it in tokens, stream it, cache and route around it, measure it with evals, and never give it more power than you'd give text from a stranger.</div>
@@ -2470,6 +2604,16 @@ svg.flow .fn { transition: opacity .35s ease; }
         <p>Roughly how much memory do a 70-billion-parameter model's weights need at 16-bit precision?</p>
         <div class="opts"><button>About 14 GB</button><button>About 140 GB</button><button>About 1.4 TB</button></div>
         <div class="why">70 × 10⁹ parameters × 2 bytes = 140 GB, before the KV cache.</div>
+      </div>
+      <div class="quiz-q" data-answer="Vectors catch paraphrases; keywords catch exact codes and names">
+        <p>Why combine keyword and vector search?</p>
+        <div class="opts"><button>Vector search is too slow alone</button><button>Vectors catch paraphrases; keywords catch exact codes and names</button><button>Keyword search needs vectors to work</button></div>
+        <div class="why">Each covers the other's blind spot; RRF merges them without calibrating scores.</div>
+      </div>
+      <div class="quiz-q" data-answer="GPU memory use for the KV cache, so more requests fit in a batch">
+        <p>What does vLLM's PagedAttention improve?</p>
+        <div class="opts"><button>Model accuracy</button><button>GPU memory use for the KV cache, so more requests fit in a batch</button><button>Network latency to clients</button></div>
+        <div class="why">Storing the KV cache in pages wastes little memory, which raises batch size and throughput.</div>
       </div>
     </div>
 
@@ -2588,9 +2732,45 @@ svg.flow .fn { transition: opacity .35s ease; }
     { el: "#viz-rag", title: "3 · Step through it", text: "The same request, frame by frame." },
     { el: "#cost", title: "4 · Cost and capacity", text: "Tokens, prices and traffic into a monthly bill." },
     { el: "#gpu", title: "5 · How many GPUs?", text: "Model size and precision into GPU memory." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "Vector indexes, hybrid search and re-rankers, vLLM, LLM gateways, evals and guardrails, MCP." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
+  Viz.scene("#sc-gw", {
+    title: "An LLM gateway with fallback", sub: "<b>Blue</b> = requests, <b>green</b> = answers, <b>red</b> = refused.",
+    nodes: [{ id: "app", x: 80, y: 125, w: 110, label: "Your service" }, { id: "gw", x: 280, y: 125, w: 130, label: "LLM gateway", sub: "keys, budgets, logs" },
+      { id: "p1", x: 500, y: 55, w: 140, label: "Provider A", sub: "primary" }, { id: "p2", x: 500, y: 195, w: 140, label: "Provider B", sub: "fallback" }],
+    edges: [["app", "gw"], ["gw", "p1"], ["gw", "p2"]],
+    width: 600, height: 250,
+    steps: [
+      { hl: { app: "active", gw: "active" }, moves: [{ e: "app>gw", t: "chat: tenant 7", k: "req" }], pops: [{ n: "gw", t: "budget OK: 41K of 100K tokens", k: "ok", at: 1.0 }], hold: 3, note: "The gateway checks the tenant's token budget before spending anything." },
+      { hl: { gw: "active", p1: "bad" }, moves: [{ e: "gw>p1", t: "request", k: "req" }, { e: "gw>p1", t: "429 rate limited", k: "bad", back: true, delay: 1.0 }], hold: 3, note: "The primary provider is rate limiting." },
+      { hl: { gw: "active", p2: "found" }, moves: [{ e: "gw>p2", t: "same request", k: "req" }, { e: "gw>p2", t: "streamed answer", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "The gateway retries on the fallback provider; the service never sees the failure." },
+      { hl: { app: "found", gw: "found" }, moves: [{ e: "app>gw", t: "streamed answer", k: "ok", back: true }], pops: [{ n: "gw", t: "log: 1,840 tokens, $0.011", k: "evt", at: 1.0 }], hold: 3, note: "Tokens and cost are recorded per tenant and feature, which is what budgets and dashboards need." },
+    ],
+  });
+  /* ---------- RRF lab ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const Q = [
+      ["\"ERR_4012 on checkout\"", ["Payment error codes (ERR_4012)", "Checkout API reference", "Release notes 3.2", "Card declines FAQ"], ["Card declines FAQ", "Why payments fail", "Checkout API reference", "Refund policy"]],
+      ["\"I forgot my login\"", ["Login page changelog", "SSO setup for admins", "Reset your password", "Account security"], ["Reset your password", "Recover a locked account", "Account security", "Two-factor help"]],
+    ];
+    let qi = 0;
+    g("rrf-q").innerHTML = Q.map((q, i) => `<button type="button" aria-pressed="${i === qi}">${q[0]}</button>`).join("");
+    g("rrf-q").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; qi = [...g("rrf-q").children].indexOf(b); [...g("rrf-q").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === qi))); run(); };
+    function run() {
+      const k = +g("rrf-k").value; g("rrf-ko").textContent = k;
+      const [, kw, vec] = Q[qi], sc = {};
+      kw.forEach((d, r) => (sc[d] = (sc[d] || 0) + 1 / (k + r + 1)));
+      vec.forEach((d, r) => (sc[d] = (sc[d] || 0) + 1 / (k + r + 1)));
+      const fused = Object.entries(sc).sort((a, b) => b[1] - a[1]);
+      const rk = (l, d) => { const i = l.indexOf(d); return i < 0 ? "–" : i + 1; };
+      g("rrf-out").innerHTML = `<table><thead><tr><th>Fused rank</th><th>Document</th><th>Keyword rank</th><th>Vector rank</th><th>RRF score</th></tr></thead><tbody>${fused.map(([d, s], i) => `<tr><td>${i + 1}</td><td>${d}</td><td>${rk(kw, d)}</td><td>${rk(vec, d)}</td><td>${s.toFixed(4)}</td></tr>`).join("")}</tbody></table>`;
+      g("rrf-why").innerHTML = `Documents found by <b>both</b> searches rise to the top, because they collect two shares of score. ${k < 10 ? "With a small k, first place in one list dominates." : "With k around 60, agreement between the lists matters more than any single first place."} A re-ranker would then reorder these few.`;
+    }
+    g("rrf-k").oninput = run; run();
+  })();
 })();
 </script>
 </body>
