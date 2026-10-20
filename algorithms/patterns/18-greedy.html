@@ -2315,59 +2315,176 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> usually <code>O(n)</code>, or <code>O(n log n)</code> with a sort; <code>O(1)</code> extra space apart from any sorted copy.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Reachability: carry the farthest index you can reach
-def can_reach_end(nums):
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Greedy algorithms make the locally best choice and never undo it. They're only correct when you can argue that a local choice can't hurt (an "exchange" or "stays ahead" argument), so each template here comes with the one-line reason it works. <strong>A</strong> tracks the farthest reachable index (jump game). <strong>B</strong> restarts after any stretch that goes negative (gas station). <strong>C</strong> satisfies two one-sided rules with two passes (candy).</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Farthest reach (jump game)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Starting at index 0, where nums[i] is the max jump from i, can you reach the last index?</div><div><b>What it keeps</b><code>farthest</code>: the furthest index reachable so far.</div><div><b>When it checks for an answer</b>Each index: is it reachable at all? Then extend farthest.</div><div><b>Use it when</b>Jump Game (LC 55), minimum jumps (LC 45, with a "current window end"), video stitching.</div><div><b>Not for</b>Counting the number of ways (DP).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Walk forward while the road is lit; each lamp lights further"</strong>Walking down a dark road where every lamp you pass lights the road up to i + nums[i]. Keep the furthest lit point. If you ever step past the lit part, you're stuck.</div>
+    <p><strong>The story, mapped to the code.</strong> Index i is a lamp that lights up to i + nums[i].</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Furthest lit point</td><td data-h="In the code"><code>farthest</code></td><td data-h="What it means">Max of i + nums[i] over reachable i.</td></tr><tr><td data-h="In the story">Stepping into the dark</td><td data-h="In the code"><code>i &gt; farthest</code></td><td data-h="What it means">Index i can't be reached: stop.</td></tr><tr><td data-h="In the story">A lamp lights further</td><td data-h="In the code"><code>farthest = max(farthest, i + nums[i])</code></td><td data-h="What it means">Extend.</td></tr><tr><td data-h="In the story">Walked past every index</td><td data-h="In the code"><code>return True</code></td><td data-h="What it means">The end was lit.</td></tr></tbody></table>
+    <p><strong>The template.</strong> One pass; the check must come before the update.</p>
+    <pre><code class="python">def can_reach_end(nums):
     farthest = 0
     for i in range(len(nums)):
-        if i > farthest:
-            return False                    # a gap you can't cross
+        if i &gt; farthest:
+            return False
         farthest = max(farthest, i + nums[i])
-    return True
-
-
-# B) Reset on failure: a negative running total disqualifies the whole stretch
-def best_start(gain):
-    if sum(gain) < 0:
+    return True</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function canReachEnd(nums: number[]): boolean {
+  let farthest = 0;
+  for (let i = 0; i &lt; nums.length; i++) {
+    if (i &gt; farthest) return false;
+    farthest = Math.max(farthest, i + nums[i]);
+  }
+  return true;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static boolean canReachEnd(int[] nums) {
+    int farthest = 0;
+    for (int i = 0; i &lt; nums.length; i++) {
+        if (i &gt; farthest) return false;
+        farthest = Math.max(farthest, i + nums[i]);
+    }
+    return true;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if i &gt; farthest: return False</code></td><td data-h="What it does">Index i is beyond every reachable point.</td><td data-h="In the story">Stepped into the dark.</td><td data-h="Why here, and what breaks if it moves">Without it, lamps you could never reach still extend the road (see the bug player).</td></tr><tr><td data-h="Line"><code>farthest = max(farthest, i + nums[i])</code></td><td data-h="What it does">This index may reach further.</td><td data-h="In the story">The lamp lights further.</td><td data-h="Why here, and what breaks if it moves"><code>farthest = i + nums[i]</code> can shrink the lit road.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through <code>[3, 2, 1, 0, 4]</code>. The second player drops the darkness check.</p>
+    <div id="tl-18a"></div><div id="tl-18a-bug"></div><p>Index 4 is never reachable (index 3 has a 0), but without the check its lamp still counts and the function returns True.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-18a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> At the top of iteration i, <code>farthest</code> is the furthest index reachable using only indices &lt; i; i is reachable iff i ≤ farthest.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Skipping the reachability check.</strong> Unlit lamps don't count.</li><li><strong>Trying every jump (DFS/DP).</strong> Only the furthest reach matters.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Walk while the road is lit; each lamp lights further.</dd>
+      <dt>Choose this template when</dt><dd>"Can you reach…" with max jumps → farthest reach.</dd>
+      <dt>Invariant</dt><dd>Reachable indices form a prefix [0, farthest].</dd>
+      <dt>The line people get wrong</dt><dd><code>if i > farthest</code> before the update.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>[2, 3, 1, 1, 4]?</summary><p>True.</p></details><details><summary>Why is it greedy-safe?</summary><p>The reachable set is always a prefix, so only its end matters.</p></details><details><summary>Minimum jumps?</summary><p>Count how many times you must extend past the current window's end.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Restart after a negative stretch (gas station)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>From which station can you drive a full circle (gas[i] in, cost[i] to the next station)?</div><div><b>What it keeps</b><code>tank</code> since the current candidate start; the candidate start.</div><div><b>When it checks for an answer</b>If the tank goes negative, no station between start and here can be the answer: restart after here.</div><div><b>Use it when</b>Gas Station (LC 134); the same "reset when the running sum goes negative" idea is Kadane's max subarray.</div><div><b>Not for</b>When you need every valid start, or costs depend on direction.</div></div>
+    <div class="callout memory"><strong>Memory hook: "If you run dry, everyone you passed would run dry too"</strong>Starting at station s you run out before station i + 1. Starting at any station between s and i is no better: you'd arrive there with an empty tank instead of a non-negative one. So jump the start to i + 1. If the total gas covers the total cost, the last start works.</div>
+    <p><strong>The story, mapped to the code.</strong> gain = gas − cost at each station.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Overall, enough fuel?</td><td data-h="In the code"><code>sum(gain) &lt; 0 → -1</code></td><td data-h="What it means">Then no start works.</td></tr><tr><td data-h="In the story">Fuel since the start</td><td data-h="In the code"><code>tank += gain[i]</code></td><td data-h="What it means">Running sum.</td></tr><tr><td data-h="In the story">Ran dry</td><td data-h="In the code"><code>tank &lt; 0</code></td><td data-h="What it means">Start and everything up to i fail.</td></tr><tr><td data-h="In the story">Restart after here</td><td data-h="In the code"><code>start = i + 1; tank = 0</code></td><td data-h="What it means">The next candidate.</td></tr></tbody></table>
+    <p><strong>The template.</strong> One pass plus a total check.</p>
+    <pre><code class="python">def best_start(gas, cost):
+    gain = [g - c for g, c in zip(gas, cost)]
+    if sum(gain) &lt; 0:
         return -1
-    start = 0
-    total = 0
-    for i in range(len(gain)):
-        total = total + gain[i]
-        if total < 0:
-            start = i + 1                   # nothing in start..i can work
-            total = 0
-    return start
-
-
-# C) Two passes: satisfy the left neighbour, then the right one
-def min_candies(ratings):
+    start, tank = 0, 0
+    for i, g in enumerate(gain):
+        tank += g
+        if tank &lt; 0:
+            start, tank = i + 1, 0
+    return start</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function bestStart(gas: number[], cost: number[]): number {
+  const gain = gas.map((g, i) =&gt; g - cost[i]);
+  if (gain.reduce((s, x) =&gt; s + x, 0) &lt; 0) return -1;
+  let start = 0, tank = 0;
+  gain.forEach((g, i) =&gt; {
+    tank += g;
+    if (tank &lt; 0) {
+      start = i + 1;
+      tank = 0;
+    }
+  });
+  return start;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int bestStart(int[] gas, int[] cost) {
+    int total = 0, start = 0, tank = 0;
+    for (int i = 0; i &lt; gas.length; i++) total += gas[i] - cost[i];
+    if (total &lt; 0) return -1;
+    for (int i = 0; i &lt; gas.length; i++) {
+        tank += gas[i] - cost[i];
+        if (tank &lt; 0) {
+            start = i + 1;
+            tank = 0;
+        }
+    }
+    return start;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if sum(gain) &lt; 0: return -1</code></td><td data-h="What it does">Not enough fuel overall.</td><td data-h="In the story">No start can work.</td><td data-h="Why here, and what breaks if it moves">Without it, the loop returns a start even when the trip is impossible.</td></tr><tr><td data-h="Line"><code>if tank &lt; 0: start, tank = i + 1, 0</code></td><td data-h="What it does">Every start up to i fails.</td><td data-h="In the story">Restart after here.</td><td data-h="Why here, and what breaks if it moves">Restarting at <code>start + 1</code> retries stations that are already proven to fail: O(n²).</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through gas <code>[1, 2, 3, 4, 5]</code>, cost <code>[3, 4, 5, 1, 2]</code> (gain <code>[−2, −2, −2, 3, 3]</code>).</p>
+    <div id="tl-18b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-18b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> No station before <code>start</code> can complete the circle, and <code>tank</code> is the fuel gathered from start to i.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(1) extra space (O(n) here for the gain list; compute it on the fly to drop it).</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting the total check.</strong> Not enough fuel overall → −1.</li><li><strong>Brute force from every start.</strong> Running dry rules out a whole stretch.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>If you run dry, everyone you passed would too.</dd>
+      <dt>Choose this template when</dt><dd>Circular "running total must stay ≥ 0" → reset the start.</dd>
+      <dt>Invariant</dt><dd>Stations before start are ruled out.</dd>
+      <dt>The line people get wrong</dt><dd><code>start = i + 1</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Answer for the example?</summary><p>3.</p></details><details><summary>Why can't a station between start and i work?</summary><p>You'd reach it with ≥ 0 fuel from start; starting there gives 0 fuel, no better.</p></details><details><summary>Kadane's link?</summary><p>Reset when the running sum goes negative.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-c">
+    <h3>Template C · Two passes for two-sided rules (candy)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Give each child ≥ 1 candy, with higher-rated children getting more than each neighbour; minimise the total.</div><div><b>What it keeps</b><code>give</code>: candies per child.</div><div><b>When it checks for an answer</b>Pass 1 fixes every left neighbour rule; pass 2 fixes every right neighbour rule without breaking pass 1.</div><div><b>Use it when</b>Candy (LC 135), trapping rain water (max from left/right), product except self, shortest distance to a character.</div><div><b>Not for</b>Rules with long-range dependencies.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Look left on the way out, look right on the way back"</strong>Walk left to right making sure everyone beats a lower-rated left neighbour. Walk back right to left making sure everyone beats a lower-rated right neighbour, keeping whatever is bigger. Each walk satisfies one side, and the max keeps both.</div>
+    <p><strong>The story, mapped to the code.</strong> Children in a row with ratings.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Everyone starts with one</td><td data-h="In the code"><code>give = [1] * n</code></td><td data-h="What it means">The minimum.</td></tr><tr><td data-h="In the story">Better than the left neighbour</td><td data-h="In the code"><code>give[i] = give[i - 1] + 1</code></td><td data-h="What it means">Left-to-right pass.</td></tr><tr><td data-h="In the story">Better than the right neighbour</td><td data-h="In the code"><code>max(give[i], give[i + 1] + 1)</code></td><td data-h="What it means">Right-to-left pass, keep the bigger.</td></tr><tr><td data-h="In the story">Total</td><td data-h="In the code"><code>sum(give)</code></td><td data-h="What it means">The answer.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two passes; the second takes a max so it never undoes the first.</p>
+    <pre><code class="python">def min_candies(ratings):
     n = len(ratings)
     give = [1] * n
     for i in range(1, n):
-        if ratings[i] > ratings[i - 1]:
+        if ratings[i] &gt; ratings[i - 1]:
             give[i] = give[i - 1] + 1
     for i in range(n - 2, -1, -1):
-        if ratings[i] > ratings[i + 1]:
+        if ratings[i] &gt; ratings[i + 1]:
             give[i] = max(give[i], give[i + 1] + 1)
     return sum(give)</code></pre>
-<!-- explain-18:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><strong>A:</strong> the reachable indices always form one stretch <code>0..farthest</code>, because a jump of up to <code>k</code> also allows shorter jumps. If the loop index walks past <code>farthest</code>, we are stuck.</li>
-  <li><strong>B:</strong> if the running total from <code>start</code> dips below zero at <code>i</code>, every later start inside <code>start..i</code> would arrive at <code>i</code> with even less, so the next candidate is <code>i + 1</code>. The total check up front guarantees the survivor works for the full circle.</li>
-  <li><strong>C:</strong> the left-to-right pass gives each child the minimum that beats its left neighbour; the right-to-left pass raises values only as much as needed to beat the right neighbour. <code>max</code> keeps the first guarantee.</li>
-</ol>
-<p><strong>Dry run</strong> of template A on <code>nums = [2, 3, 1, 1, 4]</code> (LeetCode 55, Example 1):</p>
-<table>
-  <thead><tr><th>i</th><th>nums[i]</th><th>i &gt; farthest?</th><th>farthest after</th></tr></thead>
-  <tbody>
-    <tr><td>0</td><td>2</td><td>no</td><td>2</td></tr>
-    <tr><td>1</td><td>3</td><td>no</td><td>4 (the last index!)</td></tr>
-    <tr><td>2..4</td><td>…</td><td>no</td><td>4 → <strong>True</strong></td></tr>
-  </tbody>
-</table>
-<!-- /explain-18:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function minCandies(ratings: number[]): number {
+  const n = ratings.length;
+  const give: number[] = new Array(n).fill(1);
+  for (let i = 1; i &lt; n; i++) {
+    if (ratings[i] &gt; ratings[i - 1]) give[i] = give[i - 1] + 1;
+  }
+  for (let i = n - 2; i &gt;= 0; i--) {
+    if (ratings[i] &gt; ratings[i + 1]) give[i] = Math.max(give[i], give[i + 1] + 1);
+  }
+  return give.reduce((s, x) =&gt; s + x, 0);
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int minCandies(int[] ratings) {
+    int n = ratings.length;
+    int[] give = new int[n];
+    Arrays.fill(give, 1);
+    for (int i = 1; i &lt; n; i++) {
+        if (ratings[i] &gt; ratings[i - 1]) give[i] = give[i - 1] + 1;
+    }
+    for (int i = n - 2; i &gt;= 0; i--) {
+        if (ratings[i] &gt; ratings[i + 1]) give[i] = Math.max(give[i], give[i + 1] + 1);
+    }
+    return Arrays.stream(give).sum();
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>give[i] = give[i - 1] + 1</code></td><td data-h="What it does">Beat a lower left neighbour by one.</td><td data-h="In the story">Look left.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>give[i] = max(give[i], give[i + 1] + 1)</code></td><td data-h="What it does">Beat a lower right neighbour, keeping pass 1's value if larger.</td><td data-h="In the story">Look right, keep the bigger.</td><td data-h="Why here, and what breaks if it moves">Assigning <code>give[i + 1] + 1</code> without max can break the left rule (e.g. the peak in [1, 3, 4, 5, 2]).</td></tr><tr><td data-h="Line"><code>for i in range(n - 2, -1, -1)</code></td><td data-h="What it does">Right to left, so give[i + 1] is final.</td><td data-h="In the story">Walk back.</td><td data-h="Why here, and what breaks if it moves">Going left to right in pass 2 reads unfinished values.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through ratings <code>[1, 3, 4, 5, 2]</code>.</p>
+    <div id="tl-18c"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-18c-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> After pass 1, every left rule holds; pass 2 only raises values, so left rules still hold, and after it every right rule holds too. Each value is the minimum forced by the longer of its increasing runs.</p>
+    <p><strong>Complexity.</strong> O(n) time, O(n) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>One pass only.</strong> Two sides need two walks.</li><li><strong>No max in pass 2.</strong> Keep the bigger of the two requirements.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Look left on the way out, look right on the way back.</dd>
+      <dt>Choose this template when</dt><dd>Each element constrained by both neighbours → two passes + max.</dd>
+      <dt>Invariant</dt><dd>Pass 2 only raises values.</dd>
+      <dt>The line people get wrong</dt><dd><code>max(give[i], give[i + 1] + 1)</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>[1, 0, 2]?</summary><p>5: [2, 1, 2].</p></details><details><summary>[1, 2, 2]?</summary><p>4: [1, 2, 1] (equal ratings need nothing).</p></details><details><summary>Trapping rain water's two passes?</summary><p>Max height from the left and from the right.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · farthest reach</th><th>B · reset start</th><th>C · two passes</th></tr></thead><tbody><tr><td data-h="Question">Greedy choice</td><td data-h="A · farthest reach">Keep only the furthest reachable index</td><td data-h="B · reset start">Drop every start before a dry point</td><td data-h="C · two passes">Satisfy one side per pass</td></tr><tr><td data-h="Question">Why it's safe</td><td data-h="A · farthest reach">Reachable indices form a prefix</td><td data-h="B · reset start">A dry stretch rules out all its starts</td><td data-h="C · two passes">Pass 2 only raises values</td></tr><tr><td data-h="Question">State</td><td data-h="A · farthest reach">farthest</td><td data-h="B · reset start">start, tank</td><td data-h="C · two passes">give[]</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · farthest reach">LC 55, 45</td><td data-h="B · reset start">LC 134, 53</td><td data-h="C · two passes">LC 135, 42, 238</td></tr><tr><td data-h="Question">Time / space</td><td data-h="A · farthest reach">O(n) / O(1)</td><td data-h="B · reset start">O(n) / O(1)</td><td data-h="C · two passes">O(n) / O(n)</td></tr></tbody></table>
+    <p>Before using any greedy, say the one-sentence reason a local choice can't hurt. If you can't, it's probably DP. Interval greedies (sort by end) live on page 8, Template C.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -6860,5 +6977,73 @@ Opening Only the second tap will water the whole garden [0,5]</span></div></div>
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl18A(nums, nocheck) {
+    let far = 0; const steps = [], rows = [];
+    const view = (i, stuck) => Viz.array(nums, { label: "nums", ptrs: i >= 0 ? { [i]: "i" } : {}, hl: Object.assign(Object.fromEntries(nums.map((_, k) => [k, k <= far ? "window" : ""])), i >= 0 ? { [i]: stuck ? "bad" : "active" } : {}) }) + `<p class="idx">farthest = ${far}</p>`;
+    steps.push({ line: "init", vars: { farthest: 0 }, view: view(-1), analogy: "Only index 0 is lit.", note: "<code>farthest = 0</code>." });
+    for (let i = 0; i < nums.length; i++) {
+      if (!nocheck && i > far) { rows.push([i, nums[i], "dark", far]); steps.push({ line: ["loop", "dark"], vars: { i, farthest: far }, view: view(i, true), analogy: `Index ${i} is past the lit road (${far}): stuck.`, note: "Return <code>False</code>." }); return { steps, table: { head: ["i", "nums[i]", "Reachable?", "farthest after"], rows } }; }
+      const was = far; far = Math.max(far, i + nums[i]); rows.push([i, nums[i], i <= was ? "yes" : "no (not checked)", far]);
+      steps.push({ line: nocheck ? ["loop", "extend"] : ["loop", "dark", "extend"], vars: { i, "i + nums[i]": i + nums[i], farthest: far }, view: view(i, nocheck && i > was), analogy: nocheck && i > was ? `⚠ Index ${i} was never lit, but its lamp still extends the road to ${far}.` : far > was ? `Lamp ${i} lights up to ${far}.` : `Lamp ${i} doesn't light any further.`, note: `<code>farthest = max(${was}, ${i + nums[i]}) = ${far}</code>.`,
+        ask: { q: "farthest after this index?", options: [...new Set([far, was, i + nums[i]])].map(String), answer: far, why: `max(${was}, ${i} + ${nums[i]}).` } });
+    }
+    const r = nocheck ? far >= nums.length - 1 : true;
+    steps.push({ line: "ret", vars: { result: r ? "True" : "False" }, view: view(-1), analogy: r ? "The end is lit." : "The end is dark.", note: `Return <code>${r ? "True" : "False"}</code>.` });
+    return { steps, table: { head: ["i", "nums[i]", "Reachable?", "farthest after"], rows } };
+  }
+
+  function tl18B(gas, cost) {
+    const gain = gas.map((g, i) => g - cost[i]), steps = [], rows = []; let start = 0, tank = 0;
+    const view = (i) => Viz.array(gain, { label: "gain", ptrs: Object.assign({ [start]: "start" }, i >= 0 && i !== start ? { [i]: "i" } : {}), hl: Object.assign(Object.fromEntries(gain.map((_, k) => [k, k < start ? "dim" : ""])), { [start]: "gold" }, i >= 0 ? { [i]: "active" } : {}) }) + `<p class="idx">tank = ${tank}</p>`;
+    const total = gain.reduce((s, x) => s + x, 0);
+    steps.push({ line: ["init", "total"], vars: { gain: "[" + gain.join(", ") + "]", total }, view: view(-1), analogy: `Total gain ${total} ≥ 0: some start works.`, note: `<code>sum(gain) = ${total}</code>.` });
+    gain.forEach((g, i) => {
+      tank += g; const dry = tank < 0;
+      steps.push({ line: ["loop", "add", "dry"], vars: { i, gain: g, tank }, view: view(i), analogy: dry ? `Ran dry at ${i} (tank ${tank}): starts ${start}..${i} all fail.` : `Tank ${tank} after station ${i}.`, note: `<code>tank += ${g}</code> → ${tank}.`,
+        ask: { q: "Does the tank run dry here?", options: ["yes", "no"], answer: dry ? "yes" : "no", why: `tank = ${tank}.` } });
+      if (dry) { start = i + 1; tank = 0; steps.push({ line: "restart", vars: { start, tank }, view: view(-1), analogy: `New candidate start: ${start}.`, note: `<code>start = ${start}</code>, <code>tank = 0</code>.` }); }
+      rows.push([i, g, dry ? "dry → reset" : tank, start]);
+    });
+    steps.push({ line: "ret", vars: { result: start }, view: view(-1), analogy: `Start at station ${start}.`, note: `Return <code>${start}</code>.` });
+    return { steps, table: { head: ["i", "gain", "tank", "start after"], rows } };
+  }
+
+  function tl18C(r) {
+    const n = r.length, give = new Array(n).fill(1), steps = [], rows = [];
+    const view = (i) => Viz.array(r, { label: "ratings", hl: i >= 0 ? { [i]: "active" } : {} }) + Viz.array(give, { label: "give", hl: i >= 0 ? { [i]: "active" } : {} });
+    steps.push({ line: "init", vars: { give: "[" + give.join(", ") + "]" }, view: view(-1), analogy: "Everyone gets one candy.", note: "<code>give = [1] * n</code>." });
+    for (let i = 1; i < n; i++) if (r[i] > r[i - 1]) { give[i] = give[i - 1] + 1; steps.push({ line: ["lpass", "lfix"], vars: { i, [`give[${i}]`]: give[i] }, view: view(i), analogy: `Rating ${r[i]} beats left neighbour ${r[i - 1]}: ${give[i]} candies.`, note: "Left pass.",
+      ask: { q: `give[${i}] after the left pass?`, options: [...new Set([give[i], 1, give[i] + 1])].map(String), answer: give[i], why: `give[${i - 1}] + 1.` } }); }
+    rows.push(["after left pass", "[" + give.join(", ") + "]"]);
+    for (let i = n - 2; i >= 0; i--) if (r[i] > r[i + 1]) { const old = give[i]; give[i] = Math.max(give[i], give[i + 1] + 1); steps.push({ line: ["rpass", "rfix"], vars: { i, [`give[${i}]`]: give[i] }, view: view(i), analogy: `Rating ${r[i]} beats right neighbour ${r[i + 1]}: max(${old}, ${give[i + 1]} + 1) = ${give[i]}.`, note: "Right pass." }); }
+    rows.push(["after right pass", "[" + give.join(", ") + "]"]);
+    const s = give.reduce((a, b) => a + b, 0);
+    steps.push({ line: "ret", vars: { total: s }, view: view(-1), analogy: `${s} candies in total.`, note: `Return <code>${s}</code>.` });
+    return { steps, table: { head: ["Stage", "give"], rows } };
+  }
+
+  { const run = tl18A([3, 2, 1, 0, 4], false);
+    Viz.tlab("#tl-18a", { title: "Template A \u00b7 [3, 2, 1, 0, 4]", sub: "Teal = lit (reachable) part; blue = current index; red = stuck.", code: {"py": [[null, "def can_reach_end(nums):"], ["init", "    farthest = 0"], ["loop", "    for i in range(len(nums)):"], ["dark", "        if i > farthest:"], ["dark", "            return False"], ["extend", "        farthest = max(farthest, i + nums[i])"], ["ret", "    return True"]], "ts": [[null, "function canReachEnd(nums: number[]): boolean {"], ["init", "  let farthest = 0;"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["dark", "    if (i > farthest) return false;"], ["extend", "    farthest = Math.max(farthest, i + nums[i]);"], [null, "  }"], ["ret", "  return true;"], [null, "}"]], "java": [[null, "static boolean canReachEnd(int[] nums) {"], ["init", "    int farthest = 0;"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["dark", "        if (i > farthest) return false;"], ["extend", "        farthest = Math.max(farthest, i + nums[i]);"], [null, "    }"], ["ret", "    return true;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-18a-table").innerHTML = TL.table(run.table); }
+  { const run = tl18A([3, 2, 1, 0, 4], false);
+    Viz.tlab("#tl-18a-bug", { title: "Why check i > farthest \u00b7 [3, 2, 1, 0, 4]", sub: "Switch between with and without the check.", code: {"py": [[null, "def can_reach_end(nums):"], ["init", "    farthest = 0"], ["loop", "    for i in range(len(nums)):"], ["dark", "        if i > farthest:"], ["dark", "            return False"], ["extend", "        farthest = max(farthest, i + nums[i])"], ["ret", "    return True"]], "ts": [[null, "function canReachEnd(nums: number[]): boolean {"], ["init", "  let farthest = 0;"], ["loop", "  for (let i = 0; i < nums.length; i++) {"], ["dark", "    if (i > farthest) return false;"], ["extend", "    farthest = Math.max(farthest, i + nums[i]);"], [null, "  }"], ["ret", "  return true;"], [null, "}"]], "java": [[null, "static boolean canReachEnd(int[] nums) {"], ["init", "    int farthest = 0;"], ["loop", "    for (int i = 0; i < nums.length; i++) {"], ["dark", "        if (i > farthest) return false;"], ["extend", "        farthest = Math.max(farthest, i + nums[i]);"], [null, "    }"], ["ret", "    return true;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: no darkness check", code: {"py": [[null, "def can_reach_end(nums):"], ["init", "    farthest = 0"], ["loop", "    for i in range(len(nums)):"], ["extend", "        farthest = max(farthest, i + nums[i])"], ["ret", "    return farthest >= len(nums) - 1"]]}, steps: tl18A([3, 2, 1, 0, 4], true).steps, diverge: undefined, why: "index 4 lies past the lit road, yet the loop treats it as reachable." } });
+     }
+  { const run = tl18B([1, 2, 3, 4, 5], [3, 4, 5, 1, 2]);
+    Viz.tlab("#tl-18b", { title: "Template B \u00b7 gas station", sub: "Row = gain per station; blue = current; faded = ruled-out starts; gold = current candidate.", code: {"py": [[null, "def best_start(gas, cost):"], ["init", "    gain = [g - c for g, c in zip(gas, cost)]"], ["total", "    if sum(gain) < 0:"], ["total", "        return -1"], ["init2", "    start, tank = 0, 0"], ["loop", "    for i, g in enumerate(gain):"], ["add", "        tank += g"], ["dry", "        if tank < 0:"], ["restart", "            start, tank = i + 1, 0"], ["ret", "    return start"]], "ts": [[null, "function bestStart(gas: number[], cost: number[]): number {"], ["init", "  const gain = gas.map((g, i) => g - cost[i]);"], ["total", "  if (gain.reduce((s, x) => s + x, 0) < 0) return -1;"], ["init2", "  let start = 0, tank = 0;"], ["loop", "  gain.forEach((g, i) => {"], ["add", "    tank += g;"], ["dry", "    if (tank < 0) {"], ["restart", "      start = i + 1;"], ["restart", "      tank = 0;"], [null, "    }"], [null, "  });"], ["ret", "  return start;"], [null, "}"]], "java": [[null, "static int bestStart(int[] gas, int[] cost) {"], ["init", "    int total = 0, start = 0, tank = 0;"], ["total", "    for (int i = 0; i < gas.length; i++) total += gas[i] - cost[i];"], ["total", "    if (total < 0) return -1;"], ["loop", "    for (int i = 0; i < gas.length; i++) {"], ["add", "        tank += gas[i] - cost[i];"], ["dry", "        if (tank < 0) {"], ["restart", "            start = i + 1;"], ["restart", "            tank = 0;"], [null, "        }"], [null, "    }"], ["ret", "    return start;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-18b-table").innerHTML = TL.table(run.table); }
+  { const run = tl18C([1, 3, 4, 5, 2]);
+    Viz.tlab("#tl-18c", { title: "Template C \u00b7 ratings [1, 3, 4, 5, 2]", sub: "Top: ratings; bottom: candies. Blue = child being fixed.", code: {"py": [[null, "def min_candies(ratings):"], ["init", "    n = len(ratings)"], ["init", "    give = [1] * n"], ["lpass", "    for i in range(1, n):"], ["lpass", "        if ratings[i] > ratings[i - 1]:"], ["lfix", "            give[i] = give[i - 1] + 1"], ["rpass", "    for i in range(n - 2, -1, -1):"], ["rpass", "        if ratings[i] > ratings[i + 1]:"], ["rfix", "            give[i] = max(give[i], give[i + 1] + 1)"], ["ret", "    return sum(give)"]], "ts": [[null, "function minCandies(ratings: number[]): number {"], ["init", "  const n = ratings.length;"], ["init", "  const give: number[] = new Array(n).fill(1);"], ["lpass", "  for (let i = 1; i < n; i++) {"], ["lfix", "    if (ratings[i] > ratings[i - 1]) give[i] = give[i - 1] + 1;"], [null, "  }"], ["rpass", "  for (let i = n - 2; i >= 0; i--) {"], ["rfix", "    if (ratings[i] > ratings[i + 1]) give[i] = Math.max(give[i], give[i + 1] + 1);"], [null, "  }"], ["ret", "  return give.reduce((s, x) => s + x, 0);"], [null, "}"]], "java": [[null, "static int minCandies(int[] ratings) {"], ["init", "    int n = ratings.length;"], ["init", "    int[] give = new int[n];"], ["init", "    Arrays.fill(give, 1);"], ["lpass", "    for (int i = 1; i < n; i++) {"], ["lfix", "        if (ratings[i] > ratings[i - 1]) give[i] = give[i - 1] + 1;"], [null, "    }"], ["rpass", "    for (int i = n - 2; i >= 0; i--) {"], ["rfix", "        if (ratings[i] > ratings[i + 1]) give[i] = Math.max(give[i], give[i + 1] + 1);"], [null, "    }"], ["ret", "    return Arrays.stream(give).sum();"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-18c-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

@@ -2312,12 +2312,21 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> trie operations are <code>O(L)</code> per word with <code>O(total characters)</code> memory. Paired designs reach <code>O(1)</code> per operation with <code>O(n)</code> memory.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
-    <pre><code class="python"># A) Trie: children dict + end-of-word flag
-class TrieNode:
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Design questions combine simple structures so every operation is fast. Two templates: <strong>A</strong> a trie (prefix tree) where each edge is a character, giving prefix lookups in O(length of the word); <strong>B</strong> an LRU cache: a hash map for O(1) lookup plus a doubly linked list for O(1) "move to most recent" and "evict least recent".</p>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Trie: insert, search, starts_with</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Store words so you can ask "is this a word?" and "does any word start with this?" in O(length).</div><div><b>What it keeps</b>A tree of nodes; each node maps a character to a child and marks whether a word ends there.</div><div><b>When it checks for an answer</b>Search walks one character per level; a full word must end on a node marked <code>is_end</code>.</div><div><b>Use it when</b>Implement Trie (LC 208), word search II (LC 212), autocomplete, replace words, longest common prefix.</div><div><b>Not for</b>Exact-match only lookups (a set is simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Spell the word one letter per step down the tree; flag the last letter"</strong>A tree of letter signposts. To add a word, follow the signposts for each letter, putting up new ones where missing, and plant a flag at the last letter. A word exists only if the walk succeeds <em>and</em> there's a flag; a prefix exists if the walk succeeds.</div>
+    <p><strong>The story, mapped to the code.</strong> Each node is a fork in the path; each edge is a letter.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Signposts at a fork</td><td data-h="In the code"><code>node.children</code></td><td data-h="What it means">Letter → next node.</td></tr><tr><td data-h="In the story">Put up a missing signpost</td><td data-h="In the code"><code>node.children[ch] = TrieNode()</code></td><td data-h="What it means">Insert creates the path.</td></tr><tr><td data-h="In the story">Follow a signpost</td><td data-h="In the code"><code>node = node.children[ch]</code></td><td data-h="What it means">One letter per step.</td></tr><tr><td data-h="In the story">Flag at the last letter</td><td data-h="In the code"><code>node.is_end = True</code></td><td data-h="What it means">A whole word ends here.</td></tr><tr><td data-h="In the story">Walk succeeds but no flag</td><td data-h="In the code"><code>search → False, starts_with → True</code></td><td data-h="What it means">"ca" is a prefix of "car", not a word.</td></tr></tbody></table>
+    <p><strong>The template.</strong> One shared walk (<code>_find</code>) serves both queries.</p>
+    <pre><code class="python">class TrieNode:
     def __init__(self):
         self.children = {}
         self.is_end = False
+
 
 class Trie:
     def __init__(self):
@@ -2331,7 +2340,7 @@ class Trie:
             node = node.children[ch]
         node.is_end = True
 
-    def find(self, text):                   # node for this prefix, or None
+    def _find(self, text):
         node = self.root
         for ch in text:
             if ch not in node.children:
@@ -2339,40 +2348,257 @@ class Trie:
             node = node.children[ch]
         return node
 
+    def search(self, word):
+        node = self._find(word)
+        return node is not None and node.is_end
 
-# B) Paired design: hash map + doubly linked list (LRU skeleton)
-class Node:
+    def starts_with(self, prefix):
+        return self._find(prefix) is not None</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">class TrieNode {
+  children = new Map&lt;string, TrieNode&gt;();
+  isEnd = false;
+}
+
+class Trie {
+  root = new TrieNode();
+
+  insert(word: string): void {
+    let node = this.root;
+    for (const ch of word) {
+      if (!node.children.has(ch)) node.children.set(ch, new TrieNode());
+      node = node.children.get(ch)!;
+    }
+    node.isEnd = true;
+  }
+
+  private find(text: string): TrieNode | null {
+    let node = this.root;
+    for (const ch of text) {
+      const next = node.children.get(ch);
+      if (!next) return null;
+      node = next;
+    }
+    return node;
+  }
+
+  search(word: string): boolean {
+    const node = this.find(word);
+    return node !== null &amp;&amp; node.isEnd;
+  }
+
+  startsWith(prefix: string): boolean {
+    return this.find(prefix) !== null;
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static class TrieNode {
+    Map&lt;Character, TrieNode&gt; children = new HashMap&lt;&gt;();
+    boolean isEnd = false;
+}
+
+static class Trie {
+    TrieNode root = new TrieNode();
+
+    void insert(String word) {
+        TrieNode node = root;
+        for (char ch : word.toCharArray()) {
+            node.children.putIfAbsent(ch, new TrieNode());
+            node = node.children.get(ch);
+        }
+        node.isEnd = true;
+    }
+
+    private TrieNode find(String text) {
+        TrieNode node = root;
+        for (char ch : text.toCharArray()) {
+            node = node.children.get(ch);
+            if (node == null) return null;
+        }
+        return node;
+    }
+
+    boolean search(String word) {
+        TrieNode node = find(word);
+        return node != null &amp;&amp; node.isEnd;
+    }
+
+    boolean startsWith(String prefix) {
+        return find(prefix) != null;
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>if ch not in node.children: node.children[ch] = TrieNode()</code></td><td data-h="What it does">Creates only missing nodes.</td><td data-h="In the story">Put up a missing signpost.</td><td data-h="Why here, and what breaks if it moves">Always creating a new node wipes out existing words that share the prefix.</td></tr><tr><td data-h="Line"><code>node.is_end = True</code></td><td data-h="What it does">Marks a complete word.</td><td data-h="In the story">Plant the flag.</td><td data-h="Why here, and what breaks if it moves">Without it, search can't tell "car" from the prefix "ca".</td></tr><tr><td data-h="Line"><code>return node is not None and node.is_end</code></td><td data-h="What it does">A word needs the walk and the flag.</td><td data-h="In the story">Walk succeeded and there's a flag?</td><td data-h="Why here, and what breaks if it moves"><code>return node is not None</code> says "ca" is a word (see the bug player).</td></tr><tr><td data-h="Line"><code>return self._find(prefix) is not None</code></td><td data-h="What it does">A prefix only needs the walk.</td><td data-h="In the story">Walk succeeded?</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through inserting <code>car</code>, <code>cat</code>, <code>cart</code>, then <code>search("ca")</code>. The second player forgets the flag check.</p>
+    <div id="tl-19a"></div><div id="tl-19a-bug"></div><p>The walk c → a succeeds, but no word ends at 'a'. Ignoring <code>is_end</code> makes "ca" look like a stored word.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-19a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> A path from the root spelling s exists iff some inserted word starts with s; the node at its end has is_end iff s itself was inserted.</p>
+    <p><strong>Complexity.</strong> insert/search/starts_with: O(L) for a word of length L. Space: O(total characters inserted) nodes.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Forgetting is_end in search.</strong> Walk plus flag.</li><li><strong>Recreating existing children.</strong> Only create missing signposts.</li><li><strong>Using an array of 26 when the alphabet isn't fixed.</strong> A dict/map is safer.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Spell one letter per step; flag the last letter.</dd>
+      <dt>Choose this template when</dt><dd>Many words + prefix questions → trie.</dd>
+      <dt>Invariant</dt><dd>Path = prefix; flag = whole word.</dd>
+      <dt>The line people get wrong</dt><dd><code>node is not None and node.is_end</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>search('ca') after car, cat, cart?</summary><p>False.</p></details><details><summary>starts_with('ca')?</summary><p>True.</p></details><details><summary>How many nodes for car, cat, cart (excluding root)?</summary><p>5: c, a, r, t (under a), t (under r).</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · LRU cache (hash map + doubly linked list)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>A fixed-size cache with O(1) get and put that evicts the least recently used key.</div><div><b>What it keeps</b><code>map</code>: key → list node. A doubly linked list ordered from least recent (after <code>head</code>) to most recent (before <code>tail</code>).</div><div><b>When it checks for an answer</b>Every get/put moves the key to the most-recent end; overflow evicts the node after <code>head</code>.</div><div><b>Use it when</b>LRU Cache (LC 146); the same map + list combo powers LFU (LC 460) and "all O(1)" data structures.</div><div><b>Not for</b>When order doesn't matter (a plain map).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Touched → back of the line; full → the front of the line leaves"</strong>A queue of library books on a short shelf. Every time a book is read or added, it moves to the back of the line. When the shelf is full, the book at the front (the one untouched longest) leaves. The map is the index card telling you where each book stands, so moving it is instant.</div>
+    <p><strong>The story, mapped to the code.</strong> Two dummy bookends (<code>head</code>, <code>tail</code>) mean no special cases at the ends.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Index card</td><td data-h="In the code"><code>self.map[key]</code></td><td data-h="What it means">Jump straight to the node.</td></tr><tr><td data-h="In the story">Take a book out of the line</td><td data-h="In the code"><code>_unlink(node)</code></td><td data-h="What it means">Its neighbours point at each other.</td></tr><tr><td data-h="In the story">Put it at the back</td><td data-h="In the code"><code>_append(node)</code></td><td data-h="What it means">Just before tail = most recent.</td></tr><tr><td data-h="In the story">Shelf overflow</td><td data-h="In the code"><code>len(self.map) &gt; self.capacity</code></td><td data-h="What it means">One too many.</td></tr><tr><td data-h="In the story">Front of the line leaves</td><td data-h="In the code"><code>lru = self.head.next</code></td><td data-h="What it means">Least recent: unlink and delete from the map.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Two helpers do all the pointer work; get and put just call them. (Python's <code>OrderedDict</code>, Java's <code>LinkedHashMap</code> and TypeScript's insertion-ordered <code>Map</code> can do this in a few lines, but interviews usually want the list.)</p>
+    <pre><code class="python">class Node:
     def __init__(self, key, val):
         self.key, self.val = key, val
         self.prev = self.next = None
 
-def unlink(node):                           # O(1) because we know node.prev
-    node.prev.next = node.next
-    node.next.prev = node.prev
 
-def append_before(tail, node):              # tail is a dummy end node
-    node.prev, node.next = tail.prev, tail
-    tail.prev.next = node
-    tail.prev = node</code></pre>
-<!-- explain-19:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><strong>A:</strong> <code>insert</code> walks down one level per character, creating a node only where the path doesn't exist yet. Words with a common prefix share nodes. <code>is_end</code> distinguishes the word <code>"car"</code> from the prefix <code>"car"</code> of <code>"cart"</code>.</li>
-  <li><code>find</code> is the shared walk: <code>search(word)</code> = <code>find(word)</code> is not <code>None</code> <em>and</em> <code>is_end</code>; <code>startsWith(prefix)</code> = <code>find(prefix)</code> is not <code>None</code>.</li>
-  <li><strong>B:</strong> a doubly linked list can remove any node in <code>O(1)</code> <em>if you already hold the node</em>. The hash map gives you the node in <code>O(1)</code>, so together they support "find it, then move/remove it" in constant time.</li>
-  <li>Dummy <code>head</code>/<code>tail</code> nodes mean <code>unlink</code> and <code>append_before</code> never deal with <code>None</code> neighbours.</li>
-</ol>
-<p><strong>Dry run</strong> of template A: insert <code>"car"</code>, <code>"cart"</code>, then query.</p>
-<table>
-  <thead><tr><th>operation</th><th>nodes created</th><th>result</th></tr></thead>
-  <tbody>
-    <tr><td><code>insert("car")</code></td><td><code>c</code>, <code>a</code>, <code>r</code> (r is a word end)</td><td>—</td></tr>
-    <tr><td><code>insert("cart")</code></td><td>only <code>t</code> (c-a-r already exist)</td><td>—</td></tr>
-    <tr><td><code>find("ca")</code></td><td>—</td><td>the <code>a</code> node → prefix exists</td></tr>
-    <tr><td><code>search("ca")</code></td><td>—</td><td><code>a.is_end</code> is False → <strong>False</strong></td></tr>
-  </tbody>
-</table>
-<!-- /explain-19:template -->
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity, self.map = capacity, {}
+        self.head, self.tail = Node(0, 0), Node(0, 0)   # bookends
+        self.head.next, self.tail.prev = self.tail, self.head
+
+    def _unlink(self, node):
+        node.prev.next, node.next.prev = node.next, node.prev
+
+    def _append(self, node):                  # just before tail = most recent
+        node.prev, node.next = self.tail.prev, self.tail
+        self.tail.prev.next = node
+        self.tail.prev = node
+
+    def get(self, key):
+        if key not in self.map:
+            return -1
+        node = self.map[key]
+        self._unlink(node)
+        self._append(node)
+        return node.val
+
+    def put(self, key, val):
+        if key in self.map:
+            self._unlink(self.map[key])
+        node = Node(key, val)
+        self.map[key] = node
+        self._append(node)
+        if len(self.map) &gt; self.capacity:
+            lru = self.head.next
+            self._unlink(lru)
+            del self.map[lru.key]</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">class DNode {
+  key: number; val: number;
+  prev: DNode | null = null; next: DNode | null = null;
+  constructor(key: number, val: number) { this.key = key; this.val = val; }
+}
+
+class LRUCache {
+  capacity: number;
+  map = new Map&lt;number, DNode&gt;();
+  head = new DNode(0, 0); tail = new DNode(0, 0);       // bookends
+  constructor(capacity: number) {
+    this.capacity = capacity;
+    this.head.next = this.tail; this.tail.prev = this.head;
+  }
+
+  private unlink(node: DNode): void {
+    node.prev!.next = node.next; node.next!.prev = node.prev;
+  }
+
+  private append(node: DNode): void {
+    node.prev = this.tail.prev; node.next = this.tail;
+    this.tail.prev!.next = node;
+    this.tail.prev = node;
+  }
+
+  get(key: number): number {
+    const node = this.map.get(key);
+    if (!node) return -1;
+    this.unlink(node);
+    this.append(node);
+    return node.val;
+  }
+
+  put(key: number, val: number): void {
+    const old = this.map.get(key);
+    if (old) this.unlink(old);
+    const node = new DNode(key, val);
+    this.map.set(key, node);
+    this.append(node);
+    if (this.map.size &gt; this.capacity) {
+      const lru = this.head.next!;
+      this.unlink(lru);
+      this.map.delete(lru.key);
+    }
+  }
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static class DNode {
+    int key, val; DNode prev, next;
+    DNode(int key, int val) { this.key = key; this.val = val; }
+}
+
+static class LRUCache {
+    private final int capacity;
+    private final Map&lt;Integer, DNode&gt; map = new HashMap&lt;&gt;();
+    private final DNode head = new DNode(0, 0), tail = new DNode(0, 0); // bookends
+
+    LRUCache(int capacity) {
+        this.capacity = capacity;
+        head.next = tail; tail.prev = head;
+    }
+
+    private void unlink(DNode node) {
+        node.prev.next = node.next; node.next.prev = node.prev;
+    }
+
+    private void append(DNode node) {
+        node.prev = tail.prev; node.next = tail;
+        tail.prev.next = node;
+        tail.prev = node;
+    }
+
+    int get(int key) {
+        DNode node = map.get(key);
+        if (node == null) return -1;
+        unlink(node);
+        append(node);
+        return node.val;
+    }
+
+    void put(int key, int val) {
+        DNode old = map.get(key);
+        if (old != null) unlink(old);
+        DNode node = new DNode(key, val);
+        map.put(key, node);
+        append(node);
+        if (map.size() &gt; capacity) {
+            DNode lru = head.next;
+            unlink(lru);
+            map.remove(lru.key);
+        }
+    }
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>self.head, self.tail = Node(0, 0), Node(0, 0)</code></td><td data-h="What it does">Sentinel bookends.</td><td data-h="In the story">The line always has two ends to hold.</td><td data-h="Why here, and what breaks if it moves">Without them, unlinking the first/last node needs special cases.</td></tr><tr><td data-h="Line"><code>get: self._unlink(node); self._append(node)</code></td><td data-h="What it does">A read counts as a use.</td><td data-h="In the story">Back of the line.</td><td data-h="Why here, and what breaks if it moves">Skipping it evicts a key that was just read (see the bug player).</td></tr><tr><td data-h="Line"><code>put: if key in self.map: self._unlink(self.map[key])</code></td><td data-h="What it does">Updating removes the old node first.</td><td data-h="In the story">Replace, don't duplicate.</td><td data-h="Why here, and what breaks if it moves">Otherwise the old node stays in the list and is evicted later with a stale key.</td></tr><tr><td data-h="Line"><code>lru = self.head.next; …; del self.map[lru.key]</code></td><td data-h="What it does">Evicts the least recent.</td><td data-h="In the story">Front of the line leaves.</td><td data-h="Why here, and what breaks if it moves">Forgetting the map deletion leaves a dangling key, so later gets return a removed value.</td></tr><tr><td data-h="Line"><code>node.prev.next, node.next.prev = node.next, node.prev</code></td><td data-h="What it does">Unlinks in O(1).</td><td data-h="In the story">Neighbours hold hands.</td><td data-h="Why here, and what breaks if it moves">—</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Capacity 2: put(1,1), put(2,2), get(1), put(3,3), get(2), put(4,4), get(1), get(3), get(4). The second player's get forgets to move the key.</p>
+    <div id="tl-19b"></div><div id="tl-19b-bug"></div><p>get(1) doesn't move key 1, so it stays least recent and put(3) evicts it instead of key 2. Results become <code>1 2 -1 3 4</code> instead of <code>1 -1 -1 3 4</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-19b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The list holds exactly the keys in the map, ordered by last use (least recent after head), and len(map) ≤ capacity after every operation.</p>
+    <p><strong>Complexity.</strong> O(1) for get and put; O(capacity) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>get without moving.</strong> A read is a use.</li><li><strong>Not deleting the evicted key from the map.</strong> Both structures must agree.</li><li><strong>No sentinels.</strong> Bookends remove edge cases.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Touched → back of the line; full → the front leaves.</dd>
+      <dt>Choose this template when</dt><dd>O(1) lookup + O(1) recency order → map + doubly linked list.</dd>
+      <dt>Invariant</dt><dd>List order = recency; map and list hold the same keys.</dd>
+      <dt>The line people get wrong</dt><dd>Moving the node on get.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>Which key is evicted by put(3, 3) in the example?</summary><p>2 (1 was just read).</p></details><details><summary>Why a doubly linked list?</summary><p>Unlinking needs the previous node in O(1).</p></details><details><summary>Python shortcut?</summary><p>OrderedDict with move_to_end and popitem(last=False).</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · trie</th><th>B · LRU cache</th></tr></thead><tbody><tr><td data-h="Question">Main question</td><td data-h="A · trie">Is this a word / a prefix?</td><td data-h="B · LRU cache">Value for a key, evicting the least recently used</td></tr><tr><td data-h="Question">Structures</td><td data-h="A · trie">Tree of char → child maps</td><td data-h="B · LRU cache">Hash map + doubly linked list</td></tr><tr><td data-h="Question">Key operation</td><td data-h="A · trie">Walk one character per level</td><td data-h="B · LRU cache">Unlink + append in O(1)</td></tr><tr><td data-h="Question">Cost</td><td data-h="A · trie">O(word length)</td><td data-h="B · LRU cache">O(1)</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · trie">LC 208, 211, 212</td><td data-h="B · LRU cache">LC 146, 460</td></tr></tbody></table>
+    <p>Design questions are about picking the structure that makes each operation cheap: a trie when queries are about prefixes, a map + list when you need both fast lookup and an order that changes on every access.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -7225,5 +7451,85 @@ loc.freeMemory(7); // Free all memory units with mID 7. The memory array remains
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  function tl19A(words, query, ignoreFlag) {
+    const nodes = [{ ch: "root", kids: {}, end: false, depth: 0 }], steps = [], rows = [];
+    const layout = () => { const pos = {}; let leaf = 0; const go = (i) => { const ks = Object.values(nodes[i].kids); if (!ks.length) { pos[i] = leaf++; return pos[i]; } const xs = ks.map(go); pos[i] = (Math.min(...xs) + Math.max(...xs)) / 2; return pos[i]; }; go(0); return { pos, leaves: Math.max(leaf, 1) }; };
+    const view = (cur, hl) => { const { pos, leaves } = layout(), W = Math.max(260, leaves * 70 + 40), depthMax = Math.max(...nodes.map((n) => n.depth));
+      const ns = nodes.map((n, i) => ({ id: i, x: 30 + pos[i] * ((W - 60) / Math.max(1, leaves - 1 || 1)), y: 25 + n.depth * 48, label: i === 0 ? "·" : n.ch }));
+      const es = []; nodes.forEach((n, i) => Object.values(n.kids).forEach((k) => es.push([i, k])));
+      return Viz.graph(ns, es, { hl: Object.assign(Object.fromEntries(nodes.map((n, i) => [i, n.end ? "found" : ""])), hl || {}, cur !== undefined ? { [cur]: "active" } : {}), width: W, height: 50 + depthMax * 48 }); };
+    steps.push({ line: "istart", vars: {}, view: view(0), analogy: "An empty tree: just the root.", note: "Root only." });
+    words.forEach((w) => {
+      let cur = 0; const made = [];
+      for (const ch of w) {
+        if (nodes[cur].kids[ch] === undefined) { nodes.push({ ch, kids: {}, end: false, depth: nodes[cur].depth + 1 }); nodes[cur].kids[ch] = nodes.length - 1; made.push(ch); }
+        cur = nodes[cur].kids[ch];
+      }
+      nodes[cur].end = true; rows.push([`insert("${w}")`, made.length ? made.join(", ") : "none", nodes.length - 1]);
+      steps.push({ line: ["iloop", "inew", "istep", "iend"], vars: { word: w, new_nodes: made.join("") || "none" }, view: view(cur), analogy: made.length ? `Follow existing signposts, put up ${made.map((c) => `'${c}'`).join(", ")}, flag the last letter.` : "Every signpost exists already; just plant the flag.", note: `insert("${w}").`,
+        ask: { q: `How many new nodes does "${w}" create?`, options: ["0", "1", "2", "3"], answer: made.length, why: "Only missing letters get nodes." } });
+    });
+    let cur = 0, ok = true;
+    steps.push({ line: ["search", "fstart"], vars: { query }, view: view(0), analogy: `Search "${query}": walk from the root.`, note: `search("${query}").` });
+    for (const ch of query) {
+      const nx = nodes[cur].kids[ch];
+      if (nx === undefined) { ok = false; steps.push({ line: ["floop", "fmiss"], vars: { ch }, view: view(cur, { [cur]: "bad" }), analogy: `No signpost '${ch}'.`, note: "Return None." }); break; }
+      cur = nx; steps.push({ line: ["floop", "fstep"], vars: { ch, is_end: nodes[cur].end }, view: view(cur), analogy: `Follow '${ch}'.`, note: `At '${ch}'.` });
+    }
+    const res = ok && (ignoreFlag || nodes[cur].end);
+    rows.push([`search("${query}")`, ok ? `walk ok, is_end = ${nodes[cur].end}` : "walk failed", res ? "True" : "False"]);
+    steps.push({ line: "sret", vars: { walk_ok: ok, is_end: ok ? nodes[cur].end : "—", result: res ? "True" : "False" }, view: view(cur, { [cur]: res && !nodes[cur].end ? "bad" : nodes[cur].end ? "found" : "warm" }),
+      analogy: ok && !nodes[cur].end ? (ignoreFlag ? `⚠ No flag at '${query.slice(-1)}', but the search says True.` : `The walk works but there's no flag: "${query}" is only a prefix.`) : res ? "Walk and flag: a word." : "Not found.", note: `Return <code>${res ? "True" : "False"}</code>.`,
+      ask: undefined });
+    return { steps, table: { head: ["Operation", "Detail", "Nodes / result"], rows } };
+  }
+
+  function tl19B(noTouch) {
+    let order = []; const map = new Map(), cap = 2, steps = [], rows = [], out = [];
+    const view = (hl) => Viz.chips(["head", ...order.map((k) => `${k}:${map.get(k)}`), "tail"], "line (least recent → most recent)") + Viz.chips([...map.keys()].map(String), "map keys") + `<p class="idx">results so far: ${out.join(" ") || "—"}</p>`;
+    steps.push({ line: "insert", vars: { capacity: cap }, view: view(), analogy: "An empty shelf for 2 books.", note: "head ⇄ tail only." });
+    const ops = [["put", 1, 1], ["put", 2, 2], ["get", 1], ["put", 3, 3], ["get", 2], ["put", 4, 4], ["get", 1], ["get", 3], ["get", 4]];
+    ops.forEach(([o, k, v]) => {
+      if (o === "get") {
+        if (!map.has(k)) { out.push(-1); rows.push([`get(${k})`, -1, order.join(" → ")]); steps.push({ line: "miss", vars: { key: k, result: -1 }, view: view(), analogy: `Book ${k} isn't on the shelf.`, note: "Return -1.", ask: undefined }); return; }
+        if (!noTouch) order = order.filter((x) => x !== k).concat([k]);
+        out.push(map.get(k)); rows.push([`get(${k})`, map.get(k), order.join(" → ")]);
+        steps.push({ line: noTouch ? "hit" : ["hit", "touch", "unlink", "append"], vars: { key: k, result: map.get(k), moved: !noTouch }, view: view(), analogy: noTouch ? `⚠ Read book ${k} but left it where it was.` : `Read book ${k}: it moves to the back of the line.`, note: `Return ${map.get(k)}.` });
+      } else {
+        if (map.has(k)) order = order.filter((x) => x !== k);
+        map.set(k, v); order.push(k); let ev = null;
+        if (map.size > cap) { ev = order.shift(); map.delete(ev); }
+        rows.push([`put(${k}, ${v})`, ev === null ? "—" : `evict ${ev}`, order.join(" → ")]);
+        steps.push({ line: ev === null ? ["insert", "append"] : ["insert", "append", "over", "evict", "unlink"], vars: { key: k, evicted: ev === null ? "none" : ev }, view: view(), analogy: ev === null ? `Book ${k} joins the back of the line.` : `Book ${k} joins; the shelf overflows and book ${ev} (front of the line) leaves.`, note: `put(${k}, ${v}).`,
+          ask: map.size >= cap && ev !== null ? { q: `put(${k}, ${v}) overflows. Which key is evicted?`, options: [...new Set([String(ev), ...order.map(String)])], answer: ev, why: "The least recently used: the front of the line." } : undefined });
+      }
+    });
+    steps.push({ line: "hit", vars: { results: out.join(" ") }, view: view(), analogy: `Results: ${out.join(" ")}.`, note: "Done." });
+    return { steps, table: { head: ["Operation", "Result / eviction", "Line after (LRU → MRU)"], rows } };
+  }
+
+  { const run = tl19A(['car', 'cat', 'cart'], 'ca', false);
+    Viz.tlab("#tl-19a", { title: "Template A \u00b7 insert car, cat, cart; search \"ca\"", sub: "Green = node with is_end (a flag); blue = current node.", code: {"py": [[null, "class TrieNode:"], [null, "    def __init__(self):"], [null, "        self.children = {}"], [null, "        self.is_end = False"], [null, ""], [null, ""], [null, "class Trie:"], [null, "    def __init__(self):"], [null, "        self.root = TrieNode()"], [null, ""], [null, "    def insert(self, word):"], ["istart", "        node = self.root"], ["iloop", "        for ch in word:"], ["inew", "            if ch not in node.children:"], ["inew", "                node.children[ch] = TrieNode()"], ["istep", "            node = node.children[ch]"], ["iend", "        node.is_end = True"], [null, ""], [null, "    def _find(self, text):"], ["fstart", "        node = self.root"], ["floop", "        for ch in text:"], ["fmiss", "            if ch not in node.children:"], ["fmiss", "                return None"], ["fstep", "            node = node.children[ch]"], ["fret", "        return node"], [null, ""], [null, "    def search(self, word):"], ["search", "        node = self._find(word)"], ["sret", "        return node is not None and node.is_end"], [null, ""], [null, "    def starts_with(self, prefix):"], ["pret", "        return self._find(prefix) is not None"]], "ts": [[null, "class TrieNode {"], [null, "  children = new Map<string, TrieNode>();"], [null, "  isEnd = false;"], [null, "}"], [null, ""], [null, "class Trie {"], [null, "  root = new TrieNode();"], [null, ""], [null, "  insert(word: string): void {"], ["istart", "    let node = this.root;"], ["iloop", "    for (const ch of word) {"], ["inew", "      if (!node.children.has(ch)) node.children.set(ch, new TrieNode());"], ["istep", "      node = node.children.get(ch)!;"], [null, "    }"], ["iend", "    node.isEnd = true;"], [null, "  }"], [null, ""], [null, "  private find(text: string): TrieNode | null {"], ["fstart", "    let node = this.root;"], ["floop", "    for (const ch of text) {"], ["fmiss", "      const next = node.children.get(ch);"], ["fmiss", "      if (!next) return null;"], ["fstep", "      node = next;"], [null, "    }"], ["fret", "    return node;"], [null, "  }"], [null, ""], [null, "  search(word: string): boolean {"], ["search", "    const node = this.find(word);"], ["sret", "    return node !== null && node.isEnd;"], [null, "  }"], [null, ""], [null, "  startsWith(prefix: string): boolean {"], ["pret", "    return this.find(prefix) !== null;"], [null, "  }"], [null, "}"]], "java": [[null, "static class TrieNode {"], [null, "    Map<Character, TrieNode> children = new HashMap<>();"], [null, "    boolean isEnd = false;"], [null, "}"], [null, ""], [null, "static class Trie {"], [null, "    TrieNode root = new TrieNode();"], [null, ""], [null, "    void insert(String word) {"], ["istart", "        TrieNode node = root;"], ["iloop", "        for (char ch : word.toCharArray()) {"], ["inew", "            node.children.putIfAbsent(ch, new TrieNode());"], ["istep", "            node = node.children.get(ch);"], [null, "        }"], ["iend", "        node.isEnd = true;"], [null, "    }"], [null, ""], [null, "    private TrieNode find(String text) {"], ["fstart", "        TrieNode node = root;"], ["floop", "        for (char ch : text.toCharArray()) {"], ["fstep", "            node = node.children.get(ch);"], ["fmiss", "            if (node == null) return null;"], [null, "        }"], ["fret", "        return node;"], [null, "    }"], [null, ""], [null, "    boolean search(String word) {"], ["search", "        TrieNode node = find(word);"], ["sret", "        return node != null && node.isEnd;"], [null, "    }"], [null, ""], [null, "    boolean startsWith(String prefix) {"], ["pret", "        return find(prefix) != null;"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-19a-table").innerHTML = TL.table(run.table); }
+  { const run = tl19A(['car', 'cat', 'cart'], 'ca', false);
+    Viz.tlab("#tl-19a-bug", { title: "Why check is_end \u00b7 search \"ca\"", sub: "Switch between the correct search and one that ignores the flag.", code: {"py": [[null, "class TrieNode:"], [null, "    def __init__(self):"], [null, "        self.children = {}"], [null, "        self.is_end = False"], [null, ""], [null, ""], [null, "class Trie:"], [null, "    def __init__(self):"], [null, "        self.root = TrieNode()"], [null, ""], [null, "    def insert(self, word):"], ["istart", "        node = self.root"], ["iloop", "        for ch in word:"], ["inew", "            if ch not in node.children:"], ["inew", "                node.children[ch] = TrieNode()"], ["istep", "            node = node.children[ch]"], ["iend", "        node.is_end = True"], [null, ""], [null, "    def _find(self, text):"], ["fstart", "        node = self.root"], ["floop", "        for ch in text:"], ["fmiss", "            if ch not in node.children:"], ["fmiss", "                return None"], ["fstep", "            node = node.children[ch]"], ["fret", "        return node"], [null, ""], [null, "    def search(self, word):"], ["search", "        node = self._find(word)"], ["sret", "        return node is not None and node.is_end"], [null, ""], [null, "    def starts_with(self, prefix):"], ["pret", "        return self._find(prefix) is not None"]], "ts": [[null, "class TrieNode {"], [null, "  children = new Map<string, TrieNode>();"], [null, "  isEnd = false;"], [null, "}"], [null, ""], [null, "class Trie {"], [null, "  root = new TrieNode();"], [null, ""], [null, "  insert(word: string): void {"], ["istart", "    let node = this.root;"], ["iloop", "    for (const ch of word) {"], ["inew", "      if (!node.children.has(ch)) node.children.set(ch, new TrieNode());"], ["istep", "      node = node.children.get(ch)!;"], [null, "    }"], ["iend", "    node.isEnd = true;"], [null, "  }"], [null, ""], [null, "  private find(text: string): TrieNode | null {"], ["fstart", "    let node = this.root;"], ["floop", "    for (const ch of text) {"], ["fmiss", "      const next = node.children.get(ch);"], ["fmiss", "      if (!next) return null;"], ["fstep", "      node = next;"], [null, "    }"], ["fret", "    return node;"], [null, "  }"], [null, ""], [null, "  search(word: string): boolean {"], ["search", "    const node = this.find(word);"], ["sret", "    return node !== null && node.isEnd;"], [null, "  }"], [null, ""], [null, "  startsWith(prefix: string): boolean {"], ["pret", "    return this.find(prefix) !== null;"], [null, "  }"], [null, "}"]], "java": [[null, "static class TrieNode {"], [null, "    Map<Character, TrieNode> children = new HashMap<>();"], [null, "    boolean isEnd = false;"], [null, "}"], [null, ""], [null, "static class Trie {"], [null, "    TrieNode root = new TrieNode();"], [null, ""], [null, "    void insert(String word) {"], ["istart", "        TrieNode node = root;"], ["iloop", "        for (char ch : word.toCharArray()) {"], ["inew", "            node.children.putIfAbsent(ch, new TrieNode());"], ["istep", "            node = node.children.get(ch);"], [null, "        }"], ["iend", "        node.isEnd = true;"], [null, "    }"], [null, ""], [null, "    private TrieNode find(String text) {"], ["fstart", "        TrieNode node = root;"], ["floop", "        for (char ch : text.toCharArray()) {"], ["fstep", "            node = node.children.get(ch);"], ["fmiss", "            if (node == null) return null;"], [null, "        }"], ["fret", "        return node;"], [null, "    }"], [null, ""], [null, "    boolean search(String word) {"], ["search", "        TrieNode node = find(word);"], ["sret", "        return node != null && node.isEnd;"], [null, "    }"], [null, ""], [null, "    boolean startsWith(String prefix) {"], ["pret", "        return find(prefix) != null;"], [null, "    }"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: ignore is_end", code: {"py": [[null, "class Trie:"], [null, "    def search(self, word):"], ["search", "        node = self._find(word)"], ["sret", "        return node is not None"]]}, steps: tl19A(['car', 'cat', 'cart'], 'ca', true).steps, diverge: undefined, why: "the walk ended on a node without a flag, but the search returns True anyway." } });
+     }
+  { const run = tl19B(false);
+    Viz.tlab("#tl-19b", { title: "Template B \u00b7 LRU cache, capacity 2", sub: "The line runs from least recent (left) to most recent (right).", code: {"py": [[null, "class Node:"], [null, "    def __init__(self, key, val):"], [null, "        self.key, self.val = key, val"], [null, "        self.prev = self.next = None"], [null, ""], [null, ""], [null, "class LRUCache:"], [null, "    def __init__(self, capacity):"], [null, "        self.capacity, self.map = capacity, {}"], [null, "        self.head, self.tail = Node(0, 0), Node(0, 0)   # bookends"], [null, "        self.head.next, self.tail.prev = self.tail, self.head"], [null, ""], [null, "    def _unlink(self, node):"], ["unlink", "        node.prev.next, node.next.prev = node.next, node.prev"], [null, ""], [null, "    def _append(self, node):                  # just before tail = most recent"], ["append", "        node.prev, node.next = self.tail.prev, self.tail"], ["append", "        self.tail.prev.next = node"], ["append", "        self.tail.prev = node"], [null, ""], [null, "    def get(self, key):"], ["miss", "        if key not in self.map:"], ["miss", "            return -1"], ["hit", "        node = self.map[key]"], ["touch", "        self._unlink(node)"], ["touch", "        self._append(node)"], ["hit", "        return node.val"], [null, ""], [null, "    def put(self, key, val):"], ["replace", "        if key in self.map:"], ["replace", "            self._unlink(self.map[key])"], ["insert", "        node = Node(key, val)"], ["insert", "        self.map[key] = node"], ["insert", "        self._append(node)"], ["over", "        if len(self.map) > self.capacity:"], ["evict", "            lru = self.head.next"], ["evict", "            self._unlink(lru)"], ["evict", "            del self.map[lru.key]"]], "ts": [[null, "class DNode {"], [null, "  key: number; val: number;"], [null, "  prev: DNode | null = null; next: DNode | null = null;"], [null, "  constructor(key: number, val: number) { this.key = key; this.val = val; }"], [null, "}"], [null, ""], [null, "class LRUCache {"], [null, "  capacity: number;"], [null, "  map = new Map<number, DNode>();"], [null, "  head = new DNode(0, 0); tail = new DNode(0, 0);       // bookends"], [null, "  constructor(capacity: number) {"], [null, "    this.capacity = capacity;"], [null, "    this.head.next = this.tail; this.tail.prev = this.head;"], [null, "  }"], [null, ""], [null, "  private unlink(node: DNode): void {"], ["unlink", "    node.prev!.next = node.next; node.next!.prev = node.prev;"], [null, "  }"], [null, ""], [null, "  private append(node: DNode): void {"], ["append", "    node.prev = this.tail.prev; node.next = this.tail;"], ["append", "    this.tail.prev!.next = node;"], ["append", "    this.tail.prev = node;"], [null, "  }"], [null, ""], [null, "  get(key: number): number {"], ["hit", "    const node = this.map.get(key);"], ["miss", "    if (!node) return -1;"], ["touch", "    this.unlink(node);"], ["touch", "    this.append(node);"], ["hit", "    return node.val;"], [null, "  }"], [null, ""], [null, "  put(key: number, val: number): void {"], ["replace", "    const old = this.map.get(key);"], ["replace", "    if (old) this.unlink(old);"], ["insert", "    const node = new DNode(key, val);"], ["insert", "    this.map.set(key, node);"], ["insert", "    this.append(node);"], ["over", "    if (this.map.size > this.capacity) {"], ["evict", "      const lru = this.head.next!;"], ["evict", "      this.unlink(lru);"], ["evict", "      this.map.delete(lru.key);"], [null, "    }"], [null, "  }"], [null, "}"]], "java": [[null, "static class DNode {"], [null, "    int key, val; DNode prev, next;"], [null, "    DNode(int key, int val) { this.key = key; this.val = val; }"], [null, "}"], [null, ""], [null, "static class LRUCache {"], [null, "    private final int capacity;"], [null, "    private final Map<Integer, DNode> map = new HashMap<>();"], [null, "    private final DNode head = new DNode(0, 0), tail = new DNode(0, 0); // bookends"], [null, ""], [null, "    LRUCache(int capacity) {"], [null, "        this.capacity = capacity;"], [null, "        head.next = tail; tail.prev = head;"], [null, "    }"], [null, ""], [null, "    private void unlink(DNode node) {"], ["unlink", "        node.prev.next = node.next; node.next.prev = node.prev;"], [null, "    }"], [null, ""], [null, "    private void append(DNode node) {"], ["append", "        node.prev = tail.prev; node.next = tail;"], ["append", "        tail.prev.next = node;"], ["append", "        tail.prev = node;"], [null, "    }"], [null, ""], [null, "    int get(int key) {"], ["hit", "        DNode node = map.get(key);"], ["miss", "        if (node == null) return -1;"], ["touch", "        unlink(node);"], ["touch", "        append(node);"], ["hit", "        return node.val;"], [null, "    }"], [null, ""], [null, "    void put(int key, int val) {"], ["replace", "        DNode old = map.get(key);"], ["replace", "        if (old != null) unlink(old);"], ["insert", "        DNode node = new DNode(key, val);"], ["insert", "        map.put(key, node);"], ["insert", "        append(node);"], ["over", "        if (map.size() > capacity) {"], ["evict", "            DNode lru = head.next;"], ["evict", "            unlink(lru);"], ["evict", "            map.remove(lru.key);"], [null, "        }"], [null, "    }"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-19b-table").innerHTML = TL.table(run.table); }
+  { const run = tl19B(false);
+    Viz.tlab("#tl-19b-bug", { title: "Why get must move the key", sub: "Switch between the correct get and one that doesn't move the key.", code: {"py": [[null, "class Node:"], [null, "    def __init__(self, key, val):"], [null, "        self.key, self.val = key, val"], [null, "        self.prev = self.next = None"], [null, ""], [null, ""], [null, "class LRUCache:"], [null, "    def __init__(self, capacity):"], [null, "        self.capacity, self.map = capacity, {}"], [null, "        self.head, self.tail = Node(0, 0), Node(0, 0)   # bookends"], [null, "        self.head.next, self.tail.prev = self.tail, self.head"], [null, ""], [null, "    def _unlink(self, node):"], ["unlink", "        node.prev.next, node.next.prev = node.next, node.prev"], [null, ""], [null, "    def _append(self, node):                  # just before tail = most recent"], ["append", "        node.prev, node.next = self.tail.prev, self.tail"], ["append", "        self.tail.prev.next = node"], ["append", "        self.tail.prev = node"], [null, ""], [null, "    def get(self, key):"], ["miss", "        if key not in self.map:"], ["miss", "            return -1"], ["hit", "        node = self.map[key]"], ["touch", "        self._unlink(node)"], ["touch", "        self._append(node)"], ["hit", "        return node.val"], [null, ""], [null, "    def put(self, key, val):"], ["replace", "        if key in self.map:"], ["replace", "            self._unlink(self.map[key])"], ["insert", "        node = Node(key, val)"], ["insert", "        self.map[key] = node"], ["insert", "        self._append(node)"], ["over", "        if len(self.map) > self.capacity:"], ["evict", "            lru = self.head.next"], ["evict", "            self._unlink(lru)"], ["evict", "            del self.map[lru.key]"]], "ts": [[null, "class DNode {"], [null, "  key: number; val: number;"], [null, "  prev: DNode | null = null; next: DNode | null = null;"], [null, "  constructor(key: number, val: number) { this.key = key; this.val = val; }"], [null, "}"], [null, ""], [null, "class LRUCache {"], [null, "  capacity: number;"], [null, "  map = new Map<number, DNode>();"], [null, "  head = new DNode(0, 0); tail = new DNode(0, 0);       // bookends"], [null, "  constructor(capacity: number) {"], [null, "    this.capacity = capacity;"], [null, "    this.head.next = this.tail; this.tail.prev = this.head;"], [null, "  }"], [null, ""], [null, "  private unlink(node: DNode): void {"], ["unlink", "    node.prev!.next = node.next; node.next!.prev = node.prev;"], [null, "  }"], [null, ""], [null, "  private append(node: DNode): void {"], ["append", "    node.prev = this.tail.prev; node.next = this.tail;"], ["append", "    this.tail.prev!.next = node;"], ["append", "    this.tail.prev = node;"], [null, "  }"], [null, ""], [null, "  get(key: number): number {"], ["hit", "    const node = this.map.get(key);"], ["miss", "    if (!node) return -1;"], ["touch", "    this.unlink(node);"], ["touch", "    this.append(node);"], ["hit", "    return node.val;"], [null, "  }"], [null, ""], [null, "  put(key: number, val: number): void {"], ["replace", "    const old = this.map.get(key);"], ["replace", "    if (old) this.unlink(old);"], ["insert", "    const node = new DNode(key, val);"], ["insert", "    this.map.set(key, node);"], ["insert", "    this.append(node);"], ["over", "    if (this.map.size > this.capacity) {"], ["evict", "      const lru = this.head.next!;"], ["evict", "      this.unlink(lru);"], ["evict", "      this.map.delete(lru.key);"], [null, "    }"], [null, "  }"], [null, "}"]], "java": [[null, "static class DNode {"], [null, "    int key, val; DNode prev, next;"], [null, "    DNode(int key, int val) { this.key = key; this.val = val; }"], [null, "}"], [null, ""], [null, "static class LRUCache {"], [null, "    private final int capacity;"], [null, "    private final Map<Integer, DNode> map = new HashMap<>();"], [null, "    private final DNode head = new DNode(0, 0), tail = new DNode(0, 0); // bookends"], [null, ""], [null, "    LRUCache(int capacity) {"], [null, "        this.capacity = capacity;"], [null, "        head.next = tail; tail.prev = head;"], [null, "    }"], [null, ""], [null, "    private void unlink(DNode node) {"], ["unlink", "        node.prev.next = node.next; node.next.prev = node.prev;"], [null, "    }"], [null, ""], [null, "    private void append(DNode node) {"], ["append", "        node.prev = tail.prev; node.next = tail;"], ["append", "        tail.prev.next = node;"], ["append", "        tail.prev = node;"], [null, "    }"], [null, ""], [null, "    int get(int key) {"], ["hit", "        DNode node = map.get(key);"], ["miss", "        if (node == null) return -1;"], ["touch", "        unlink(node);"], ["touch", "        append(node);"], ["hit", "        return node.val;"], [null, "    }"], [null, ""], [null, "    void put(int key, int val) {"], ["replace", "        DNode old = map.get(key);"], ["replace", "        if (old != null) unlink(old);"], ["insert", "        DNode node = new DNode(key, val);"], ["insert", "        map.put(key, node);"], ["insert", "        append(node);"], ["over", "        if (map.size() > capacity) {"], ["evict", "            DNode lru = head.next;"], ["evict", "            unlink(lru);"], ["evict", "            map.remove(lru.key);"], [null, "        }"], [null, "    }"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: get doesn't move the key", code: {"py": [[null, "class LRUCache:"], [null, "    def get(self, key):"], ["miss", "        if key not in self.map:"], ["miss", "            return -1"], ["hit", "        node = self.map[key]"], ["hit", "        return node.val"]]}, steps: tl19B(true).steps, diverge: undefined, why: "key 1 was just used, but it stays at the front of the line." } });
+     }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>

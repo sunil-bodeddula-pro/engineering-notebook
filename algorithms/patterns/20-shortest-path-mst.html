@@ -2313,61 +2313,185 @@ svg.flow .fn { transition: opacity .35s ease; }
     <p><strong>Cost:</strong> <code>O(E log E)</code> time with a binary heap and lazy deletion, <code>O(V + E)</code> space. On a complete graph of <code>n</code> points, Prim is <code>O(n² log n)</code> with a heap, or <code>O(n²)</code> with a simple array.</p>
 
     <!-- 5 -->
-    <h2 id="template">5. The Python template (memorize this)</h2>
+    <h2 id="template">5. The templates, step by step (Python, TypeScript, Java)</h2>
+    <p>Both templates grow a set of "finished" nodes using a min-heap, and both use the <em>lazy</em> trick: push duplicates freely, and skip any entry whose node is already finished when it's popped. <strong>A</strong> (Dijkstra) orders the heap by <em>total distance from the start</em>, giving shortest paths with non-negative weights. <strong>B</strong> (Prim) orders it by <em>the single edge's cost</em>, growing a minimum spanning tree. Same loop, one different number in the heap.</p><details><summary><strong>TypeScript has no built-in heap.</strong> The TypeScript templates on this page use this small <code>MinHeap</code> class (Python has <code>heapq</code>, Java has <code>PriorityQueue</code>).</summary>
+<pre><code class="typescript">class MinHeap&lt;T&gt; {
+  items: T[] = [];
+  less: (x: T, y: T) =&gt; boolean;
+  constructor(less: (x: T, y: T) =&gt; boolean) { this.less = less; }
+  get size(): number { return this.items.length; }
+  peek(): T | undefined { return this.items[0]; }
+  push(x: T): void {
+    const a = this.items;
+    a.push(x);
+    for (let i = a.length - 1; i &gt; 0; ) {            // bubble up
+      const p = (i - 1) &gt;&gt; 1;
+      if (!this.less(a[i], a[p])) break;
+      [a[i], a[p]] = [a[p], a[i]];
+      i = p;
+    }
+  }
+  pop(): T | undefined {
+    const a = this.items, top = a[0], last = a.pop()!;
+    if (a.length &gt; 0) {
+      a[0] = last;
+      for (let i = 0; ; ) {                            // sink down
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l &lt; a.length &amp;&amp; this.less(a[l], a[m])) m = l;
+        if (r &lt; a.length &amp;&amp; this.less(a[r], a[m])) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+}</code></pre>
+<p>Pass a "less than" function: <code>new MinHeap&lt;number&gt;((a, b) =&gt; a &lt; b)</code> is a min-heap, <code>(a, b) =&gt; a &gt; b</code> a max-heap. Push and pop are O(log n), peek is O(1).</p></details>
+
+    <section class="tmpl" id="tmpl-a">
+    <h3>Template A · Dijkstra (shortest paths, non-negative weights)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Shortest distance from <code>start</code> to every node when edges have non-negative weights.</div><div><b>What it keeps</b>A min-heap of (distance so far, node); <code>dist</code> for finished nodes.</div><div><b>When it checks for an answer</b>A node is finished the first time it's popped; later (stale) entries for it are skipped.</div><div><b>Use it when</b>Network delay (LC 743), cheapest path with weights, path with minimum effort (LC 1631, on a grid).</div><div><b>Not for</b>Negative weights (Bellman-Ford); unweighted graphs (BFS, page 12, is simpler).</div></div>
+    <div class="callout memory"><strong>Memory hook: "Always settle the closest unsettled town next"</strong>Planning trips from home: of all towns you know a route to, the closest one can't get any closer (every other route is already longer and weights aren't negative), so settle it and look at its roads. Repeat.</div>
+    <p><strong>The story, mapped to the code.</strong> Nodes are towns; weights are road lengths.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Known routes, closest first</td><td data-h="In the code"><code>heap of (d, node)</code></td><td data-h="What it means">Min-heap by total distance.</td></tr><tr><td data-h="In the story">Settle the closest</td><td data-h="In the code"><code>d, node = heappop(heap)</code></td><td data-h="What it means">Its distance is final.</td></tr><tr><td data-h="In the story">Already settled</td><td data-h="In the code"><code>if node in dist: continue</code></td><td data-h="What it means">A stale, longer route: skip.</td></tr><tr><td data-h="In the story">Write it down</td><td data-h="In the code"><code>dist[node] = d</code></td><td data-h="What it means">Final.</td></tr><tr><td data-h="In the story">Offer longer routes</td><td data-h="In the code"><code>heappush(heap, (d + w, nbr))</code></td><td data-h="What it means">Through this town.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Lazy Dijkstra: no decrease-key, just skip stale entries.</p>
     <pre><code class="python">import heapq
 
-# A) Dijkstra: shortest distance from start to every node (weights >= 0)
 def dijkstra(graph, start):
-    dist = {}                               # node -> final shortest distance
+    dist = {}
     heap = [(0, start)]
     while heap:
         d, node = heapq.heappop(heap)
         if node in dist:
-            continue                        # stale entry: already settled
+            continue
         dist[node] = d
-        for nbr, w in graph.get(node, []):
+        for nbr, w in graph[node]:
             if nbr not in dist:
-                heapq.heappush(heap, (d + w, nbr))    # TOTAL distance
-    return dist
+                heapq.heappush(heap, (d + w, nbr))
+    return dist</code></pre>
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function dijkstra(graph: number[][][], start: number): Map&lt;number, number&gt; {
+  const dist = new Map&lt;number, number&gt;();
+  const heap = new MinHeap&lt;number[]&gt;((a, b) =&gt; a[0] &lt; b[0]);
+  heap.push([0, start]);
+  while (heap.size &gt; 0) {
+    const [d, node] = heap.pop()!;
+    if (dist.has(node)) continue;
+    dist.set(node, d);
+    for (const [nbr, w] of graph[node]) {
+      if (!dist.has(nbr)) heap.push([d + w, nbr]);
+    }
+  }
+  return dist;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static Map&lt;Integer, Integer&gt; dijkstra(List&lt;List&lt;int[]&gt;&gt; graph, int start) {
+    Map&lt;Integer, Integer&gt; dist = new HashMap&lt;&gt;();
+    PriorityQueue&lt;int[]&gt; heap = new PriorityQueue&lt;&gt;((a, b) -&gt; Integer.compare(a[0], b[0]));
+    heap.offer(new int[]{0, start});
+    while (!heap.isEmpty()) {
+        int[] top = heap.poll();
+        int d = top[0], node = top[1];
+        if (dist.containsKey(node)) continue;
+        dist.put(node, d);
+        for (int[] e : graph.get(node)) {
+            if (!dist.containsKey(e[0])) heap.offer(new int[]{d + e[1], e[0]});
+        }
+    }
+    return dist;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>d, node = heapq.heappop(heap)</code></td><td data-h="What it does">The closest known route.</td><td data-h="In the story">Settle the closest town.</td><td data-h="Why here, and what breaks if it moves">A FIFO queue here gives wrong answers with weights.</td></tr><tr><td data-h="Line"><code>if node in dist: continue</code></td><td data-h="What it does">Skips stale entries.</td><td data-h="In the story">Already settled: this route is longer.</td><td data-h="Why here, and what breaks if it moves">Without it, a stale entry overwrites the true distance (see the bug player).</td></tr><tr><td data-h="Line"><code>dist[node] = d</code></td><td data-h="What it does">Final distance.</td><td data-h="In the story">Write it down.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>heapq.heappush(heap, (d + w, nbr))</code></td><td data-h="What it does">Offers a route through node.</td><td data-h="In the story">Longer routes via this town.</td><td data-h="Why here, and what breaks if it moves">Pushing <code>(w, nbr)</code> is Prim, not Dijkstra.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Step through the graph from node 0. The second player removes the stale-entry check.</p>
+    <div id="tl-20a"></div><div id="tl-20a-bug"></div><p>Node 1 is first settled at 3 (via 2). Its older entry (4, 1) is popped later; without the skip it overwrites dist[1] with 4 and pushes worse routes: the result is <code>[0, 4, 1, 6, 9]</code> instead of <code>[0, 3, 1, 4, 7]</code>.</p>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-20a-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> Nodes are settled in non-decreasing order of distance; when a node is popped for the first time, its distance is the shortest possible (requires weights ≥ 0).</p>
+    <p><strong>Complexity.</strong> O(m log m) time (each edge may push one entry), O(n + m) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Negative weights.</strong> The "closest can't get closer" argument fails.</li><li><strong>No stale check.</strong> Settle each node once.</li><li><strong>Pushing edge weight instead of total.</strong> Heap key = distance from start.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Always settle the closest unsettled town next.</dd>
+      <dt>Choose this template when</dt><dd>Weighted shortest path, non-negative → Dijkstra.</dd>
+      <dt>Invariant</dt><dd>First pop = final distance.</dd>
+      <dt>The line people get wrong</dt><dd><code>if node in dist: continue</code>.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>dist to 4 in the example?</summary><p>7 (0→2→1→3→4).</p></details><details><summary>Why is the first pop final?</summary><p>Every other route is already at least as long; weights can't shrink it.</p></details><details><summary>Grid version?</summary><p>Same loop; neighbours are the 4 cells.</p></details>
+    </div>
+    </section>
+    <section class="tmpl" id="tmpl-b">
+    <h3>Template B · Prim (minimum spanning tree)</h3>
+    <div class="tmpl-facts"><div><b>The question it answers</b>Cheapest set of edges that connects all n nodes (total cost).</div><div><b>What it keeps</b>A min-heap of (edge cost, node); <code>in_tree</code>.</div><div><b>When it checks for an answer</b>A popped node already in the tree is skipped; otherwise its edge joins the tree.</div><div><b>Use it when</b>Min cost to connect points (LC 1584), network cabling, dense graphs.</div><div><b>Not for</b>Shortest paths (A). For sparse edge lists, Kruskal + Union-Find (page 23) is often simpler.</div></div>
+    <div class="callout memory"><strong>Memory hook: "Grow the island by its cheapest bridge"</strong>Building bridges from an island: of all bridges that would connect a new town, build the cheapest. The island grows by one town each time. Bridges to towns already on the island are skipped.</div>
+    <p><strong>The story, mapped to the code.</strong> The tree is an island growing from node 0.</p>
+    <table><thead><tr><th>In the story</th><th>In the code</th><th>What it means</th></tr></thead><tbody><tr><td data-h="In the story">Bridges off the island</td><td data-h="In the code"><code>heap of (cost, node)</code></td><td data-h="What it means">Cheapest first.</td></tr><tr><td data-h="In the story">Already on the island</td><td data-h="In the code"><code>if node in in_tree: continue</code></td><td data-h="What it means">Skip.</td></tr><tr><td data-h="In the story">Build the bridge</td><td data-h="In the code"><code>in_tree.add(node); total += cost</code></td><td data-h="What it means">Grow by one.</td></tr><tr><td data-h="In the story">New bridges</td><td data-h="In the code"><code>heappush(heap, (cost, nbr))</code></td><td data-h="What it means">Single edge cost, not a total.</td></tr></tbody></table>
+    <p><strong>The template.</strong> Same loop as Dijkstra; the heap key is the edge cost alone.</p>
+    <pre><code class="python">import heapq
 
-
-# B) Prim: total weight of a minimum spanning tree
-def prim(n, edges_of):
-    in_tree = set()
-    heap = [(0, 0)]                         # (edge weight, node); node 0 joins for free
-    total = 0
-    while len(in_tree) < n:
-        w, node = heapq.heappop(heap)
+def prim(n, graph):
+    in_tree, total = set(), 0
+    heap = [(0, 0)]
+    while len(in_tree) &lt; n:
+        cost, node = heapq.heappop(heap)
         if node in in_tree:
             continue
         in_tree.add(node)
-        total = total + w
-        for nbr, cost in edges_of(node):
+        total += cost
+        for nbr, w in graph[node]:
             if nbr not in in_tree:
-                heapq.heappush(heap, (cost, nbr))     # just the EDGE weight
+                heapq.heappush(heap, (w, nbr))
     return total</code></pre>
-<!-- explain-20:template -->
-<p><strong>What the code is doing, line by line:</strong></p>
-<ol>
-  <li><code>heapq</code> keeps the smallest tuple at <code>heap[0]</code>; tuples compare by their first item, so the cheapest entry is popped first.</li>
-  <li><code>if node in dist: continue</code>: a node may be pushed several times with different values. The first pop is the smallest, so later ones are stale. Skipping them is called <em>lazy deletion</em>.</li>
-  <li><strong>Dijkstra</strong> settles a node the first time it is popped: with non-negative weights, any other route would go through something at least as far away, so it can't be shorter.</li>
-  <li><code>(d + w, nbr)</code> vs <code>(cost, nbr)</code>: the one-character difference between the algorithms. Dijkstra cares about the whole route from the start; Prim only about the edge that attaches the next node to the tree.</li>
-  <li><strong>Prim</strong> stops when all <code>n</code> nodes are in the tree; it then contains exactly <code>n − 1</code> edges.</li>
-</ol>
-<p><strong>Dry run</strong> of template A on the graph <code>A→B (4)</code>, <code>A→C (1)</code>, <code>C→B (2)</code>, <code>B→D (1)</code>, start <code>A</code>:</p>
-<table>
-  <thead><tr><th>pop</th><th>action</th><th>pushed</th></tr></thead>
-  <tbody>
-    <tr><td>(0, A)</td><td>settle A = 0</td><td>(4, B), (1, C)</td></tr>
-    <tr><td>(1, C)</td><td>settle C = 1</td><td>(3, B)</td></tr>
-    <tr><td>(3, B)</td><td>settle B = 3 (not 4: the route through C is cheaper)</td><td>(4, D)</td></tr>
-    <tr><td>(4, B)</td><td>stale, B already settled → skip</td><td>—</td></tr>
-    <tr><td>(4, D)</td><td>settle D = 4</td><td>—</td></tr>
-  </tbody>
-</table>
-<p>A BFS would have reached B "first" through the direct edge with cost 4; Dijkstra correctly finds 3.</p>
-<!-- /explain-20:template -->
+<div class="lang-alts" hidden><div class="lang-alt" data-lang="ts"><pre><code class="typescript">function prim(n: number, graph: number[][][]): number {
+  const inTree = new Set&lt;number&gt;();
+  let total = 0;
+  const heap = new MinHeap&lt;number[]&gt;((a, b) =&gt; a[0] &lt; b[0]);
+  heap.push([0, 0]);
+  while (inTree.size &lt; n) {
+    const [cost, node] = heap.pop()!;
+    if (inTree.has(node)) continue;
+    inTree.add(node);
+    total += cost;
+    for (const [nbr, w] of graph[node]) {
+      if (!inTree.has(nbr)) heap.push([w, nbr]);
+    }
+  }
+  return total;
+}</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">static int prim(int n, List&lt;List&lt;int[]&gt;&gt; graph) {
+    Set&lt;Integer&gt; inTree = new HashSet&lt;&gt;();
+    int total = 0;
+    PriorityQueue&lt;int[]&gt; heap = new PriorityQueue&lt;&gt;((a, b) -&gt; Integer.compare(a[0], b[0]));
+    heap.offer(new int[]{0, 0});
+    while (inTree.size() &lt; n) {
+        int[] top = heap.poll();
+        int cost = top[0], node = top[1];
+        if (inTree.contains(node)) continue;
+        inTree.add(node);
+        total += cost;
+        for (int[] e : graph.get(node)) {
+            if (!inTree.contains(e[0])) heap.offer(new int[]{e[1], e[0]});
+        }
+    }
+    return total;
+}</code></pre></div></div>
+    <p><strong>Line by line.</strong></p>
+    <table class="tl-lbl"><thead><tr><th>Line</th><th>What it does</th><th>In the story</th><th>Why here, and what breaks if it moves</th></tr></thead><tbody><tr><td data-h="Line"><code>heap = [(0, 0)]</code></td><td data-h="What it does">Start the island at node 0 with a free "bridge".</td><td data-h="In the story">The first town costs nothing.</td><td data-h="Why here, and what breaks if it moves">—</td></tr><tr><td data-h="Line"><code>if node in in_tree: continue</code></td><td data-h="What it does">Skips bridges to towns already joined.</td><td data-h="In the story">Already on the island.</td><td data-h="Why here, and what breaks if it moves">Without it, cycles add extra cost.</td></tr><tr><td data-h="Line"><code>heapq.heappush(heap, (w, nbr))</code></td><td data-h="What it does">Key = this edge's cost only.</td><td data-h="In the story">A bridge's own price.</td><td data-h="Why here, and what breaks if it moves">Pushing <code>total + w</code> turns it into Dijkstra and no longer finds the MST.</td></tr><tr><td data-h="Line"><code>while len(in_tree) &lt; n</code></td><td data-h="What it does">Stops when every node is in.</td><td data-h="In the story">All towns connected.</td><td data-h="Why here, and what breaks if it moves">A disconnected graph empties the heap first: check for that.</td></tr></tbody></table>
+    <p><strong>Watch it run.</strong> Same graph as A. Compare which edges each template picks.</p>
+    <div id="tl-20b"></div>
+    <p><strong>Dry run</strong> (generated from the same trace as the first player above):</p>
+    <div id="tl-20b-table" class="no-gl"></div>
+    <p><strong>Invariant.</strong> The chosen edges always form a tree on <code>in_tree</code>, and the cheapest edge leaving that tree is always in some MST (cut property).</p>
+    <p><strong>Complexity.</strong> O(m log m) time, O(n + m) space.</p>
+    <p><strong>Mistakes this template invites:</strong></p>
+    <ul><li><strong>Pushing total distance.</strong> Prim compares single edges.</li><li><strong>Disconnected input.</strong> Detect an empty heap before all nodes are in.</li></ul>
+    <div class="recall"><strong>Recall card</strong><dl>
+      <dt>Memory hook</dt><dd>Grow the island by its cheapest bridge.</dd>
+      <dt>Choose this template when</dt><dd>Connect everything as cheaply as possible → MST (Prim or Kruskal).</dd>
+      <dt>Invariant</dt><dd>Chosen edges form a tree; cheapest crossing edge is safe.</dd>
+      <dt>The line people get wrong</dt><dd>Heap key = edge weight.</dd></dl>
+      <p><strong>Three quick questions</strong> (answer before opening):</p><details><summary>MST total for the example?</summary><p>7: edges 0–2 (1), 2–1 (2), 1–3 (1), 3–4 (3).</p></details><details><summary>Difference from Dijkstra in one line?</summary><p>Push w instead of d + w.</p></details><details><summary>Kruskal?</summary><p>Sort edges, add if Union-Find says they join two components.</p></details>
+    </div>
+    </section>
+    <h3 id="tmpl-compare">Choosing between the templates</h3>
+    <table><thead><tr><th>Question</th><th>A · Dijkstra</th><th>B · Prim</th></tr></thead><tbody><tr><td data-h="Question">Heap key</td><td data-h="A · Dijkstra">Distance from start (d + w)</td><td data-h="B · Prim">Single edge weight (w)</td></tr><tr><td data-h="Question">Produces</td><td data-h="A · Dijkstra">Shortest distance to every node</td><td data-h="B · Prim">Minimum spanning tree (total)</td></tr><tr><td data-h="Question">Same loop?</td><td data-h="A · Dijkstra">Pop, skip finished, finish, push neighbours</td><td data-h="B · Prim">Identical</td></tr><tr><td data-h="Question">Needs</td><td data-h="A · Dijkstra">Non-negative weights</td><td data-h="B · Prim">Connected, undirected graph</td></tr><tr><td data-h="Question">Typical prompt</td><td data-h="A · Dijkstra">LC 743, 1631, 787 (with stops)</td><td data-h="B · Prim">LC 1584, 1135</td></tr><tr><td data-h="Question">Time</td><td data-h="A · Dijkstra">O(m log m)</td><td data-h="B · Prim">O(m log m)</td></tr></tbody></table>
+    <p>On the example both settle the same nodes but for different reasons: Dijkstra's distance to 4 is 7 (a path), Prim's total is also 7 (a tree) — a coincidence of this graph. The single changed number in the push is the whole difference.</p>
 
     <!-- 6 -->
     <h2 id="remember">6. How to remember it forever</h2>
@@ -5299,5 +5423,58 @@ You cannot take path 0 -&gt; 1 -&gt; 2 -&gt; 5 since it would take too long.</sp
   })();
 })();
 </script>
+<!-- tlab-js:start -->
+<script>
+(function () {
+  const TL = {
+    table: (t) => `<table><thead><tr>${t.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+    map: (m) => "{" + [...m.entries()].map(([k, v]) => `${k}: ${v}`).join(", ") + "}",
+  };
+
+  class TLHeap {
+    constructor(less) { this.a = []; this.less = less; }
+    push(x) { const a = this.a; a.push(x); for (let i = a.length - 1; i > 0;) { const p = (i - 1) >> 1; if (!this.less(a[i], a[p])) break; [a[i], a[p]] = [a[p], a[i]]; i = p; } }
+    pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; for (let i = 0; ;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && this.less(a[l], a[m])) m = l; if (r < a.length && this.less(a[r], a[m])) m = r; if (m === i) break; [a[i], a[m]] = [a[m], a[i]]; i = m; } } return top; }
+    get size() { return this.a.length; }
+  }
+
+  function tl20(edges, mode, noSkip) {
+    const n = 5, g = Array.from({ length: n }, () => []); edges.forEach(([a, b, w]) => { g[a].push([b, w]); g[b].push([a, w]); });
+    const P = [[50, 100], [200, 40], [200, 160], [340, 100], [470, 100]];
+    const done = {}, chosen = {}, h = new TLHeap((a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])), steps = [], rows = []; let total = 0;
+    const view = (cur) => Viz.graph(P.map(([x, y], i) => ({ id: i, x, y, label: done[i] !== undefined && mode === "dijkstra" ? `${i}·${done[i]}` : String(i) })), edges.map(([a, b]) => [a, b]),
+        { hl: Object.assign(Object.fromEntries(Object.keys(done).map((k) => [k, "found"])), cur !== undefined ? { [cur]: noSkip && done[cur] !== undefined ? "bad" : "active" } : {}), edgeHl: chosen, width: 520, height: 200 })
+      + `<p class="idx">${edges.map(([a, b, w]) => `${a}–${b}: ${w}`).join(" · ")}</p>` + Viz.chips([...h.a].sort((x, y) => x[0] - y[0]).map(([d, v]) => `(${d}, ${v})`), "heap (key, node)");
+    h.push([0, 0, -1]);
+    steps.push({ line: "init", vars: {}, view: view(), analogy: mode === "dijkstra" ? "Only home (0) is known, at distance 0." : "The island starts at node 0.", note: "Heap = [(0, 0)]." });
+    while (h.size && (mode === "dijkstra" || Object.keys(done).length < n)) {
+      const [d, u, src] = h.pop();
+      if (done[u] !== undefined && !noSkip) { rows.push([`(${d}, ${u})`, "stale: skip", "—"]); steps.push({ line: ["pop", "stale"], vars: { popped: `(${d}, ${u})` }, view: view(u), analogy: `(${d}, ${u}) is stale: ${u} is already ${mode === "dijkstra" ? "settled at " + done[u] : "on the island"}.`, note: "<code>continue</code>." }); continue; }
+      const wasDone = done[u];
+      done[u] = d; if (mode === "prim") total += d; if (src >= 0 && wasDone === undefined) chosen[src + "-" + u] = "active";
+      const pushed = [];
+      g[u].forEach(([v, w]) => { if (done[v] === undefined) { const key = mode === "dijkstra" ? d + w : w; h.push([key, v, u]); pushed.push(`(${key}, ${v})`); } });
+      rows.push([`(${d}, ${u})`, mode === "dijkstra" ? `dist[${u}] = ${d}` : `add ${u}, total ${total}`, pushed.join(" ") || "—"]);
+      steps.push({ line: ["loop", "pop", "stale", "settle", "edges", "push"], vars: mode === "dijkstra" ? { node: u, [`dist[${u}]`]: d, pushed: pushed.join(" ") || "none" } : { node: u, edge_cost: d, total, pushed: pushed.join(" ") || "none" }, view: view(u),
+        analogy: noSkip && wasDone !== undefined ? `⚠ ${u} was already settled at ${wasDone}; this older entry overwrites it with ${d}.` : mode === "dijkstra" ? `Settle ${u} at distance ${d}; offer routes through it.` : `Bridge to ${u} costs ${d}; total ${total}.`, note: pushed.length ? `Push ${pushed.join(", ")}.` : "No new entries.",
+        ask: h.size ? { q: "Which entry is popped next?", options: [...new Set([...h.a].sort((x, y) => x[0] - y[0]).slice(0, 3).map(([a, b]) => `(${a}, ${b})`))], answer: (() => { const m = [...h.a].sort((x, y) => x[0] - y[0])[0]; return `(${m[0]}, ${m[1]})`; })(), why: "The smallest key." } : undefined });
+    }
+    const res = mode === "dijkstra" ? "[" + [0, 1, 2, 3, 4].map((i) => done[i]).join(", ") + "]" : total;
+    steps.push({ line: "ret", vars: { result: res }, view: view(), analogy: mode === "dijkstra" ? `Distances: ${res}.` : `MST total: ${total}.`, note: `Return <code>${res}</code>.` });
+    return { steps, table: { head: ["Popped (key, node)", "Action", "Pushed"], rows } };
+  }
+
+  { const run = tl20([[0, 1, 4], [0, 2, 1], [1, 2, 2], [1, 3, 1], [2, 3, 5], [3, 4, 3]], 'dijkstra', false);
+    Viz.tlab("#tl-20a", { title: "Template A \u00b7 Dijkstra from 0", sub: "Edge labels are weights. Green = settled (number = distance); chips = the heap.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def dijkstra(graph, start):"], ["init", "    dist = {}"], ["init", "    heap = [(0, start)]"], ["loop", "    while heap:"], ["pop", "        d, node = heapq.heappop(heap)"], ["stale", "        if node in dist:"], ["stale", "            continue"], ["settle", "        dist[node] = d"], ["edges", "        for nbr, w in graph[node]:"], ["push", "            if nbr not in dist:"], ["push", "                heapq.heappush(heap, (d + w, nbr))"], ["ret", "    return dist"]], "ts": [[null, "function dijkstra(graph: number[][][], start: number): Map<number, number> {"], ["init", "  const dist = new Map<number, number>();"], ["init", "  const heap = new MinHeap<number[]>((a, b) => a[0] < b[0]);"], ["init", "  heap.push([0, start]);"], ["loop", "  while (heap.size > 0) {"], ["pop", "    const [d, node] = heap.pop()!;"], ["stale", "    if (dist.has(node)) continue;"], ["settle", "    dist.set(node, d);"], ["edges", "    for (const [nbr, w] of graph[node]) {"], ["push", "      if (!dist.has(nbr)) heap.push([d + w, nbr]);"], [null, "    }"], [null, "  }"], ["ret", "  return dist;"], [null, "}"]], "java": [[null, "static Map<Integer, Integer> dijkstra(List<List<int[]>> graph, int start) {"], ["init", "    Map<Integer, Integer> dist = new HashMap<>();"], ["init", "    PriorityQueue<int[]> heap = new PriorityQueue<>((a, b) -> Integer.compare(a[0], b[0]));"], ["init", "    heap.offer(new int[]{0, start});"], ["loop", "    while (!heap.isEmpty()) {"], ["pop", "        int[] top = heap.poll();"], ["pop", "        int d = top[0], node = top[1];"], ["stale", "        if (dist.containsKey(node)) continue;"], ["settle", "        dist.put(node, d);"], ["edges", "        for (int[] e : graph.get(node)) {"], ["push", "            if (!dist.containsKey(e[0])) heap.offer(new int[]{d + e[1], e[0]});"], [null, "        }"], [null, "    }"], ["ret", "    return dist;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-20a-table").innerHTML = TL.table(run.table); }
+  { const run = tl20([[0, 1, 4], [0, 2, 1], [1, 2, 2], [1, 3, 1], [2, 3, 5], [3, 4, 3]], 'dijkstra', false);
+    Viz.tlab("#tl-20a-bug", { title: "Why skip stale entries", sub: "Switch between with and without the skip.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def dijkstra(graph, start):"], ["init", "    dist = {}"], ["init", "    heap = [(0, start)]"], ["loop", "    while heap:"], ["pop", "        d, node = heapq.heappop(heap)"], ["stale", "        if node in dist:"], ["stale", "            continue"], ["settle", "        dist[node] = d"], ["edges", "        for nbr, w in graph[node]:"], ["push", "            if nbr not in dist:"], ["push", "                heapq.heappush(heap, (d + w, nbr))"], ["ret", "    return dist"]], "ts": [[null, "function dijkstra(graph: number[][][], start: number): Map<number, number> {"], ["init", "  const dist = new Map<number, number>();"], ["init", "  const heap = new MinHeap<number[]>((a, b) => a[0] < b[0]);"], ["init", "  heap.push([0, start]);"], ["loop", "  while (heap.size > 0) {"], ["pop", "    const [d, node] = heap.pop()!;"], ["stale", "    if (dist.has(node)) continue;"], ["settle", "    dist.set(node, d);"], ["edges", "    for (const [nbr, w] of graph[node]) {"], ["push", "      if (!dist.has(nbr)) heap.push([d + w, nbr]);"], [null, "    }"], [null, "  }"], ["ret", "  return dist;"], [null, "}"]], "java": [[null, "static Map<Integer, Integer> dijkstra(List<List<int[]>> graph, int start) {"], ["init", "    Map<Integer, Integer> dist = new HashMap<>();"], ["init", "    PriorityQueue<int[]> heap = new PriorityQueue<>((a, b) -> Integer.compare(a[0], b[0]));"], ["init", "    heap.offer(new int[]{0, start});"], ["loop", "    while (!heap.isEmpty()) {"], ["pop", "        int[] top = heap.poll();"], ["pop", "        int d = top[0], node = top[1];"], ["stale", "        if (dist.containsKey(node)) continue;"], ["settle", "        dist.put(node, d);"], ["edges", "        for (int[] e : graph.get(node)) {"], ["push", "            if (!dist.containsKey(e[0])) heap.offer(new int[]{d + e[1], e[0]});"], [null, "        }"], [null, "    }"], ["ret", "    return dist;"], [null, "}"]]}, steps: run.steps, bug: { label: "Bug: no stale check", code: {"py": [[null, "import heapq"], [null, ""], [null, "def dijkstra(graph, start):"], ["init", "    dist = {}"], ["init", "    heap = [(0, start)]"], ["loop", "    while heap:"], ["pop", "        d, node = heapq.heappop(heap)"], ["settle", "        dist[node] = d"], ["edges", "        for nbr, w in graph[node]:"], ["push", "            if nbr not in dist:"], ["push", "                heapq.heappush(heap, (d + w, nbr))"], ["ret", "    return dist"]]}, steps: tl20([[0, 1, 4], [0, 2, 1], [1, 2, 2], [1, 3, 1], [2, 3, 5], [3, 4, 3]], 'dijkstra', true).steps, diverge: undefined, why: "node 1 is already settled at distance 3, but this older entry (4) overwrites it." } });
+     }
+  { const run = tl20([[0, 1, 4], [0, 2, 1], [1, 2, 2], [1, 3, 1], [2, 3, 5], [3, 4, 3]], 'prim', false);
+    Viz.tlab("#tl-20b", { title: "Template B \u00b7 Prim from 0", sub: "Green = on the island; highlighted edges = bridges built.", code: {"py": [[null, "import heapq"], [null, ""], [null, "def prim(n, graph):"], ["init", "    in_tree, total = set(), 0"], ["init", "    heap = [(0, 0)]"], ["loop", "    while len(in_tree) < n:"], ["pop", "        cost, node = heapq.heappop(heap)"], ["stale", "        if node in in_tree:"], ["stale", "            continue"], ["settle", "        in_tree.add(node)"], ["settle", "        total += cost"], ["edges", "        for nbr, w in graph[node]:"], ["push", "            if nbr not in in_tree:"], ["push", "                heapq.heappush(heap, (w, nbr))"], ["ret", "    return total"]], "ts": [[null, "function prim(n: number, graph: number[][][]): number {"], ["init", "  const inTree = new Set<number>();"], ["init", "  let total = 0;"], ["init", "  const heap = new MinHeap<number[]>((a, b) => a[0] < b[0]);"], ["init", "  heap.push([0, 0]);"], ["loop", "  while (inTree.size < n) {"], ["pop", "    const [cost, node] = heap.pop()!;"], ["stale", "    if (inTree.has(node)) continue;"], ["settle", "    inTree.add(node);"], ["settle", "    total += cost;"], ["edges", "    for (const [nbr, w] of graph[node]) {"], ["push", "      if (!inTree.has(nbr)) heap.push([w, nbr]);"], [null, "    }"], [null, "  }"], ["ret", "  return total;"], [null, "}"]], "java": [[null, "static int prim(int n, List<List<int[]>> graph) {"], ["init", "    Set<Integer> inTree = new HashSet<>();"], ["init", "    int total = 0;"], ["init", "    PriorityQueue<int[]> heap = new PriorityQueue<>((a, b) -> Integer.compare(a[0], b[0]));"], ["init", "    heap.offer(new int[]{0, 0});"], ["loop", "    while (inTree.size() < n) {"], ["pop", "        int[] top = heap.poll();"], ["pop", "        int cost = top[0], node = top[1];"], ["stale", "        if (inTree.contains(node)) continue;"], ["settle", "        inTree.add(node);"], ["settle", "        total += cost;"], ["edges", "        for (int[] e : graph.get(node)) {"], ["push", "            if (!inTree.contains(e[0])) heap.offer(new int[]{e[1], e[0]});"], [null, "        }"], [null, "    }"], ["ret", "    return total;"], [null, "}"]]}, steps: run.steps });
+    document.getElementById("tl-20b-table").innerHTML = TL.table(run.table); }
+})();
+</script>
+<!-- tlab-js:end -->
 </body>
 </html>
