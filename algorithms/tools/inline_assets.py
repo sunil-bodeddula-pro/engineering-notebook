@@ -112,7 +112,12 @@ def block():
         svg = " ".join(f.read().split())
     # A data: URI, so the tab icon also shows when a page is opened on its own.
     icon = f'<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,{quote(svg, safe=" =:/\',.-")}">'
-    return f"{START}\n{icon}\n<style>\n{css.rstrip()}\n\n</style>\n<script>\n{js.rstrip()}\n</script>\n{END}"
+    # Web fonts are an online enhancement: offline, the system fonts in style.css take over.
+    fonts = ('<link rel="preconnect" href="https://fonts.googleapis.com">\n'
+             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
+             '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600'
+             '&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..700&display=swap">')
+    return f"{START}\n{icon}\n{fonts}\n<style>\n{css.rstrip()}\n\n</style>\n<script>\n{js.rstrip()}\n</script>\n{END}"
 
 
 def pages():
