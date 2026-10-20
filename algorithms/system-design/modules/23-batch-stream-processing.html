@@ -2377,6 +2377,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2632,6 +2633,132 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://www.hellointerview.com/learn/system-design/patterns/long-running-tasks" target="_blank" rel="noopener">Managing long-running tasks</a> (Hello Interview)</td><td>20 min</td><td>The job pattern in interview form, with the common follow-ups.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How batch, stream, warehouse and time-series engines really organise data and recover from failure. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-processing-analytics-and-time-series">
+      <summary><span class="uth-t"><b>Processing, analytics and time series</b><small>Row vs column storage with a lab, encodings, MPP and the shuffle, lineage vs checkpoints, watermarks, Gorilla compression lab, 15 products compared</small></span><span class="uth-m">about 40 min</span></summary>
+      <div class="uth-body">
+        <p>Transactional databases are built to find and change a few rows fast. Analytics engines, batch and stream processors and time-series databases reorganise data for a different question: read billions of values, few columns at a time, and summarise them. That changes the storage layout, the execution engine and how failures are recovered.</p>
+
+        <h3 id="u23-columns">Row vs column storage</h3>
+        <p>A row store keeps each row's columns together: ideal for "fetch order 42". A column store keeps each column together: ideal for "sum revenue by day over a year", because it reads only the columns the query names, they compress far better, and whole blocks can be skipped using their min-max statistics.</p>
+        <div class="card widget" id="cs-lab">
+          <div class="ctl"><label for="cs-r">Rows</label><input id="cs-r" type="range" min="6" max="11" value="9"><output id="cs-ro"></output></div>
+          <div class="ctl"><label for="cs-k">Columns the query reads (of 50)</label><input id="cs-k" type="range" min="1" max="50" value="3"><output id="cs-ko"></output></div>
+          <div class="ctl"><label><input type="checkbox" id="cs-sort" checked> Filter is "last 1 day of 365" and the table is sorted by date</label></div>
+          <div class="tiles no-gl" id="cs-tiles"></div>
+          <div class="verdict no-gl" id="cs-why"></div>
+        </div>
+        <table>
+          <thead><tr><th>Encoding</th><th>Idea</th><th>Works on</th></tr></thead>
+          <tbody>
+            <tr><td>Dictionary</td><td>Store each distinct value once; the column holds small integer codes</td><td>Strings with repeats: country, status, product</td></tr>
+            <tr><td>Run-length</td><td>"PAID × 4,812" instead of 4,812 copies</td><td>Sorted or slowly changing columns</td></tr>
+            <tr><td>Delta / delta-of-delta</td><td>Store differences from the previous value</td><td>Timestamps, increasing IDs</td></tr>
+            <tr><td>Bit-packing</td><td>Use only as many bits as the largest value needs</td><td>Small integers and dictionary codes</td></tr>
+            <tr><td>General compression</td><td>LZ4, Zstandard or Snappy on top of the above</td><td>Everything</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><strong>Vectorized execution:</strong> engines process a batch of a few thousand values from one column per operation instead of one row at a time, which keeps CPU caches warm and lets SIMD instructions work on many values at once (DuckDB, ClickHouse, Snowflake, BigQuery).</li>
+          <li><strong>Data skipping:</strong> Parquet row groups, ORC stripes, Snowflake micro-partitions and Redshift zone maps all keep min and max per block; a filter on a sorted or clustered column skips most blocks without reading them. That's why choosing the sort or clustering key matters more than indexes in a warehouse.</li>
+        </ul>
+
+        <h3 id="u23-mpp">Distributing the work: MPP and the shuffle</h3>
+        <div id="sc-u23-shuffle"></div>
+        <ul>
+          <li><strong>Massively parallel processing:</strong> each node scans its slice, computes partial results, then rows are <strong>shuffled</strong> by key so all values for one key meet on one node for the final aggregation or join. The shuffle is usually the most expensive step: every byte crosses the network and often touches disk.</li>
+          <li><strong>Avoid shuffles by placing data:</strong> Redshift distributes tables by a key (co-located joins), evenly, or copies small tables to all nodes; Spark broadcasts small tables to every executor; Citus co-locates on the distribution column.</li>
+          <li><strong>Skew:</strong> one huge key (a celebrity, a "null" bucket) makes one task run for hours while the others finish in seconds. Salt the key, or handle hot keys separately.</li>
+          <li><strong>Precompute:</strong> materialized views, rollups at ingestion (Druid, Pinot) and cubes trade storage and freshness for instant queries. Star schemas (a fact table of events joined to small dimension tables) keep joins cheap.</li>
+        </ul>
+
+        <h3 id="u23-recover">Recovering from failure: lineage vs checkpoints</h3>
+        <ul>
+          <li><strong>MapReduce</strong> wrote every stage's output to disk: robust, slow.</li>
+          <li><strong>Spark</strong> records the <em>lineage</em> of each partition (the transformations that produced it); a lost partition is recomputed from its inputs rather than restored. Long chains can be cut with explicit checkpoints.</li>
+          <li><strong>Flink</strong> checkpoints all operator state consistently while the stream keeps flowing, using barriers injected into the stream (a variant of the Chandy–Lamport snapshot algorithm). After a failure, every operator restores from the last checkpoint and sources rewind to the matching offsets.</li>
+        </ul>
+        <div id="sc-u23-barrier"></div>
+
+        <h3 id="u23-time">Event time, watermarks and windows</h3>
+        <p>Events arrive late and out of order (a phone offline for an hour). Stream processors group by when events <em>happened</em> (event time), not when they arrived, and use a <strong>watermark</strong>, an estimate that "no events older than T are still coming", to decide when a window is complete.</p>
+        <div id="viz-u23-wm"></div>
+        <table>
+          <thead><tr><th>Window</th><th>Shape</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Tumbling</td><td>Fixed, non-overlapping</td><td>Clicks per minute</td></tr>
+            <tr><td>Sliding (hopping)</td><td>Fixed length, overlapping (10 min every 1 min)</td><td>Moving averages, rate limits</td></tr>
+            <tr><td>Session</td><td>Closes after a gap of inactivity</td><td>A user's visit</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Triggers</strong> decide when to emit (at the watermark, early speculative results, again for late data); <strong>allowed lateness</strong> says how long to keep a window's state for stragglers. The Apache Beam model (and Google Dataflow) made this "what, where, when, how" vocabulary standard.</p>
+        <p><strong>Exactly-once output</strong> needs the sink to cooperate: Flink's two-phase-commit sinks (for example, Kafka transactions committed when a checkpoint completes), or idempotent upserts keyed by a deterministic ID.</p>
+
+        <h3 id="u23-ts">Time-series storage</h3>
+        <p>Metrics arrive as (series, timestamp, value) at a steady rate. Time-series databases partition by time (old partitions are cheap to drop or downsample), index series by their labels, and compress each series heavily. Prometheus uses Facebook's Gorilla encoding: timestamps as delta-of-deltas and values XORed with the previous value.</p>
+        <div class="card widget" id="gz-lab">
+          <div class="ctl"><span class="seg" id="gz-v"></span></div>
+          <div class="ctl"><label><input type="checkbox" id="gz-j"> Irregular scrapes (timestamps jitter by a second now and then)</label></div>
+          <div class="tiles no-gl" id="gz-tiles"></div>
+          <div class="verdict no-gl" id="gz-why"></div>
+        </div>
+        <ul>
+          <li><strong>Cardinality is the cost:</strong> every unique combination of labels is a separate series with its own index entries and memory. A label like <code>user_id</code> or <code>request_id</code> creates millions of series and takes Prometheus down.</li>
+          <li><strong>Downsampling and retention:</strong> keep raw points for days, 5-minute rollups for months, hourly for years (Thanos, Mimir, TimescaleDB continuous aggregates).</li>
+          <li><strong>Approximate answers</strong> are often the right ones: HyperLogLog for distinct counts, t-digest or DDSketch for percentiles, which can be merged across servers and time ranges.</li>
+        </ul>
+
+        <h3 id="u23-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>How it is organised</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Hadoop MapReduce</td><td>Map near the data, shuffle (sort, spill, merge), reduce</td><td>Every stage on disk: robust and slow</td></tr>
+            <tr><td>Apache Spark</td><td>DAG of stages split at shuffles; lineage recovery; Catalyst optimizer; Structured Streaming in micro-batches</td><td>In-memory caching made it MapReduce's successor</td></tr>
+            <tr><td>Apache Flink</td><td>Record-at-a-time streaming with keyed state (memory or RocksDB)</td><td>Barrier checkpoints; two-phase-commit sinks for exactly-once</td></tr>
+            <tr><td>Kafka Streams</td><td>A library inside your app; state in RocksDB backed by changelog topics</td><td>No cluster; repartition topics act as the shuffle</td></tr>
+            <tr><td>Apache Beam / Dataflow</td><td>One model for batch and stream: windows, watermarks, triggers</td><td>Separates what is computed from when it's emitted</td></tr>
+            <tr><td>Parquet and ORC</td><td>Row groups (stripes) of column chunks and pages with statistics</td><td>Readers skip row groups by min-max</td></tr>
+            <tr><td>Snowflake</td><td>Immutable micro-partitions; storage separate from compute (virtual warehouses)</td><td>Pruning by metadata replaces indexes; old micro-partitions give time travel</td></tr>
+            <tr><td>Google BigQuery</td><td>Dremel execution trees over Capacitor columnar storage, with a separate shuffle tier</td><td>Partitioning and clustering cut the bytes scanned, which is what on-demand pricing charges</td></tr>
+            <tr><td>Amazon Redshift</td><td>MPP columnar; tables distributed by key, evenly, or to all nodes; sort keys and zone maps</td><td>A poor distribution key turns joins into network shuffles</td></tr>
+            <tr><td>Apache Druid, Apache Pinot</td><td>Segments with bitmap indexes and rollup at ingestion; real-time from Kafka</td><td>Sub-second queries on fresh events; Pinot adds star-tree indexes</td></tr>
+            <tr><td>ClickHouse</td><td>MergeTree parts of sorted columns, merged in the background</td><td>Sparse primary index and data-skipping indexes</td></tr>
+            <tr><td>DuckDB</td><td>In-process vectorized columnar engine</td><td>Analytics with no server</td></tr>
+            <tr><td>Prometheus</td><td>In-memory head block with a WAL, compacted into 2-hour blocks; Gorilla-compressed chunks; label index</td><td>High-cardinality labels exhaust memory</td></tr>
+            <tr><td>InfluxDB</td><td>TSM engine in versions 1–2; version 3 rebuilt on Arrow, Parquet and DataFusion</td><td>A database that replaced its storage engine</td></tr>
+            <tr><td>TimescaleDB</td><td>PostgreSQL extension; hypertables split into time chunks; columnar compression for old chunks</td><td>Time-series speed with SQL and joins</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u23-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"Why is the warehouse fast at SUM over a year?"</strong> It reads only the columns used, compressed 5–10×, skips blocks outside the date range by min-max statistics, and scans in parallel across nodes with vectorized execution.</li>
+          <li><strong>"How do you count clicks per minute when events arrive late?"</strong> Window by event time, emit when the watermark passes the window end, keep state for an allowed lateness and update the result if stragglers arrive; write results idempotently.</li>
+          <li><strong>"Can I add user_id as a metric label?"</strong> No: each value creates a new series. Put per-user detail in logs or traces, and keep metric labels low-cardinality.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="It reads only the needed columns, which compress well, and skips blocks by min-max statistics">
+            <p>Why does a column store scan far fewer bytes for an analytics query?</p>
+            <div class="opts"><button>It caches every query</button><button>It reads only the needed columns, which compress well, and skips blocks by min-max statistics</button><button>It uses B-tree indexes on every column</button></div>
+            <div class="why">Projection, compression and data skipping multiply together.</div>
+          </div>
+          <div class="quiz-q" data-answer="An estimate that no events older than a time are still coming, which decides when windows can close">
+            <p>What is a watermark in stream processing?</p>
+            <div class="opts"><button>A timestamp added by the producer</button><button>An estimate that no events older than a time are still coming, which decides when windows can close</button><button>A checkpoint of operator state</button></div>
+            <div class="why">Too eager and late events are missed; too cautious and results are slow.</div>
+          </div>
+          <div class="quiz-q" data-answer="It recomputes them from their lineage">
+            <p>How does Spark recover partitions lost when an executor dies?</p>
+            <div class="opts"><button>From replicas in memory</button><button>It recomputes them from their lineage</button><button>It restarts the whole job</button></div>
+            <div class="why">Each partition knows the transformations that produced it. Flink, by contrast, restores state from checkpoints.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html" target="_blank" rel="noopener">Spark: RDD programming guide (lineage)</a></li><li><a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/stateful-stream-processing/" target="_blank" rel="noopener">Flink: stateful stream processing and checkpoints</a></li><li><a href="https://beam.apache.org/documentation/programming-guide/" target="_blank" rel="noopener">Apache Beam programming guide</a></li><li><a href="https://research.google/pubs/the-dataflow-model-a-practical-approach-to-balancing-correctness-latency-and-cost-in-massive-scale-unbounded-out-of-order-data-processing/" target="_blank" rel="noopener">The Dataflow Model (Google, 2015)</a></li><li><a href="https://parquet.apache.org/docs/file-format/" target="_blank" rel="noopener">Parquet file format</a></li><li><a href="https://docs.snowflake.com/en/user-guide/tables-clustering-micropartitions" target="_blank" rel="noopener">Snowflake: micro-partitions</a></li><li><a href="https://cloud.google.com/bigquery/docs/storage_overview" target="_blank" rel="noopener">BigQuery: storage overview</a></li><li><a href="https://docs.aws.amazon.com/redshift/latest/dg/c_choosing_dist_sort.html" target="_blank" rel="noopener">Redshift: distribution and sort keys</a></li><li><a href="https://druid.apache.org/docs/latest/design/segments" target="_blank" rel="noopener">Druid: segments</a></li><li><a href="https://prometheus.io/docs/prometheus/latest/storage/" target="_blank" rel="noopener">Prometheus: storage</a></li><li><a href="https://www.vldb.org/pvldb/vol8/p1816-teller.pdf" target="_blank" rel="noopener">Gorilla: a fast, scalable, in-memory time series database (VLDB 2015)</a></li><li><a href="https://docs.timescale.com/use-timescale/latest/hypertables/" target="_blank" rel="noopener">TimescaleDB: hypertables</a></li><li><a href="https://duckdb.org/why_duckdb" target="_blank" rel="noopener">Why DuckDB</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="22-workflows-sagas.html"><small>Previous module</small>← 22 · Workflows, sagas and outbox</a>
       <a class="next" href="24-reliability-patterns.html"><small>Next module</small>24 · Reliability patterns →</a>
@@ -2761,6 +2888,75 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "A job that always fails goes to a <b>dead-letter queue</b> after a few attempts, with an alert, instead of blocking workers forever." },
     ],
   });
+  /* ---------- Under the hood: processing and analytics ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const sz = (b) => { const u = ["B", "KB", "MB", "GB", "TB", "PB"]; let i = 0; while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; } return (b < 10 ? b.toFixed(1) : Math.round(b)) + " " + u[i]; };
+    const tm = (s) => s < 1 ? Math.round(s * 1000) + " ms" : s < 120 ? s.toFixed(s < 10 ? 1 : 0) + " s" : s < 7200 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
+    const run = () => {
+      const rows = Math.pow(10, +g("cs-r").value), k = +g("cs-k").value, sorted = g("cs-sort").checked;
+      g("cs-ro").textContent = rows >= 1e9 ? rows / 1e9 + " billion" : rows / 1e6 + " million"; g("cs-ko").textContent = k;
+      const rowB = rows * 50 * 8, colB = (rows * k * 8) / 5 * (sorted ? 1 / 365 : 1), speed = 1e9 * 20;
+      g("cs-tiles").innerHTML = [["Row store reads", sz(rowB)], ["Column store reads", sz(colB)], ["Ratio", Math.round(rowB / colB).toLocaleString("en-US") + "×"], ["Column store on 20 nodes at 1 GB/s each", tm(colB / speed)]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("cs-why").innerHTML = `Assumes 50 columns of about 8 bytes, 5× column compression${sorted ? ", and min-max statistics skipping 364 of 365 days" : ""}. The row store must read every column of every row (${tm(rowB / speed)} on the same 20 nodes); the column store reads ${k} column${k > 1 ? "s" : ""}${sorted ? " for one day" : ""}.`;
+    };
+    ["cs-r", "cs-k"].forEach((id) => (g(id).oninput = run)); g("cs-sort").onchange = run; run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const f2b = (x) => { const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, x); return dv.getBigUint64(0); };
+    const clz = (v) => { let n = 0; for (let i = 63n; i >= 0n; i--) { if ((v >> i) & 1n) break; n++; } return n; };
+    const ctz = (v) => { let n = 0; for (let i = 0n; i < 64n; i++) { if ((v >> i) & 1n) break; n++; } return n; };
+    const gorilla = (ts, vs) => { let tb = 64 + 14, vb = 64, pd = ts[1] - ts[0], pl = -1, pt = -1, prev = f2b(vs[0]);
+      for (let i = 2; i < ts.length; i++) { const d = ts[i] - ts[i - 1], dod = d - pd; pd = d; tb += dod === 0 ? 1 : dod >= -63 && dod <= 64 ? 9 : dod >= -255 && dod <= 256 ? 12 : dod >= -2047 && dod <= 2048 ? 16 : 36; }
+      for (let i = 1; i < vs.length; i++) { const cur = f2b(vs[i]), x = cur ^ prev; prev = cur; if (x === 0n) { vb += 1; continue; } let l = clz(x); const t = ctz(x); if (l > 31) l = 31; if (pl >= 0 && l >= pl && t >= pt) vb += 2 + (64 - pl - pt); else { vb += 13 + (64 - l - t); pl = l; pt = t; } }
+      return [tb, vb]; };
+    const N = 120, V = [["Constant (an idle gauge)", () => Array(N).fill(21.5)], ["Counter (integers rising)", () => { let c = 1000; return Array.from({ length: N }, (_, i) => (c += i % 4)); }], ["Decimal gauge (20.0–22.0)", () => Array.from({ length: N }, (_, i) => Math.round((21 + Math.sin(i / 10)) * 10) / 10)], ["Noisy float", () => Array.from({ length: N }, (_, i) => 20 + Math.sin(i * 1.7) * 3.1416 + i * 0.0137)]];
+    let vi = 1;
+    g("gz-v").innerHTML = V.map((v, i) => `<button type="button" aria-pressed="${i === vi}">${v[0]}</button>`).join("");
+    g("gz-v").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; vi = [...g("gz-v").children].indexOf(b); [...g("gz-v").children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === vi))); run(); };
+    function run() {
+      const jit = g("gz-j").checked, ts = Array.from({ length: N }, (_, i) => 1700000000 + i * 15 + (jit && i % 7 === 3 ? 1 : 0)), vs = V[vi][1]();
+      const [tb, vb] = gorilla(ts, vs), per = (tb + vb) / N / 8;
+      g("gz-tiles").innerHTML = [["Bits per timestamp", (tb / N).toFixed(1)], ["Bits per value", (vb / N).toFixed(1)], ["Bytes per point", per.toFixed(2)], ["vs 16 raw bytes", (16 / per).toFixed(1) + "× smaller"]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("gz-why").innerHTML = `120 points scraped every 15 seconds, encoded exactly as Gorilla does. ${jit ? "Jittery scrapes cost extra bits whenever the interval changes. " : "Perfectly regular timestamps cost about 1 bit each (\"same interval again\"). "}${vi === 0 ? "A repeated value is a single 0 bit." : vi === 1 ? "Whole numbers share their high bits, so XORs are short." : vi === 2 ? "Values like 21.3 have no exact binary form, so their mantissas differ in many bits: decimals compress poorly." : "Random-looking floats leave little to compress."}`;
+    }
+    g("gz-j").onchange = run; run();
+  })();
+  Viz.scene("#sc-u23-shuffle", {
+    title: "GROUP BY country: map, shuffle, reduce", sub: "<b>Blue</b> = partial results moving across the network.",
+    nodes: [{ id: "m1", x: 90, y: 60, w: 140, label: "Node 1 scans", sub: "rows 1–1B" }, { id: "m2", x: 90, y: 150, w: 140, label: "Node 2 scans", sub: "rows 1B–2B" }, { id: "m3", x: 90, y: 240, w: 140, label: "Node 3 scans", sub: "rows 2B–3B" },
+      { id: "r1", x: 460, y: 95, w: 160, label: "Reducer A", sub: "countries A–M" }, { id: "r2", x: 460, y: 205, w: 160, label: "Reducer B", sub: "countries N–Z" }],
+    edges: [["m1", "r1"], ["m1", "r2"], ["m2", "r1"], ["m2", "r2"], ["m3", "r1"], ["m3", "r2"]],
+    width: 600, height: 300,
+    steps: [
+      { hl: { m1: "active", m2: "active", m3: "active" }, pops: [{ n: "m1", t: "partial counts", k: "evt", at: 0.4 }, { n: "m2", t: "partial counts", k: "evt", at: 0.6 }, { n: "m3", t: "partial counts", k: "evt", at: 0.8 }], hold: 2.8, note: "Map: each node scans its own slice and pre-aggregates locally (a combiner), so far less leaves the machine." },
+      { hl: { r1: "found", r2: "found" }, moves: [{ e: "m1>r1", t: "DE, FR", k: "req" }, { e: "m1>r2", t: "US, PT", k: "req" }, { e: "m2>r1", t: "DE, IN", k: "req", delay: 0.3 }, { e: "m2>r2", t: "US", k: "req", delay: 0.3 }, { e: "m3>r1", t: "FR", k: "req", delay: 0.6 }, { e: "m3>r2", t: "US, SE", k: "req", delay: 0.6 }], hold: 3.6, note: "Shuffle: rows are sent to the reducer that owns their key. Every node talks to every other: this is the expensive step." },
+      { hl: { r1: "found", r2: "bad" }, pops: [{ n: "r1", t: "done in 4 s", k: "ok", at: 0.4 }, { n: "r2", t: "US is 60% of rows: 40 s", k: "bad", at: 0.8 }], hold: 3.2, note: "Reduce: each key's values are combined. One giant key (skew) makes one reducer the bottleneck." },
+    ],
+  });
+  Viz.scene("#sc-u23-barrier", {
+    title: "A Flink checkpoint barrier", sub: "<b>Orange</b> = the barrier and the snapshots it triggers.",
+    nodes: [{ id: "src", x: 80, y: 130, w: 120, label: "Kafka source", sub: "offset 1,042" }, { id: "agg", x: 300, y: 130, w: 140, label: "Count per user", sub: "keyed state" }, { id: "sink", x: 520, y: 130, w: 120, label: "Sink" }, { id: "store", x: 300, y: 250, w: 160, label: "Checkpoint storage", sub: "S3 / HDFS" }],
+    edges: [["src", "agg"], ["agg", "sink"], ["src", "store"], ["agg", "store"], ["sink", "store"]],
+    width: 620, height: 300,
+    steps: [
+      { hl: { src: "warm" }, moves: [{ e: "src>agg", t: "events", k: "req" }], pops: [{ n: "src", t: "inject barrier #7", k: "evt", at: 0.6 }], hold: 3, note: "The coordinator asks sources to inject barrier 7 into the stream, between ordinary events." },
+      { hl: { src: "found", agg: "warm" }, moves: [{ e: "src>store", t: "offset 1,042", k: "evt" }, { e: "src>agg", t: "barrier #7", k: "evt", delay: 0.4 }], hold: 3, note: "The source saves its position, then passes the barrier on. Processing never stops." },
+      { hl: { agg: "found", sink: "warm" }, moves: [{ e: "agg>store", t: "state snapshot", k: "evt" }, { e: "agg>sink", t: "barrier #7", k: "evt", delay: 0.4 }], hold: 3, note: "When the barrier reaches an operator (from all its inputs), it snapshots its state asynchronously and forwards the barrier." },
+      { hl: { sink: "found", store: "found" }, moves: [{ e: "sink>store", t: "pre-committed output", k: "evt" }], pops: [{ n: "store", t: "checkpoint 7 complete", k: "ok", at: 1.0 }], hold: 3.2, note: "When every operator has acknowledged, checkpoint 7 is complete and transactional sinks commit. After a crash, all restore from 7 and the source rewinds to offset 1,042." },
+    ],
+  });
+  (function () {
+    const R = (rows, wm, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Arrives</th><th>Event time</th><th>Window</th><th>Watermark after</th><th>Result</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center">${cap}</div></div>`;
+    const A = [["12:00:20", "12:00:15", "12:00–12:01", "12:00:10", ""], ["12:00:50", "12:00:41", "12:00–12:01", "12:00:36", ""], ["12:01:05", "12:00:30 (late but in time)", "12:00–12:01", "12:00:36", "added to the open window"]];
+    Viz.stepper("#viz-u23-wm", { title: "Counting clicks per minute by event time", sub: "Watermark = latest event time seen − 5 s of allowed disorder.", speed: 3300, frames: [
+      { view: R(A.slice(0, 2), "", "Two clicks for the 12:00 minute. The watermark trails the newest event time by 5 seconds."), note: "The window 12:00–12:01 stays open: the watermark hasn't reached 12:01." },
+      { view: R(A, "", "An out-of-order click from 12:00:30 arrives after a newer one; its window is still open, so it counts."), note: "Event time, not arrival time, decides the window." },
+      { view: R([...A, ["12:01:12", "12:01:09", "12:01–12:02", "12:01:04", "<b>emit 12:00–12:01 = 3</b>"]], "", "A click from 12:01:09 pushes the watermark past 12:01: the 12:00 window is complete and emitted."), note: "The watermark is the system's promise that the window has everything it will get." },
+      { view: R([...A, ["12:01:12", "12:01:09", "12:01–12:02", "12:01:04", "emit 12:00–12:01 = 3"], ["12:03:40", "12:00:55 (very late)", "12:00–12:01", "12:03:35", "beyond allowed lateness: side output or dropped"]], "", "A phone comes back online with a click from 12:00:55."), note: "Allowed lateness decides whether to update the old result or route the event aside. Choose it from your data." },
+    ] });
+  })();
 })();
 </script>
 </body>

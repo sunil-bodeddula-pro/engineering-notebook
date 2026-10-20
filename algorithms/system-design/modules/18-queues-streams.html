@@ -2381,6 +2381,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2670,6 +2671,132 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://dataintensive.net/" target="_blank" rel="noopener">Designing Data-Intensive Applications</a>, chapter 11 (Stream Processing)</td><td>2 h</td><td>Message brokers vs logs, and how streams connect systems.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How queues and logs really deliver, order, retry and store messages. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-messaging-internals">
+      <summary><span class="uth-t"><b>Messaging internals</b><small>Queues vs logs, delivery guarantees with a crash lab, ordering scopes, rebalancing, visibility timeouts and DLQs, segments and compaction, partition sizing, 8 products compared</small></span><span class="uth-m">about 40 min</span></summary>
+      <div class="uth-body">
+        <p>"Put it on a queue" hides real choices: does the message disappear once read or stay for replay, who decides how fast consumers receive, what happens when a consumer dies halfway, and what "exactly once" can honestly mean. Products answer these differently, and the differences shape designs.</p>
+
+        <h3 id="u18-ql">Queue vs log</h3>
+        <div id="viz-u18-ql"></div>
+        <table>
+          <thead><tr><th></th><th>Queue (SQS, RabbitMQ classic and quorum queues)</th><th>Log (Kafka, Kinesis, Pulsar, RabbitMQ streams, Redis Streams)</th></tr></thead>
+          <tbody>
+            <tr><td>After a message is handled</td><td>Deleted</td><td>Kept until retention expires; each consumer group tracks its own position (offset)</td></tr>
+            <tr><td>Many independent consumers</td><td>Need a copy each (fan-out through topics or exchanges)</td><td>Free: each group reads the same log</td></tr>
+            <tr><td>Replay after a bug fix</td><td>Gone</td><td>Rewind the offset and reprocess</td></tr>
+            <tr><td>Parallelism</td><td>Any number of workers take messages one by one</td><td>One consumer per partition per group (Kafka share groups, GA in 4.2, add queue-style consumption)</td></tr>
+            <tr><td>Per-message acks and retries</td><td>Native</td><td>A committed offset covers everything before it; one stuck message blocks its partition</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Push vs pull:</strong> RabbitMQ pushes messages to consumers, limited by a <em>prefetch</em> count of unacknowledged messages; Kafka and SQS consumers pull at their own pace (SQS long polling waits up to 20 seconds for messages). Pull makes back-pressure natural; push gives lower latency but needs the prefetch limit to avoid flooding slow consumers.</p>
+
+        <h3 id="u18-exactly">Delivery guarantees and "exactly once"</h3>
+        <p>Whether a message is lost or processed twice depends on <strong>when the consumer acknowledges</strong> relative to its side effects, and where a crash lands. Try it:</p>
+        <div class="card widget" id="dg-lab">
+          <div class="ctl"><span class="seg" id="dg-when"></span></div>
+          <div class="ctl"><span class="seg" id="dg-crash"></span><label><input type="checkbox" id="dg-idem"> Idempotent processing (dedupe by message ID)</label></div>
+          <div class="no-gl" id="dg-out"></div>
+          <div class="verdict no-gl" id="dg-why"></div>
+        </div>
+        <ul>
+          <li><strong>Exactly-once delivery over a network is impossible in general;</strong> exactly-once <em>effect</em> is achievable by making processing idempotent or by committing output and progress atomically.</li>
+          <li><strong>Inside Kafka:</strong> idempotent producers (on by default since 3.0) remove duplicates from producer retries; transactions write output records and the consumer's offsets atomically, so read-process-write within Kafka is exactly once. Effects outside Kafka (an email, a payment) still need idempotency.</li>
+          <li><strong>SQS FIFO</strong> deduplicates sends with the same deduplication ID within 5 minutes; <strong>Pub/Sub</strong> offers an exactly-once delivery option for pull subscriptions.</li>
+        </ul>
+
+        <h3 id="u18-order">Ordering scopes</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Order is guaranteed within</th><th>Pick the key that must stay in order</th></tr></thead>
+          <tbody>
+            <tr><td>Kafka, Kinesis, Pulsar</td><td>One partition or shard</td><td>The message key (an order ID, a user ID) chooses the partition</td></tr>
+            <tr><td>SQS FIFO</td><td>One message group ID</td><td>Group by entity; different groups run in parallel</td></tr>
+            <tr><td>Pub/Sub</td><td>One ordering key (when ordering is enabled)</td><td>Same idea</td></tr>
+            <tr><td>RabbitMQ</td><td>One queue with one consumer</td><td>Several consumers or redeliveries reorder messages</td></tr>
+            <tr><td>SQS standard</td><td>Nothing (best effort)</td><td>Design consumers not to care, or use FIFO</td></tr>
+          </tbody>
+        </table>
+        <p>Retries break order too: if message 5 fails and goes to a retry queue while 6 succeeds, the entity sees 6 before 5. Where order matters per entity, pause that key or use a version check on the receiving side.</p>
+
+        <h3 id="u18-groups">Consumer groups and rebalancing</h3>
+        <div id="viz-u18-reb"></div>
+        <ul>
+          <li>Partitions are divided among a group's members; a consumer that joins, leaves or misses heartbeats triggers a <strong>rebalance</strong>.</li>
+          <li>The classic ("eager") protocol stopped the whole group while every partition was revoked and reassigned. Cooperative rebalancing moved only the partitions that had to move, and Kafka 4.0 made the broker-driven protocol from KIP-848 generally available, so assignments change incrementally without a group-wide pause.</li>
+          <li>A consumer that processes too slowly between polls (<code>max.poll.interval.ms</code>, 5 minutes by default) is considered dead and its partitions are taken away, so long jobs need smaller batches or a pause on the partition.</li>
+        </ul>
+
+        <h3 id="u18-retry">Acks, visibility timeouts, retries and dead letters</h3>
+        <div id="sc-u18-vis"></div>
+        <ul>
+          <li><strong>SQS:</strong> a received message is hidden for the <em>visibility timeout</em> (30 seconds by default, up to 12 hours); if not deleted in time it reappears for another consumer. Extend the timeout for long jobs. After <code>maxReceiveCount</code> receives, a redrive policy moves it to a dead-letter queue.</li>
+          <li><strong>Pub/Sub</strong> uses an ack deadline the same way; <strong>RabbitMQ</strong> redelivers unacknowledged messages when the consumer's channel closes, and quorum queues can cap redeliveries.</li>
+          <li><strong>Poison messages</strong> (that always fail) must leave the main path: a dead-letter queue, with alerts and a tool to inspect and replay.</li>
+          <li><strong>Retry with delay</strong> in a log: Kafka has no per-message delay, so failed messages go to retry topics (retry-1m, retry-10m) read by consumers that wait until each message is due.</li>
+          <li><strong>Consumer lag</strong> (newest offset minus committed offset, or the age of the oldest message) is the metric to alert and autoscale on.</li>
+        </ul>
+
+        <h3 id="u18-inside">Inside a log: segments, retention, compaction and speed</h3>
+        <ul>
+          <li><strong>Segments:</strong> each partition is a series of files (1 GB by default in Kafka) with offset and timestamp indexes. Retention deletes whole old segments by time or size, which is cheap. Tiered storage (Kafka 3.9+, Pulsar) moves old segments to object storage.</li>
+          <li><strong>Compaction</strong> keeps only the latest record per key (a <em>tombstone</em>, a null value, deletes the key): a topic becomes a changelog you can rebuild state from.</li>
+          <li><strong>Why it's fast:</strong> producers batch records (<code>linger.ms</code>, <code>batch.size</code>) and compress whole batches; brokers append sequentially and serve reads from the operating system's page cache, sending file bytes straight to the socket with zero-copy <code>sendfile</code>.</li>
+          <li><strong>Schemas:</strong> a schema registry (Avro, Protobuf, JSON Schema) checks that new producer versions stay compatible (backward: new readers read old data; forward: old readers read new data), so producers and consumers can deploy independently.</li>
+          <li><strong>Across regions:</strong> MirrorMaker 2, Confluent Cluster Linking, Pulsar geo-replication; offsets differ between clusters, so consumers fail over by timestamp or translated offsets.</li>
+        </ul>
+
+        <h3 id="u18-size">How many partitions?</h3>
+        <div class="card widget" id="ps-lab">
+          <div class="ctl"><label for="ps-t">Peak throughput</label><input id="ps-t" type="range" min="0" max="12" value="6"><output id="ps-to"></output></div>
+          <div class="ctl"><label for="ps-c">One consumer handles</label><input id="ps-c" type="range" min="1" max="50" value="5"><output id="ps-co"></output></div>
+          <div class="tiles no-gl" id="ps-tiles"></div>
+          <div class="verdict no-gl" id="ps-why"></div>
+        </div>
+
+        <h3 id="u18-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>Model</th><th>Delivery and ordering</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>Apache Kafka</td><td>Partitioned log on brokers; consumers pull; KRaft metadata (no ZooKeeper since 4.0)</td><td>Order per partition; idempotent producers and transactions for exactly-once inside Kafka</td><td>Share groups (4.2) add queue-style consumption; compaction keeps the latest value per key</td></tr>
+            <tr><td>Apache Pulsar</td><td>Stateless brokers over BookKeeper storage</td><td>Exclusive, shared, failover and key-shared subscriptions</td><td>Storage scales separately; geo-replication and tiered storage built in</td></tr>
+            <tr><td>RabbitMQ</td><td>Exchanges route to queues; push with prefetch</td><td>Quorum queues (Raft-replicated); streams for log-style use</td><td>Routing lives in the broker; classic mirrored queues were removed in 4.0</td></tr>
+            <tr><td>Amazon SQS</td><td>Managed queue; long polling</td><td>Standard: at-least-once, best-effort order; FIFO: ordered per group, 5-minute deduplication</td><td>Visibility timeout and redrive to a dead-letter queue</td></tr>
+            <tr><td>Google Pub/Sub</td><td>Global topics and subscriptions, push or pull</td><td>Ordering keys; exactly-once delivery option; seek to replay</td><td>Ack deadlines work like visibility timeouts</td></tr>
+            <tr><td>Kinesis Data Streams</td><td>Shards with fixed capacity (1 MB/s or 1,000 records/s in, 2 MB/s out each)</td><td>Order per shard</td><td>Enhanced fan-out gives each consumer its own read capacity</td></tr>
+            <tr><td>NATS</td><td>Core pub/sub; JetStream adds persistent streams</td><td>At-most-once in core; at-least-once and deduplication windows in JetStream</td><td>Very low latency; wildcard subjects</td></tr>
+            <tr><td>Redis Streams</td><td>Append-only stream in memory</td><td>Consumer groups with a pending list per consumer; XAUTOCLAIM takes over stuck messages</td><td>Good for modest volumes already on Redis</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u18-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"Do you get exactly-once?"</strong> Delivery is at-least-once; the consumer makes the effect exactly-once by deduplicating on the message ID in the same transaction as its write (or Kafka transactions when input and output are both Kafka).</li>
+          <li><strong>"Why not more consumers?"</strong> In a Kafka group, consumers beyond the partition count sit idle; partitions cap parallelism, so size them for peak (or use share groups).</li>
+          <li><strong>"What about a message that always fails?"</strong> Bounded retries with backoff, then a dead-letter queue with an alert and a replay tool, so it can't block the partition.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="It may be processed twice">
+            <p>A consumer processes a message, then crashes before acknowledging it. What happens?</p>
+            <div class="opts"><button>It's lost</button><button>It may be processed twice</button><button>Nothing: the broker knows it was processed</button></div>
+            <div class="why">The broker redelivers it. Make processing idempotent.</div>
+          </div>
+          <div class="quiz-q" data-answer="The partition">
+            <p>Kafka guarantees order within what?</p>
+            <div class="opts"><button>The topic</button><button>The partition</button><button>The consumer group</button></div>
+            <div class="why">The message key picks the partition, so order holds per key.</div>
+          </div>
+          <div class="quiz-q" data-answer="It becomes visible again and another consumer receives it">
+            <p>An SQS consumer takes longer than the visibility timeout. What happens to the message?</p>
+            <div class="opts"><button>It's deleted</button><button>It becomes visible again and another consumer receives it</button><button>It goes straight to the dead-letter queue</button></div>
+            <div class="why">Extend the timeout for long jobs, or the work runs twice.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://kafka.apache.org/documentation/" target="_blank" rel="noopener">Apache Kafka documentation</a></li><li><a href="https://kafka.apache.org/42/getting-started/upgrade/" target="_blank" rel="noopener">Kafka 4.2 upgrade notes</a></li><li><a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-848%3A+The+Next+Generation+of+the+Consumer+Rebalance+Protocol" target="_blank" rel="noopener">KIP-848: the next-generation consumer rebalance protocol</a></li><li><a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-932%3A+Queues+for+Kafka" target="_blank" rel="noopener">KIP-932: queues for Kafka</a></li><li><a href="https://pulsar.apache.org/docs/next/concepts-architecture-overview/" target="_blank" rel="noopener">Pulsar architecture</a></li><li><a href="https://www.rabbitmq.com/docs/quorum-queues" target="_blank" rel="noopener">RabbitMQ: quorum queues</a></li><li><a href="https://www.rabbitmq.com/docs/streams" target="_blank" rel="noopener">RabbitMQ: streams</a></li><li><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html" target="_blank" rel="noopener">SQS: visibility timeout</a></li><li><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html" target="_blank" rel="noopener">SQS FIFO: exactly-once processing</a></li><li><a href="https://cloud.google.com/pubsub/docs/exactly-once-delivery" target="_blank" rel="noopener">Pub/Sub: exactly-once delivery</a></li><li><a href="https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html" target="_blank" rel="noopener">Kinesis Data Streams quotas and limits</a></li><li><a href="https://docs.nats.io/nats-concepts/jetstream" target="_blank" rel="noopener">NATS JetStream</a></li><li><a href="https://redis.io/docs/latest/develop/data-types/streams/" target="_blank" rel="noopener">Redis Streams</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="17-transactions-contention.html"><small>Previous module</small>← 17 · Transactions and contention</a>
       <a class="next" href="19-real-time-updates.html"><small>Next module</small>19 · Real-time updates →</a>
@@ -2800,6 +2927,69 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "Once follower 2 catches up, the mark moves to 105 and consumers get the rest. A leader crash at any moment can't take away what they've read." },
     ],
   });
+  /* ---------- Under the hood: messaging ---------- */
+  (function () {
+    const C = (t, cls) => `<span class="nd"><span class="${cls || ""}" style="min-width:2.4em">${t}</span></span>`;
+    const V = (q, log, a, b, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal;justify-items:start"><div><b style="font-size:.8rem">Queue</b> <span class="lv" style="justify-content:flex-start">${q.length ? q.map((m) => C(m)).join("") : '<span class="idx">(empty)</span>'}</span></div><div style="margin-top:6px"><b style="font-size:.8rem">Log</b> <span class="lv" style="justify-content:flex-start">${log.map((m, i) => C(m, i < a ? "new" : "")).join("")}</span><div class="idx" style="margin-top:4px">billing group offset ${a} · analytics group offset ${b}</div></div><div class="idx" style="white-space:normal;margin-top:6px">${cap}</div></div>`;
+    const M = ["m1", "m2", "m3", "m4", "m5"];
+    Viz.stepper("#viz-u18-ql", { title: "The same five messages, queue vs log", sub: "Highlighted in the log = already read by the billing group.", speed: 3000, frames: [
+      { view: V(M, M, 0, 0, "Five messages arrive in both."), note: "Same input; different storage semantics." },
+      { view: V(M.slice(3), M, 3, 0, "A worker handles m1–m3: they're deleted from the queue; in the log, billing's offset moves to 3."), note: "Consuming a queue removes messages. Consuming a log only moves a bookmark." },
+      { view: V([], M, 5, 2, "All five handled. A second group (analytics) reads the log independently, at its own pace."), note: "The queue is empty. The log still has everything, so new consumers can start from the beginning." },
+      { view: V([], M, 2, 2, "A bug is found: billing rewinds its offset to 2 and reprocesses m3–m5."), note: "Replay is a log's superpower: impossible once a queue has deleted the messages." },
+    ] });
+  })();
+  (function () {
+    const P = (owners, cap, moving) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><div class="lv">${owners.map(([c, ps]) => `<span class="nd ${moving && moving.includes(c) ? "split" : ""}"><span style="min-width:6em"><b>${c}</b></span>${ps.length ? ps.map((p) => `<span class="${moving && moving.includes(p) ? "up" : ""}">${p}</span>`).join("") : '<span class="e">idle</span>'}</span>`).join("")}</div><div class="idx" style="white-space:normal;text-align:center">${cap}</div></div>`;
+    Viz.stepper("#viz-u18-reb", { title: "A consumer joins the group", sub: "Six partitions P0–P5.", speed: 3200, frames: [
+      { view: P([["Consumer A", ["P0", "P1", "P2"]], ["Consumer B", ["P3", "P4", "P5"]]], "Two consumers share six partitions."), note: "Each partition has exactly one owner in the group." },
+      { view: P([["Consumer A", []], ["Consumer B", []], ["Consumer C", []]], "Eager rebalance: everyone gives up everything while a new plan is made.", ["Consumer A", "Consumer B", "Consumer C"]), note: "The classic protocol: the whole group stops, even for partitions that won't move." },
+      { view: P([["Consumer A", ["P0", "P1"]], ["Consumer B", ["P3", "P4"]], ["Consumer C", ["P2", "P5"]]], "Incremental: only P2 and P5 move to C; everything else keeps flowing.", ["P2", "P5"]), note: "Cooperative and KIP-848 rebalancing move only what must move." },
+      { view: P([["A", ["P0"]], ["B", ["P1"]], ["C", ["P2"]], ["D", ["P3"]], ["E", ["P4"]], ["F", ["P5"]], ["G", []]], "With 7 consumers and 6 partitions, one sits idle."), note: "Partitions cap a group's parallelism. Size the partition count for peak load." },
+    ] });
+  })();
+  Viz.scene("#sc-u18-vis", {
+    title: "SQS: visibility timeout, redelivery, dead-letter queue", sub: "<b>Red</b> = failure, <b>orange</b> = parked.",
+    nodes: [{ id: "q", x: 100, y: 140, w: 140, label: "Orders queue" }, { id: "w1", x: 400, y: 60, w: 130, label: "Worker 1" }, { id: "w2", x: 400, y: 220, w: 130, label: "Worker 2" }, { id: "dlq", x: 100, y: 260, w: 140, label: "Dead-letter queue" }],
+    edges: [["q", "w1"], ["q", "w2"], ["q", "dlq"]],
+    width: 580, height: 310,
+    steps: [
+      { hl: { q: "active", w1: "active" }, moves: [{ e: "q>w1", t: "receive msg 42", k: "req" }], pops: [{ n: "q", t: "42 hidden for 30 s", k: "evt", at: 1.0 }], hold: 3, note: "Receiving doesn't delete: the message is hidden for the visibility timeout." },
+      { hl: { w1: "bad", q: "warm" }, pops: [{ n: "w1", t: "crash (no delete)", k: "bad", at: 0.2 }, { n: "q", t: "30 s pass: 42 visible again", k: "evt", at: 1.4 }], hold: 3.2, note: "The worker dies before deleting. When the timeout passes, the message reappears." },
+      { hl: { q: "active", w2: "active" }, moves: [{ e: "q>w2", t: "receive 42 (2nd time)", k: "req" }], pops: [{ n: "w2", t: "fails: bad data", k: "bad", at: 1.2 }], hold: 3, note: "Another worker gets it. If the message itself is bad, it fails every time: a poison message." },
+      { hl: { q: "warm", dlq: "warm" }, moves: [{ e: "q>dlq", t: "after 5 receives", k: "evt" }], hold: 3, note: "After maxReceiveCount attempts the redrive policy moves it to the dead-letter queue, where someone can inspect and replay it." },
+    ],
+  });
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const W = ["Ack before processing", "Ack after processing", "Process and commit in one transaction"], X = ["No crash", "Crash after step 1", "Crash after step 2"];
+    let w = 1, x = 2;
+    const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === get()))); run(); }; };
+    seg("dg-when", W, () => w, (v) => (w = v)); seg("dg-crash", X, () => x, (v) => (x = v)); g("dg-idem").onchange = run;
+    const STEPS = [["Receive message", "Acknowledge (offset committed)", "Charge the card"], ["Receive message", "Charge the card", "Acknowledge (offset committed)"], ["Receive message", "Charge the card + record message ID + commit offset, atomically", "Done"]];
+    function run() {
+      const idem = g("dg-idem").checked, st = STEPS[w], done = x === 0 ? 3 : x;
+      let res, cls = "";
+      if (x === 0) res = "Processed once.";
+      else if (w === 0) { if (x === 1) res = "Redelivered: the message was never acknowledged, so it's processed once after restart."; else { res = "<b>Lost.</b> It was acknowledged but never processed: at-most-once."; cls = " bad"; } }
+      else if (w === 1) { if (x === 1) res = "Redelivered and processed once after restart."; else if (idem) res = "Redelivered, but the dedupe check sees the message ID already handled, so the card isn't charged again: <b>effectively once</b>."; else { res = "<b>Charged twice.</b> The charge happened, the ack didn't, so the message is redelivered: at-least-once."; cls = " bad"; } }
+      else res = x === 1 ? "Redelivered; nothing was committed, so it's processed once." : "Charge, dedupe record and offset committed together: <b>exactly once</b>, whatever happens next.";
+      g("dg-out").innerHTML = `<table><thead><tr><th>#</th><th>Step</th><th></th></tr></thead><tbody>${st.map((s, i) => `<tr><td>${i + 1}</td><td>${s}</td><td>${i < done ? "✓" : i === done ? '<b style="color:var(--red)">✗ crash before this</b>' : ""}</td></tr>`).join("")}</tbody></table>`;
+      g("dg-why").innerHTML = res + (w === 1 && !idem && x !== 2 ? " Tick idempotent processing and try a crash after step 2." : "");
+      g("dg-why").className = "verdict no-gl" + cls;
+    }
+    run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id), T = [1, 2, 5, 10, 20, 50, 100, 200, 300, 500, 1000, 2000, 5000];
+    const run = () => {
+      const t = T[+g("ps-t").value], c = +g("ps-c").value, prod = 10; g("ps-to").textContent = t + " MB/s"; g("ps-co").textContent = c + " MB/s";
+      const byC = Math.ceil(t / c), byP = Math.ceil(t / prod), parts = Math.max(byC, byP), withRoom = Math.ceil(parts * 1.5);
+      g("ps-tiles").innerHTML = [["Partitions for consumers", byC], ["Partitions for producers (~10 MB/s each)", byP], ["Suggested, with 50% headroom", withRoom], ["Max useful consumers per group", withRoom]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("ps-why").innerHTML = `Partitions = max(throughput ÷ per-consumer rate, throughput ÷ per-partition write rate), plus headroom: adding partitions later remaps keys and breaks per-key order. ${withRoom > 1000 ? "This many partitions is heavy: split into several topics or speed up consumers." : "Too many partitions cost broker memory, open files and slower failovers, so don't add thousands \"just in case\"."}`;
+    };
+    ["ps-t", "ps-c"].forEach((id) => (g(id).oninput = run)); run();
+  })();
 })();
 </script>
 </body>
