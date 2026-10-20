@@ -3,7 +3,7 @@ name: Publish interviewkata.com
 on:
   push:
     branches: [main]
-    paths: ["site/**", "algorithms/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -26,9 +26,9 @@ jobs:
         with:
           fetch-depth: 0  # full history, for sitemap lastmod dates
       - name: Check every page has the latest shared CSS/JS
-        run: cd algorithms && python3 tools/inline_assets.py --check
+        run: cd site && python3 tools/inline_assets.py --check
       - name: Check every page has current SEO tags
-        run: cd algorithms && python3 tools/seo.py --check
+        run: cd site && python3 tools/seo.py --check
       - name: Assemble the site
         run: bash site/assemble.sh _site
       - uses: actions/configure-pages@v5

@@ -8,22 +8,23 @@ design, algorithms and programming languages.
 | Folder | What it covers | Start with |
 | --- | --- | --- |
 | [`ai-engineering/`](ai-engineering/) | Using AI tools well — product development with agents, integrations (MCP), plugins, skills, automation, security — and leading a team's adoption | [The roadmap and handbook](ai-engineering/AI-Engineering-Leadership-Roadmap.md) |
-| [`system-design/`](system-design/) | Building blocks, trade-offs and worked designs of real systems (the source notes for the [System design track](algorithms/system-design/)) | [Topic map](system-design/README.md#topics) |
-| [`algorithms/`](algorithms/) | Patterns, data structures and solved problems, written around the key insight | [Pattern list](algorithms/README.md#patterns-to-cover) |
+| [`system-design/`](system-design/) | Building blocks, trade-offs and worked designs of real systems (the source notes for the [System design track](site/system-design/)) | [Topic map](system-design/README.md#topics) |
+| [`site/`](site/) | The interviewkata.com website: coding patterns, system design and AI engineering tracks, with their build tools | [Site README](site/README.md) |
 | [`languages/`](languages/) | Idioms, internals and gotchas — Kotlin, TypeScript, Dart and more | [Languages](languages/README.md#languages) |
 | [`templates/`](templates/) | Ready-to-copy templates for every kind of note | [All templates](templates/README.md) |
 
 ## Website: [interviewkata.com](https://interviewkata.com)
 
-The interview-prep material is published as a website. Every push to `main` that touches `site/` or
-`algorithms/` runs [`.github/workflows/pages.yml`](.github/workflows/pages.yml), which builds the site with
-[`site/assemble.sh`](site/assemble.sh) and deploys it to GitHub Pages. Only the website files are published:
+The interview-prep material is published as a website. Every push to `main` that touches `site/`
+runs [`.github/workflows/pages.yml`](.github/workflows/pages.yml), which builds the site with
+[`site/assemble.sh`](site/assemble.sh) and deploys it to GitHub Pages. Only the pages, assets and 404 page are published
+(not `site/tools/`, `site/README.md` or the assemble script):
 
 | URL | Source |
 | --- | --- |
-| `interviewkata.com/` | [`algorithms/`](algorithms/) pages, `patterns/` and `assets/` |
-| `interviewkata.com/ai/` | [`algorithms/ai/`](algorithms/ai/): the AI engineering track |
-| `interviewkata.com/system-design/` | [`algorithms/system-design/`](algorithms/system-design/): the System design track |
+| `interviewkata.com/` | [`site/`](site/) pages, `patterns/` and `assets/` |
+| `interviewkata.com/ai/` | [`site/ai/`](site/ai/): the AI engineering track |
+| `interviewkata.com/system-design/` | [`site/system-design/`](site/system-design/): the System design track |
 | `interviewkata.com/404.html` | [`site/404.html`](site/404.html) |
 
 To preview locally: `site/assemble.sh /tmp/site && python3 -m http.server -d /tmp/site 8000`.

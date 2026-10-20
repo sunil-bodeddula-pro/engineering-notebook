@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 # Assemble the public website (interviewkata.com) into one folder.
-# Only the website files are copied; the rest of the notebook is not published.
+# site/ holds the website source; only the pages, assets and the 404 page are published
+# (not tools/, README.md or this script). The rest of the notebook is not published.
 #
 #   site/assemble.sh [OUT_DIR]     (default: _site; run from the repo root)
 #
-#   /                  algorithms/ pages, patterns/ and assets/
-#   /ai/               algorithms/ai/ (the AI engineering track)
-#   /system-design/    algorithms/system-design/ (the System design track)
+#   /                  site/*.html, site/patterns/ and site/assets/
+#   /ai/               site/ai/ (the AI engineering track)
+#   /system-design/    site/system-design/ (the System design track)
 #   /404.html          site/404.html, plus the favicon at /favicon.svg
 set -euo pipefail
 OUT="${1:-_site}"
 rm -rf "$OUT"
 mkdir -p "$OUT"
-cp algorithms/*.html "$OUT/"
-cp -r algorithms/patterns algorithms/assets algorithms/ai algorithms/system-design "$OUT/"
-cp site/404.html "$OUT/"
-cp algorithms/assets/favicon.svg "$OUT/"
+cp site/*.html "$OUT/"
+cp -r site/patterns site/assets site/ai site/system-design "$OUT/"
+cp site/assets/favicon.svg "$OUT/"
 touch "$OUT/.nojekyll"
 
-# robots.txt and sitemap.xml (lastmod = the page's last commit date in algorithms/)
+# robots.txt and sitemap.xml (lastmod = the page's last commit date in site/)
 cat > "$OUT/robots.txt" <<'ROBOTS'
 User-agent: *
 Allow: /
@@ -35,7 +35,7 @@ for dp, _, fs in os.walk(out):
         if rel.startswith("assets/"):
             continue
         url = site + "/" + (rel[: -len("index.html")] if rel.endswith("index.html") else rel)
-        src = "algorithms/" + rel
+        src = "site/" + rel
         d = subprocess.run(["git", "log", "-1", "--format=%cs", "--", src], capture_output=True, text=True).stdout.strip()
         depth = rel.count("/")
         prio = "1.0" if rel == "index.html" else "0.9" if rel.endswith("index.html") or rel.endswith("start-here.html") else "0.7" if depth <= 1 else "0.6"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the spaced-repetition review deck for each track from the quizzes and memory hooks on its pages.
 
-Run from the algorithms/ folder after adding or editing quiz questions or memory hooks:
+Run from the site/ folder after adding or editing quiz questions or memory hooks:
 
     python3 tools/build_review.py          # writes review.html, ai/review.html, system-design/review.html
     python3 tools/inline_assets.py         # then fill in the shared CSS/JS, menus and footer
@@ -16,6 +16,7 @@ import html
 import json
 import os
 import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -241,6 +242,10 @@ def main():
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(out)
         print(f"{cfg['out']}: {len(cards)} cards from {len(topics)} pages")
+    # The decks are regenerated from a template, so restore their search/social tags (tools/seo.py).
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import seo
+    seo.main()
 
 
 if __name__ == "__main__":

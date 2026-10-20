@@ -2,7 +2,7 @@
 """Copy assets/style.css, assets/viz.js and assets/favicon.svg into every page, so each HTML file works on its own,
 fill in the shared footer from assets/footer.html, and build the menus from assets/nav.json.
 
-Run from the algorithms/ folder after editing anything in assets/:
+Run from the site/ folder after editing anything in assets/:
 
     python3 tools/inline_assets.py          # rewrite the pages
     python3 tools/inline_assets.py --check  # exit 1 if any page is out of date (no writes)

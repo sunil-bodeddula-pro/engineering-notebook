@@ -1,6 +1,6 @@
-# InterviewKata: coding patterns
+# InterviewKata website (`site/`)
 
-Live at [interviewkata.com](https://interviewkata.com). An offline, interactive course that takes you from zero to pro at the 24 coding-interview patterns.
+Live at [interviewkata.com](https://interviewkata.com). Free, interactive interview prep in three tracks: the 24 coding-interview patterns, system design (6 basics modules, 29 modules, 20 "Under the hood" deep dives and 32 worked designs) and AI engineering. This folder is the whole website source plus its build tools; [`assemble.sh`](assemble.sh) publishes only the pages, assets and 404 page.
 
 ## Open it
 
@@ -23,11 +23,13 @@ Double-click **`index.html`**. It opens in any browser straight from disk. No se
 | `cheatsheet.html` | One-page printable revision sheet: signals, hook, template and complexity for all 24 |
 | `google.html`, `meta.html`, `amazon.html`, `microsoft.html`, `apple.html`, `nvidia.html`, `cisco.html`, `netflix.html` | **Company interview lists**: all problems from Google's (785), Meta's (377), Amazon's (725), Microsoft's (411), Apple's (69) and Nvidia's (19) six-month LeetCode lists and Cisco's (88) and Netflix's (29) all-time lists, grouped by pattern, with frequency, search and difficulty filters, a per-browser "done" checklist and a 6-month study plan |
 | `ai/index.html`, `ai/start-here.html`, `ai/modules/*.html` | **The AI engineering track** (served at `interviewkata.com/ai/`): 20 modules from how LLMs work to agents, MCP, skills, RAG, evals, security, cost and choosing tools, each with the same 10 sections, flow diagrams, step-through players, interactive widgets and labs in Claude Code, Antigravity CLI, Copilot, Cursor and Codex. All 20 modules are built. Pages use `<body data-track="ai">` so the glossary shows AI terms |
-| `system-design/index.html`, `system-design/start-here.html`, `system-design/modules/*.html`, `system-design/designs/*.html` | **The System design track** (served at `interviewkata.com/system-design/`): 29 modules in five levels, from how a request travels to replication, sharding, consensus, workflows, reliability and AI systems, plus 24 worked designs. Each module has the same 10 sections with flow diagrams, step-through players, interactive widgets and a design exercise. All 29 modules and all 24 worked designs are live; every design uses the long form (a full 60–90 minute interview). Animated scenes, D3 labs and guided tours load GSAP, D3 and Driver.js from jsDelivr and fall back to plain players offline. Pages use `<body data-track="system-design">` |
+| `system-design/index.html`, `system-design/start-here.html`, `system-design/modules/*.html`, `system-design/designs/*.html` | **The System design track** (served at `interviewkata.com/system-design/`): 6 basics modules (B1–B6) and 29 modules in five levels, from how a request travels to replication, sharding, consensus, workflows, reliability and AI systems, plus 32 worked designs and 20 optional "Under the hood" deep dives (listed on `modules/under-the-hood.html`). Each module has the same 10 sections with flow diagrams, step-through players, interactive widgets and a design exercise. Everything is live; every design uses the long form (a full 60–90 minute interview). Animated scenes, D3 labs and guided tours load GSAP, D3 and Driver.js from jsDelivr and fall back to plain players offline. Pages use `<body data-track="system-design">` |
 | `review.html`, `ai/review.html`, `system-design/review.html` | **Review decks**: every quiz question and memory hook of a track as spaced-repetition flashcards, with progress saved in the browser. Rebuilt by `tools/build_review.py` |
 | `assets/` | Source CSS and the small visualizer engine (plain JS). Every page already contains a copy of both, so **any single HTML file works on its own** (email it, move it, open it offline) |
 | `assets/nav.json` | The site menus: the top bar lists the tracks, the left sidebar lists the current track's pages. Edit it and run the inline tool |
 | `tools/inline_assets.py` | If you edit `assets/`, run `python3 tools/inline_assets.py` to refresh the copy inside every page |
+| `tools/seo.py` | Canonical URL, social-preview tags and structured data on every page; run it after adding a page or changing a title or description (CI runs `--check`) |
+| `assemble.sh`, `404.html` | Build the published site (with robots.txt and sitemap.xml) into one folder; the 404 page |
 
 Every problem on every page, including each problem in the practice list, is solved **inside the HTML**: the problem, why the pattern fits, numbered approach steps, commented Python code and complexity.
 

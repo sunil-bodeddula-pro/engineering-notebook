@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Search-engine and social-preview tags for every published page.
 
-Run from the algorithms/ folder after adding pages or changing a <title> or meta description:
+Run from the site/ folder after adding pages or changing a <title> or meta description:
 
     python3 tools/seo.py            # writes/updates the block on every page
     python3 tools/seo.py --check    # exits 1 if any page's block is missing or stale (used in CI)
@@ -34,7 +34,7 @@ START, END = "<!-- seo:start -->", "<!-- seo:end -->"
 
 
 def pages():
-    out = glob.glob("*.html") + glob.glob("patterns/*.html")
+    out = [p for p in glob.glob("*.html") if p != "404.html"] + glob.glob("patterns/*.html")
     for t in ("ai", "system-design"):
         out += glob.glob(f"{t}/**/*.html", recursive=True)
     return sorted(out)
