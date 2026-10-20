@@ -2377,6 +2377,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2696,6 +2697,130 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html" target="_blank" rel="noopener">Dynamo architecture in Cassandra</a></td><td>20 min</td><td>How a production system implements tunable consistency.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How databases really copy data, acknowledge writes and fail over, and what each choice can lose. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-replication-and-failover">
+      <summary><span class="uth-t"><b>Replication and failover</b><small>What gets copied, commit points, quorums, chain replication, failover and fencing, lag, conflicts and repair, 9 products compared</small></span><span class="uth-m">about 35 min</span></summary>
+      <div class="uth-body">
+        <p>"We replicate it" can mean a byte-for-byte log shipped to an identical server, or row changes streamed to a different database, acknowledged before or after the copy exists. Those choices decide what a failover loses, how stale a replica read can be, and how slow every write is.</p>
+
+        <h3 id="u14-what">What gets copied</h3>
+        <table>
+          <thead><tr><th>Kind</th><th>What travels</th><th>Good for</th><th>Limits</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>Physical</td><td>The storage engine's own log (PostgreSQL WAL, Aurora redo records): which bytes changed on which page</td><td>Exact copies, fast, nothing to interpret</td><td>Same major version and platform; the whole cluster, not chosen tables</td><td>PostgreSQL streaming replication, Aurora storage, Oracle Data Guard (physical)</td></tr>
+            <tr><td>Logical (row-based)</td><td>Row changes: insert this row, update that key</td><td>Upgrades across versions, selected tables, feeding other systems (change data capture)</td><td>Schema changes need care; large transactions lag</td><td>MySQL row-based binlog, PostgreSQL logical replication, MongoDB oplog, Debezium</td></tr>
+            <tr><td>Statement-based</td><td>The SQL statement itself</td><td>Compact</td><td>Non-deterministic statements (NOW(), RAND(), unordered LIMIT) produce different results on replicas</td><td>Old MySQL default; now rarely used</td></tr>
+            <tr><td>Operation log</td><td>Commands or operations made idempotent</td><td>Simple to replay and resume</td><td>Must be designed so replays are safe</td><td>Redis command stream, MongoDB oplog, Elasticsearch operations</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u14-ack">When is a write safe? The commit point</h3>
+        <div id="sc-u14-commit"></div>
+        <p>The real question is <strong>when the client hears "OK"</strong> relative to when copies exist. Try each mode with a primary in one zone and two replicas in others (about 1 ms away):</p>
+        <div class="card widget" id="ack-lab">
+          <div class="ctl"><span class="seg" id="ack-mode"></span></div>
+          <div class="ctl"><span class="seg" id="ack-ev"></span></div>
+          <div class="tiles no-gl" id="ack-tiles"></div>
+          <div class="verdict no-gl" id="ack-why"></div>
+        </div>
+        <ul>
+          <li><strong>MySQL semi-sync</strong> waits until a replica has <em>received and logged</em> the change, not applied it, so a replica read can still be stale.</li>
+          <li><strong>PostgreSQL</strong> chooses per standby or by quorum (<code>synchronous_standby_names = 'ANY 1 (s1, s2)'</code>), and <code>synchronous_commit</code> says how far to wait: received, flushed, or applied (<code>remote_apply</code>, which also gives read-your-writes on that standby).</li>
+          <li><strong>Raft and Paxos groups</strong> (MySQL Group Replication, CockroachDB, etcd) commit once a majority has the entry, so one slow member never slows writes.</li>
+        </ul>
+
+        <h3 id="u14-quorum">Quorums: N, W and R</h3>
+        <p>In leaderless and quorum systems, each value lives on <strong>N</strong> replicas, a write waits for <strong>W</strong> of them, and a read asks <strong>R</strong>. If <strong>R + W &gt; N</strong>, every read set overlaps every write set, so at least one replica answering a read has the latest write.</p>
+        <div class="card widget" id="uq-lab">
+          <div class="ctl"><label for="uq-n">N replicas</label><input id="uq-n" type="range" min="1" max="7" value="3"><output id="uq-no"></output></div>
+          <div class="ctl"><label for="uq-w">W (write acks)</label><input id="uq-w" type="range" min="1" max="7" value="2"><output id="uq-wo"></output></div>
+          <div class="ctl"><label for="uq-r">R (read replies)</label><input id="uq-r" type="range" min="1" max="7" value="2"><output id="uq-ro"></output></div>
+          <div class="no-gl" id="uq-dots"></div>
+          <div class="tiles no-gl" id="uq-tiles"></div>
+          <div class="verdict no-gl" id="uq-why"></div>
+        </div>
+        <ul>
+          <li><strong>Overlap isn't the whole story:</strong> with <em>sloppy quorums</em> (writes accepted by stand-in nodes during failures, then handed back through hinted handoff), concurrent writes resolved by last-writer-wins timestamps, or a failed write that landed on fewer than W nodes, a quorum read can still return stale or lost data.</li>
+          <li><strong>Aurora's quorum</strong> is on storage, not servers: 6 copies across 3 zones, writes need 4, reads 3. It survives losing a whole zone for writes, and a zone plus one more copy for reads.</li>
+        </ul>
+
+        <h3 id="u14-chain">Chain replication</h3>
+        <p>Replicas form a chain: writes enter at the head and flow to the tail, and the <strong>tail answers reads</strong>, so every read sees only fully replicated writes (strong consistency) while the head's load stays low. CRAQ lets every node serve reads of items that aren't mid-update, asking the tail only for those that are. A chain is as slow as its slowest link, and a configuration service must repair it when a node fails.</p>
+
+        <h3 id="u14-failover">Failure detection, election and fencing</h3>
+        <ul>
+          <li><strong>Detection is guessing:</strong> heartbeats plus a timeout. Too short and a GC pause triggers a needless failover; too long and writes are down for longer. <em>Phi-accrual</em> detectors (Cassandra, Akka) turn heartbeat history into a suspicion level instead of a fixed timeout.</li>
+          <li><strong>Election needs a majority</strong> so two sides of a partition can't both elect a leader: Raft terms, MongoDB elections, Patroni holding a leader key in etcd or Consul.</li>
+          <li><strong>Fencing stops the old leader:</strong> every new leader gets a higher term or epoch, and storage or replicas reject writes carrying an older one. Without it, a paused old leader wakes up and keeps writing: split brain.</li>
+          <li><strong>Failover can lose writes:</strong> with asynchronous replication, the new leader lacks whatever the old one hadn't shipped. When the old leader returns, those writes must be discarded or reconciled.</li>
+        </ul>
+        <div id="viz-u14-rollback"></div>
+
+        <h3 id="u14-lag">Lag and read-your-writes in practice</h3>
+        <ul>
+          <li><strong>Measure lag in time and position:</strong> PostgreSQL's <code>pg_stat_replication</code> shows write, flush and replay lag; MySQL's <code>Seconds_Behind_Source</code> can mislead (it's based on event timestamps), so many teams write a heartbeat row every second and measure its age on each replica.</li>
+          <li><strong>Read your own writes:</strong> after a write, read from the primary for a few seconds; or remember the write's log position (LSN, GTID, cluster time) and have the replica wait until it has replayed that far (MySQL <code>WAIT_FOR_EXECUTED_GTID_SET</code>, MongoDB causally consistent sessions); or route each user to one replica (sticky sessions) for monotonic reads.</li>
+        </ul>
+
+        <h3 id="u14-conflicts">Multi-leader conflicts and leaderless repair</h3>
+        <table>
+          <thead><tr><th>Mechanism</th><th>What it does</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Last writer wins</td><td>Highest timestamp wins; the other write silently disappears</td><td>Cassandra, DynamoDB global tables (multi-region eventual consistency)</td></tr>
+            <tr><td>Merge in the application</td><td>Keep both versions (siblings) and let code or the user merge</td><td>Riak, CouchDB conflicts, offline-first apps</td></tr>
+            <tr><td>CRDTs</td><td>Data types whose concurrent updates always merge the same way (counters, sets, text)</td><td>Redis Enterprise active-active, Automerge and Yjs (D19)</td></tr>
+            <tr><td>Avoid conflicts</td><td>Each record has a home region that takes its writes; or synchronous multi-region writes</td><td>Per-user home regions; DynamoDB multi-region strong consistency, Spanner</td></tr>
+            <tr><td>Hinted handoff</td><td>A node that missed writes while down gets them from a stand-in (Cassandra keeps hints for 3 hours by default)</td><td>Cassandra, Dynamo-style stores</td></tr>
+            <tr><td>Read repair</td><td>A read that sees replicas disagree writes the newest value back</td><td>Cassandra, Riak</td></tr>
+            <tr><td>Anti-entropy repair</td><td>Replicas compare Merkle trees of their data and stream only the ranges that differ</td><td>Cassandra repair, Dynamo</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u14-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>What is replicated</th><th>Who waits, who leads</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td>WAL streamed to standbys (physical); publications and subscriptions (logical)</td><td>Async by default; synchronous per standby or by quorum; no built-in automatic failover</td><td>Patroni (with etcd or Consul) elects a leader and fences the old one</td></tr>
+            <tr><td>MySQL</td><td>Binary log, row-based by default; GTIDs identify each transaction</td><td>Async or semi-sync; Group Replication (InnoDB Cluster) uses a Paxos-based protocol</td><td>Semi-sync waits for receipt, not apply</td></tr>
+            <tr><td>MongoDB</td><td>The oplog: idempotent operations tailed by secondaries</td><td>Raft-like elections; the default write concern has been majority since 5.0</td><td>Writes acknowledged by fewer than a majority can be rolled back after a failover</td></tr>
+            <tr><td>Cassandra</td><td>Every replica takes writes; no leader</td><td>Per-request consistency: ONE, QUORUM, LOCAL_QUORUM, ALL</td><td>Hinted handoff, read repair and Merkle-tree repair keep replicas converging</td></tr>
+            <tr><td>Redis</td><td>Command stream; a backlog allows partial resync</td><td>Async; Sentinel or Cluster promotes a replica</td><td>Acknowledged writes can be lost on failover; WAIT narrows the window</td></tr>
+            <tr><td>Kafka</td><td>Followers fetch each partition's log from its leader</td><td><code>acks=all</code> (the producer default since 3.0) with <code>min.insync.replicas</code>; the KRaft controller picks leaders from in-sync replicas</td><td>Unclean leader election is off by default: availability is traded for no lost messages</td></tr>
+            <tr><td>Amazon Aurora</td><td>Redo records to a shared storage layer, 6 copies in 3 zones</td><td>Writes need 4 of 6, reads 3 of 6</td><td>Replicas read the same storage, so lag is typically well under 100 ms</td></tr>
+            <tr><td>DynamoDB global tables</td><td>Item changes between regions</td><td>Every region writes; eventual by default, or multi-region strong consistency</td><td>In eventual mode, concurrent writes to one item resolve by last writer wins</td></tr>
+            <tr><td>Elasticsearch</td><td>Operations replayed from primary to replica shards</td><td>The master tracks in-sync copies; sequence numbers and a global checkpoint</td><td>Only in-sync copies can be promoted, so writes aren't lost silently</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u14-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"Can a failover lose data?"</strong> With async replication, yes: whatever the old primary acknowledged but hadn't shipped. Semi-sync or a majority quorum closes that gap at the cost of one round trip per commit.</li>
+          <li><strong>"Why isn't R + W &gt; N enough?"</strong> Sloppy quorums, last-writer-wins on concurrent writes and partially failed writes can all return stale data; it's a probability improvement, not linearizability.</li>
+          <li><strong>"How do you stop two primaries?"</strong> Elect through a majority (Raft, etcd) and fence: a higher term or epoch on every write, so the old leader's writes are rejected.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="The write is acknowledged once a replica has received it, not applied it">
+            <p>What does MySQL semi-synchronous replication guarantee before acknowledging a commit?</p>
+            <div class="opts"><button>Every replica has applied it</button><button>The write is acknowledged once a replica has received it, not applied it</button><button>Nothing beyond async</button></div>
+            <div class="why">That protects against losing the write on failover, but a replica read can still be stale.</div>
+          </div>
+          <div class="quiz-q" data-answer="2">
+            <p>N = 3 and W = 2. What is the smallest R that guarantees a read overlaps the latest write?</p>
+            <div class="opts"><button>1</button><button>2</button><button>3</button></div>
+            <div class="why">R + W must exceed N: 2 + 2 &gt; 3.</div>
+          </div>
+          <div class="quiz-q" data-answer="A fencing token or term that storage checks on every write">
+            <p>What stops a paused old leader from writing after a new one was elected?</p>
+            <div class="opts"><button>A shorter heartbeat timeout</button><button>A fencing token or term that storage checks on every write</button><button>More replicas</button></div>
+            <div class="why">Timeouts can't tell slow from dead; only rejecting stale terms makes split brain harmless.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://www.postgresql.org/docs/current/warm-standby.html" target="_blank" rel="noopener">PostgreSQL: log-shipping standby servers</a></li><li><a href="https://www.postgresql.org/docs/current/runtime-config-replication.html" target="_blank" rel="noopener">PostgreSQL: replication settings</a></li><li><a href="https://patroni.readthedocs.io/en/latest/" target="_blank" rel="noopener">Patroni documentation</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html" target="_blank" rel="noopener">MySQL 8.4: semisynchronous replication</a></li><li><a href="https://dev.mysql.com/doc/refman/8.4/en/group-replication.html" target="_blank" rel="noopener">MySQL 8.4: Group Replication</a></li><li><a href="https://www.mongodb.com/docs/manual/core/replica-set-rollbacks/" target="_blank" rel="noopener">MongoDB: rollbacks during failover</a></li><li><a href="https://cassandra.apache.org/doc/latest/cassandra/managing/operating/hints.html" target="_blank" rel="noopener">Cassandra: hints</a></li><li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/replication/" target="_blank" rel="noopener">Redis: replication</a></li><li><a href="https://kafka.apache.org/documentation/" target="_blank" rel="noopener">Apache Kafka documentation (replication)</a></li><li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.StorageReliability.html" target="_blank" rel="noopener">Aurora: storage reliability</a></li><li><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/aurora-replication-options/aurora-replicas.html" target="_blank" rel="noopener">Aurora Replicas (AWS Prescriptive Guidance)</a></li><li><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GlobalTables.html" target="_blank" rel="noopener">DynamoDB: global tables</a></li><li><a href="https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents" target="_blank" rel="noopener">Elasticsearch: reading and writing documents</a></li><li><a href="https://www.usenix.org/conference/osdi-04/chain-replication-supporting-high-throughput-and-availability" target="_blank" rel="noopener">Chain replication (OSDI 2004)</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="13-choosing-a-database.html"><small>Previous module</small>← 13 · Choosing a database</a>
       <a class="next" href="15-sharding-consistent-hashing.html"><small>Next module</small>15 · Sharding and consistent hashing →</a>
@@ -2830,6 +2955,62 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "A few levels later you reach the handful of keys that differ, and send only those. Billions of keys, a few dozen hash comparisons." },
     ],
   });
+  /* ---------- Under the hood: replication ---------- */
+  Viz.scene("#sc-u14-commit", {
+    title: "Where the commit point sits", sub: "<b>Blue</b> = the write, <b>green</b> = the client's OK, <b>red</b> = lost.",
+    nodes: [{ id: "c", x: 70, y: 135, w: 100, label: "Client" }, { id: "p", x: 270, y: 135, w: 130, label: "Primary" }, { id: "r1", x: 490, y: 60, w: 130, label: "Replica 1" }, { id: "r2", x: 490, y: 210, w: 130, label: "Replica 2" }],
+    edges: [["c", "p"], ["p", "r1"], ["p", "r2"]],
+    width: 600, height: 270,
+    steps: [
+      { hl: { c: "active", p: "found" }, moves: [{ e: "c>p", t: "write x=5", k: "req" }, { e: "c>p", t: "OK", k: "ok", back: true, delay: 1.0 }, { e: "p>r1", t: "x=5 (later)", k: "req", delay: 2.0 }], hold: 3.4, note: "Asynchronous: the primary says OK first and ships the change afterwards. Fastest, but…" },
+      { hl: { p: "bad", r1: "warm" }, pops: [{ n: "p", t: "crash before shipping", k: "bad", at: 0.2 }, { n: "r1", t: "promoted: has no x=5", k: "bad", at: 1.2 }], hold: 3.2, note: "…if the primary dies before shipping, the promoted replica never saw x=5. The client was told OK: an acknowledged write is lost." },
+      { hl: { c: "active", p: "active", r1: "found" }, moves: [{ e: "c>p", t: "write x=6", k: "req" }, { e: "p>r1", t: "x=6", k: "req", delay: 0.9 }, { e: "p>r1", t: "received", k: "ok", back: true, delay: 1.8 }, { e: "c>p", t: "OK", k: "ok", back: true, delay: 2.6 }], hold: 3.6, note: "Semi-sync or quorum: OK only after at least one replica has the change. One extra round trip per commit, and a failover keeps the write." },
+      { hl: { c: "warm", p: "active", r1: "found", r2: "bad" }, moves: [{ e: "p>r1", t: "x=7", k: "req" }, { e: "p>r2", t: "x=7", k: "req" }], pops: [{ n: "r2", t: "down", k: "bad", at: 0.6 }, { n: "c", t: "waits… forever?", k: "bad", at: 1.6 }], hold: 3.4, note: "Fully synchronous to every replica: one dead replica stops all writes. That's why systems wait for one of several, or a majority." },
+    ],
+  });
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>Member</th><th>Oplog</th><th>Role</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r[0]}</td><td><code>${r[1]}</code></td><td>${r[2]}</td></tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center;font-family:var(--sans)">${cap}</div></div>`;
+    Viz.stepper("#viz-u14-rollback", { title: "A MongoDB failover that rolls back a write", sub: "Write concern w: 1 (acknowledged by the primary alone).", speed: 3200, frames: [
+      { view: R([["A", "op1 op2 op3", "primary"], ["B", "op1 op2", "secondary"], ["C", "op1 op2", "secondary"]], "op3 was written with w: 1: A said OK before B or C copied it."), note: "The client was told op3 succeeded. Only the primary has it." },
+      { view: R([["A", "op1 op2 op3", "cut off by a partition"], ["B", "op1 op2", "elected primary (B and C are a majority)"], ["C", "op1 op2", "secondary"]], "A is partitioned away; B and C elect B."), note: "The majority side elects a new primary. It has never heard of op3." },
+      { view: R([["A", "op1 op2 op3", "steps down"], ["B", "op1 op2 op4 op5", "primary"], ["C", "op1 op2 op4 op5", "secondary"]], "New writes op4 and op5 go to B."), note: "History has diverged: A has op3, the others have op4 and op5." },
+      { view: R([["A", "op1 op2 op4 op5", "secondary (op3 rolled back to a file)"], ["B", "op1 op2 op4 op5", "primary"], ["C", "op1 op2 op4 op5", "secondary"]], "A rejoins, undoes op3 and catches up."), note: "op3 is rolled back, saved to a rollback file for manual recovery. With w: majority (the default since 5.0), op3 wouldn't have been acknowledged." },
+    ] });
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const MODES = ["Async", "Semi-sync (1 replica)", "Sync (all replicas)", "Majority (2 of 3)"];
+    const EV = ["Normal", "Primary crashes right after OK", "One replica 200 ms slow", "One replica down"];
+    let m = 0, e = 0;
+    const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (ev) => { const b = ev.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === get()))); run(); }; };
+    seg("ack-mode", MODES, () => m, (v) => (m = v)); seg("ack-ev", EV, () => e, (v) => (e = v));
+    function run() {
+      const base = 2, hop = 1;
+      let lat = [base, base + hop, base + hop, base + hop][m], lost = "No", avail = "Writes continue", note = "";
+      if (e === 1) { lost = m === 0 ? "Yes: whatever wasn't shipped yet" : "No: a replica already has it"; note = m === 0 ? "The client was told OK, then the write vanished with the primary." : "The promoted replica holds every acknowledged write."; }
+      if (e === 2) { if (m === 2) { lat = base + 200; note = "Every commit now waits for the slowest replica."; } else note = m === 0 ? "Commits don't wait; that replica just falls behind (lag)." : "The fast replica answers first, so commits barely notice."; }
+      if (e === 3) { if (m === 2) { lat = Infinity; avail = "Writes stall"; note = "With every replica required, one dead replica stops all writes (or the system must drop back to async)."; } else note = m === 0 ? "Nothing waits on replicas, so writes continue; there's less protection left." : "The other replica still acknowledges, so writes continue."; }
+      if (e === 0) note = ["Fastest: the commit is local. Replicas catch up a moment later.", "One extra round trip to the nearest replica protects against losing acknowledged writes.", "Safest for reads on replicas, but the slowest replica sets the pace.", "The usual compromise in consensus systems: any one member can be slow or down."][m];
+      g("ack-tiles").innerHTML = [["Commit latency", isFinite(lat) ? lat + " ms" : "∞"], ["Acknowledged write lost?", lost], ["Availability", avail]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("ack-why").innerHTML = `<b>${MODES[m]} · ${EV[e]}:</b> ${note}`;
+      g("ack-why").className = "verdict no-gl" + ((e === 1 && m === 0) || (m === 2 && e >= 2) ? " bad" : "");
+    }
+    run();
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const run = () => {
+      let N = +g("uq-n").value; ["uq-w", "uq-r"].forEach((id) => { g(id).max = N; if (+g(id).value > N) g(id).value = N; });
+      const W = +g("uq-w").value, R = +g("uq-r").value; g("uq-no").textContent = N; g("uq-wo").textContent = W; g("uq-ro").textContent = R;
+      const dots = Array.from({ length: N }, (_, i) => { const w = i < W, r = i >= N - R; return `<span class="nd ${w && r ? "split" : ""}" title="replica ${i + 1}"><span class="${w ? "new" : ""}">${w ? "W" : "·"}</span><span class="${r ? "up" : ""}">${r ? "R" : "·"}</span></span>`; }).join("");
+      g("uq-dots").innerHTML = `<div class="bpt"><div class="lv">${dots}</div><div class="idx" style="font-family:var(--sans);white-space:normal;text-align:center">Worst case: the write reached the first W replicas, the read asked the last R. Outlined = in both.</div></div>`;
+      const ov = R + W > N;
+      g("uq-tiles").innerHTML = [["Reads see the latest write?", ov ? "Yes (overlap)" : "Not guaranteed"], ["Writes survive replicas down", N - W], ["Reads survive replicas down", N - R], ["Two writes can't both succeed alone?", 2 * W > N ? "Yes (W > N/2)" : "No"]].map(([a, b]) => `<div><b>${b}</b><span>${a}</span></div>`).join("");
+      g("uq-why").innerHTML = ov ? `R + W = ${R + W} &gt; N = ${N}: at least ${R + W - N} replica${R + W - N > 1 ? "s" : ""} answering any read holds the latest acknowledged write. ${W === N ? "But W = N means one dead replica blocks every write." : R === N ? "But R = N means one dead replica blocks every read." : ""}` : `R + W = ${R + W} ≤ N = ${N}: a read can miss every replica that got the write. Fine for speed, but reads may be stale.`;
+      g("uq-why").className = "verdict no-gl" + (ov ? "" : " warn");
+    };
+    ["uq-n", "uq-w", "uq-r"].forEach((id) => (g(id).oninput = run)); run();
+  })();
 })();
 </script>
 </body>

@@ -2372,6 +2372,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2672,6 +2673,121 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://www.hellointerview.com/learn/system-design/core-concepts/sharding" target="_blank" rel="noopener">Sharding</a> (Hello Interview)</td><td>20 min</td><td>How to raise sharding in an interview, and the follow-ups to expect.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How data is really split across machines, moved when machines change, and found again. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-partitioning-and-sharding">
+      <summary><span class="uth-t"><b>Partitioning and sharding</b><small>Range vs hash vs directory, consistent hashing variants with a live lab, splitting, hot keys, routing, resharding, 10 products compared</small></span><span class="uth-m">about 35 min</span></summary>
+      <div class="uth-body">
+        <p>Sharding is three decisions: how a key maps to a shard, how shards move when you add machines, and how a request finds the right one. Each product makes them differently, and the consequences show up as hot spots, painful resharding and slow cross-shard queries.</p>
+
+        <h3 id="u15-map">Mapping keys to shards</h3>
+        <table>
+          <thead><tr><th>Scheme</th><th>How</th><th>Strength</th><th>Weakness</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>Range</td><td>Contiguous key ranges per shard</td><td>Range scans stay on one shard; easy to split</td><td>Sequential keys (timestamps, increasing IDs) all hit the last shard</td><td>Bigtable, HBase, CockroachDB, TiDB, Spanner, MongoDB ranged keys</td></tr>
+            <tr><td>Hash</td><td>A hash of the key picks the shard</td><td>Even spread, no hot tail</td><td>Range queries hit every shard</td><td>Cassandra, DynamoDB, Redis Cluster, Citus, Kafka</td></tr>
+            <tr><td>Hash then range</td><td>Hash the partition key; keep rows inside a partition sorted by a second key</td><td>Spread plus ordered reads within one entity ("a user's messages by time")</td><td>One huge or hot partition is still one place</td><td>Cassandra (partition + clustering key), DynamoDB (partition + sort key)</td></tr>
+            <tr><td>Directory</td><td>A lookup table says where each key or tenant lives</td><td>Move any key anywhere; pin big tenants</td><td>The directory must be fast, cached and highly available</td><td>Vitess lookup vindexes, tenant routing tables, MongoDB zones</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u15-hashing">Consistent hashing and its relatives</h3>
+        <p>With <code>hash(key) mod N</code>, adding one server changes N, so almost every key moves. Consistent hashing schemes move only about 1/N of the keys. Add a node and compare:</p>
+        <div class="card widget" id="ch-lab">
+          <div class="ctl"><span class="seg" id="ch-alg"></span></div>
+          <div class="ctl"><label for="ch-n">Servers</label><input id="ch-n" type="range" min="3" max="10" value="4"><output id="ch-no"></output><span class="seg" id="ch-v"></span></div>
+          <div class="no-gl" id="ch-bars"></div>
+          <div class="tiles no-gl" id="ch-tiles"></div>
+          <div class="verdict no-gl" id="ch-why"></div>
+        </div>
+        <table>
+          <thead><tr><th>Scheme</th><th>How it picks</th><th>Notes</th><th>Used in</th></tr></thead>
+          <tbody>
+            <tr><td>Ring with virtual nodes</td><td>Each server owns many points on a hash ring; a key goes to the next point clockwise</td><td>More virtual nodes give a more even spread; removal and weights are easy</td><td>Cassandra (16 tokens per node by default since 4.0), Dynamo, many caches</td></tr>
+            <tr><td>Fixed slots</td><td>Hash to one of a fixed number of slots; a table maps slots to servers</td><td>Rebalancing moves whole slots; the table is small and explicit</td><td>Redis Cluster (16,384 slots), Couchbase vBuckets, Elasticsearch shards</td></tr>
+            <tr><td>Rendezvous (highest random weight)</td><td>Score every server with hash(key, server); take the highest</td><td>No ring, perfectly even on average, O(N) per lookup</td><td>Load balancers, CDNs choosing caches, client-side sharding</td></tr>
+            <tr><td>Jump consistent hash</td><td>A few lines of arithmetic map a key to bucket 0…N−1</td><td>No memory, very even, but servers must be numbered and only the last can be removed</td><td>Storage and cache layers with numbered shards (from Google, 2014)</td></tr>
+            <tr><td>Maglev hashing</td><td>A fixed-size lookup table filled by each backend's preference order</td><td>Very fast lookups, small disruption when backends change</td><td>Google's Maglev load balancer, Envoy's Maglev policy</td></tr>
+            <tr><td>Bounded loads</td><td>Consistent hashing, but a server above (1 + ε) × average load passes keys on</td><td>Caps hot servers while keeping most keys in place</td><td>HAProxy and some cache tiers</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u15-split">Fixed partitions vs splitting</h3>
+        <ul>
+          <li><strong>Many fixed partitions from day one</strong> (Kafka partitions, Elasticsearch primary shards, Redis slots, Citus's default of 32 shards per table): adding a machine moves whole partitions, never re-hashes keys. The count is hard to change later: Kafka can only add partitions (which remaps keys), Elasticsearch needs split, shrink or reindex.</li>
+          <li><strong>Split as you grow</strong> (Bigtable and HBase regions, CockroachDB ranges up to 512 MiB by default, TiDB regions, Spanner splits, MongoDB chunks): a range that gets too big or too busy splits in two, and a balancer moves pieces around. No up-front guess, but each split and move is work the system must do safely online.</li>
+          <li><strong>DynamoDB</strong> does both automatically: partitions split when they pass about 10 GB or sustained heat ("split for heat"), and adaptive capacity lends throughput to busy partitions. Each partition still serves at most about 3,000 reads and 1,000 writes per second, so a single hot key can't go faster.</li>
+        </ul>
+
+        <h3 id="u15-hot">Choosing a shard key, and hot keys</h3>
+        <ul>
+          <li><strong>High cardinality, even frequency, not monotonic:</strong> user or tenant ID, order ID. Not country (few values), not created_at (all new writes on one shard), not status.</li>
+          <li><strong>Matches the main query:</strong> the key in the WHERE clause of the busiest request, so it hits one shard.</li>
+          <li><strong>Hot keys</strong> (a celebrity, a flash sale item) beat any key choice. Fixes: cache the reads; <strong>salt</strong> the writes across several sub-keys and merge on read; split a hot range; or give the hot entity its own shard.</li>
+        </ul>
+        <div id="sc-u15-hot"></div>
+
+        <h3 id="u15-route">Routing, rebalancing and secondary indexes</h3>
+        <table>
+          <thead><tr><th>Who finds the shard</th><th>How</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>Smart client</td><td>The driver caches the shard map and goes direct; redirects (MOVED) correct it</td><td>Redis Cluster clients, Cassandra token-aware drivers, Kafka producers</td></tr>
+            <tr><td>Proxy / router</td><td>A stateless tier knows the map and forwards</td><td>MongoDB mongos, Vitess VTGate, Citus coordinator, Twemproxy</td></tr>
+            <tr><td>Any node</td><td>Whichever node receives the request coordinates it</td><td>Cassandra coordinators, CockroachDB gateway nodes, Elasticsearch</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><strong>Resharding without downtime</strong> follows one recipe: copy existing data to the new layout while streaming ongoing changes (Vitess VReplication, MongoDB's online resharding), verify, then switch reads and writes over, with a way back.</li>
+          <li><strong>Local secondary indexes</strong> live on each shard with its data: writes stay single-shard, but a query by that column asks every shard (Elasticsearch, Cassandra SAI, DynamoDB local secondary indexes). <strong>Global secondary indexes</strong> are partitioned by the indexed column: one-shard reads, but every write updates another shard, usually asynchronously (DynamoDB GSIs, CockroachDB indexes).</li>
+          <li><strong>Scatter-gather</strong> is as slow as the slowest shard: with 50 shards, a 1-in-100 slow response hits about 40% of queries. Co-locate data that's queried together (Citus co-location, Spanner interleaved tables) and keep cross-shard queries off the hot path.</li>
+        </ul>
+        <div id="sc-u15-sg"></div>
+
+        <h3 id="u15-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product</th><th>How a key finds its shard</th><th>Splitting and rebalancing</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>MongoDB</td><td>Ranged or hashed shard key; mongos routers consult config servers</td><td>A balancer moves chunks; collections can be resharded online (since 5.0)</td><td>An increasing ranged key sends every insert to one shard</td></tr>
+            <tr><td>Cassandra</td><td>Murmur3 hash of the partition key onto a token ring with virtual nodes</td><td>A new node takes over token ranges and streams their data</td><td>No cross-partition queries by design: one table per query</td></tr>
+            <tr><td>DynamoDB</td><td>Hash of the partition key</td><td>Automatic splits by size and heat; adaptive capacity</td><td>About 1,000 writes and 3,000 reads per second per partition</td></tr>
+            <tr><td>Vitess (MySQL)</td><td>Vindexes map a column to a keyspace ID; shards own ranges of IDs</td><td>Copy with VReplication, then switch traffic</td><td>Grows an unmodified MySQL application past one server</td></tr>
+            <tr><td>Citus (PostgreSQL)</td><td>Hash of a distribution column into a fixed number of shards</td><td>Shards move between worker nodes</td><td>Co-located tables join locally; small tables are copied to every node</td></tr>
+            <tr><td>CockroachDB / TiDB</td><td>Key ranges, each its own Raft group</td><td>Automatic splits by size and load, then rebalancing</td><td>Sequential keys make a hot range; hash-sharded indexes spread them</td></tr>
+            <tr><td>Spanner</td><td>Key ranges (splits), each a Paxos group</td><td>Automatic</td><td>Interleaved tables keep a parent with its children</td></tr>
+            <tr><td>Elasticsearch / OpenSearch</td><td>Hash of the routing value modulo the primary shard count</td><td>Fixed per index; split, shrink, reindex or roll over time-based indexes</td><td>Too many small shards waste memory; too few cap parallelism</td></tr>
+            <tr><td>Redis Cluster</td><td>CRC16 of the key modulo 16,384 slots</td><td>Slots migrate; clients follow MOVED and ASK</td><td>Hash tags keep related keys in one slot</td></tr>
+            <tr><td>Kafka</td><td>Hash of the message key modulo the partition count</td><td>Partitions can be added, never split; adding remaps keys</td><td>Order holds only within a partition</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u15-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"What happens when you add a shard?"</strong> With modulo hashing nearly everything moves; with consistent hashing or fixed slots about 1/N moves, copied in the background while the old owner keeps serving, then switched over.</li>
+          <li><strong>"Your shard key is a timestamp. Problem?"</strong> Every new write goes to the newest range: one hot shard. Hash it, prefix it with a high-cardinality value, or use a hash-sharded index.</li>
+          <li><strong>"How would you handle a celebrity's like counter?"</strong> Salt the key into, say, 16 sub-counters on different shards, increment one at random, sum on read (and cache the sum).</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="About 1/N">
+            <p>With consistent hashing and N servers, roughly what fraction of keys move when one server is added?</p>
+            <div class="opts"><button>About 1/N</button><button>About half</button><button>Almost all</button></div>
+            <div class="why">Only the keys the new server takes over. With modulo hashing, about N/(N+1) of keys move.</div>
+          </div>
+          <div class="quiz-q" data-answer="Every shard must be asked, so the slowest one sets the latency">
+            <p>Why are queries on a local secondary index expensive in a sharded store?</p>
+            <div class="opts"><button>Local indexes are slower to read</button><button>Every shard must be asked, so the slowest one sets the latency</button><button>They need a distributed transaction</button></div>
+            <div class="why">The matching rows could be anywhere: scatter-gather.</div>
+          </div>
+          <div class="quiz-q" data-answer="Its writes all go to one partition, which has a fixed throughput limit">
+            <p>DynamoDB splits hot partitions automatically. Why can a single hot key still throttle?</p>
+            <div class="opts"><button>Splits are disabled by default</button><button>Its writes all go to one partition, which has a fixed throughput limit</button><button>Hot keys are rejected</button></div>
+            <div class="why">A split can't divide one key. Salt it or cache it.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://www.mongodb.com/docs/manual/sharding/" target="_blank" rel="noopener">MongoDB: sharding</a></li><li><a href="https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/" target="_blank" rel="noopener">MongoDB: reshard a collection</a></li><li><a href="https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html" target="_blank" rel="noopener">Cassandra: Dynamo-style architecture</a></li><li><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/throttling-key-range-limit-exceeded-mitigation.html" target="_blank" rel="noopener">DynamoDB: key range throughput exceeded (hot partitions)</a></li><li><a href="https://vitess.io/docs/concepts/shard/" target="_blank" rel="noopener">Vitess: shards</a></li><li><a href="https://docs.citusdata.com/en/stable/sharding/data_modeling.html" target="_blank" rel="noopener">Citus: choosing a distribution column</a></li><li><a href="https://www.cockroachlabs.com/docs/stable/architecture/distribution-layer" target="_blank" rel="noopener">CockroachDB: distribution layer</a></li><li><a href="https://www.cockroachlabs.com/docs/stable/hash-sharded-indexes" target="_blank" rel="noopener">CockroachDB: hash-sharded indexes</a></li><li><a href="https://www.elastic.co/docs/deploy-manage/production-guidance/optimize-performance/size-shards" target="_blank" rel="noopener">Elasticsearch: size your shards</a></li><li><a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/" target="_blank" rel="noopener">Redis Cluster specification</a></li><li><a href="https://cloud.google.com/spanner/docs/schema-and-data-model" target="_blank" rel="noopener">Spanner: schema and data model</a></li><li><a href="https://arxiv.org/abs/1406.2294" target="_blank" rel="noopener">Jump consistent hash (Lamping and Veach, 2014)</a></li><li><a href="https://research.google/pubs/maglev-a-fast-and-reliable-software-network-load-balancer/" target="_blank" rel="noopener">Maglev load balancer (Google, 2016)</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="14-replication.html"><small>Previous module</small>← 14 · Replication</a>
       <a class="next" href="16-consistency-cap.html"><small>Next module</small>16 · Consistency, CAP and PACELC →</a>
@@ -2812,6 +2928,62 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "Readers fetch all four counters and add them up: four times the reads, but no single hot shard." },
       { hl: { r: "warm" }, pops: [{ n: "r", t: "only for summable values", k: "evt", at: 0.3 }],
         note: "It works for counts (likes, views), not for records that must change atomically. Split only the keys that are actually hot." },
+    ],
+  });
+  /* ---------- Under the hood: partitioning ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const fnv = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; return h >>> 0; };
+    const KEYS = Array.from({ length: 2000 }, (_, i) => "user:" + (i * 7 + 13));
+    const KH = KEYS.map(fnv);
+    const ALGS = ["Modulo (hash mod N)", "Ring with virtual nodes", "Rendezvous hashing", "Jump hash"], VN = [1, 8, 64, 256];
+    let alg = 1, vi = 2;
+    const jump = (key, n) => { let b = -1, j = 0, k = BigInt(key); while (j < n) { b = j; k = (k * 2862933555777941757n + 1n) & 0xFFFFFFFFFFFFFFFFn; j = Math.floor((b + 1) * (2147483648 / (Number(k >> 33n) + 1))); } return b; };
+    const ringFor = (n, v) => { const pts = []; for (let s = 0; s < n; s++) for (let r = 0; r < v; r++) pts.push([fnv("server" + s + "#" + r), s]); return pts.sort((a, b) => a[0] - b[0]); };
+    const onRing = (pts, h) => { let lo = 0, hi = pts.length; while (lo < hi) { const m = (lo + hi) >> 1; if (pts[m][0] < h) lo = m + 1; else hi = m; } return pts[lo === pts.length ? 0 : lo][1]; };
+    const place = (n) => { if (alg === 0) return KH.map((h) => h % n); if (alg === 1) { const p = ringFor(n, VN[vi]); return KH.map((h) => onRing(p, h)); } if (alg === 2) return KEYS.map((k) => { let best = -1, bs = -1; for (let s = 0; s < n; s++) { const sc = fnv(k + "|" + s); if (sc > bs) { bs = sc; best = s; } } return best; }); return KH.map((h) => jump(h, n)); };
+    const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === get()))); run(); }; };
+    seg("ch-alg", ALGS, () => alg, (v) => (alg = v));
+    seg("ch-v", VN.map((v) => v + " virtual node" + (v > 1 ? "s" : "")), () => vi, (v) => (vi = v));
+    function run() {
+      const n = +g("ch-n").value; g("ch-no").textContent = n + " → " + (n + 1);
+      g("ch-v").style.display = alg === 1 ? "" : "none";
+      const a = place(n), b = place(n + 1), moved = a.reduce((c, s, i) => c + (s !== b[i]), 0);
+      const cnt = (arr, m) => { const c = Array(m).fill(0); arr.forEach((s) => c[s]++); return c; };
+      const ca = cnt(a, n), cb = cnt(b, n + 1), max = Math.max(...cb, ...ca);
+      const bar = (c, i, isNew) => `<div style="display:grid;grid-template-columns:5.5em 1fr 3em;gap:8px;align-items:center;margin:3px 0"><span class="idx">server ${i}${isNew ? " (new)" : ""}</span><span style="height:12px;border-radius:6px;background:${isNew ? "var(--warm)" : "var(--accent)"};width:${(c / max) * 100}%"></span><span class="idx">${c}</span></div>`;
+      g("ch-bars").innerHTML = `<div style="font-size:.8rem;margin:6px 0 2px;color:var(--ink-3)">Keys per server after adding one (2,000 keys):</div>` + cb.map((c, i) => bar(c, i, i === n)).join("");
+      const ideal = 100 / (n + 1), pct = (moved / KEYS.length) * 100, avg = KEYS.length / (n + 1), imb = Math.max(...cb) / avg;
+      g("ch-tiles").innerHTML = [["Keys moved", pct.toFixed(1) + "%"], ["Minimum possible", ideal.toFixed(1) + "%"], ["Busiest server vs average", imb.toFixed(2) + "×"]].map(([x, y]) => `<div><b>${y}</b><span>${x}</span></div>`).join("");
+      const msgs = [`Changing N re-maps almost every key: ${pct.toFixed(0)}% move, so caches go cold and data must be copied everywhere.`,
+        `Only keys landing on the new server's points move. ${imb > 1.4 ? "With so few points per server the spread is lumpy: the busiest server holds " + imb.toFixed(1) + "× its fair share." : imb > 1.12 ? "The spread is fair but not flat (busiest " + imb.toFixed(2) + "× average); more virtual nodes smooth it further." : "With this many points per server the spread is close to even."}`,
+        "Each key goes to the server with the highest score, so a new server only steals keys it now wins: minimal movement and an even spread, at the cost of scoring every server per lookup.",
+        "Arithmetic only, no ring stored: near-perfect balance and minimal movement, but servers must be numbered 0…N−1, so you can only add or remove the last one."];
+      g("ch-why").innerHTML = msgs[alg];
+      g("ch-why").className = "verdict no-gl" + (alg === 0 || (alg === 1 && imb > 1.4) ? " warn" : "");
+    }
+    g("ch-n").oninput = run; run();
+  })();
+  Viz.scene("#sc-u15-hot", {
+    title: "A hot key, then salting it", sub: "<b>Red</b> = overloaded, <b>green</b> = spread out.",
+    nodes: [{ id: "app", x: 80, y: 140, w: 120, label: "Like service" }, { id: "s1", x: 400, y: 50, w: 150, label: "Shard 1" }, { id: "s2", x: 400, y: 140, w: 150, label: "Shard 2" }, { id: "s3", x: 400, y: 230, w: 150, label: "Shard 3" }],
+    edges: [["app", "s1"], ["app", "s2"], ["app", "s3"]],
+    width: 560, height: 280,
+    steps: [
+      { hl: { app: "active", s2: "bad" }, moves: [{ e: "app>s2", t: "INCR likes:celebrity", k: "bad" }, { e: "app>s2", t: "INCR likes:celebrity", k: "bad", delay: 0.4 }, { e: "app>s2", t: "INCR likes:celebrity", k: "bad", delay: 0.8 }], pops: [{ n: "s2", t: "50,000 writes/s: throttled", k: "bad", at: 1.4 }], hold: 3.4, note: "One key always hashes to one shard. No amount of extra shards helps it." },
+      { hl: { app: "active", s1: "found", s2: "found", s3: "found" }, moves: [{ e: "app>s1", t: "INCR likes:celebrity#3", k: "ok" }, { e: "app>s2", t: "INCR likes:celebrity#7", k: "ok", delay: 0.4 }, { e: "app>s3", t: "INCR likes:celebrity#12", k: "ok", delay: 0.8 }], hold: 3.4, note: "Salting: write to one of 16 sub-keys chosen at random. They hash to different shards." },
+      { hl: { app: "found", s1: "found", s2: "found", s3: "found" }, moves: [{ e: "app>s1", t: "read #0–#5", k: "ok", back: true }, { e: "app>s2", t: "read #6–#10", k: "ok", back: true, delay: 0.3 }, { e: "app>s3", t: "read #11–#15", k: "ok", back: true, delay: 0.6 }], pops: [{ n: "app", t: "sum = 1,204,310 (cached 5 s)", k: "evt", at: 1.4 }], hold: 3.4, note: "Reads gather the sub-counters and add them up; a short cache keeps that cheap." },
+    ],
+  });
+  Viz.scene("#sc-u15-sg", {
+    title: "Scatter-gather waits for the slowest shard", sub: "<b>Green</b> = fast replies, <b>red</b> = the straggler.",
+    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Coordinator" }, { id: "a", x: 400, y: 40, w: 130, label: "Shard A", sub: "4 ms" }, { id: "b", x: 400, y: 115, w: 130, label: "Shard B", sub: "5 ms" }, { id: "d", x: 400, y: 190, w: 130, label: "Shard C", sub: "4 ms" }, { id: "e", x: 400, y: 265, w: 130, label: "Shard D", sub: "GC pause: 180 ms" }],
+    edges: [["c", "a"], ["c", "b"], ["c", "d"], ["c", "e"]],
+    width: 560, height: 310,
+    steps: [
+      { hl: { c: "active" }, moves: [{ e: "c>a", t: "search", k: "req" }, { e: "c>b", t: "search", k: "req" }, { e: "c>d", t: "search", k: "req" }, { e: "c>e", t: "search", k: "req" }], hold: 2.6, note: "A query on a non-key column must ask every shard." },
+      { hl: { a: "found", b: "found", d: "found", e: "bad" }, moves: [{ e: "c>a", t: "12 hits", k: "ok", back: true }, { e: "c>b", t: "9 hits", k: "ok", back: true }, { e: "c>d", t: "4 hits", k: "ok", back: true }], pops: [{ n: "e", t: "still working…", k: "bad", at: 0.8 }], hold: 3, note: "Three answer in a few milliseconds…" },
+      { hl: { c: "warm", e: "bad" }, moves: [{ e: "c>e", t: "7 hits (180 ms)", k: "bad", back: true }], pops: [{ n: "c", t: "total: 180 ms", k: "bad", at: 1.2 }], hold: 3.2, note: "…but the answer waits for the slowest. More shards means more chances that one is slow: hedge, time out with partial results, or avoid the fan-out." },
     ],
   });
 })();
