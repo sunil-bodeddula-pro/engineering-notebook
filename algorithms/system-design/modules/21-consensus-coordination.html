@@ -2384,6 +2384,7 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
       <li><a href="#exercise">8. Design exercise</a></li>
       <li><a href="#quiz">9. Self-check quiz</a></li>
       <li><a href="#deeper">10. Go deeper</a></li>
+      <li><a href="#under-the-hood">11. Under the hood</a></li>
     </ol>
   </aside>
   <main>
@@ -2623,6 +2624,128 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         <tr><td><a href="https://etcd.io/docs/v3.6/faq/" target="_blank" rel="noopener">etcd FAQ</a> and <a href="https://zookeeper.apache.org/doc/current/recipes.html" target="_blank" rel="noopener">ZooKeeper recipes</a></td><td>30 min</td><td>Cluster sizing, failure tolerance, and how to build locks and elections on each.</td></tr>
       </tbody>
     </table>
+    <!-- 11 -->
+    <h2 id="under-the-hood">11. Under the hood (optional)</h2>
+    <p class="uth-lead">How consensus, locks, membership and conflict-free merging really work. Not needed for most interviews; open it when you want to know how the products really do it. All the deep dives are listed on the <a href="under-the-hood.html">Under the hood</a> page.</p>
+    <details class="uth" id="uth-consensus-coordination-and-crdts">
+      <summary><span class="uth-t"><b>Consensus, coordination and CRDTs</b><small>A hands-on Raft simulator, Paxos and ZAB, cluster sizing, leases and fencing (animated), ZooKeeper lock queues (animated), SWIM gossip, a CRDT merge lab, 8 products compared</small></span><span class="uth-m">about 40 min</span></summary>
+      <div class="uth-body">
+        <p>Consensus lets a group of machines agree on one ordered log of decisions even when some crash or the network splits. It sits under Kubernetes (etcd), Kafka's metadata (KRaft), distributed SQL (a Raft group per range) and every serious lock service. Knowing how it behaves under partitions explains what these systems can and can't promise.</p>
+
+        <h3 id="u21-raft">Raft, hands on</h3>
+        <p>Five servers. Make one time out to start an election, send client writes, split the network, and watch terms, logs and the commit index. Writes count as committed only once a majority holds them.</p>
+        <div class="card widget" id="rf-lab">
+          <div class="ctl"><span class="seg" id="rf-node"></span><button class="btn primary" type="button" id="rf-to">Time out → election</button><button class="btn" type="button" id="rf-crash">Crash / restart</button></div>
+          <div class="ctl"><button class="btn primary" type="button" id="rf-w">Client write</button><button class="btn" type="button" id="rf-part">Partition S1 S2 | S3 S4 S5</button><button class="btn" type="button" id="rf-reset">Reset</button></div>
+          <div class="no-gl" id="rf-view"></div>
+          <div class="verdict no-gl" id="rf-why"></div>
+        </div>
+        <p>Try: elect S1, write twice, partition, write again on S1 (it can't commit), time out S3 to elect a new leader in the majority, write there, then heal. S1 steps down and its uncommitted entries are replaced. Committed entries never are.</p>
+        <ul>
+          <li><strong>Elections:</strong> a follower that hears no heartbeat within a randomised timeout (150–300 ms in the paper; etcd defaults to 1 s with 100 ms heartbeats) becomes a candidate, increments the <strong>term</strong> and asks for votes. Each server votes once per term, and only for a candidate whose log is at least as up to date as its own. That rule guarantees a new leader already has every committed entry.</li>
+          <li><strong>Replication:</strong> the leader appends to its log and sends entries with the index and term of the entry before them; a follower whose log doesn't match rejects them, and the leader backs up until the logs agree, then overwrites the follower's divergent tail.</li>
+          <li><strong>Commit:</strong> an entry is committed once stored on a majority, and the leader only counts replicas for entries from its own term (older ones commit indirectly). Committed entries are applied to the state machine.</li>
+          <li><strong>Reads:</strong> a leader may have been deposed without knowing; linearizable reads confirm leadership with a heartbeat round (ReadIndex) or rely on a time-based lease.</li>
+          <li><strong>Operations:</strong> logs are compacted with snapshots; membership changes add or remove one server at a time (or use joint consensus); etcd adds a "pre-vote" step so a partitioned node can't disrupt the cluster with ever-higher terms when it returns.</li>
+        </ul>
+
+        <h3 id="u21-family">Raft, Paxos and ZAB</h3>
+        <table>
+          <thead><tr><th>Protocol</th><th>Shape</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Paxos (single-decree)</td><td>Agree on one value: prepare/promise with a ballot number, then accept/accepted by a majority</td><td>The theory everything builds on (Lamport)</td></tr>
+            <tr><td>Multi-Paxos</td><td>A stable leader skips the prepare phase for a sequence of values</td><td>Google Chubby and Spanner (per data split), many in-house systems</td></tr>
+            <tr><td>Raft</td><td>Multi-Paxos-like, designed for understandability: strong leader, explicit terms, log matching</td><td>etcd, Consul, CockroachDB, TiKV, KRaft, RabbitMQ quorum queues, NATS JetStream</td></tr>
+            <tr><td>ZAB</td><td>ZooKeeper's atomic broadcast: a leader orders updates; a new leader first syncs followers to its history</td><td>ZooKeeper</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Cluster size:</strong> a majority of N tolerates ⌊(N − 1) / 2⌋ failures: 3 nodes survive 1, 5 survive 2, 7 survive 3. Even sizes add cost but no tolerance (4 still survives only 1), and every extra member makes each write wait for more replies, which is why consensus groups are 3 or 5 and large systems run thousands of small groups (one per range) rather than one big one.</p>
+
+        <h3 id="u21-fence">Leases, locks and fencing tokens</h3>
+        <div id="sc-u21-fence"></div>
+        <ul>
+          <li><strong>A lease</strong> is a lock with an expiry, so a crashed holder doesn't block everyone forever. But a holder can pause (GC, VM migration) past its expiry and wake up still believing it holds the lock.</li>
+          <li><strong>Fencing tokens</strong> fix that: every grant comes with a number that only increases (etcd revisions, ZooKeeper zxids or sequence numbers), and the protected resource rejects any request with a lower number than it has already seen.</li>
+          <li><strong>Redis locks:</strong> <code>SET key token NX PX 30000</code> is fine for efficiency (avoid duplicate work). The multi-master Redlock algorithm was criticised (Martin Kleppmann, 2016) because it relies on timing and offers no fencing token, so for correctness use a consensus store or a database constraint.</li>
+        </ul>
+
+        <h3 id="u21-recipes">Coordination recipes</h3>
+        <div id="viz-u21-zk"></div>
+        <ul>
+          <li><strong>Leader election:</strong> the same lock recipe; the lock holder is the leader, and everyone else watches.</li>
+          <li><strong>Service discovery and configuration:</strong> instances register ephemeral keys (ZooKeeper ephemeral nodes, etcd keys attached to a lease) that disappear when they die; clients <em>watch</em> for changes instead of polling.</li>
+          <li><strong>Don't store data there:</strong> coordination stores hold kilobytes of metadata and handle thousands of writes a second, not your application's records (etcd's default request size limit is 1.5 MiB and its database 2 GiB by default).</li>
+        </ul>
+
+        <h3 id="u21-gossip">Membership by gossip</h3>
+        <ul>
+          <li><strong>SWIM</strong> (used by Consul's Serf, memberlist and many others): each node pings one random member per round; if no reply, it asks a few others to ping it indirectly before suspecting it; suspicions and joins spread by piggybacking on these messages. Load per node stays constant as the cluster grows, and news reaches everyone in O(log N) rounds.</li>
+          <li><strong>Cassandra</strong> gossips cluster state every second and uses a phi-accrual detector to decide when a node is down.</li>
+          <li><strong>Gossip is eventually consistent:</strong> fine for membership and load information, not for decisions that must be unique (use consensus for those).</li>
+        </ul>
+
+        <h3 id="u21-crdt">CRDTs: merging without coordination</h3>
+        <p>Conflict-free replicated data types are designed so replicas can change independently (offline, in different regions) and always merge to the same result, in any order. Change each replica, then merge:</p>
+        <div class="card widget" id="cr-lab">
+          <div class="grid-2 even" id="cr-reps"></div>
+          <div class="ctl"><button class="btn primary" type="button" id="cr-merge">Merge A and B</button><button class="btn" type="button" id="cr-reset">Reset</button></div>
+          <div class="no-gl" id="cr-out"></div>
+          <div class="verdict no-gl" id="cr-why"></div>
+        </div>
+        <table>
+          <thead><tr><th>CRDT</th><th>State</th><th>Merge</th></tr></thead>
+          <tbody>
+            <tr><td>G-counter</td><td>One count per replica</td><td>Element-wise max; value = sum</td></tr>
+            <tr><td>PN-counter</td><td>Two G-counters (increments, decrements)</td><td>Merge each; value = P − N</td></tr>
+            <tr><td>LWW-register</td><td>Value plus timestamp</td><td>Keep the later timestamp (concurrent writes lose one)</td></tr>
+            <tr><td>OR-set (observed-remove)</td><td>Each add gets a unique tag; a remove deletes the tags it has seen</td><td>Union of adds minus seen removes: a concurrent add survives a remove</td></tr>
+            <tr><td>Sequence CRDTs (RGA, YATA)</td><td>Each character has a unique ID and a position relative to its neighbours</td><td>Collaborative text: Yjs, Automerge</td></tr>
+          </tbody>
+        </table>
+        <p><strong>OT vs CRDTs:</strong> operational transformation (Google Docs) rewrites concurrent operations against each other through a central server that orders them; CRDTs need no central order, which suits offline-first and peer-to-peer apps, at the cost of metadata per element (D19 builds an editor).</p>
+
+        <h3 id="u21-products">Product by product</h3>
+        <table>
+          <thead><tr><th>Product or scheme</th><th>How it works</th><th>The detail worth knowing</th></tr></thead>
+          <tbody>
+            <tr><td>etcd</td><td>Raft-replicated key-value store with MVCC revisions, watches and leases</td><td>All Kubernetes cluster state; revisions double as fencing tokens</td></tr>
+            <tr><td>ZooKeeper</td><td>ZAB-replicated tree of znodes; ephemeral and sequential nodes</td><td>Locks and elections from "lowest sequence number wins"</td></tr>
+            <tr><td>Consul</td><td>Raft for the catalogue and key-value data; SWIM gossip for membership</td><td>Strong state plus cheap membership</td></tr>
+            <tr><td>Chubby, Spanner</td><td>Paxos lock service; Multi-Paxos per data split</td><td>Chubby inspired ZooKeeper</td></tr>
+            <tr><td>Raft inside databases</td><td>CockroachDB and TiKV (a group per range), Kafka KRaft, RabbitMQ quorum queues; MongoDB elections are Raft-like</td><td>Thousands of small groups, not one big one</td></tr>
+            <tr><td>Cassandra</td><td>Gossip with phi-accrual detection; lightweight transactions use Paxos per partition</td><td>Conditional writes cost several round trips</td></tr>
+            <tr><td>Redis locks</td><td>SET NX with expiry; Redlock across masters</td><td>No fencing token: use for efficiency, not correctness</td></tr>
+            <tr><td>CRDT libraries</td><td>Yjs, Automerge; Redis Enterprise active-active; Riak data types</td><td>Merge without a server; OT (Google Docs) needs one</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="u21-say">Say it in the interview</h3>
+        <div class="callout tip"><strong>Answers that show depth</strong><ul>
+          <li><strong>"What happens to writes on the minority side of a partition?"</strong> The old leader can append but never commit them, because it can't reach a majority; once the partition heals it steps down and its uncommitted entries are overwritten. Clients saw those writes time out, not succeed.</li>
+          <li><strong>"Why 5 nodes, not 4?"</strong> Both tolerate fewer than half failing; 4 tolerates 1 like 3 does, while 5 tolerates 2.</li>
+          <li><strong>"Is a Redis lock safe for a payment?"</strong> Not on its own: a paused holder can outlive its lease. Use a fencing token checked by the database, or a unique constraint.</li>
+        </ul></div>
+        <div class="card">
+          <div class="quiz-q" data-answer="Only one whose log is at least as up to date as its own">
+            <p>In Raft, which candidate will a server vote for?</p>
+            <div class="opts"><button>The first one that asks in a term</button><button>Only one whose log is at least as up to date as its own</button><button>The one with the lowest ID</button></div>
+            <div class="why">Combined with majorities, this guarantees every new leader holds all committed entries (and a server still votes only once per term).</div>
+          </div>
+          <div class="quiz-q" data-answer="2">
+            <p>How many failed members can a 5-member consensus group tolerate?</p>
+            <div class="opts"><button>1</button><button>2</button><button>4</button></div>
+            <div class="why">A majority (3 of 5) must remain.</div>
+          </div>
+          <div class="quiz-q" data-answer="The concurrent add survives">
+            <p>In an OR-set, replica A removes "milk" while replica B concurrently adds "milk". After merging?</p>
+            <div class="opts"><button>Milk is gone</button><button>The concurrent add survives</button><button>It depends on the clocks</button></div>
+            <div class="why">A remove only deletes the add-tags it has seen; B's new tag wasn't seen, so it stays.</div>
+          </div>
+        </div>
+        <h3>Sources</h3>
+        <ul class="uth-src"><li><a href="https://raft.github.io/raft.pdf" target="_blank" rel="noopener">Raft paper (Ongaro and Ousterhout)</a></li><li><a href="https://raft.github.io/" target="_blank" rel="noopener">The Raft site and visualisations</a></li><li><a href="https://etcd.io/docs/latest/learning/api/" target="_blank" rel="noopener">etcd: API guarantees and revisions</a></li><li><a href="https://etcd.io/docs/latest/tuning/" target="_blank" rel="noopener">etcd: tuning (heartbeat and election timeouts)</a></li><li><a href="https://zookeeper.apache.org/doc/current/recipes.html" target="_blank" rel="noopener">ZooKeeper recipes</a></li><li><a href="https://developer.hashicorp.com/consul/docs/architecture" target="_blank" rel="noopener">Consul architecture</a></li><li><a href="https://research.google/pubs/the-chubby-lock-service-for-loosely-coupled-distributed-systems/" target="_blank" rel="noopener">The Chubby lock service (Google)</a></li><li><a href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf" target="_blank" rel="noopener">Paxos Made Simple (Lamport)</a></li><li><a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html" target="_blank" rel="noopener">How to do distributed locking (Kleppmann)</a></li><li><a href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/" target="_blank" rel="noopener">Redis: distributed locks</a></li><li><a href="https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf" target="_blank" rel="noopener">SWIM paper</a></li><li><a href="https://crdt.tech/" target="_blank" rel="noopener">CRDT resources</a></li><li><a href="https://docs.yjs.dev/" target="_blank" rel="noopener">Yjs documentation</a></li><li><a href="https://automerge.org/docs/hello/" target="_blank" rel="noopener">Automerge</a></li></ul>
+      </div>
+    </details>
     <nav class="pager">
       <a href="20-time-ordering-ids.html"><small>Previous module</small>← 20 · Time, ordering and IDs</a>
       <a class="next" href="22-workflows-sagas.html"><small>Next module</small>22 · Workflows, sagas and outbox →</a>
@@ -2731,6 +2854,99 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
         note: "<b>Byzantine:</b> the node replies with anything, even lies. Tolerating this needs 3f + 1 nodes; data-centre systems assume it away." },
     ],
   });
+  /* ---------- Under the hood: consensus, coordination, CRDTs ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id), N = 5;
+    let S, part, sel, msg, ops = 0;
+    const reset = () => { S = Array.from({ length: N }, (_, i) => ({ id: i + 1, term: 0, role: "follower", vote: null, log: [], commit: 0, up: true })); part = false; sel = 0; ops = 0; msg = "All five are followers in term 0. Pick a server and make it time out."; draw(); };
+    const side = (i) => (part ? (i < 2 ? 0 : 1) : 0);
+    const reach = (a, b) => S[a].up && S[b].up && side(a) === side(b);
+    const lastTerm = (n) => (n.log.length ? n.log[n.log.length - 1].t : 0);
+    const upToDate = (c, v) => lastTerm(c) > lastTerm(v) || (lastTerm(c) === lastTerm(v) && c.log.length >= v.log.length);
+    const stepDownStale = () => { const maxT = Math.max(...S.filter((n) => n.up).map((n) => n.term)); S.forEach((n, i) => { if (n.role === "leader") { const seen = S.some((m, j) => j !== i && reach(i, j) && m.term > n.term); if (seen) { n.role = "follower"; n.term = maxT; } } }); };
+    function election() {
+      const c = S[sel]; if (!c.up) { msg = `S${c.id} is down.`; return draw(); }
+      c.term++; c.role = "candidate"; c.vote = c.id; let votes = 1; const why = [];
+      S.forEach((v, j) => { if (j === sel) return; if (!reach(sel, j)) { why.push(`S${v.id} unreachable`); return; }
+        if (v.term > c.term) { why.push(`S${v.id} has a newer term`); return; }
+        if (v.term < c.term) { v.term = c.term; v.vote = null; if (v.role !== "follower") v.role = "follower"; }
+        if ((v.vote === null || v.vote === c.id) && upToDate(c, v)) { v.vote = c.id; votes++; } else why.push(`S${v.id} refused (${upToDate(c, v) ? "already voted" : "its log is more up to date"})`); });
+      if (votes >= 3) { S.forEach((n) => { if (n !== c && n.role === "leader" && reach(sel, S.indexOf(n))) n.role = "follower"; }); c.role = "leader"; msg = `S${c.id} won term ${c.term} with ${votes} of 5 votes and is now leader.`; }
+      else msg = `S${c.id} got only ${votes} vote${votes > 1 ? "s" : ""} in term ${c.term}: no majority, so no leader (${why.join("; ")}). It will time out and retry.`;
+      draw();
+    }
+    function write() {
+      stepDownStale();
+      const leaders = S.map((n, i) => [n, i]).filter(([n]) => n.role === "leader" && n.up);
+      if (!leaders.length) { msg = "No leader: elect one first."; return draw(); }
+      const [L, i] = leaders.sort((a, b) => b[0].term - a[0].term)[0];
+      L.log.push({ t: L.term, c: "w" + ++ops });
+      let have = 1; S.forEach((f, j) => { if (j === i || !reach(i, j) || f.term > L.term) return; f.term = L.term; f.role = "follower"; f.log = L.log.map((e) => ({ ...e })); have++; });
+      if (have >= 3) { L.commit = L.log.length; S.forEach((f, j) => { if (reach(i, j) && f.term === L.term) f.commit = Math.min(L.commit, f.log.length); }); msg = `S${L.id} appended w${ops} at index ${L.log.length} (term ${L.term}); ${have} of 5 have it, a majority, so it's committed.`; }
+      else msg = `S${L.id} appended w${ops} at index ${L.log.length}, but only ${have} of 5 servers have it: <b>not committed</b>. The client's write times out.`;
+      draw();
+    }
+    function draw() {
+      g("rf-node").innerHTML = S.map((n, i) => `<button type="button" aria-pressed="${i === sel}">S${n.id}</button>`).join("");
+      g("rf-part").textContent = part ? "Heal the partition" : "Partition S1 S2 | S3 S4 S5";
+      const col = (t) => ["#9aa5b1", "#2a9d8f", "#e76f51", "#457b9d", "#e9c46a", "#8d6cab", "#6a994e"][t % 7];
+      g("rf-view").innerHTML = `<div class="bpt" style="font-family:var(--sans);white-space:normal;justify-items:stretch">${S.map((n, i) => `<div style="display:grid;grid-template-columns:9.5em 1fr;gap:10px;align-items:center;${part && i === 2 ? "border-top:2px dashed var(--red);padding-top:8px;" : ""}opacity:${n.up ? 1 : 0.4}"><div><b>S${n.id}</b> <span class="tech-status ${n.role === "leader" ? "s-default" : n.role === "candidate" ? "s-situational" : "s-rare"}" style="font-size:.66rem">${n.up ? n.role : "down"}</span><div class="idx">term ${n.term}</div></div><div class="lv" style="justify-content:flex-start">${n.log.length ? n.log.map((e, k) => `<span class="nd" title="term ${e.t}"><span style="min-width:2.6em;background:color-mix(in srgb, ${col(e.t)} ${k < n.commit ? 55 : 18}%, var(--surface));${k < n.commit ? "font-weight:700" : "border-style:dashed"}">${e.c}</span></span>`).join("") : '<span class="idx">(empty log)</span>'}</div></div>`).join("")}<div class="idx" style="text-align:center">Colour = term that wrote the entry; bold = committed, faint = not yet committed.${part ? " Red dashed line = network partition." : ""}</div></div>`;
+      g("rf-why").innerHTML = msg;
+    }
+    g("rf-node").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; sel = [...g("rf-node").children].indexOf(b); draw(); };
+    g("rf-to").onclick = election; g("rf-w").onclick = write; g("rf-reset").onclick = reset;
+    g("rf-crash").onclick = () => { const n = S[sel]; n.up = !n.up; if (!n.up && n.role === "leader") n.role = "follower"; msg = n.up ? `S${n.id} restarted as a follower with its log intact.` : `S${n.id} crashed.`; if (n.up) n.role = "follower"; draw(); };
+    g("rf-part").onclick = () => { part = !part; if (!part) { stepDownStale(); const leaders = S.filter((n) => n.role === "leader"); if (leaders.length > 1) { const top = leaders.sort((a, b) => b.term - a.term)[0]; leaders.forEach((l) => { if (l !== top) { l.role = "follower"; l.term = top.term; } }); } msg = "Partition healed. Any leader that sees a higher term steps down; the next write overwrites stale, uncommitted entries."; } else msg = "Network split: S1 and S2 can't reach S3, S4, S5. Only the side with 3 servers can elect a leader or commit."; draw(); };
+    reset();
+  })();
+  Viz.scene("#sc-u21-fence", {
+    title: "Why locks need fencing tokens", sub: "<b>Red</b> = the paused client's stale write, <b>green</b> = accepted.",
+    nodes: [{ id: "a", x: 90, y: 60, w: 130, label: "Client A" }, { id: "b", x: 90, y: 220, w: 130, label: "Client B" }, { id: "lk", x: 320, y: 140, w: 140, label: "Lock service", sub: "etcd / ZooKeeper" }, { id: "st", x: 540, y: 140, w: 140, label: "Storage", sub: "checks tokens" }],
+    edges: [["a", "lk"], ["b", "lk"], ["a", "st"], ["b", "st"]],
+    width: 640, height: 280,
+    steps: [
+      { hl: { a: "active", lk: "found" }, moves: [{ e: "a>lk", t: "acquire", k: "req" }, { e: "a>lk", t: "granted, token 33", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "A gets the lease with fencing token 33." },
+      { hl: { a: "bad", lk: "warm" }, pops: [{ n: "a", t: "GC pause 40 s…", k: "bad", at: 0.2 }, { n: "lk", t: "lease expired", k: "evt", at: 1.4 }], hold: 3, note: "A freezes. Its lease expires while it's paused, and it doesn't know." },
+      { hl: { b: "active", lk: "found", st: "found" }, moves: [{ e: "b>lk", t: "acquire", k: "req" }, { e: "b>lk", t: "granted, token 34", k: "ok", back: true, delay: 0.9 }, { e: "b>st", t: "write (34)", k: "ok", delay: 1.8 }], hold: 3.4, note: "B gets the lock with token 34 and writes. Storage remembers 34." },
+      { hl: { a: "bad", st: "found" }, moves: [{ e: "a>st", t: "write (33)", k: "bad" }], pops: [{ n: "st", t: "33 < 34: rejected", k: "ok", at: 1.1 }], hold: 3.4, note: "A wakes up and writes as if it still held the lock. Storage rejects the lower token: no corruption." },
+    ],
+  });
+  (function () {
+    const R = (rows, cap) => `<div class="bpt" style="font-family:var(--sans);white-space:normal"><table style="font-size:.84rem;margin:0"><thead><tr><th>znode</th><th>Owner</th><th>Watches</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="idx" style="white-space:normal;text-align:center">${cap}</div></div>`;
+    Viz.stepper("#viz-u21-zk", { title: "A ZooKeeper lock as a queue", sub: "Each client creates an ephemeral, sequential node under /lock.", speed: 3000, frames: [
+      { view: R([["/lock/n-0001", "A", "—"], ["/lock/n-0002", "B", "n-0001"], ["/lock/n-0003", "C", "n-0002"]], "A has the lowest number, so A holds the lock."), note: "Each waiter watches only the node just before it, not the lock itself, so a release wakes one client, not all (no herd)." },
+      { view: R([["<s>/lock/n-0001</s>", "A (session expired)", "—"], ["/lock/n-0002", "B", "—"], ["/lock/n-0003", "C", "n-0002"]], "A's session dies: its ephemeral node is deleted automatically."), note: "No stuck lock after a crash: the node vanishes with the session." },
+      { view: R([["/lock/n-0002", "B (now lowest: holds the lock)", "—"], ["/lock/n-0003", "C", "n-0002"]], "B's watch fires; it checks it's now lowest and takes the lock."), note: "The sequence number (or zxid) can be passed to storage as a fencing token." },
+    ] });
+  })();
+  (function () {
+    const g = (id) => document.getElementById(id);
+    let R, tag;
+    const fresh = () => ({ p: { A: 0, B: 0 }, n: { A: 0, B: 0 }, adds: {}, rem: new Set(), naive: { count: 0, items: [] } });
+    const reset = () => { R = { A: fresh(), B: fresh() }; tag = 0; g("cr-out").innerHTML = ""; g("cr-why").innerHTML = "Make different changes on A and B as if they were offline, then merge."; draw(); };
+    const items = (r) => Object.entries(r.adds).filter(([, tags]) => [...tags].some((t) => !r.rem.has(t))).map(([k]) => k).sort();
+    const val = (r) => r.p.A + r.p.B - r.n.A - r.n.B;
+    const act = (id, op, x) => { const r = R[id];
+      if (op === "+") { r.p[id]++; r.naive.count++; } if (op === "-") { r.n[id]++; r.naive.count--; }
+      if (op === "add") { (r.adds[x] = r.adds[x] || new Set()).add(id + ++tag); if (!r.naive.items.includes(x)) r.naive.items.push(x); }
+      if (op === "rm") { (r.adds[x] || new Set()).forEach((t) => r.rem.add(t)); r.naive.items = r.naive.items.filter((y) => y !== x); }
+      r.naive.t = ++tag; draw(); };
+    function draw() {
+      g("cr-reps").innerHTML = ["A", "B"].map((id) => { const r = R[id]; return `<div class="card" style="margin:0"><h4 style="margin:0 0 6px">Replica ${id}</h4><div>Likes: <b>${val(r)}</b> · Basket: <b>${items(r).join(", ") || "(empty)"}</b></div><div class="ctl" style="margin-top:6px"><button class="btn" type="button" data-r="${id}" data-op="+">+1 like</button><button class="btn" type="button" data-r="${id}" data-op="-">−1 like</button><button class="btn" type="button" data-r="${id}" data-op="add" data-x="milk">add milk</button><button class="btn" type="button" data-r="${id}" data-op="rm" data-x="milk">remove milk</button><button class="btn" type="button" data-r="${id}" data-op="add" data-x="eggs">add eggs</button></div></div>`; }).join("");
+    }
+    g("cr-reps").onclick = (e) => { const b = e.target.closest("button[data-op]"); if (b) act(b.dataset.r, b.dataset.op, b.dataset.x); };
+    g("cr-merge").onclick = () => {
+      const a = R.A, b = R.B, m = fresh();
+      ["A", "B"].forEach((k) => { m.p[k] = Math.max(a.p[k], b.p[k]); m.n[k] = Math.max(a.n[k], b.n[k]); });
+      [a, b].forEach((r) => { Object.entries(r.adds).forEach(([k, t]) => { m.adds[k] = m.adds[k] || new Set(); t.forEach((x) => m.adds[k].add(x)); }); r.rem.forEach((x) => m.rem.add(x)); });
+      const lww = (a.naive.t || 0) >= (b.naive.t || 0) ? a.naive : b.naive;
+      ["A", "B"].forEach((id) => { R[id] = fresh(); R[id].p = { ...m.p }; R[id].n = { ...m.n }; Object.entries(m.adds).forEach(([k, t]) => (R[id].adds[k] = new Set(t))); R[id].rem = new Set(m.rem); R[id].naive = { count: lww.count, items: [...lww.items], t: lww.t }; });
+      g("cr-out").innerHTML = `<table><thead><tr><th></th><th>Likes</th><th>Basket</th></tr></thead><tbody><tr><td><b>CRDT merge</b> (PN-counter, OR-set)</td><td>${val(R.A)}</td><td>${items(R.A).join(", ") || "(empty)"}</td></tr><tr><td>Last writer wins on the whole object</td><td>${lww.count}</td><td>${lww.items.join(", ") || "(empty)"}</td></tr></tbody></table>`;
+      g("cr-why").innerHTML = "Both replicas now hold the same CRDT state, whatever order they merged in. The counter keeps every increment from both sides; the OR-set keeps an add the remover hadn't seen. Last-writer-wins simply throws away the other replica's changes.";
+      draw();
+    };
+    g("cr-reset").onclick = reset; reset();
+  })();
 })();
 </script>
 </body>
