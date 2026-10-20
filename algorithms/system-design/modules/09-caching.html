@@ -1863,7 +1863,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     ["Replication lag", ["lag"], "How far a follower is behind the leader, in time or in changes.", "system-design"],
     ["Read-your-writes", ["read-your-own-writes"], "The guarantee that after you change something, your own reads show the change.", "system-design"],
     ["Quorum", ["quorums"], "The number of replicas that must agree for a read or write to count, usually a majority.", "system-design"],
-    ["Split brain", [], "Two nodes both acting as leader and accepting conflicting writes, usually after a failover goes wrong.", "system-design"],
+    ["Split brain", ["split-brain"], "Two nodes both acting as leader and accepting conflicting writes, usually after a failover goes wrong.", "system-design"],
     ["Shard key", ["partition key", "shard keys"], "The value that decides which shard a record lives on.", "system-design"],
     ["Consistent hashing", ["hash ring"], "Placing nodes and keys on a ring so adding or removing a node moves only a small share of keys.", "system-design"],
     ["Virtual node", ["virtual nodes", "vnodes"], "One of many points a single machine owns on a hash ring, to even out load.", "system-design"],
@@ -1951,6 +1951,43 @@ svg.flow .fn { transition: opacity .35s ease; }
     ["PagedAttention", [], "vLLM's way of storing the KV cache in small fixed-size blocks, like memory pages, so little memory is wasted.", "system-design"],
     ["Kill switch", ["kill switches"], "A single flag that turns a feature or sale off instantly, usually serving a static page instead.", "system-design"],
     ["Waitlist", ["waitlists"], "A queue of people who get the next released unit or seat, so returned stock still finds a buyer.", "system-design"],
+    ["Schema", ["schemas"], "The declared shape of stored data: tables, columns and their types, or the fields of a message format.", "system-design"],
+    ["SQL", [], "The standard language for querying and changing relational databases: SELECT, INSERT, UPDATE, DELETE and JOIN.", "system-design"],
+    ["Serialization", ["serialisation", "serialize", "serialise"], "Turning in-memory data into bytes to store or send, and back again; JSON is text, Protobuf and Avro are binary.", "system-design"],
+    ["Protobuf", ["Protocol Buffers"], "Google's compact binary format: fields are written as numbered tags and varints, and a schema is needed to read them.", "system-design"],
+    ["Block storage", ["block volume", "block volumes"], "A raw disk attached to one server, read and written by byte offset; databases keep their files on it.", "system-design"],
+    ["File storage", ["file share", "file shares"], "Folders and files shared over the network by many servers, such as NFS or Amazon EFS.", "system-design"],
+    ["Hash table", ["hash tables", "hash map", "hashmap"], "A structure that computes a slot from each key, giving constant-time exact lookups but no order or ranges.", "system-design"],
+    ["B+tree", ["B+ tree", "B+trees"], "A B-tree variant that keeps all rows or pointers in linked leaves, so range scans walk along the leaves.", "system-design"],
+    ["Trie", ["tries", "prefix tree"], "A tree keyed by characters, so every word sharing a prefix sits under one branch; used for autocomplete and IP routing.", "system-design"],
+    ["Heap", ["heaps", "priority queue", "priority queues"], "A structure that always gives the smallest (or largest) item next in O(log n): timers, schedulers and top-K.", "system-design"],
+    ["Big-O", ["Big O", "O(n)", "O(log n)", "O(1)"], "How work grows with the size of the data: constant, logarithmic, linear and so on.", "system-design"],
+    ["Merkle tree", ["Merkle trees", "hash tree"], "A tree of hashes where each parent hashes its children, so two copies can find which parts differ by comparing a few hashes.", "system-design"],
+    ["Reverse proxy", ["reverse proxies"], "A server in front of your app servers that terminates TLS, routes, balances and filters requests, such as NGINX, HAProxy or Envoy.", "system-design"],
+    ["ACME", [], "The protocol certificate authorities like Let's Encrypt use to prove domain control and issue and renew certificates automatically.", "system-design"],
+    ["Keep-alive", ["keepalive", "persistent connection", "persistent connections"], "Reusing an open connection for many requests, avoiding a new TCP and TLS handshake each time.", "system-design"],
+    ["GeoDNS", ["latency-based routing", "geolocation routing"], "DNS that answers with a different address depending on where the query comes from, sending users to a nearby region.", "system-design"],
+    ["Hedged request", ["hedged requests", "hedging"], "A duplicate read sent to a second replica when the first is slow, using whichever answers first, to cut tail latency.", "system-design"],
+    ["Coordinated omission", [], "A benchmarking error where the load generator stops sending while waiting on a stall, so the slowest moments are under-measured.", "system-design"],
+    ["Flame graph", ["flame graphs"], "A profile picture where each box is a function and its width is the share of samples it was on the stack.", "system-design"],
+    ["Load test", ["load tests", "load testing"], "Sending realistic traffic at increasing rates to find what a system really handles before latency or errors break the target.", "system-design"],
+    ["C4 model", [], "Simon Brown's four zoom levels for architecture diagrams: context, containers, components and code.", "system-design"],
+    ["TrueTime", [], "Google's clock API returning an interval guaranteed to contain the real time; Spanner waits out the interval at commit.", "system-design"],
+    ["SPIFFE", ["SPIRE"], "A standard for naming workloads and issuing them short-lived identity certificates; SPIRE is its reference implementation.", "system-design"],
+    ["WAF", ["web application firewall", "web application firewalls"], "A filter in front of an app that blocks malicious requests such as injection attempts and known exploits.", "system-design"],
+    ["Zanzibar", ["ReBAC", "relationship-based access control"], "Google's authorization system that stores permissions as relationships and answers \"may X do Y?\" by following them.", "system-design"],
+    ["Terraform", ["OpenTofu"], "A tool that creates and updates cloud resources from declared files, showing a plan before applying it; OpenTofu is its open-source fork.", "system-design"],
+    ["GitOps", [], "Deploying by commit: an agent in the cluster keeps it matching what a Git repository declares, as Argo CD and Flux do.", "system-design"],
+    ["Point-in-time recovery", ["PITR"], "Restoring a database to any moment in a window by replaying its log on top of an earlier backup.", "system-design"],
+    ["WAL", ["write-ahead log", "write-ahead logs"], "The log a database writes every change to before applying it, used for crash recovery, replication and point-in-time restores.", "system-design"],
+    ["HNSW", [], "Hierarchical navigable small world: a layered graph index for fast approximate nearest-neighbour vector search.", "system-design"],
+    ["Reciprocal rank fusion", ["RRF"], "Merging ranked lists by summing 1 / (k + rank) for each item, with k usually 60; used for hybrid search.", "system-design"],
+    ["Re-ranker", ["re-rankers", "reranker", "rerankers", "cross-encoder"], "A model that reads the query and each candidate together to reorder the top search results more accurately.", "system-design"],
+    ["Hybrid search", [], "Running keyword and vector search together and merging the results, so both exact terms and paraphrases are found.", "system-design"],
+    ["vLLM", [], "An open-source LLM inference server known for continuous batching and PagedAttention, which manages the KV cache in pages.", "system-design"],
+    ["LLM gateway", ["LLM gateways", "AI gateway", "AI gateways"], "A proxy in front of model providers that handles keys, token budgets, routing, fallbacks, caching and cost logging.", "system-design"],
+    ["Guardrails", ["guardrail"], "Runtime checks on a model's inputs and outputs, such as injection detection, PII filters and schema validation.", "system-design"],
+    ["Evals", ["eval", "eval set", "evaluations"], "A versioned set of test inputs with expected answers or rubrics, scored on every prompt or model change.", "system-design"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
@@ -2320,6 +2357,7 @@ svg.flow .fn { transition: opacity .35s ease; }
     <h1>Caching: fast answers, and the price of keeping them fresh</h1>
     <p class="lede">A cache keeps a copy of data somewhere faster to reach than its source. Done well, it turns a 20 ms database query into a sub-millisecond lookup and lets one database serve ten times the traffic. Done carelessly, it serves stale data, falls over all at once, or melts on one popular key. This module covers where to cache, the standard patterns, eviction, invalidation and the failure modes interviewers love to ask about.</p>
     <button type="button" class="tour-btn" id="tour">▶ Take the 60-second tour of this module</button>
+    <div class="callout tip prereq"><strong>New to this?</strong>Start with <a href="b5-data-structures-behind-systems.html">B5 · Data structures behind systems</a> in Level 0; this module assumes it.</div>
 
     <!-- 1 -->
     <h2 id="idea">1. The idea</h2>
