@@ -3280,15 +3280,20 @@ html.iks-open { overflow: hidden; }
     g("gz-j").onchange = run; run();
   })();
   Viz.scene("#sc-u23-shuffle", {
-    title: "GROUP BY country: map, shuffle, reduce", sub: "<b>Blue</b> = partial results moving across the network.",
-    nodes: [{ id: "m1", x: 90, y: 60, w: 140, label: "Node 1 scans", sub: "rows 1–1B" }, { id: "m2", x: 90, y: 150, w: 140, label: "Node 2 scans", sub: "rows 1B–2B" }, { id: "m3", x: 90, y: 240, w: 140, label: "Node 3 scans", sub: "rows 2B–3B" },
-      { id: "r1", x: 460, y: 95, w: 160, label: "Reducer A", sub: "countries A–M" }, { id: "r2", x: 460, y: 205, w: 160, label: "Reducer B", sub: "countries N–Z" }],
+    title: "GROUP BY country: map, shuffle, reduce", sub: "3 billion rows, counted by country. Box text shows each node's partial counts.",
+    nodes: [{ id: "m1", x: 120, y: 50, w: 200, label: "Node 1 (rows 1–1B)", sub: " " }, { id: "m2", x: 120, y: 150, w: 200, label: "Node 2 (rows 1B–2B)", sub: " " }, { id: "m3", x: 120, y: 250, w: 200, label: "Node 3 (rows 2B–3B)", sub: " " },
+      { id: "r1", x: 520, y: 90, w: 230, label: "Reducer A (countries A–M)", sub: " " }, { id: "r2", x: 520, y: 210, w: 230, label: "Reducer B (countries N–Z)", sub: " " }],
     edges: [["m1", "r1"], ["m1", "r2"], ["m2", "r1"], ["m2", "r2"], ["m3", "r1"], ["m3", "r2"]],
-    width: 600, height: 300,
+    width: 700, height: 300,
     steps: [
-      { hl: { m1: "active", m2: "active", m3: "active" }, pops: [{ n: "m1", t: "partial counts", k: "evt", at: 0.4 }, { n: "m2", t: "partial counts", k: "evt", at: 0.6 }, { n: "m3", t: "partial counts", k: "evt", at: 0.8 }], hold: 2.8, note: "Map: each node scans its own slice and pre-aggregates locally (a combiner), so far less leaves the machine." },
-      { hl: { r1: "found", r2: "found" }, moves: [{ e: "m1>r1", t: "DE, FR", k: "req" }, { e: "m1>r2", t: "US, PT", k: "req" }, { e: "m2>r1", t: "DE, IN", k: "req", delay: 0.3 }, { e: "m2>r2", t: "US", k: "req", delay: 0.3 }, { e: "m3>r1", t: "FR", k: "req", delay: 0.6 }, { e: "m3>r2", t: "US, SE", k: "req", delay: 0.6 }], hold: 3.6, note: "Shuffle: rows are sent to the reducer that owns their key. Every node talks to every other: this is the expensive step." },
-      { hl: { r1: "found", r2: "bad" }, pops: [{ n: "r1", t: "done in 4 s", k: "ok", at: 0.4 }, { n: "r2", t: "US is 60% of rows: 40 s", k: "bad", at: 0.8 }], hold: 3.2, note: "Reduce: each key's values are combined. One giant key (skew) makes one reducer the bottleneck." },
+      { hl: { m1: "active", m2: "active", m3: "active" }, set: { m1: "DE 210M · FR 90M · US 480M · …", m2: "DE 190M · IN 300M · US 420M · …", m3: "FR 80M · SE 40M · US 510M · …" }, hold: 4.2,
+        note: "<b>Map:</b> each node scans its own billion rows in parallel and counts locally (a combiner), so it ships one number per country, not a billion rows." },
+      { hl: { r1: "warm", r2: "warm" }, moves: [{ e: "m1>r1", t: "DE, FR, …" }, { e: "m1>r2", t: "US, …", delay: 0.1 }, { e: "m2>r1", t: "DE, IN, …", delay: 0.2 }, { e: "m2>r2", t: "US, …", delay: 0.3 }, { e: "m3>r1", t: "FR, …", delay: 0.4 }, { e: "m3>r2", t: "SE, US, …", delay: 0.5 }], hold: 4.6,
+        note: "<b>Shuffle:</b> every partial count is sent to the reducer that owns its key (hash or range of the country). Every node talks to every reducer: this all-to-all network step is the expensive one." },
+      { hl: { r1: "found", r2: "found" }, set: { r1: "DE 400M · FR 170M · IN 300M · …", r2: "SE 40M · US 1,410M · …" }, hold: 4.2,
+        note: "<b>Reduce:</b> each reducer adds the partial counts for its countries. Done in parallel, and correct because every count for DE reached the same reducer." },
+      { hl: { r2: "bad" }, set: { r2: "US: 47% of all rows (skew)" }, pops: [{ n: "r2", t: "one reducer does half the work", k: "bad", at: 0.5 }], hold: 4,
+        note: "Without the local pre-aggregation, reducer B would receive half of all rows because US dominates: <b>skew</b>. Combiners, salting hot keys, or splitting large keys keep one reducer from holding up the whole job." },
     ],
   });
   Viz.scene("#sc-u23-barrier", {

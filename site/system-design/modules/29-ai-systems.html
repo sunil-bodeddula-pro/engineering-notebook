@@ -3219,16 +3219,19 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-gw", {
-    title: "An LLM gateway with fallback", sub: "<b>Blue</b> = requests, <b>green</b> = answers, <b>red</b> = refused.",
-    nodes: [{ id: "app", x: 80, y: 125, w: 110, label: "Your service" }, { id: "gw", x: 280, y: 125, w: 130, label: "LLM gateway", sub: "keys, budgets, logs" },
-      { id: "p1", x: 500, y: 55, w: 140, label: "Provider A", sub: "primary" }, { id: "p2", x: 500, y: 195, w: 140, label: "Provider B", sub: "fallback" }],
+    title: "An LLM gateway with fallback", sub: "Box text shows the tenant's budget and each provider's state.",
+    nodes: [{ id: "app", x: 90, y: 150, w: 150, label: "Your service", sub: " " }, { id: "gw", x: 330, y: 150, w: 230, label: "LLM gateway", sub: "tenant 7: 41,000 of 50,000 tokens today" },
+      { id: "p1", x: 650, y: 60, w: 200, label: "Provider A (primary)", sub: "healthy" }, { id: "p2", x: 650, y: 240, w: 200, label: "Provider B (fallback)", sub: "healthy" }],
     edges: [["app", "gw"], ["gw", "p1"], ["gw", "p2"]],
-    width: 600, height: 250,
+    width: 780, height: 300,
     steps: [
-      { hl: { app: "active", gw: "active" }, moves: [{ e: "app>gw", t: "chat: tenant 7", k: "req" }], pops: [{ n: "gw", t: "budget OK: 41K of 100K tokens", k: "ok", at: 1.0 }], hold: 3, note: "The gateway checks the tenant's token budget before spending anything." },
-      { hl: { gw: "active", p1: "bad" }, moves: [{ e: "gw>p1", t: "request", k: "req" }, { e: "gw>p1", t: "429 rate limited", k: "bad", back: true, delay: 1.0 }], hold: 3, note: "The primary provider is rate limiting." },
-      { hl: { gw: "active", p2: "found" }, moves: [{ e: "gw>p2", t: "same request", k: "req" }, { e: "gw>p2", t: "streamed answer", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "The gateway retries on the fallback provider; the service never sees the failure." },
-      { hl: { app: "found", gw: "found" }, moves: [{ e: "app>gw", t: "streamed answer", k: "ok", back: true }], pops: [{ n: "gw", t: "log: 1,840 tokens, $0.011", k: "evt", at: 1.0 }], hold: 3, note: "Tokens and cost are recorded per tenant and feature, which is what budgets and dashboards need." },
+      { hl: { gw: "active" }, set: { gw: "tenant 7: est. 2,000 tokens → within budget" }, moves: [{ e: "app>gw", t: "chat request, tenant 7" }], hold: 3.6,
+        note: "The gateway authenticates the caller and checks the tenant's token budget <i>before</i> spending anything." },
+      { hl: { p1: "bad" }, set: { p1: "429 rate limited (retry after 20 s)" }, moves: [{ e: "gw>p1", t: "request" }, { e: "gw>p1", t: "429", back: true, k: "bad", delay: 0.9 }], hold: 3.6, note: "The primary provider is rate limiting this account." },
+      { hl: { p2: "found", app: "found" }, set: { p1: "skipped for 20 s" }, moves: [{ e: "gw>p2", t: "same request (mapped format)" }, { e: "gw>p2", t: "streamed answer", back: true, k: "ok", delay: 1.0 }, { e: "app>gw", t: "tokens stream", back: true, k: "ok", delay: 1.6 }], hold: 4.4,
+        note: "The gateway retries on the fallback provider, translating the request format, and streams the answer back. The service never saw the failure." },
+      { hl: { gw: "found" }, set: { gw: "tenant 7: 42,850 / 50,000 · $0.011" }, hold: 3.8,
+        note: "Actual tokens and cost are recorded per tenant, feature and provider: that's what budgets, alerts and the monthly bill breakdown need. One place to change models, keys and limits for every service." },
     ],
   });
   /* ---------- RRF lab ---------- */

@@ -3184,14 +3184,17 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-hedge", {
-    title: "A hedged read", sub: "<b>Blue</b> = requests, <b>green</b> = the answer used, <b>red</b> = the slow replica.",
-    nodes: [{ id: "c", x: 90, y: 125, w: 120, label: "Client" }, { id: "r1", x: 440, y: 55, w: 150, label: "Replica 1", sub: "stuck in a GC pause" }, { id: "r2", x: 440, y: 195, w: 150, label: "Replica 2" }],
+    title: "A hedged read", sub: "Box text shows the clock and each replica's state.",
+    nodes: [{ id: "c", x: 100, y: 140, w: 170, label: "Client", sub: "t = 0 ms" }, { id: "r1", x: 440, y: 60, w: 240, label: "Replica 1", sub: "usually ~2 ms" }, { id: "r2", x: 440, y: 220, w: 240, label: "Replica 2", sub: "idle" }],
     edges: [["c", "r1"], ["c", "r2"]],
-    width: 560, height: 250,
+    width: 640, height: 280,
     steps: [
-      { hl: { c: "active", r1: "active" }, moves: [{ e: "c>r1", t: "GET item:42", k: "req" }], pops: [{ n: "r1", t: "…no reply yet", k: "bad", at: 1.2 }], hold: 3, note: "The client asks one replica. Usually it answers in about 2 ms." },
-      { hl: { c: "active", r1: "bad", r2: "active" }, moves: [{ e: "c>r2", t: "hedge: GET item:42", k: "req" }], pops: [{ n: "c", t: "waited past p95 (10 ms)", k: "evt", at: 0.2 }], hold: 3, note: "Past the 95th-percentile wait, it sends the same read to a second replica." },
-      { hl: { c: "found", r1: "bad", r2: "found" }, moves: [{ e: "c>r2", t: "value", k: "ok", back: true }], pops: [{ n: "c", t: "cancel replica 1", k: "evt", at: 1.2 }], hold: 3.2, note: "The first answer wins; the other request is cancelled. Only about 5% of reads were ever duplicated." },
+      { hl: { r1: "warm" }, set: { r1: "in a 200 ms GC pause" }, moves: [{ e: "c>r1", t: "GET item:42" }], hold: 3.4, note: "The client asks one replica. Usually it answers in about 2 ms; this time it has just entered a 200 ms garbage-collection pause." },
+      { hl: { c: "warm", r2: "active" }, set: { c: "t = 10 ms (past p95): hedge" }, moves: [{ e: "c>r2", t: "same GET (hedge)" }], hold: 3.6,
+        note: "The client waits until the 95th-percentile latency (10 ms). No answer yet, so it sends the same read to a second replica." },
+      { hl: { r2: "found", c: "found" }, set: { c: "t = 12 ms: answer", r2: "answered in 2 ms" }, moves: [{ e: "c>r2", t: "value", back: true, k: "ok" }], hold: 3.6, note: "Replica 2 answers at 12 ms. The client uses the first answer and cancels the other request." },
+      { hl: { r1: "warm", c: "found" }, set: { r1: "would have answered at 200 ms (cancelled)", c: "p99 200 → ~12 ms" }, hold: 4.4,
+        note: "Without the hedge this request took 200 ms. Because a hedge is sent only for the slowest 5% of requests, it costs about 5% extra load, and only works for requests that are safe to send twice (reads, idempotent writes)." },
     ],
   });
 })();

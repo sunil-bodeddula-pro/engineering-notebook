@@ -3280,20 +3280,21 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-redis", {
-    title: "Redis Cluster: slots, MOVED and hash tags", sub: "<b>Blue</b> = commands, <b>green</b> = answered, <b>red</b> = redirected or refused.",
-    nodes: [{ id: "app", x: 85, y: 125, w: 130, label: "App server", sub: "client caches slot map" },
-      { id: "a", x: 450, y: 45, w: 150, label: "Node A", sub: "slots 0–5460" }, { id: "b", x: 450, y: 125, w: 150, label: "Node B", sub: "slots 5461–10922" }, { id: "c", x: 450, y: 205, w: 150, label: "Node C", sub: "slots 10923–16383" }],
+    title: "Redis Cluster: slots, MOVED and hash tags", sub: "16,384 hash slots spread over three nodes. The client's box shows its cached slot map.",
+    nodes: [{ id: "app", x: 110, y: 150, w: 200, label: "App server", sub: "map: slot range → node" },
+      { id: "a", x: 500, y: 50, w: 230, label: "Node A", sub: "slots 0–5460" }, { id: "b", x: 500, y: 150, w: 230, label: "Node B", sub: "slots 5461–10922" }, { id: "c", x: 500, y: 250, w: 230, label: "Node C", sub: "slots 10923–16383" }],
     edges: [["app", "a"], ["app", "b"], ["app", "c"]],
-    width: 560, height: 250,
+    width: 660, height: 300,
     steps: [
-      { hl: { app: "active", b: "found" }, moves: [{ e: "app>b", t: "GET user:123", k: "req" }, { e: "app>b", t: "value", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "app", t: "CRC16 mod 16384 → slot 7,000", k: "req", at: 0.2 }], hold: 3.4,
-        note: "The client hashes the key to one of <b>16,384 slots</b>, looks up which node owns that slot, and goes straight there." },
-      { hl: { app: "active", a: "bad", c: "found" }, moves: [{ e: "app>a", t: "GET user:9", k: "req" }, { e: "app>a", t: "MOVED → C", k: "bad", back: true, delay: 1.0 }, { e: "app>c", t: "GET user:9", k: "ok", delay: 2.0 }], pops: [{ n: "app", t: "refresh slot map", k: "evt", at: 2.0 }], hold: 4,
-        note: "After a slot moves, the old owner answers <b>MOVED</b>; the client retries at the right node and refreshes its map." },
-      { hl: { app: "active", b: "found" }, moves: [{ e: "app>b", t: "MGET posts + likes (same hash tag)", k: "ok" }], pops: [{ n: "b", t: "same slot: one node", k: "ok", at: 1.3 }],
-        note: "A <b>hash tag</b> hashes only the part in braces, so related keys land in the same slot and multi-key commands work." },
-      { hl: { app: "bad" }, moves: [{ e: "app>a", t: "MGET user:1 user:2", k: "bad" }], pops: [{ n: "app", t: "CROSSSLOT error", k: "bad", at: 1.3 }],
-        note: "Keys in different slots can't be combined in one command: there's no router to gather them. Key design is scaling design." },
+      { hl: { b: "found" }, moves: [{ e: "app>b", t: "GET user:123 (slot 5,970)" }, { e: "app>b", t: "value", back: true, k: "ok", delay: 0.9 }], hold: 3.8,
+        note: "The client hashes the key (CRC16 mod 16,384) to a slot, looks up the owner in its cached map, and goes straight there. No proxy in between." },
+      { hl: { a: "warm", c: "warm" }, set: { a: "slots 0–5460 (moving 3,000 → C)", c: "slots 10923–16383 + 3,000" }, hold: 3.4, note: "An operator rebalances: slot 3,000 moves from A to C. The client's map is now out of date." },
+      { hl: { a: "bad", c: "found", app: "warm" }, set: { a: "slots 0–2999, 3001–5460", app: "map updated: 3,000 → C" }, moves: [{ e: "app>a", t: "GET user:9 (slot 3,000)" }, { e: "app>a", t: "MOVED 3000 → C", back: true, k: "bad", delay: 0.9 }, { e: "app>c", t: "GET user:9", delay: 1.7 }, { e: "app>c", t: "value", back: true, k: "ok", delay: 2.5 }], hold: 4.8,
+        note: "The old owner answers <b>MOVED</b>. The client retries at C and refreshes its map, so the next request goes straight to the right node." },
+      { hl: { b: "found" }, moves: [{ e: "app>b", t: "MGET {post:42}:likes {post:42}:views" }], hold: 4,
+        note: "A <b>hash tag</b>: only the part in braces is hashed, so <code>{post:42}:likes</code> and <code>{post:42}:views</code> land in the same slot and one multi-key command works." },
+      { hl: { a: "bad", b: "bad" }, moves: [{ e: "app>a", t: "MGET user:1 user:2", k: "bad" }], pops: [{ n: "a", t: "CROSSSLOT error", k: "bad", at: 1.0 }], hold: 4,
+        note: "Keys in different slots can't be combined in one command: there's no router to gather them. In Redis Cluster, key design is scaling design." },
     ],
   });
   /* ---------- Under the hood: caching ---------- */

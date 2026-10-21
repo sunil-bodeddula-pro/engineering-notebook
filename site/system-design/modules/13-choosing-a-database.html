@@ -3231,21 +3231,20 @@ html.iks-open { overflow: hidden; }
   Q.forEach(([k]) => $("q-" + k).addEventListener("input", choose));
   choose();
   Viz.scene("#sc-main", {
-    title: "One source of truth, several stores", sub: "<b>Blue</b> = writes, <b>teal</b> = changes flowing out, <b>red</b> = copies that disagree.",
-    nodes: [{ id: "app", x: 70, y: 120, w: 100, label: "App" }, { id: "pg", x: 230, y: 120, w: 120, label: "PostgreSQL", sub: "source of truth" },
-      { id: "k", x: 405, y: 120, w: 130, label: "Change stream", sub: "CDC → Kafka" },
-      { id: "search", x: 590, y: 50, w: 120, label: "Search index" }, { id: "cache", x: 590, y: 120, w: 120, label: "Cache" }, { id: "wh", x: 590, y: 190, w: 120, label: "Warehouse" }],
-    edges: [["app", "pg"], ["pg", "k"], ["k", "search"], ["k", "cache"], ["k", "wh"], ["app", "search", "", { bend: -70 }]],
-    width: 660, height: 235,
+    title: "One source of truth, several stores", sub: "Box text shows each store's copy of product 12's price.",
+    nodes: [{ id: "app", x: 85, y: 150, w: 120, label: "App", sub: " " }, { id: "pg", x: 280, y: 150, w: 180, label: "PostgreSQL (truth)", sub: "price $20" },
+      { id: "k", x: 480, y: 150, w: 170, label: "Change stream", sub: "CDC → Kafka" }, { id: "search", x: 690, y: 50, w: 160, label: "Search index", sub: "$20" },
+      { id: "cache", x: 690, y: 150, w: 160, label: "Cache", sub: "$20" }, { id: "wh", x: 690, y: 250, w: 160, label: "Warehouse", sub: "$20" }],
+    edges: [["app", "pg"], ["pg", "k"], ["k", "search"], ["k", "cache"], ["k", "wh"], ["app", "search", "", { hidden: true, bend: -80 }]],
+    width: 780, height: 300,
     steps: [
-      { hl: { app: "active", pg: "found" }, moves: [{ e: "app>pg", t: "new product", k: "req" }], pops: [{ n: "pg", t: "committed", k: "ok", at: 1.3 }],
-        note: "The app writes to <b>one</b> store: the source of truth." },
-      { hl: { pg: "active", k: "active" }, moves: [{ e: "pg>k", t: "WAL change", k: "evt" }], pops: [{ n: "k", t: "reads the database's log", k: "evt", at: 1.3 }],
-        note: "<b>Change data capture</b> reads the database's own change log and publishes every change to a stream." },
-      { hl: { k: "active", search: "found", cache: "found", wh: "found" }, moves: [{ e: "k>search", t: "change", k: "evt" }, { e: "k>cache", t: "change", k: "evt", delay: 0.25 }, { e: "k>wh", t: "change", k: "evt", delay: 0.5 }], hold: 3.2,
-        note: "Search, cache and warehouse are all <b>derived</b> from that stream, each the best store for its own job." },
-      { hl: { app: "active", pg: "found", search: "bad" }, moves: [{ e: "app>pg", t: "price change", k: "req" }, { e: "app>search", t: "dual write", k: "bad", delay: 0.6 }], pops: [{ n: "search", t: "failed: copies disagree", k: "bad", at: 2.1 }], hold: 3.6,
-        note: "The tempting shortcut, writing to both from app code, breaks when one write succeeds and the other fails. Derive copies; don't dual-write." },
+      { hl: { pg: "found" }, set: { pg: "price $25 (LSN 0/9A)" }, moves: [{ e: "app>pg", t: "UPDATE price = 25" }], hold: 3.4, note: "The app writes to one store only: the source of truth." },
+      { hl: { k: "active" }, set: { k: "offset 5,001: product 12 → $25" }, moves: [{ e: "pg>k", t: "WAL change" }], hold: 3.6,
+        note: "<b>Change data capture</b> reads the database's own write-ahead log and publishes every committed change, in order, to a stream." },
+      { hl: { search: "found", cache: "found", wh: "found" }, set: { search: "$25", cache: "$25 (invalidated)", wh: "$25" }, moves: [{ e: "k>search", t: "change" }, { e: "k>cache", t: "change", delay: 0.1 }, { e: "k>wh", t: "change", delay: 0.2 }], hold: 4,
+        note: "Search, cache and warehouse each consume the stream and update themselves, seconds behind the database. If one is down, it resumes from its offset later; nothing is lost." },
+      { hl: { search: "bad", app: "warm" }, link: ["app>search"], set: { pg: "price $30", k: "offset 5,002: product 12 → $30", search: "$25 (write failed)", cache: "$30", wh: "$30" }, moves: [{ e: "app>pg", t: "price = 30" }, { e: "app>search", t: "dual write", k: "bad", delay: 0.6 }], pops: [{ n: "search", t: "timeout: stale forever", k: "bad", at: 1.6 }], hold: 4.6,
+        note: "The tempting shortcut: the app writes to both the database and search itself (a <b>dual write</b>). When the second write fails, search is wrong until someone notices. Derive copies from the log; don't dual-write." },
     ],
   });
   Viz.tour("#tour", [

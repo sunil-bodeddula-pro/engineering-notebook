@@ -3162,20 +3162,20 @@ Consequences: every query is protected by default; connection pooling must reset
     { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-es", {
-    title: "Event sourcing with CQRS: events in, views out", sub: "<b>Blue</b> = commands, <b>teal</b> = events, <b>green</b> = read models.",
-    nodes: [{ id: "cmd", x: 80, y: 130, w: 120, label: "Commands", sub: "deposit, withdraw" }, { id: "es", x: 290, y: 130, w: 150, label: "Event log", sub: "append-only" },
-      { id: "bal", x: 520, y: 45, w: 150, label: "Balance view" }, { id: "stm", x: 520, y: 130, w: 150, label: "Statement view" }, { id: "fraud", x: 520, y: 215, w: 150, label: "Fraud view", sub: "added later" }],
+    title: "Event sourcing with CQRS: events in, views out", sub: "The log keeps every event; each view is computed from it. Box text shows their contents.",
+    nodes: [{ id: "cmd", x: 90, y: 150, w: 150, label: "Commands", sub: "account 9" }, { id: "es", x: 320, y: 150, w: 240, label: "Event log (append-only)", sub: "empty" },
+      { id: "bal", x: 620, y: 50, w: 190, label: "Balance view", sub: "–" }, { id: "stm", x: 620, y: 150, w: 190, label: "Statement view", sub: "–" }, { id: "fraud", x: 620, y: 250, w: 190, label: "Fraud view (new)", sub: " ", hidden: true }],
     edges: [["cmd", "es"], ["es", "bal"], ["es", "stm"], ["es", "fraud"]],
-    width: 620, height: 260,
+    width: 760, height: 300,
     steps: [
-      { hl: { cmd: "active", es: "active" }, moves: [{ e: "cmd>es", t: "Deposited 100", k: "req" }, { e: "cmd>es", t: "Withdrew 30", k: "req", delay: 0.8 }], pops: [{ n: "es", t: "never updated, only appended", k: "evt", at: 1.8 }], hold: 3.4,
-        note: "Each change is stored as an immutable <b>event</b>. Nothing is overwritten." },
-      { hl: { es: "active", bal: "found", stm: "found" }, moves: [{ e: "es>bal", t: "events", k: "evt" }, { e: "es>stm", t: "events", k: "evt", delay: 0.3 }], pops: [{ n: "bal", t: "balance = 70", k: "ok", at: 1.4 }], hold: 3.2,
-        note: "<b>Projections</b> turn events into read models shaped for each screen (CQRS): a balance, a statement." },
-      { hl: { es: "active", fraud: "found" }, moves: [{ e: "es>fraud", t: "replay all history", k: "evt", dur: 2.0 }], pops: [{ n: "fraud", t: "built from day one", k: "ok", at: 2.4 }], hold: 3.8,
-        note: "A new view added a year later is built by <b>replaying</b> every event since the start: history isn't lost." },
-      { hl: { es: "warm" }, pops: [{ n: "es", t: "snapshots + versioned events", k: "evt", at: 0.3 }],
-        note: "The costs: snapshots so replay stays fast, event schemas you must version forever, and reads that lag writes slightly." },
+      { hl: { es: "found" }, set: { es: "1 Opened · 2 Deposited 100 · 3 Withdrew 30" }, moves: [{ e: "cmd>es", t: "Deposited 100" }, { e: "cmd>es", t: "Withdrew 30", delay: 0.6 }], hold: 4,
+        note: "Each change is stored as an immutable event, appended to the account's log. Nothing is ever overwritten; the current balance isn't stored at all." },
+      { hl: { bal: "found", stm: "found" }, set: { bal: "balance 70", stm: "+100 · −30" }, moves: [{ e: "es>bal", t: "events 1–3" }, { e: "es>stm", t: "events 1–3", delay: 0.2 }], hold: 4,
+        note: "<b>Projections</b> read the events and build views shaped for each screen (the CQRS read models): a balance, a statement. They're derived, so they can be thrown away and rebuilt." },
+      { hl: { es: "found", bal: "warm" }, set: { es: "… 4 Withdrew 20", bal: "balance 50 (~100 ms later)", stm: "+100 · −30 · −20" }, moves: [{ e: "cmd>es", t: "Withdrew 20" }, { e: "es>bal", t: "event 4", delay: 0.8 }, { e: "es>stm", t: "event 4", delay: 1.0 }], hold: 4,
+        note: "New events flow to the views shortly after they're written, so views are eventually consistent with the log." },
+      { hl: { fraud: "found" }, show: ["fraud"], set: { fraud: "replayed 1–4: 2 withdrawals in 1 day" }, moves: [{ e: "es>fraud", t: "replay from event 1", k: "evt" }], hold: 4.4,
+        note: "A year later, a fraud team wants a new view. It's built by replaying every event since the start, so it covers all history, not just from today. The costs: the log grows forever (snapshots help), and event formats must stay readable forever (Module 25)." },
     ],
   });
   /* ---------- Under the hood: everything else ---------- */

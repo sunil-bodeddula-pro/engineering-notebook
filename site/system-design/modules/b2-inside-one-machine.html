@@ -3050,19 +3050,20 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-loop", {
-    title: "Thread per request vs event loop", sub: "<b>Gold</b> = waiting on I/O, <b>blue</b> = computing.",
-    nodes: [{ id: "t1", x: 110, y: 50, w: 150, label: "Thread 1", sub: "request A" }, { id: "t2", x: 110, y: 120, w: 150, label: "Thread 2", sub: "request B" }, { id: "t3", x: 110, y: 190, w: 150, label: "Thread 3", sub: "request C" },
-      { id: "loop", x: 420, y: 120, w: 160, label: "Event loop", sub: "one thread" }, { id: "db", x: 420, y: 230, w: 130, label: "Database" }],
-    edges: [["t1", "db"], ["t2", "db"], ["t3", "db"], ["loop", "db"]],
-    width: 560, height: 280,
+    title: "Thread per request vs event loop", sub: "Box text shows what each model holds in memory while requests wait on the database (50 ms each).",
+    nodes: [{ id: "tp", x: 140, y: 70, w: 250, label: "Thread per request", sub: "idle" }, { id: "loop", x: 140, y: 220, w: 250, label: "Event loop (1 thread)", sub: "idle" },
+      { id: "db", x: 520, y: 150, w: 180, label: "Database", sub: "50 ms per query" }],
+    edges: [["tp", "db"], ["loop", "db"]],
+    width: 660, height: 280,
     steps: [
-      { hl: { t1: "warm", t2: "warm", t3: "warm" }, moves: [{ e: "t1>db", t: "query", k: "req" }, { e: "t2>db", t: "query", k: "req", delay: 0.2 }, { e: "t3>db", t: "query", k: "req", delay: 0.4 }], pops: [{ n: "t2", t: "blocked, holding memory", k: "money", at: 1.2 }], hold: 3.4,
-        note: "Thread per request: three requests, three threads, all blocked while the database works. Simple, but each waiting thread holds memory." },
-      { hl: { loop: "active" }, moves: [{ e: "loop>db", t: "A", k: "req" }, { e: "loop>db", t: "B", k: "req", delay: 0.4 }, { e: "loop>db", t: "C", k: "req", delay: 0.8 }], pops: [{ n: "loop", t: "starts all three, then moves on", k: "evt", at: 1.4 }], hold: 3.4,
-        note: "Event loop: one thread sends all three queries without waiting, and is free to accept new requests." },
-      { hl: { loop: "found", db: "found" }, moves: [{ e: "loop>db", t: "B done", k: "ok", back: true }, { e: "loop>db", t: "A done", k: "ok", back: true, delay: 0.6 }, { e: "loop>db", t: "C done", k: "ok", back: true, delay: 1.2 }], hold: 3.4,
-        note: "As each answer arrives, the loop finishes that request. Thousands can wait at once at almost no cost." },
-      { hl: { loop: "bad" }, pops: [{ n: "loop", t: "500 ms computation: everyone waits", k: "bad", at: 0.3 }], hold: 3, note: "The catch: if one request computes for a long time on the loop, every other request waits behind it." },
+      { hl: { tp: "warm" }, set: { tp: "3 threads blocked · 3 × ~1 MB stacks" }, moves: [{ e: "tp>db", t: "query A" }, { e: "tp>db", t: "query B", delay: 0.2 }, { e: "tp>db", t: "query C", delay: 0.4 }], hold: 4,
+        note: "<b>Thread per request:</b> each request gets its own thread, which sleeps while the database works. Simple code; each sleeping thread still reserves a stack (often about 1 MB) and costs the OS a context switch to wake." },
+      { hl: { loop: "found" }, set: { loop: "1 thread · 3 sockets waiting · KBs each" }, moves: [{ e: "loop>db", t: "query A" }, { e: "loop>db", t: "query B", delay: 0.1 }, { e: "loop>db", t: "query C", delay: 0.2 }], hold: 4,
+        note: "<b>Event loop:</b> one thread sends all three queries without waiting, registers interest in the replies with the OS (epoll/kqueue), and goes back to accepting work. A waiting request is just a few kilobytes of state." },
+      { hl: { loop: "found" }, set: { loop: "B done → A done → C done" }, moves: [{ e: "loop>db", t: "B", back: true, k: "ok" }, { e: "loop>db", t: "A", back: true, k: "ok", delay: 0.3 }, { e: "loop>db", t: "C", back: true, k: "ok", delay: 0.6 }], hold: 3.8,
+        note: "As each reply arrives, in whatever order, the loop runs the rest of that request's code." },
+      { hl: { tp: "bad", loop: "found" }, set: { tp: "10,000 waiting → ~10 GB of stacks", loop: "10,000 waiting → tens of MB" }, hold: 4.4,
+        note: "With 10,000 requests waiting at once, threads become the bottleneck; the loop barely notices. The catch: one slow CPU-bound task blocks the single thread for everyone, so heavy computation goes to worker threads. Virtual threads (Java 21) and goroutines give thread-style code with event-loop costs." },
     ],
   });
   Viz.tour("#tour", [
@@ -3151,26 +3152,34 @@ html.iks-open { overflow: hidden; }
     ] });
   })();
   Viz.scene("#sc-ub2-rec", {
-    title: "Kubernetes replaces a crashed pod", sub: "<b>Blue</b> = watches and API calls, <b>red</b> = failure, <b>green</b> = reconciled.",
-    nodes: [{ id: "api", x: 300, y: 50, w: 150, label: "API server", sub: "state in etcd" }, { id: "ctl", x: 90, y: 150, w: 150, label: "ReplicaSet controller" }, { id: "sch", x: 300, y: 250, w: 140, label: "Scheduler" }, { id: "kub", x: 520, y: 150, w: 150, label: "kubelet on node 2" }],
-    edges: [["ctl", "api"], ["sch", "api"], ["kub", "api"]],
-    width: 640, height: 300,
+    title: "Kubernetes replaces a crashed pod", sub: "Each component only watches the API server and nudges state. Box text shows desired vs actual.",
+    nodes: [{ id: "api", x: 330, y: 150, w: 240, label: "API server (state in etcd)", sub: "web: want 3 · have 3" }, { id: "ctl", x: 100, y: 50, w: 190, label: "ReplicaSet controller", sub: "watching" },
+      { id: "sch", x: 100, y: 250, w: 190, label: "Scheduler", sub: "watching" }, { id: "k1", x: 600, y: 60, w: 190, label: "kubelet, node 1", sub: "web-1 web-7" }, { id: "k2", x: 600, y: 240, w: 190, label: "kubelet, node 2", sub: "web-2" }],
+    edges: [["ctl", "api"], ["sch", "api"], ["k1", "api"], ["k2", "api"]],
+    width: 720, height: 300,
     steps: [
-      { hl: { kub: "bad", api: "active" }, moves: [{ e: "kub>api", t: "pod web-7 failed", k: "bad" }], hold: 3, note: "A node or pod dies. The kubelet (or node controller) reports it." },
-      { hl: { ctl: "active", api: "active" }, moves: [{ e: "ctl>api", t: "watch: 2 running, want 3", k: "req", back: true }, { e: "ctl>api", t: "create pod web-9", k: "req", delay: 1.0 }], hold: 3.2, note: "The controller compares desired (3) with actual (2) and creates a new pod object. It doesn't run anything itself." },
-      { hl: { sch: "active", api: "active" }, moves: [{ e: "sch>api", t: "unscheduled pod web-9", k: "req", back: true }, { e: "sch>api", t: "bind web-9 → node 2", k: "req", delay: 1.0 }], hold: 3.2, note: "The scheduler filters nodes with room for the pod's requests, scores them and binds it." },
-      { hl: { kub: "found", api: "found", ctl: "found" }, moves: [{ e: "kub>api", t: "web-9 running, ready", k: "ok" }], hold: 3, note: "The kubelet starts the containers; once the readiness probe passes, the pod gets traffic. Each component only watches and nudges state." },
+      { hl: { k1: "bad", api: "warm" }, set: { k1: "web-1 · web-7 crashed", api: "web: want 3 · have 2" }, moves: [{ e: "k1>api", t: "web-7 failed" }], hold: 3.6,
+        note: "A container keeps crashing and pod web-7 is marked failed. The kubelet reports it to the API server." },
+      { hl: { ctl: "active", api: "active" }, set: { ctl: "2 running, want 3 → create one", api: "web: want 3 · have 2 · web-9 pending" }, moves: [{ e: "ctl>api", t: "watch: web changed" }, { e: "ctl>api", t: "create pod web-9", delay: 0.9 }], hold: 4,
+        note: "The controller sees desired 3, actual 2, and creates a new pod <i>object</i>. It doesn't start anything itself; it only writes desired state." },
+      { hl: { sch: "active", api: "active" }, set: { sch: "web-9 fits node 2", api: "web-9 bound to node 2" }, moves: [{ e: "sch>api", t: "watch: unscheduled web-9" }, { e: "sch>api", t: "bind web-9 → node 2", delay: 0.9 }], hold: 4.4,
+        note: "The scheduler sees an unscheduled pod, filters out nodes without room for its requests, scores the rest and binds it to node 2." },
+      { hl: { k2: "found", api: "found" }, set: { k2: "web-2 · web-9 running, ready", api: "web: want 3 · have 3" }, moves: [{ e: "k2>api", t: "watch: web-9 is mine" }, { e: "k2>api", t: "running, readiness ✓", delay: 1.0 }], hold: 4.4,
+        note: "Node 2's kubelet sees a pod bound to it, starts the containers, and reports ready once the readiness probe passes; only then does it get traffic. Desired equals actual again. No component called another: each watched state and corrected the difference (a <b>reconcile loop</b>)." },
     ],
   });
   Viz.scene("#sc-ub2-cold", {
-    title: "Cold start vs warm invocation", sub: "<b>Orange</b> = one-time startup cost.",
-    nodes: [{ id: "c", x: 80, y: 120, w: 110, label: "Request" }, { id: "fn", x: 330, y: 120, w: 180, label: "Function instance" }],
+    title: "Cold start vs warm invocation", sub: "Box text shows the function instance's state and the time the request waited.",
+    nodes: [{ id: "c", x: 100, y: 120, w: 150, label: "Request", sub: " " }, { id: "fn", x: 420, y: 120, w: 280, label: "Function instance", sub: "none running" }],
     edges: [["c", "fn"]],
-    width: 560, height: 220,
+    width: 620, height: 230,
     steps: [
-      { hl: { c: "active", fn: "warm" }, moves: [{ e: "c>fn", t: "invoke", k: "req" }], pops: [{ n: "fn", t: "create microVM ~100 ms", k: "evt", at: 0.8 }, { n: "fn", t: "start runtime + your init ~300 ms+", k: "evt", at: 1.8 }], hold: 3.6, note: "No warm instance: the platform creates a sandbox, starts the runtime and runs your initialisation code before handling the request." },
-      { hl: { fn: "found" }, moves: [{ e: "c>fn", t: "response (cold: ~500 ms)", k: "ok", back: true }], hold: 2.8, note: "The first request pays the whole startup cost." },
-      { hl: { c: "active", fn: "found" }, moves: [{ e: "c>fn", t: "invoke", k: "req" }, { e: "c>fn", t: "response (warm: ~20 ms)", k: "ok", back: true, delay: 0.9 }], hold: 3, note: "Later requests reuse the warm instance. Concurrent bursts need new instances, so they hit cold starts again; provisioned concurrency or SnapStart pre-warm them." },
+      { hl: { fn: "warm", c: "warm" }, set: { fn: "sandbox → runtime → your init code" }, moves: [{ e: "c>fn", t: "invoke" }], pops: [{ n: "fn", t: "~400 ms of startup", k: "evt", at: 1.0 }], hold: 4,
+        note: "No warm instance exists, so the platform creates a sandbox, starts the language runtime and runs your initialisation code (loading libraries, opening connections) before it can handle anything." },
+      { hl: { fn: "found", c: "bad" }, set: { fn: "warm (kept ~minutes)", c: "waited ~420 ms (cold)" }, moves: [{ e: "c>fn", t: "response", back: true, k: "bad" }], hold: 3.6, note: "The first request pays the whole startup cost." },
+      { hl: { fn: "found", c: "found" }, set: { c: "waited ~20 ms (warm)" }, moves: [{ e: "c>fn", t: "invoke" }, { e: "c>fn", t: "response", back: true, k: "ok", delay: 0.8 }], hold: 3.6, note: "The next request reuses the warm instance and its open connections." },
+      { hl: { fn: "warm", c: "warm" }, set: { fn: "1 warm + 9 new cold instances", c: "burst of 10: 9 cold" }, moves: [{ e: "c>fn", t: "10 at once" }], hold: 4.4,
+        note: "An instance handles one request at a time, so a burst of 10 needs 9 new instances: cold starts again. Provisioned concurrency or snapshot-based starts (such as Lambda SnapStart) keep instances pre-initialised for latency-sensitive paths." },
     ],
   });
 })();

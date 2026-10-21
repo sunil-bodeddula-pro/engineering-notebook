@@ -2960,15 +2960,17 @@ html.iks-open { overflow: hidden; }
 (function () {
   const $ = (id) => document.getElementById(id);
   Viz.scene("#sc-main", {
-    title: "Three ways to answer \"is user 42 here?\"", sub: "<b>Green</b> = cheap; <b>red</b> = expensive.",
-    nodes: [{ id: "q", x: 80, y: 140, w: 110, label: "Query", sub: "key = 42" }, { id: "scan", x: 330, y: 50, w: 190, label: "Scan every row", sub: "O(n)" },
-      { id: "hash", x: 330, y: 140, w: 190, label: "Hash table", sub: "O(1)" }, { id: "tree", x: 330, y: 230, w: 190, label: "B-tree", sub: "O(log n)" }],
+    title: "Three ways to answer \"is user 42 here?\"", sub: "A table of 1 billion rows. The counter shows how much work each method does.",
+    nodes: [{ id: "q", x: 90, y: 150, w: 140, label: "Query", sub: "key = 42" }, { id: "scan", x: 380, y: 50, w: 260, label: "Scan every row", sub: "O(n)" },
+      { id: "hash", x: 380, y: 150, w: 260, label: "Hash table", sub: "O(1)" }, { id: "tree", x: 380, y: 250, w: 260, label: "B-tree", sub: "O(log n)" }],
     edges: [["q", "scan"], ["q", "hash"], ["q", "tree"]],
-    width: 560, height: 280,
+    width: 600, height: 300,
     steps: [
-      { hl: { q: "active", scan: "bad" }, moves: [{ e: "q>scan", t: "check row 1, 2, 3…", k: "bad" }], pops: [{ n: "scan", t: "1 billion checks", k: "bad", at: 1.0 }], hold: 2.8, note: "No structure: check every row. Fine for 100 rows, hopeless for a billion." },
-      { hl: { q: "active", hash: "found" }, moves: [{ e: "q>hash", t: "hash(42) → bucket 7", k: "ok" }], pops: [{ n: "hash", t: "1 step", k: "ok", at: 1.0 }], hold: 2.8, note: "Hash: compute the bucket and look there. One step, but only for an exact key." },
-      { hl: { q: "active", tree: "found" }, moves: [{ e: "q>tree", t: "root → branch → leaf", k: "ok" }], pops: [{ n: "tree", t: "~5 page reads, and ranges work", k: "ok", at: 1.0 }], hold: 3, note: "B-tree: a few wide steps, and \"42 to 99\" is just the next leaves." },
+      { hl: { scan: "bad" }, set: { scan: "checked 1,000,000,000 rows" }, moves: [{ e: "q>scan", t: "row 1, 2, 3…", k: "bad" }], hold: 3.6, note: "No structure: check every row until you find 42 (or prove it isn't there). Fine for 100 rows, hopeless for a billion." },
+      { hl: { hash: "found" }, set: { hash: "hash(42) → bucket 7 → 1 lookup" }, moves: [{ e: "q>hash", t: "hash(42)", k: "ok" }], hold: 3.6, note: "<b>Hash table:</b> compute the bucket from the key and look in that one place. One step, however big the table." },
+      { hl: { tree: "found" }, set: { tree: "root → 2 inner pages → leaf: 4 pages" }, moves: [{ e: "q>tree", t: "root → inner → leaf", k: "ok" }], hold: 3.6, note: "<b>B-tree:</b> a few wide steps down sorted pages: about 4 pages for a billion keys." },
+      { hl: { hash: "bad", tree: "found" }, set: { hash: "\"40 to 99\"? no order → scan all buckets", tree: "\"40 to 99\": find 40, read the next leaves" }, moves: [{ e: "q>hash", t: "key 40–99?", k: "bad" }, { e: "q>tree", t: "key 40–99?", k: "ok", delay: 0.2 }], hold: 4.4,
+        note: "The difference shows on a <b>range</b> question. A hash scatters keys, so \"40 to 99\" means checking everything; a B-tree keeps keys sorted, so it finds 40 and reads on. That's why databases index with B-trees and caches use hashes." },
     ],
   });
 
