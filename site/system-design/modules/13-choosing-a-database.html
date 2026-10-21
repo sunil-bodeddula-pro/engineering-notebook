@@ -3338,14 +3338,22 @@ html.iks-open { overflow: hidden; }
     ["gh-lat", "gh-lon", "gh-p"].forEach((id) => (g(id).oninput = run)); run();
   })();
   Viz.scene("#sc-u13-refresh", {
-    title: "From write to searchable", sub: "<b>Blue</b> = indexing, <b>green</b> = searchable, <b>orange</b> = background work.",
-    nodes: [{ id: "c", x: 70, y: 130, w: 100, label: "Client" }, { id: "buf", x: 270, y: 60, w: 150, label: "Memory buffer", sub: "not searchable yet" }, { id: "tl", x: 270, y: 200, w: 150, label: "Translog", sub: "durable" }, { id: "seg", x: 490, y: 60, w: 150, label: "Segments", sub: "immutable, searchable" }, { id: "big", x: 490, y: 200, w: 150, label: "Merged segment" }],
-    edges: [["c", "buf"], ["c", "tl"], ["buf", "seg"], ["seg", "big"]],
-    width: 610, height: 260,
+    title: "From write to searchable", sub: "Inside one Elasticsearch shard. Box text shows where document 77 is.",
+    nodes: [{ id: "c", x: 90, y: 150, w: 140, label: "Client", sub: " " }, { id: "buf", x: 340, y: 70, w: 220, label: "In-memory buffer", sub: "empty" },
+      { id: "tl", x: 340, y: 240, w: 220, label: "Translog (on disk)", sub: "empty" }, { id: "seg", x: 640, y: 70, w: 230, label: "Segments (searchable)", sub: "seg 1–11" },
+      { id: "q", x: 640, y: 240, w: 230, label: "Search", sub: " " }],
+    edges: [["c", "buf"], ["c", "tl"], ["buf", "seg"], ["q", "seg"]],
+    width: 790, height: 300,
     steps: [
-      { hl: { c: "active", buf: "warm", tl: "found" }, moves: [{ e: "c>buf", t: "index doc 77", k: "req" }, { e: "c>tl", t: "append", k: "req", delay: 0.4 }], pops: [{ n: "c", t: "201 Created", k: "ok", at: 1.4 }], hold: 3, note: "The write is acknowledged once it's in the buffer and the translog, but a search can't see it yet." },
-      { hl: { buf: "warm", seg: "found" }, moves: [{ e: "buf>seg", t: "refresh (~1 s)", k: "evt" }], hold: 3, note: "A refresh turns the buffer into a new small segment: now doc 77 is searchable. That's \"near-real-time\"." },
-      { hl: { seg: "warm", big: "found" }, moves: [{ e: "seg>big", t: "merge 10 small segments", k: "evt" }], pops: [{ n: "big", t: "deleted docs dropped", k: "ok", at: 1.2 }], hold: 3.2, note: "In the background, small segments are merged into bigger ones and deleted documents are finally removed, like LSM compaction." },
+      { hl: { buf: "active", tl: "active", c: "found" }, set: { buf: "doc 77", tl: "doc 77 (fsynced)", c: "201 Created" }, moves: [{ e: "c>buf", t: "index doc 77" }, { e: "c>tl", t: "append", delay: 0.2 }], hold: 4,
+        note: "A write goes into an in-memory buffer and is appended to the translog on disk. Once both are done the client gets its acknowledgement: the write is durable." },
+      { hl: { q: "bad" }, set: { q: "\"red shoes\" → doc 77 not found" }, moves: [{ e: "q>seg", t: "red shoes" }], hold: 3.8,
+        note: "But a search right now won't find it. Searches read only segments, and doc 77 is still in the buffer." },
+      { hl: { seg: "found", buf: "warm" }, set: { buf: "empty", seg: "seg 1–11 + seg 12 [doc 77]", q: " " }, moves: [{ e: "buf>seg", t: "refresh (every 1 s)" }], hold: 4,
+        note: "Each <b>refresh</b> (every second by default) writes the buffer out as a new small, immutable segment. That's why Elasticsearch is called near-real-time." },
+      { hl: { q: "found" }, set: { q: "\"red shoes\" → doc 77 ✓" }, moves: [{ e: "q>seg", t: "red shoes" }, { e: "q>seg", t: "doc 77", back: true, k: "ok", delay: 0.9 }], hold: 3.6, note: "Now it's searchable." },
+      { hl: { seg: "active", tl: "warm" }, set: { seg: "merged → seg A (deleted docs dropped)", tl: "trimmed after flush" }, hold: 4.6,
+        note: "In the background, small segments are merged into larger ones and deleted documents are finally removed. A <b>flush</b> fsyncs segments and trims the translog; after a crash, the translog is replayed to recover writes not yet in a flushed segment." },
     ],
   });
   (function () {

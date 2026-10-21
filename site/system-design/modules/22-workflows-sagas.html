@@ -3205,15 +3205,20 @@ async function placeOrder(order) {
   });
   /* ---------- Under the hood: workflows and timers ---------- */
   Viz.scene("#sc-u22-replay", {
-    title: "A worker crashes mid-workflow", sub: "<b>Blue</b> = live calls, <b>green</b> = results replayed from history.",
-    nodes: [{ id: "w1", x: 90, y: 60, w: 130, label: "Worker 1" }, { id: "w2", x: 90, y: 220, w: 130, label: "Worker 2" }, { id: "srv", x: 330, y: 140, w: 160, label: "Temporal server", sub: "event history" }, { id: "pay", x: 550, y: 60, w: 130, label: "Payment API" }, { id: "inv", x: 550, y: 220, w: 130, label: "Inventory API" }],
-    edges: [["w1", "srv"], ["w2", "srv"], ["w1", "pay"], ["w2", "inv"]],
-    width: 660, height: 290,
+    title: "A worker crashes mid-workflow", sub: "The history (on the workflow server) is the source of truth. The payment API counts real charges.",
+    nodes: [{ id: "w1", x: 110, y: 60, w: 190, label: "Worker 1", sub: "running order 55" }, { id: "w2", x: 110, y: 260, w: 190, label: "Worker 2", sub: "idle" },
+      { id: "h", x: 420, y: 160, w: 260, label: "Workflow history", sub: "1 started" }, { id: "pay", x: 690, y: 60, w: 190, label: "Payment API", sub: "charges: 0" }],
+    edges: [["w1", "pay"], ["w1", "h"], ["w2", "h"]],
+    width: 800, height: 310,
     steps: [
-      { hl: { w1: "active", pay: "found", srv: "found" }, moves: [{ e: "w1>pay", t: "charge $40", k: "req" }, { e: "w1>pay", t: "ok, ch_91", k: "ok", back: true, delay: 1.0 }, { e: "w1>srv", t: "record: charged ch_91", k: "req", delay: 1.9 }], hold: 3.4, note: "Step 1 runs as an activity; its result is recorded in the history." },
-      { hl: { w1: "bad", srv: "warm" }, pops: [{ n: "w1", t: "crash before step 2", k: "bad", at: 0.3 }], hold: 2.8, note: "The worker dies. Nothing is lost: the history knows exactly how far the workflow got." },
-      { hl: { w2: "active", srv: "found" }, moves: [{ e: "w2>srv", t: "fetch history", k: "req" }, { e: "w2>srv", t: "charged = ch_91", k: "ok", back: true, delay: 1.0 }], pops: [{ n: "w2", t: "replay: skip the charge", k: "ok", at: 2.0 }], hold: 3.4, note: "Worker 2 re-runs the workflow code; when it reaches the charge, the recorded result is returned instead of calling the payment API again." },
-      { hl: { w2: "found", inv: "found" }, moves: [{ e: "w2>inv", t: "reserve stock", k: "req" }, { e: "w2>inv", t: "ok", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "Caught up, it continues live with step 2. The customer was charged exactly once." },
+      { hl: { w1: "active", pay: "found", h: "found" }, set: { pay: "charges: 1 (ch_91)", h: "1 started · 2 charge → ch_91" }, moves: [{ e: "w1>pay", t: "charge $50" }, { e: "w1>pay", t: "ch_91", back: true, k: "ok", delay: 0.9 }, { e: "w1>h", t: "record result", delay: 1.6 }], hold: 4.4,
+        note: "Step 1 runs as an <b>activity</b>: the worker calls the payment API, then the result (ch_91) is recorded in the workflow's history on the server." },
+      { hl: { w1: "bad", h: "warm" }, set: { w1: "crashed", h: "2 charge → ch_91 · 3 reserve: scheduled" }, hold: 3.8,
+        note: "The worker dies before step 2 finishes. Nothing is lost: the history knows exactly how far the workflow got." },
+      { hl: { w2: "active", pay: "found" }, set: { w2: "replay: charge → ch_91 (recorded)" }, moves: [{ e: "w2>h", t: "history 1–3", back: true }], hold: 4.6,
+        note: "Worker 2 picks up the workflow and re-runs its code from the top. When the code reaches the charge, the recorded result is returned instead of calling the API. The payment API still shows one charge." },
+      { hl: { w2: "found", h: "found" }, set: { w2: "live: step 2 reserve stock", h: "… 3 reserve: done · 4 ship: scheduled" }, moves: [{ e: "w2>h", t: "reserve done" }], hold: 4.4,
+        note: "Caught up, it continues live. The rule that makes this work: workflow code must be <b>deterministic</b>; anything that touches the outside world (APIs, time, randomness) goes through activities." },
     ],
   });
   (function () {

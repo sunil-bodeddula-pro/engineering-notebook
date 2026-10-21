@@ -3168,15 +3168,23 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-hard", {
-    title: "Did my request succeed?", sub: "Three ways the same timeout can happen. <b>Red</b> = lost or stuck.",
-    nodes: [{ id: "c", x: 90, y: 110, w: 130, label: "Order service" }, { id: "p", x: 450, y: 110, w: 150, label: "Payment service" }],
-    edges: [["c", "p"]],
-    width: 560, height: 200,
+    title: "Did my request succeed?", sub: "The service's box shows what really happened; the caller's box shows what it can tell.",
+    nodes: [{ id: "c", x: 130, y: 120, w: 230, label: "Caller", sub: " " }, { id: "svc", x: 560, y: 120, w: 240, label: "Payment service", sub: "charges: none" }],
+    edges: [["c", "svc"]],
+    width: 720, height: 220,
     steps: [
-      { hl: { c: "active", p: "bad" }, moves: [{ e: "c>p", t: "charge $40", k: "bad" }], pops: [{ n: "p", t: "never arrived", k: "bad", at: 1.2 }, { n: "c", t: "timeout", k: "bad", at: 2.2 }], hold: 3.4, note: "1. The request is lost on the way. Nothing was charged." },
-      { hl: { c: "active", p: "found" }, moves: [{ e: "c>p", t: "charge $40", k: "req" }, { e: "c>p", t: "OK", k: "bad", back: true, delay: 1.2 }], pops: [{ n: "p", t: "charged", k: "ok", at: 1.0 }, { n: "c", t: "timeout", k: "bad", at: 2.4 }], hold: 3.6, note: "2. The charge succeeds but the reply is lost. The customer was charged, and the caller doesn't know." },
-      { hl: { c: "active", p: "warm" }, moves: [{ e: "c>p", t: "charge $40", k: "req" }], pops: [{ n: "p", t: "GC pause… still working", k: "evt", at: 1.0 }, { n: "c", t: "timeout", k: "bad", at: 2.2 }], hold: 3.6, note: "3. The service is just slow, and will finish after the caller gave up." },
-      { hl: { c: "found", p: "found" }, moves: [{ e: "c>p", t: "retry, same idempotency key", k: "ok" }], pops: [{ n: "p", t: "already done: same result", k: "ok", at: 1.2 }], hold: 3.4, note: "From the caller's side all three look identical. The safe answer: retry with an idempotency key, so a repeat can't charge twice." },
+      { hl: { c: "warm", svc: "active" }, set: { c: "timeout after 2 s", svc: "case 1: never received → no charge" }, moves: [{ e: "c>svc", t: "charge $50", k: "bad" }], pops: [{ n: "svc", t: "request lost on the way", k: "bad", at: 1.1 }], hold: 4,
+        note: "<b>Case 1:</b> the request is lost on the way. Nothing was charged." },
+      { hl: { c: "warm", svc: "found" }, set: { c: "timeout after 2 s", svc: "case 2: charged $50 ✓" }, moves: [{ e: "c>svc", t: "charge $50" }, { e: "c>svc", t: "OK", back: true, k: "bad", delay: 1.0 }], pops: [{ n: "c", t: "reply lost", k: "bad", at: 1.8 }], hold: 4,
+        note: "<b>Case 2:</b> the charge succeeds but the reply is lost. The customer has paid and the caller doesn't know." },
+      { hl: { c: "warm", svc: "warm" }, set: { c: "timeout after 2 s", svc: "case 3: slow → charged at 3 s" }, moves: [{ e: "c>svc", t: "charge $50" }], hold: 4,
+        note: "<b>Case 3:</b> the service is overloaded and finishes after the caller has already given up." },
+      { hl: { c: "bad" }, set: { c: "all 3 cases: \"timeout\" — can't tell" }, hold: 3.8,
+        note: "From the caller's side, all three look exactly the same. It cannot know whether the money moved." },
+      { hl: { c: "warm", svc: "bad" }, set: { c: "retried blindly", svc: "case 2 + retry: charged $100" }, moves: [{ e: "c>svc", t: "charge $50 (retry)", k: "bad" }], hold: 4,
+        note: "Retrying is the right instinct (it fixes case 1), but a plain retry double-charges in cases 2 and 3." },
+      { hl: { c: "found", svc: "found" }, set: { c: "OK · charged exactly once", svc: "key k-81 seen → return first result" }, moves: [{ e: "c>svc", t: "charge $50, key k-81" }, { e: "c>svc", t: "OK (the original charge)", back: true, k: "ok", delay: 1.0 }], hold: 4.6,
+        note: "The fix: the caller sends an <b>idempotency key</b> with the first try and every retry. The service stores the key with the result and, on a repeat, returns the stored result instead of charging again. Now retrying is always safe." },
     ],
   });
 })();

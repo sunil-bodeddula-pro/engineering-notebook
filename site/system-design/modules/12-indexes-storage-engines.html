@@ -3353,18 +3353,22 @@ html.iks-open { overflow: hidden; }
   });
   /* ---------- Under the hood: indexes and storage engines ---------- */
   Viz.scene("#sc-u12-two", {
-    title: "Finding a user by email: InnoDB vs PostgreSQL", sub: "<b>Top</b>: clustered table (InnoDB). <b>Bottom</b>: heap (PostgreSQL).",
-    nodes: [{ id: "q", x: 80, y: 135, w: 120, label: "WHERE email = …" },
-      { id: "sec", x: 290, y: 55, w: 160, label: "Secondary index", sub: "email → primary key" }, { id: "pk", x: 510, y: 55, w: 160, label: "Clustered B+tree", sub: "id → whole row" },
-      { id: "pix", x: 290, y: 215, w: 160, label: "Index on email", sub: "email → (page, slot)" }, { id: "heap", x: 510, y: 215, w: 160, label: "Heap page 17", sub: "the row" }],
-    edges: [["q", "sec"], ["sec", "pk"], ["q", "pix"], ["pix", "heap"]],
-    width: 620, height: 270,
+    title: "Finding a user by email: InnoDB vs PostgreSQL", sub: "Same query, same 3-level indexes. The query box counts pages read.",
+    nodes: [{ id: "q", x: 100, y: 160, w: 190, label: "WHERE email = 'ann@x.io'", sub: "InnoDB 0 · PostgreSQL 0" },
+      { id: "ii", x: 380, y: 70, w: 220, label: "InnoDB: email index", sub: " " }, { id: "cl", x: 660, y: 70, w: 220, label: "InnoDB: primary key tree", sub: "rows live in its leaves" },
+      { id: "pi", x: 380, y: 250, w: 220, label: "PostgreSQL: email index", sub: " " }, { id: "hp", x: 660, y: 250, w: 220, label: "PostgreSQL: heap", sub: "rows in pages, any order" }],
+    edges: [["q", "ii"], ["ii", "cl"], ["q", "pi"], ["pi", "hp"]],
+    width: 790, height: 310,
     steps: [
-      { hl: { q: "active", sec: "found" }, moves: [{ e: "q>sec", t: "walk 3 levels", k: "req" }], pops: [{ n: "sec", t: "id = 42", k: "ok", at: 1.1 }], hold: 3, note: "InnoDB: the secondary index leaf holds the primary key, not the row." },
-      { hl: { sec: "active", pk: "found" }, moves: [{ e: "sec>pk", t: "look up id 42: 3 more levels", k: "req" }], pops: [{ n: "pk", t: "row", k: "ok", at: 1.1 }], hold: 3, note: "Then a second walk down the clustered tree, where the rows live. Short primary keys keep both trees small." },
-      { hl: { q: "active", pix: "found" }, moves: [{ e: "q>pix", t: "walk 3 levels", k: "req" }], pops: [{ n: "pix", t: "TID (17, 3)", k: "ok", at: 1.1 }], hold: 3, note: "PostgreSQL: the index leaf holds the row's physical address: page 17, slot 3." },
-      { hl: { pix: "active", heap: "found" }, moves: [{ e: "pix>heap", t: "read 1 page", k: "ok" }], hold: 3, note: "One more page read and it's done." },
-      { hl: { pix: "warm", heap: "warm", sec: "found", pk: "found" }, pops: [{ n: "heap", t: "update → new version, new address", k: "evt", at: 0.3 }, { n: "pix", t: "new entry in every index", k: "bad", at: 1.3 }], hold: 3.6, note: "The flip side: a PostgreSQL update writes a new row version at a new address, so indexes need new entries, unless it's a HOT update. InnoDB updates in place and leaves secondaries alone." },
+      { hl: { ii: "active" }, set: { ii: "leaf: ann@x.io → id 4211", q: "InnoDB 3 · PostgreSQL 0" }, moves: [{ e: "q>ii", t: "3 levels down" }], hold: 4,
+        note: "InnoDB: the secondary-index leaf stores the <b>primary key</b>, not the row's location." },
+      { hl: { cl: "found" }, set: { cl: "id 4211 → the row", q: "InnoDB 6 · PostgreSQL 0" }, moves: [{ e: "ii>cl", t: "id 4211, 3 levels down" }], hold: 4,
+        note: "So it walks a second tree, the clustered primary-key index, where the rows themselves live. Two walks, about 6 pages (fewer if the upper levels are cached, which they usually are)." },
+      { hl: { pi: "active" }, set: { pi: "leaf: ann@x.io → (page 17, slot 3)", q: "InnoDB 6 · PostgreSQL 3" }, moves: [{ e: "q>pi", t: "3 levels down" }], hold: 4,
+        note: "PostgreSQL: the index leaf stores the row's <b>physical address</b> in the heap: page 17, slot 3." },
+      { hl: { hp: "found" }, set: { hp: "page 17, slot 3 → the row", q: "InnoDB 6 · PostgreSQL 4" }, moves: [{ e: "pi>hp", t: "read page 17" }], hold: 3.8, note: "One more page read and it's done." },
+      { hl: { hp: "warm", cl: "found" }, set: { hp: "UPDATE → new version at slot 9", cl: "UPDATE → row changed in place" }, hold: 4.8,
+        note: "The trade-off shows on updates. PostgreSQL writes a new row version at a new address, so every index needs a new entry, unless it's a HOT update (same page, no indexed column changed). InnoDB updates in place and its secondary indexes, pointing at the primary key, don't change." },
     ],
   });
   (function () {

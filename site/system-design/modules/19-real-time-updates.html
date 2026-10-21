@@ -3108,19 +3108,21 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-push", {
-    title: "Four ways to get an update to the browser", sub: "<b>Blue</b> = client requests, <b>teal</b> = server pushes, <b>red</b> = wasted or waiting.",
-    nodes: [{ id: "c", x: 80, y: 105, w: 120, label: "Browser" }, { id: "s", x: 600, y: 105, w: 120, label: "Server" }],
+    title: "Four ways to get an update to the browser", sub: "The browser's box keeps score: requests made, empty answers, and delay.",
+    nodes: [{ id: "c", x: 130, y: 120, w: 230, label: "Browser", sub: " " }, { id: "s", x: 560, y: 120, w: 230, label: "Server", sub: " " }],
     edges: [["c", "s"]],
-    width: 680, height: 190,
+    width: 700, height: 220,
     steps: [
-      { hl: { c: "active", s: "active" }, moves: [0, 1, 2].map((i) => ({ e: "c>s", t: "anything new?", k: "req", delay: i * 1.1 })).concat([0, 1].map((i) => ({ e: "c>s", t: "no", k: "bad", back: true, delay: 0.7 + i * 1.1 })), [{ e: "c>s", t: "yes: 1 message", k: "ok", back: true, delay: 2.9 }]), pops: [{ n: "c", t: "polling: mostly empty", k: "bad", at: 1.0 }], hold: 4.6,
-        note: "<b>Polling:</b> ask every few seconds. Simple and stateless, but most answers are empty and the delay is up to one interval." },
-      { hl: { c: "active", s: "warm" }, moves: [{ e: "c>s", t: "wait for news", k: "req" }, { e: "c>s", t: "message", k: "ok", back: true, delay: 2.0 }, { e: "c>s", t: "wait again", k: "req", delay: 3.0 }], pops: [{ n: "s", t: "holds the request", k: "evt", at: 1.0 }], hold: 4.4,
-        note: "<b>Long polling:</b> the server holds the request until there's news, answers, and the client asks again." },
-      { hl: { c: "found", s: "active" }, moves: [{ e: "c>s", t: "open stream", k: "req" }].concat([0, 1, 2].map((i) => ({ e: "c>s", t: "event " + (i + 1), k: "evt", back: true, delay: 1.0 + i * 0.8 }))), pops: [{ n: "s", t: "SSE: one-way", k: "evt", at: 0.9 }], hold: 4.2,
-        note: "<b>Server-sent events:</b> one long response the server keeps writing into. Server → client only." },
-      { hl: { c: "found", s: "found" }, moves: [{ e: "c>s", t: "upgrade", k: "req" }, { e: "c>s", t: "typing…", k: "evt", back: true, delay: 1.0 }, { e: "c>s", t: "message", k: "req", delay: 1.6 }, { e: "c>s", t: "delivered", k: "evt", back: true, delay: 2.3 }], pops: [{ n: "c", t: "WebSocket: both ways", k: "ok", at: 1.0 }], hold: 4.2,
-        note: "<b>WebSocket:</b> one persistent connection, messages both ways. Powerful, but stateful: plan for reconnects and deploys." },
+      { hl: { c: "warm", s: "active" }, set: { c: "poll: 3 requests · 2 empty", s: "message at t = 11 s" }, moves: [{ e: "c>s", t: "news? (t=5)" }, { e: "c>s", t: "nothing", back: true, k: "bad", delay: 0.6 }, { e: "c>s", t: "news? (t=10)", delay: 1.4 }, { e: "c>s", t: "nothing", back: true, k: "bad", delay: 2.0 }, { e: "c>s", t: "news? (t=15)", delay: 2.8 }, { e: "c>s", t: "1 message", back: true, k: "ok", delay: 3.4 }], hold: 5.2,
+        note: "<b>Polling</b> every 5 s: simple and stateless, but most answers are empty, and the message that arrived at 11 s is seen at 15 s. A million users polling is 200,000 requests a second for mostly nothing." },
+      { hl: { c: "found", s: "warm" }, set: { c: "long poll: 1 request/message, ~0 s", s: "holding the request open…" }, moves: [{ e: "c>s", t: "news? (held)" }, { e: "c>s", t: "message, the moment it arrives", back: true, k: "ok", delay: 2.2 }, { e: "c>s", t: "news? (again)", delay: 3.0 }], hold: 4.6,
+        note: "<b>Long polling:</b> the server holds the request until there's news, answers at once, and the browser immediately asks again. Works everywhere plain HTTP works." },
+      { hl: { c: "found", s: "active" }, set: { c: "SSE: 1 response, 3 events so far", s: "writing into an open response" }, moves: [{ e: "c>s", t: "GET /events" }, { e: "c>s", t: "event 1", back: true, k: "ok", delay: 0.9 }, { e: "c>s", t: "event 2", back: true, k: "ok", delay: 1.7 }, { e: "c>s", t: "event 3", back: true, k: "ok", delay: 2.5 }], hold: 4.6,
+        note: "<b>Server-sent events:</b> one long HTTP response the server keeps writing events into. Server → browser only, with automatic reconnect built in." },
+      { hl: { c: "found", s: "active" }, set: { c: "WebSocket: messages both ways", s: "1 socket held per user" }, moves: [{ e: "c>s", t: "Upgrade: websocket" }, { e: "c>s", t: "101 Switching", back: true, k: "ok", delay: 0.8 }, { e: "c>s", t: "typing…", delay: 1.6 }, { e: "c>s", t: "new message", back: true, k: "ok", delay: 2.2 }], hold: 4.6,
+        note: "<b>WebSocket:</b> an HTTP request upgrades into one persistent two-way connection. Powerful, but stateful: a million users means a million open sockets spread over servers." },
+      { hl: { s: "bad", c: "warm" }, set: { s: "restarted (deploy)", c: "reconnect: \"last seen: event 3\"" }, moves: [{ e: "c>s", t: "reconnect, last id 3", delay: 0.6 }, { e: "c>s", t: "events 4, 5 (missed)", back: true, k: "ok", delay: 1.6 }], hold: 4.6,
+        note: "Every push method must survive dropped connections. The client reconnects with backoff and says what it last saw; the server replays what it missed from a log. Without that, deploys silently lose messages." },
     ],
   });
 })();
