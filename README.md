@@ -25,6 +25,7 @@ runs [`.github/workflows/pages.yml`](.github/workflows/pages.yml), which builds 
 | `interviewkata.com/` | [`site/`](site/) pages, `patterns/` and `assets/` |
 | `interviewkata.com/ai/` | [`site/ai/`](site/ai/): the AI engineering track |
 | `interviewkata.com/system-design/` | [`site/system-design/`](site/system-design/): the System design track |
+| `interviewkata.com/architecture/` | [`site/architecture/`](site/architecture/): the Software architecture track |
 | `interviewkata.com/404.html` | [`site/404.html`](site/404.html) |
 
 To preview locally: `site/assemble.sh /tmp/site && python3 -m http.server -d /tmp/site 8000`.

@@ -151,7 +151,7 @@
       if (cls === "active") e += `<circle class="pk" r="4.5"><animateMotion dur="${Math.min(2.2, Math.max(0.8, L / 140)).toFixed(2)}s" repeatCount="indefinite" path="${d}"/></circle>`;
       if (label) {
         const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
-        e += `<text class="fl ${cls}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+        e += `<text class="fl ${cls}" data-e="${esc(a + ">" + b)}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
       }
     });
     const ns = nodes.map((n0) => {
@@ -499,8 +499,22 @@
     if (!root) return;
     const steps = cfg.steps || [];
     const edgeCls = (s) => Object.fromEntries((s.moves || []).map((m) => [m.e, m.k === "bad" ? "bad" : "active"]));
-    const fig = (s) => flow(cfg.nodes, cfg.edges, { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
-    stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s) => ({ view: fig(s), note: s.note })), speed: cfg.speed || 3200 });
+    // Steps can change a box's text (set: {id: "new sub"} or {id: {label, sub}}) and reveal or remove boxes
+    // (show / hide: [ids]; a node with hidden: true starts unseen). Both carry over to later steps.
+    // A node whose sub will be set later needs a sub from the start (" " is fine), so its box keeps its size.
+    const states = [];
+    {
+      const txt = {}, vis = Object.fromEntries(cfg.nodes.map((n) => [n.id, !n.hidden]));
+      steps.forEach((s) => {
+        Object.entries(s.set || {}).forEach(([k, v]) => { txt[k] = { ...(txt[k] || {}), ...(typeof v === "string" ? { sub: v } : v) }; });
+        (s.show || []).forEach((k) => { vis[k] = true; }); (s.hide || []).forEach((k) => { vis[k] = false; });
+        states.push({ txt: { ...txt }, vis: { ...vis } });
+      });
+    }
+    const nodesAt = (k) => cfg.nodes.filter((n) => states[k].vis[n.id]).map((n) => ({ ...n, ...(states[k].txt[n.id] || {}) }));
+    const edgesAt = (k) => cfg.edges.filter(([a, b]) => states[k].vis[a] && states[k].vis[b]);
+    const fig = (s, k) => flow(nodesAt(k), edgesAt(k), { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
+    stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s, k) => ({ view: fig(s, k), note: s.note })), speed: cfg.speed || 3200 });
     if (reduceMotion()) return;
     lib("gsap").then(() => upgrade()).catch(() => {});
 
@@ -594,6 +608,23 @@
         svg.querySelectorAll("path.fe").forEach((p) => {
           const c = ec[p.dataset.e] || ""; p.setAttribute("class", "fe " + c);
           p.setAttribute("marker-end", `url(#${uid}-${c === "active" ? "a" : c === "bad" ? "b" : "n"})`);
+        });
+        const st = states[k] || { txt: {}, vis: {} };
+        cfg.nodes.forEach((n0) => {
+          const g = nodeOf(n0.id); if (!g) return;
+          if (st.vis[n0.id]) g.removeAttribute("data-hidden"); else g.setAttribute("data-hidden", "");
+          const t = { label: n0.label ?? n0.id, sub: n0.sub, ...(st.txt[n0.id] || {}) };
+          [["fn-l", t.label], ["fn-s", t.sub]].forEach(([c, v]) => {
+            const el = g.querySelector("text." + c);
+            if (el && v != null && el.textContent !== String(v)) {
+              el.textContent = v;
+              if (el.animate) el.animate([{ fill: "var(--accent)", fontWeight: 700 }, {}], { duration: 900, easing: "ease-out" });
+            }
+          });
+        });
+        svg.querySelectorAll("[data-e]").forEach((el) => {
+          const [a, b] = el.dataset.e.split(">");
+          if (st.vis[a] === false || st.vis[b] === false) el.setAttribute("data-hidden", ""); else el.removeAttribute("data-hidden");
         });
         note.innerHTML = s.note || "";
         if (note.animate) note.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
@@ -864,7 +895,8 @@
   /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
   // [term, other spellings, definition, track]. The first spelling is the glossary heading.
   // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">);
-  // "system-design" = the System design pages (<body data-track="system-design">).
+  // "system-design" = the System design pages (<body data-track="system-design">);
+  // "architecture" = the Software architecture pages (<body data-track="architecture">).
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -1276,6 +1308,41 @@
     ["LLM gateway", ["LLM gateways", "AI gateway", "AI gateways"], "A proxy in front of model providers that handles keys, token budgets, routing, fallbacks, caching and cost logging.", "system-design"],
     ["Guardrails", ["guardrail"], "Runtime checks on a model's inputs and outputs, such as injection detection, PII filters and schema validation.", "system-design"],
     ["Evals", ["eval", "eval set", "evaluations"], "A versioned set of test inputs with expected answers or rubrics, scored on every prompt or model change.", "system-design"],
+    ["Architecture characteristic", ["architecture characteristics", "quality attribute", "quality attributes", "-ility", "-ilities"], "A quality the system must have beyond its features, such as scalability, availability or testability. It shapes the structure, so it must be chosen deliberately.", "architecture"],
+    ["Architecture decision record", ["ADR", "ADRs"], "A short document that records one architecture decision: its context, the decision, why, and the consequences.", "architecture"],
+    ["Architecture quantum", ["architecture quanta", "quantum", "quanta"], "A part of the system that is deployed on its own and can have its own architecture characteristics, including its own data.", "architecture"],
+    ["Architecture style", ["architecture styles", "architectural style"], "The overall shape of a system, such as layered, microkernel, event-driven or microservices, with known strengths and weaknesses.", "architecture"],
+    ["Architecture kata", ["kata", "katas"], "A practice exercise: a short business problem that a small team turns into an architecture in a fixed time, then presents.", "architecture"],
+    ["Trade-off", ["trade-offs", "tradeoff", "tradeoffs"], "Getting more of one thing by accepting less of another. In architecture almost every choice is one.", "architecture"],
+    ["Component", ["components"], "A building block of the architecture: a group of related code with a clear role, usually a package or namespace.", "architecture"],
+    ["Logical architecture", [], "The components and how they relate, independent of how they are deployed.", "architecture"],
+    ["Physical architecture", [], "How the logical components are deployed: services, databases, brokers and the network between them.", "architecture"],
+    ["Coupling", [], "How much one part depends on another. Tight coupling means a change in one forces changes in the other.", "architecture"],
+    ["Cohesion", [], "How closely the code inside one part belongs together. High cohesion means one clear purpose.", "architecture"],
+    ["Afferent coupling", ["afferent", "Ca"], "Incoming dependencies: how many other parts depend on this one.", "architecture"],
+    ["Efferent coupling", ["efferent", "Ce"], "Outgoing dependencies: how many other parts this one depends on.", "architecture"],
+    ["Instability", [], "Efferent coupling divided by total coupling. 0 means many things depend on it and it depends on little; 1 means the opposite.", "architecture"],
+    ["Bounded context", ["bounded contexts"], "From domain-driven design: a part of the business where words and data have one meaning, owned by one model.", "architecture"],
+    ["Technical partitioning", ["technically partitioned"], "Splitting code by technical layer: presentation, business, persistence.", "architecture"],
+    ["Domain partitioning", ["domain partitioned", "domain-partitioned"], "Splitting code by business area: orders, payments, shipping.", "architecture"],
+    ["Monolithic architecture", ["monolithic", "monolith"], "One deployable unit holding all the code. Simple to build and run; harder to scale and change in parts.", "architecture"],
+    ["Distributed architecture", ["distributed architectures"], "Several separately deployed parts that talk over a network: more flexible, much harder to get right.", "architecture"],
+    ["Elasticity", [], "Handling sudden bursts of users by adding and removing capacity quickly. Different from scalability, which is steady growth.", "architecture"],
+    ["Scalability", [], "Handling a growing number of users or requests while response times stay acceptable.", "architecture"],
+    ["Responsiveness", [], "How quickly the user gets a reply, even if the work finishes later.", "architecture"],
+    ["Deployability", [], "How easily, often and safely a change can be released.", "architecture"],
+    ["Testability", [], "How easily and completely the system can be tested, ideally automatically.", "architecture"],
+    ["Fitness function", ["fitness functions"], "An automated check that an architecture characteristic still holds, such as a test that fails if a layer rule is broken.", "architecture"],
+    ["Fallacies of distributed computing", ["eight fallacies"], "Eight false assumptions, starting with \"the network is reliable\", that make distributed systems fail in surprising ways.", "architecture"],
+    ["Saga", ["sagas"], "A business transaction split into local steps across services, each with a compensating step that undoes it on failure.", "architecture"],
+    ["Compensating update", ["compensating updates", "compensating transaction"], "A step that reverses an earlier step's effect, used by sagas instead of a rollback.", "architecture"],
+    ["Orchestration", ["orchestrator"], "One coordinator tells each service what to do, in order, and handles failures.", "architecture"],
+    ["Choreography", [], "No coordinator: each service reacts to events and emits its own.", "architecture"],
+    ["Mediator", ["mediator topology"], "In event-driven architecture, a component that receives an event and directs the steps of its workflow.", "architecture"],
+    ["Message broker", ["broker", "brokers"], "Middleware that receives messages and delivers them to consumers, such as RabbitMQ or Kafka.", "architecture"],
+    ["Eventual consistency", ["eventually consistent"], "Copies of data may differ for a while, but will agree once updates stop arriving.", "architecture"],
+    ["Stamp coupling", [], "Passing a large data structure when the receiver needs only a small part of it, coupling both to its whole shape.", "architecture"],
+    ["Accidental complexity", [], "Complexity we add ourselves through tools or design choices, as opposed to the complexity of the problem itself.", "architecture"]
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
@@ -1450,11 +1517,11 @@
     if (!btn) return;
     const root = btn.getAttribute("data-root") || "";
     const here = document.body.getAttribute("data-track") || "coding";
-    const TRACKS = [["", "All"], ["Coding", "Coding"], ["System design", "System design"], ["AI engineering", "AI engineering"]];
+    const TRACKS = [["", "All"], ["Coding", "Coding"], ["System design", "System design"], ["Software architecture", "Architecture"], ["AI engineering", "AI engineering"]];
     const KIND = { pg: "Page", s: "Section", t: "Up close", u: "Under the hood", p: "Problem", g: "Glossary" };
     const BOOST = { pg: 3, u: 2, t: 2, s: 1, g: -2, p: 0 };
-    const TRY = ["sliding window", "consistent hashing", "rate limiter", "RAG", "two sum", "B-tree", "Kafka", "embeddings"];
-    const herLabel = { coding: "Coding", "system-design": "System design", ai: "AI engineering" }[here] || "Coding";
+    const TRY = ["sliding window", "consistent hashing", "rate limiter", "RAG", "two sum", "B-tree", "saga", "embeddings"];
+    const herLabel = { coding: "Coding", "system-design": "System design", architecture: "Software architecture", ai: "AI engineering" }[here] || "Coding";
     const norm = (t) => String(t || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
     const words = (t) => norm(t).split(/[^a-z0-9+#]+/).filter(Boolean);
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

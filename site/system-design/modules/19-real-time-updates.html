@@ -174,6 +174,12 @@ a:hover { text-decoration-thickness: 2px; }
   /* Without JavaScript the drawer can't open, so show the menu as a plain block instead. */
   html:not(.js) .sidenav { position: static; transform: none; visibility: visible; width: auto; padding: 16px; box-shadow: none; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+/* Four track tabs: tighten them on mid-size screens, and move them into the menu drawer below 1000px */
+@media (max-width: 1260px) { .tracks { margin-left: 6px; gap: 2px; } .tracks a, .tracks .track-soon { padding: 7px 9px; font-size: .88rem; } .topbar .search-btn kbd { display: none; } }
+@media (max-width: 1000px) {
+  .tracks { display: none; }
+  .sn-tracks { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+}
 @media (max-width: 900px) {
   .tracks { display: none; }
   .sn-tracks { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
@@ -504,6 +510,9 @@ svg.flow { max-width: 100%; height: auto; font-family: var(--sans); overflow: vi
 svg.flow .fn rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
 svg.flow .fn .fn-l { font-size: 13px; font-weight: 600; fill: var(--ink); }
 svg.flow .fn .fn-s { font-size: 10.5px; fill: var(--ink-2); }
+/* Scenes can reveal and remove boxes step by step (Viz.scene show / hide) */
+svg.flow .fn, svg.flow .fe, svg.flow .fl { transition: opacity .45s ease; }
+svg.flow [data-hidden] { opacity: 0; pointer-events: none; }
 svg.flow .fn.active rect { fill: var(--blue-soft); stroke: var(--blue); stroke-width: 2.5; }
 svg.flow .fn.found rect { fill: var(--green-soft); stroke: var(--green); stroke-width: 2.5; }
 svg.flow .fn.warm rect { fill: var(--gold-soft); stroke: var(--gold); stroke-width: 2.5; }
@@ -980,7 +989,7 @@ html.iks-open { overflow: hidden; }
       if (cls === "active") e += `<circle class="pk" r="4.5"><animateMotion dur="${Math.min(2.2, Math.max(0.8, L / 140)).toFixed(2)}s" repeatCount="indefinite" path="${d}"/></circle>`;
       if (label) {
         const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
-        e += `<text class="fl ${cls}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+        e += `<text class="fl ${cls}" data-e="${esc(a + ">" + b)}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
       }
     });
     const ns = nodes.map((n0) => {
@@ -1328,8 +1337,22 @@ html.iks-open { overflow: hidden; }
     if (!root) return;
     const steps = cfg.steps || [];
     const edgeCls = (s) => Object.fromEntries((s.moves || []).map((m) => [m.e, m.k === "bad" ? "bad" : "active"]));
-    const fig = (s) => flow(cfg.nodes, cfg.edges, { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
-    stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s) => ({ view: fig(s), note: s.note })), speed: cfg.speed || 3200 });
+    // Steps can change a box's text (set: {id: "new sub"} or {id: {label, sub}}) and reveal or remove boxes
+    // (show / hide: [ids]; a node with hidden: true starts unseen). Both carry over to later steps.
+    // A node whose sub will be set later needs a sub from the start (" " is fine), so its box keeps its size.
+    const states = [];
+    {
+      const txt = {}, vis = Object.fromEntries(cfg.nodes.map((n) => [n.id, !n.hidden]));
+      steps.forEach((s) => {
+        Object.entries(s.set || {}).forEach(([k, v]) => { txt[k] = { ...(txt[k] || {}), ...(typeof v === "string" ? { sub: v } : v) }; });
+        (s.show || []).forEach((k) => { vis[k] = true; }); (s.hide || []).forEach((k) => { vis[k] = false; });
+        states.push({ txt: { ...txt }, vis: { ...vis } });
+      });
+    }
+    const nodesAt = (k) => cfg.nodes.filter((n) => states[k].vis[n.id]).map((n) => ({ ...n, ...(states[k].txt[n.id] || {}) }));
+    const edgesAt = (k) => cfg.edges.filter(([a, b]) => states[k].vis[a] && states[k].vis[b]);
+    const fig = (s, k) => flow(nodesAt(k), edgesAt(k), { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
+    stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s, k) => ({ view: fig(s, k), note: s.note })), speed: cfg.speed || 3200 });
     if (reduceMotion()) return;
     lib("gsap").then(() => upgrade()).catch(() => {});
 
@@ -1423,6 +1446,23 @@ html.iks-open { overflow: hidden; }
         svg.querySelectorAll("path.fe").forEach((p) => {
           const c = ec[p.dataset.e] || ""; p.setAttribute("class", "fe " + c);
           p.setAttribute("marker-end", `url(#${uid}-${c === "active" ? "a" : c === "bad" ? "b" : "n"})`);
+        });
+        const st = states[k] || { txt: {}, vis: {} };
+        cfg.nodes.forEach((n0) => {
+          const g = nodeOf(n0.id); if (!g) return;
+          if (st.vis[n0.id]) g.removeAttribute("data-hidden"); else g.setAttribute("data-hidden", "");
+          const t = { label: n0.label ?? n0.id, sub: n0.sub, ...(st.txt[n0.id] || {}) };
+          [["fn-l", t.label], ["fn-s", t.sub]].forEach(([c, v]) => {
+            const el = g.querySelector("text." + c);
+            if (el && v != null && el.textContent !== String(v)) {
+              el.textContent = v;
+              if (el.animate) el.animate([{ fill: "var(--accent)", fontWeight: 700 }, {}], { duration: 900, easing: "ease-out" });
+            }
+          });
+        });
+        svg.querySelectorAll("[data-e]").forEach((el) => {
+          const [a, b] = el.dataset.e.split(">");
+          if (st.vis[a] === false || st.vis[b] === false) el.setAttribute("data-hidden", ""); else el.removeAttribute("data-hidden");
         });
         note.innerHTML = s.note || "";
         if (note.animate) note.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
@@ -1693,7 +1733,8 @@ html.iks-open { overflow: hidden; }
   /* ---------- glossary: jargon gets a dotted underline and a short definition on hover / tap ---------- */
   // [term, other spellings, definition, track]. The first spelling is the glossary heading.
   // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">);
-  // "system-design" = the System design pages (<body data-track="system-design">).
+  // "system-design" = the System design pages (<body data-track="system-design">);
+  // "architecture" = the Software architecture pages (<body data-track="architecture">).
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -2105,6 +2146,41 @@ html.iks-open { overflow: hidden; }
     ["LLM gateway", ["LLM gateways", "AI gateway", "AI gateways"], "A proxy in front of model providers that handles keys, token budgets, routing, fallbacks, caching and cost logging.", "system-design"],
     ["Guardrails", ["guardrail"], "Runtime checks on a model's inputs and outputs, such as injection detection, PII filters and schema validation.", "system-design"],
     ["Evals", ["eval", "eval set", "evaluations"], "A versioned set of test inputs with expected answers or rubrics, scored on every prompt or model change.", "system-design"],
+    ["Architecture characteristic", ["architecture characteristics", "quality attribute", "quality attributes", "-ility", "-ilities"], "A quality the system must have beyond its features, such as scalability, availability or testability. It shapes the structure, so it must be chosen deliberately.", "architecture"],
+    ["Architecture decision record", ["ADR", "ADRs"], "A short document that records one architecture decision: its context, the decision, why, and the consequences.", "architecture"],
+    ["Architecture quantum", ["architecture quanta", "quantum", "quanta"], "A part of the system that is deployed on its own and can have its own architecture characteristics, including its own data.", "architecture"],
+    ["Architecture style", ["architecture styles", "architectural style"], "The overall shape of a system, such as layered, microkernel, event-driven or microservices, with known strengths and weaknesses.", "architecture"],
+    ["Architecture kata", ["kata", "katas"], "A practice exercise: a short business problem that a small team turns into an architecture in a fixed time, then presents.", "architecture"],
+    ["Trade-off", ["trade-offs", "tradeoff", "tradeoffs"], "Getting more of one thing by accepting less of another. In architecture almost every choice is one.", "architecture"],
+    ["Component", ["components"], "A building block of the architecture: a group of related code with a clear role, usually a package or namespace.", "architecture"],
+    ["Logical architecture", [], "The components and how they relate, independent of how they are deployed.", "architecture"],
+    ["Physical architecture", [], "How the logical components are deployed: services, databases, brokers and the network between them.", "architecture"],
+    ["Coupling", [], "How much one part depends on another. Tight coupling means a change in one forces changes in the other.", "architecture"],
+    ["Cohesion", [], "How closely the code inside one part belongs together. High cohesion means one clear purpose.", "architecture"],
+    ["Afferent coupling", ["afferent", "Ca"], "Incoming dependencies: how many other parts depend on this one.", "architecture"],
+    ["Efferent coupling", ["efferent", "Ce"], "Outgoing dependencies: how many other parts this one depends on.", "architecture"],
+    ["Instability", [], "Efferent coupling divided by total coupling. 0 means many things depend on it and it depends on little; 1 means the opposite.", "architecture"],
+    ["Bounded context", ["bounded contexts"], "From domain-driven design: a part of the business where words and data have one meaning, owned by one model.", "architecture"],
+    ["Technical partitioning", ["technically partitioned"], "Splitting code by technical layer: presentation, business, persistence.", "architecture"],
+    ["Domain partitioning", ["domain partitioned", "domain-partitioned"], "Splitting code by business area: orders, payments, shipping.", "architecture"],
+    ["Monolithic architecture", ["monolithic", "monolith"], "One deployable unit holding all the code. Simple to build and run; harder to scale and change in parts.", "architecture"],
+    ["Distributed architecture", ["distributed architectures"], "Several separately deployed parts that talk over a network: more flexible, much harder to get right.", "architecture"],
+    ["Elasticity", [], "Handling sudden bursts of users by adding and removing capacity quickly. Different from scalability, which is steady growth.", "architecture"],
+    ["Scalability", [], "Handling a growing number of users or requests while response times stay acceptable.", "architecture"],
+    ["Responsiveness", [], "How quickly the user gets a reply, even if the work finishes later.", "architecture"],
+    ["Deployability", [], "How easily, often and safely a change can be released.", "architecture"],
+    ["Testability", [], "How easily and completely the system can be tested, ideally automatically.", "architecture"],
+    ["Fitness function", ["fitness functions"], "An automated check that an architecture characteristic still holds, such as a test that fails if a layer rule is broken.", "architecture"],
+    ["Fallacies of distributed computing", ["eight fallacies"], "Eight false assumptions, starting with \"the network is reliable\", that make distributed systems fail in surprising ways.", "architecture"],
+    ["Saga", ["sagas"], "A business transaction split into local steps across services, each with a compensating step that undoes it on failure.", "architecture"],
+    ["Compensating update", ["compensating updates", "compensating transaction"], "A step that reverses an earlier step's effect, used by sagas instead of a rollback.", "architecture"],
+    ["Orchestration", ["orchestrator"], "One coordinator tells each service what to do, in order, and handles failures.", "architecture"],
+    ["Choreography", [], "No coordinator: each service reacts to events and emits its own.", "architecture"],
+    ["Mediator", ["mediator topology"], "In event-driven architecture, a component that receives an event and directs the steps of its workflow.", "architecture"],
+    ["Message broker", ["broker", "brokers"], "Middleware that receives messages and delivers them to consumers, such as RabbitMQ or Kafka.", "architecture"],
+    ["Eventual consistency", ["eventually consistent"], "Copies of data may differ for a while, but will agree once updates stop arriving.", "architecture"],
+    ["Stamp coupling", [], "Passing a large data structure when the receiver needs only a small part of it, coupling both to its whole shape.", "architecture"],
+    ["Accidental complexity", [], "Complexity we add ourselves through tools or design choices, as opposed to the complexity of the problem itself.", "architecture"]
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
@@ -2279,11 +2355,11 @@ html.iks-open { overflow: hidden; }
     if (!btn) return;
     const root = btn.getAttribute("data-root") || "";
     const here = document.body.getAttribute("data-track") || "coding";
-    const TRACKS = [["", "All"], ["Coding", "Coding"], ["System design", "System design"], ["AI engineering", "AI engineering"]];
+    const TRACKS = [["", "All"], ["Coding", "Coding"], ["System design", "System design"], ["Software architecture", "Architecture"], ["AI engineering", "AI engineering"]];
     const KIND = { pg: "Page", s: "Section", t: "Up close", u: "Under the hood", p: "Problem", g: "Glossary" };
     const BOOST = { pg: 3, u: 2, t: 2, s: 1, g: -2, p: 0 };
-    const TRY = ["sliding window", "consistent hashing", "rate limiter", "RAG", "two sum", "B-tree", "Kafka", "embeddings"];
-    const herLabel = { coding: "Coding", "system-design": "System design", ai: "AI engineering" }[here] || "Coding";
+    const TRY = ["sliding window", "consistent hashing", "rate limiter", "RAG", "two sum", "B-tree", "saga", "embeddings"];
+    const herLabel = { coding: "Coding", "system-design": "System design", architecture: "Software architecture", ai: "AI engineering" }[here] || "Coding";
     const norm = (t) => String(t || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
     const words = (t) => norm(t).split(/[^a-z0-9+#]+/).filter(Boolean);
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -2615,13 +2691,13 @@ html.iks-open { overflow: hidden; }
 <!-- site-chrome:start (generated by tools/inline_assets.py from assets/nav.json) -->
 <header class="topbar">
   <a class="brand" href="../../index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Interview<b>Kata</b></span></a>
-  <nav class="tracks" aria-label="Tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a></nav>
+  <nav class="tracks" aria-label="Tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a><a href="../../architecture/index.html">Software architecture</a></nav>
   <span class="spacer"></span>
   <button class="search-btn" type="button" data-root="../../" aria-label="Search the site" title="Search (press /)"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m16.5 16.5 4.5 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="search-btn-label">Search</span><kbd>/</kbd></button>
   <button class="nav-toggle" type="button" aria-controls="sidenav" aria-expanded="false"><span class="nav-toggle-icon" aria-hidden="true"></span><span class="nav-toggle-label">Menu</span></button>
 </header>
 <nav class="sidenav" id="sidenav" aria-label="System design">
-  <div class="sn-tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a></div>
+  <div class="sn-tracks"><a href="../../index.html">Coding patterns</a><a href="../../ai/index.html">AI engineering</a><a href="../../system-design/index.html" aria-current="true">System design</a><a href="../../architecture/index.html">Software architecture</a></div>
   <a class="sn-title" href="../../system-design/index.html">System design</a>
   <div class="sn-group"><div class="sn-h">Get started</div><a href="../../system-design/index.html">Overview</a><a href="../../system-design/start-here.html">Start here</a><a href="../../system-design/framework.html">Interview framework</a><a href="../../system-design/index.html#modules">Module map</a><a href="../../system-design/index.html#designs">Worked designs</a><a href="../../system-design/index.html#patterns">Patterns map</a><a href="../../system-design/index.html#roadmap">Study roadmap</a><a href="../../system-design/review.html">Review deck</a><a href="../../system-design/modules/under-the-hood.html">Under the hood</a></div><details class="sn-group"><summary>Level 0 · Basics</summary><a href="../../system-design/modules/b1-what-a-system-is-made-of.html">B1 · What a system is made of</a><a href="../../system-design/modules/b2-inside-one-machine.html">B2 · Inside one machine</a><a href="../../system-design/modules/b3-networks-in-plain-terms.html">B3 · Networks in plain terms</a><a href="../../system-design/modules/b4-storing-data.html">B4 · Storing data</a><a href="../../system-design/modules/b5-data-structures-behind-systems.html">B5 · Data structures behind systems</a><a href="../../system-design/modules/b6-one-server-to-millions.html">B6 · From one server to millions</a></details><details class="sn-group"><summary>Level 1 · Foundations</summary><a href="../../system-design/modules/01-how-a-request-travels.html">01 · How a request travels</a><a href="../../system-design/modules/02-latency-throughput-numbers.html">02 · Latency, throughput, numbers</a><a href="../../system-design/modules/03-back-of-envelope-estimation.html">03 · Back-of-the-envelope estimation</a><a href="../../system-design/modules/04-availability-slos.html">04 · Availability and SLOs</a><a href="../../system-design/modules/05-the-design-method.html">05 · The design method</a></details><details class="sn-group"><summary>Level 2 · Building blocks</summary><a href="../../system-design/modules/06-networking-protocols.html">06 · Networking and protocols</a><a href="../../system-design/modules/07-api-design.html">07 · API design</a><a href="../../system-design/modules/08-load-balancing-scaling.html">08 · Load balancing and scaling out</a><a href="../../system-design/modules/09-caching.html">09 · Caching</a><a href="../../system-design/modules/10-blob-storage-cdn.html">10 · Blob storage and CDNs</a></details><details class="sn-group"><summary>Level 3 · Data</summary><a href="../../system-design/modules/11-relational-data-modeling.html">11 · Relational data and modeling</a><a href="../../system-design/modules/12-indexes-storage-engines.html">12 · Indexes and storage engines</a><a href="../../system-design/modules/13-choosing-a-database.html">13 · Choosing a database</a><a href="../../system-design/modules/14-replication.html">14 · Replication</a><a href="../../system-design/modules/15-sharding-consistent-hashing.html">15 · Sharding and consistent hashing</a><a href="../../system-design/modules/16-consistency-cap.html">16 · Consistency, CAP and PACELC</a><a href="../../system-design/modules/17-transactions-contention.html">17 · Transactions and contention</a></details><details class="sn-group" open><summary>Level 4 · Distributed and async</summary><a href="../../system-design/modules/18-queues-streams.html">18 · Queues and event streams</a><a href="../../system-design/modules/19-real-time-updates.html" aria-current="page">19 · Real-time updates</a><a href="../../system-design/modules/20-time-ordering-ids.html">20 · Time, ordering and IDs</a><a href="../../system-design/modules/21-consensus-coordination.html">21 · Consensus and coordination</a><a href="../../system-design/modules/22-workflows-sagas.html">22 · Workflows, sagas and outbox</a><a href="../../system-design/modules/23-batch-stream-processing.html">23 · Batch, stream and background jobs</a></details><details class="sn-group"><summary>Level 5 · Production and architecture</summary><a href="../../system-design/modules/24-reliability-patterns.html">24 · Reliability patterns</a><a href="../../system-design/modules/25-observability.html">25 · Observability</a><a href="../../system-design/modules/26-security.html">26 · Security</a><a href="../../system-design/modules/27-deployment-multi-region.html">27 · Deployment, multi-region, DR</a><a href="../../system-design/modules/28-architecture-styles.html">28 · Architecture styles</a><a href="../../system-design/modules/29-ai-systems.html">29 · Designing AI systems</a></details><details class="sn-group"><summary>Worked designs</summary><a href="../../system-design/designs/01-url-shortener.html">D01 · URL shortener</a><a href="../../system-design/designs/02-rate-limiter.html">D02 · Rate limiter</a><a href="../../system-design/designs/03-key-value-store.html">D03 · Distributed key-value store</a><a href="../../system-design/designs/04-distributed-cache.html">D04 · Distributed cache</a><a href="../../system-design/designs/05-notification-system.html">D05 · Notification system</a><a href="../../system-design/designs/06-news-feed.html">D06 · News feed</a><a href="../../system-design/designs/07-chat.html">D07 · Chat and messaging</a><a href="../../system-design/designs/08-news-aggregator.html">D08 · News aggregator</a><a href="../../system-design/designs/09-web-crawler.html">D09 · Web crawler</a><a href="../../system-design/designs/10-typeahead.html">D10 · Search typeahead</a><a href="../../system-design/designs/11-video-platform.html">D11 · Video platform</a><a href="../../system-design/designs/12-file-sync.html">D12 · File storage and sync</a><a href="../../system-design/designs/13-ride-hailing.html">D13 · Ride hailing</a><a href="../../system-design/designs/14-proximity-search.html">D14 · Nearby places</a><a href="../../system-design/designs/15-ticket-booking.html">D15 · Ticket booking</a><a href="../../system-design/designs/16-payments.html">D16 · Payment system</a><a href="../../system-design/designs/17-ad-click-aggregator.html">D17 · Ad click aggregator</a><a href="../../system-design/designs/18-metrics-monitoring.html">D18 · Metrics monitoring</a><a href="../../system-design/designs/19-collaborative-editor.html">D19 · Collaborative editor</a><a href="../../system-design/designs/20-top-k-leaderboard.html">D20 · Top-K and leaderboards</a><a href="../../system-design/designs/21-job-scheduler.html">D21 · Distributed job scheduler</a><a href="../../system-design/designs/22-live-comments.html">D22 · Live comments</a><a href="../../system-design/designs/23-llm-chat-platform.html">D23 · LLM chat platform</a><a href="../../system-design/designs/24-flash-sale.html">D24 · Flash-sale checkout</a><a href="../../system-design/designs/25-maps-navigation.html">D25 · Maps and navigation</a><a href="../../system-design/designs/26-search-engine.html">D26 · Web search engine</a><a href="../../system-design/designs/27-code-judge.html">D27 · Online code judge</a><a href="../../system-design/designs/28-deployment-system.html">D28 · Deployment system</a><a href="../../system-design/designs/29-qa-site.html">D29 · Q&amp;A site</a><a href="../../system-design/designs/30-data-platform.html">D30 · Data platform</a><a href="../../system-design/designs/31-ai-support-assistant.html">D31 · AI support assistant</a><a href="../../system-design/designs/32-ai-code-assistant.html">D32 · AI code assistant</a></details>
 </nav>
@@ -2924,7 +3000,7 @@ html.iks-open { overflow: hidden; }
 <footer class="site">
 <!-- site-footer:start (generated by tools/inline_assets.py from assets/footer.html) -->
 <div class="foot-brand"><a class="brand-word" href="../../index.html">Interview<b>Kata</b></a><span>Practise interviews until they're automatic.</span></div>
-<nav class="foot-links" aria-label="Footer"><a href="../../index.html">Coding patterns</a><a href="../../start-here.html">Coding: start here</a><a href="../../cheatsheet.html">Cheat sheet</a><a href="../../ai/index.html">AI engineering</a><a href="../../ai/start-here.html">AI: start here</a><a href="../../system-design/index.html">System design</a><a href="../../system-design/start-here.html">System design: start here</a></nav>
+<nav class="foot-links" aria-label="Footer"><a href="../../index.html">Coding patterns</a><a href="../../start-here.html">Coding: start here</a><a href="../../cheatsheet.html">Cheat sheet</a><a href="../../ai/index.html">AI engineering</a><a href="../../ai/start-here.html">AI: start here</a><a href="../../system-design/index.html">System design</a><a href="../../system-design/start-here.html">System design: start here</a><a href="../../architecture/index.html">Software architecture</a><a href="../../architecture/start-here.html">Architecture: start here</a></nav>
 <p class="foot-legal">© 2026 InterviewKata · Free to use. Not affiliated with LeetCode or with any company named on this site. Company problem lists are adapted from <a href="https://github.com/liquidslr/leetcode-company-wise-problems" target="_blank" rel="noopener">liquidslr/leetcode-company-wise-problems</a>.</p>
 <!-- site-footer:end -->
 <p class="foot-note">Standards and browser behaviour checked against the RFCs, the HTML standard and MDN in October 2026.</p>
