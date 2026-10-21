@@ -2944,17 +2944,22 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-request", {
-    title: "Opening note 7, hop by hop", sub: "Each step is one message or one piece of work.",
-    nodes: [{ id: "c", x: 80, y: 120, w: 110, label: "Client" }, { id: "lb", x: 240, y: 120, w: 120, label: "Front door", sub: "HTTPS, routing" },
-      { id: "app", x: 410, y: 120, w: 130, label: "App server" }, { id: "db", x: 560, y: 120, w: 100, label: "Database" }],
-    edges: [["c", "lb"], ["lb", "app"], ["app", "db"]],
-    width: 630, height: 220,
+    title: "Opening note 7, hop by hop", sub: "Box text shows what each part knows. App servers keep nothing between requests.",
+    nodes: [{ id: "c", x: 95, y: 150, w: 170, label: "Browser", sub: "cookie: session=s_8f2" }, { id: "fd", x: 320, y: 150, w: 200, label: "Front door", sub: "load balancer" },
+      { id: "a1", x: 560, y: 60, w: 210, label: "App server 1", sub: "idle" }, { id: "a2", x: 560, y: 240, w: 210, label: "App server 2", sub: "idle" },
+      { id: "db", x: 800, y: 150, w: 170, label: "Database", sub: " " }],
+    edges: [["c", "fd"], ["fd", "a1"], ["fd", "a2"], ["a1", "db"], ["a2", "db"]],
+    width: 900, height: 290,
     steps: [
-      { hl: { c: "active" }, moves: [{ e: "c>lb", t: "GET /notes/7 + login cookie", k: "req" }], hold: 2.6, note: "The client sends an HTTP request: a method (GET), a path (/notes/7) and headers, including the login cookie." },
-      { hl: { lb: "active" }, moves: [{ e: "lb>app", t: "forward", k: "req" }], hold: 2.4, note: "The front door decrypts HTTPS and forwards the request to one of the app servers." },
-      { hl: { app: "active" }, pops: [{ n: "app", t: "who is this? may they read 7?", k: "req", at: 0.3 }], hold: 2.8, note: "The app server checks the login and the permission. This is why clients never talk to the database directly." },
-      { hl: { app: "active", db: "found" }, moves: [{ e: "app>db", t: "SELECT … WHERE id = 7", k: "req" }, { e: "app>db", t: "1 row", k: "ok", back: true, delay: 1.1 }], hold: 3, note: "It reads the note from the database." },
-      { hl: { c: "found", app: "active" }, moves: [{ e: "lb>app", t: "200 OK + JSON", k: "ok", back: true }, { e: "c>lb", t: "200 OK + JSON", k: "ok", back: true, delay: 0.9 }], hold: 3, note: "It builds the response (status 200 and the note as JSON) and forgets the request: nothing is kept on the server." },
+      { hl: { c: "active", fd: "active" }, set: { fd: "HTTPS decrypted → app 2" }, moves: [{ e: "c>fd", t: "GET /notes/7 + cookie" }, { e: "fd>a2", t: "GET /notes/7", delay: 1.0 }], hold: 4,
+        note: "The browser sends a method (GET), a path (/notes/7) and headers, including the login cookie. The front door decrypts HTTPS and picks any app server." },
+      { hl: { a2: "active" }, set: { a2: "s_8f2 → user 31 · may read note 7 ✓" }, hold: 3.8,
+        note: "The app server looks up the session (in a shared store, not its own memory), finds user 31, and checks permission. This is why clients never talk to the database directly." },
+      { hl: { a2: "active", db: "found" }, set: { db: "note 7: owner 31, \"Groceries\"" }, moves: [{ e: "a2>db", t: "SELECT … id = 7" }, { e: "a2>db", t: "1 row", back: true, k: "ok", delay: 1.0 }], hold: 3.8, note: "It reads the note from the database." },
+      { hl: { c: "found", a2: "found" }, set: { a2: "idle (forgot the request)", c: "200 · note shown" }, moves: [{ e: "fd>a2", t: "200 + JSON", back: true, k: "ok" }, { e: "c>fd", t: "200 + JSON", back: true, k: "ok", delay: 0.9 }], hold: 3.8,
+        note: "It sends status 200 and the note as JSON, then forgets the request entirely." },
+      { hl: { a1: "found", fd: "active" }, set: { fd: "→ app 1 this time", a1: "s_8f2 → user 31 · same answer" }, moves: [{ e: "c>fd", t: "GET /notes/7 again" }, { e: "fd>a1", t: "GET /notes/7", delay: 0.9 }, { e: "a1>db", t: "SELECT", delay: 1.7 }], hold: 4.4,
+        note: "The next request lands on a different server and gets the same answer, because everything it needs comes with the request or from shared storage. That's what <b>stateless</b> means, and why you can add or remove app servers freely." },
     ],
   });
   Viz.scene("#sc-state", {
