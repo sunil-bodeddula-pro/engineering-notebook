@@ -3221,22 +3221,23 @@ html.iks-open { overflow: hidden; }
   ["qd-base", "qd-burst", "qd-w", "qd-r"].forEach((id) => $(id).addEventListener("input", sim));
   sim();
   Viz.scene("#sc-main", {
-    title: "A queue between two services", sub: "<b>Teal</b> = messages, <b>green</b> = done, <b>red</b> = a crash. Delivery is at-least-once.",
-    nodes: [{ id: "api", x: 75, y: 110, w: 110, label: "Order API" }, { id: "q", x: 255, y: 110, w: 110, label: "Queue" },
-      { id: "w", x: 435, y: 110, w: 110, label: "Email worker" }, { id: "db", x: 435, y: 205, w: 150, label: "Processed IDs" }],
+    title: "A queue between two services", sub: "Box text shows the queue, the message in flight and the worker's record of processed IDs.",
+    nodes: [{ id: "api", x: 85, y: 140, w: 130, label: "Order API", sub: " " }, { id: "q", x: 310, y: 140, w: 200, label: "Queue", sub: "empty" },
+      { id: "w", x: 560, y: 60, w: 170, label: "Email worker", sub: "idle" }, { id: "db", x: 560, y: 230, w: 170, label: "Processed IDs", sub: "{ 879, 880 }" }],
     edges: [["api", "q"], ["q", "w"], ["w", "db"]],
-    width: 540, height: 240,
+    width: 680, height: 290,
     steps: [
-      { hl: { api: "active", q: "active" }, moves: [{ e: "api>q", t: "order 881", k: "evt" }], pops: [{ n: "api", t: "user answered fast", k: "ok", at: 1.2 }],
-        note: "The API puts the work on a queue and answers the user straight away. The email can wait a second." },
-      { hl: { api: "active", q: "warm" }, moves: [0, 1, 2, 3].map((i) => ({ e: "api>q", t: "spike", k: "evt", delay: i * 0.3 })), pops: [{ n: "q", t: "a backlog, not an outage", k: "ok", at: 1.9 }], hold: 3.6,
-        note: "A traffic spike becomes a <b>backlog</b> the workers drain at their own pace, not an outage." },
-      { hl: { q: "active", w: "bad" }, moves: [{ e: "q>w", t: "msg 881", k: "evt" }], pops: [{ n: "w", t: "sent, then crashed before ack", k: "bad", at: 1.4 }],
-        note: "A worker takes message 881, sends the email, and crashes <b>before acknowledging</b> it." },
-      { hl: { q: "active", w: "active" }, moves: [{ e: "q>w", t: "msg 881 again", k: "evt" }], pops: [{ n: "q", t: "visible again after timeout", k: "evt", at: 0.3 }],
-        note: "No ack within the visibility timeout, so the queue delivers it again. Duplicates are normal; plan for them." },
-      { hl: { w: "found", db: "found", q: "found" }, moves: [{ e: "w>db", t: "seen 881?", k: "req" }, { e: "w>db", t: "yes: skip", k: "ok", back: true, delay: 1.1 }, { e: "q>w", t: "ack", k: "ok", back: true, delay: 2.2 }], hold: 3.8,
-        note: "The worker is <b>idempotent</b>: it records processed IDs, sees 881, skips the second email and acknowledges." },
+      { hl: { api: "found", q: "active" }, set: { q: "881", api: "answered in 15 ms" }, moves: [{ e: "api>q", t: "order 881" }], hold: 3.4,
+        note: "The API puts the email job on the queue and answers the user immediately. The email can wait a second." },
+      { hl: { q: "warm" }, set: { q: "881 + 12,000 waiting" }, moves: [{ e: "api>q", t: "spike: 12,000" }], hold: 3.2,
+        note: "A traffic spike becomes a backlog the workers drain at their own pace, instead of an outage." },
+      { hl: { w: "bad", q: "warm", db: "found" }, set: { q: "881 invisible (30 s)", w: "sent 881 · crashed, no ack", db: "{ 879, 880, 881 }" },
+        moves: [{ e: "q>w", t: "msg 881" }, { e: "w>db", t: "881 seen? no", delay: 0.9 }, { e: "w>db", t: "record 881", delay: 1.8 }], pops: [{ n: "w", t: "crash", k: "bad", at: 2.8 }], hold: 4.6,
+        note: "A worker takes message 881; the queue hides it for 30 seconds (the visibility timeout) instead of deleting it. The worker checks it hasn't handled 881, sends the email, records 881, then crashes before acknowledging." },
+      { hl: { q: "active", w: "active" }, set: { q: "881 visible again → redelivered", w: "restarted · got 881 again" }, moves: [{ e: "q>w", t: "msg 881 again" }], hold: 3.8,
+        note: "No acknowledgement within 30 seconds, so the message becomes visible and is delivered again. Duplicates are normal in queues: <b>at-least-once</b> delivery." },
+      { hl: { w: "found", db: "found", q: "found" }, set: { w: "881 already done → skip, ack", q: "881 deleted" }, moves: [{ e: "w>db", t: "881 seen?" }, { e: "w>db", t: "yes", back: true, k: "ok", delay: 0.8 }, { e: "q>w", t: "ack", back: true, k: "ok", delay: 1.6 }], hold: 4.6,
+        note: "This time the check finds 881, so the worker skips the email and acknowledges; the queue deletes the message. The worker is <b>idempotent</b>. (A crash between sending and recording could still send twice, so the email provider's own idempotency key closes that last gap.)" },
     ],
   });
   Viz.tour("#tour", [

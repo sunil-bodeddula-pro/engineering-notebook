@@ -3156,20 +3156,22 @@ html.iks-open { overflow: hidden; }
   setInterval(() => { refill(); draw(); }, 250);
   reset();
   Viz.scene("#sc-main", {
-    title: "A circuit breaker stops the spread", sub: "<b>Blue</b> = calls, <b>red</b> = timeouts, <b>green</b> = fast answers and recovery.",
-    nodes: [{ id: "svc", x: 80, y: 115, w: 110, label: "Checkout" }, { id: "cb", x: 270, y: 115, w: 130, label: "Circuit breaker" },
-      { id: "psp", x: 480, y: 45, w: 140, label: "Payment provider" }, { id: "fb", x: 480, y: 190, w: 140, label: "Fallback", sub: "fail fast, retry later" }],
+    title: "A circuit breaker stops the spread", sub: "The breaker's box shows its state and recent failures. Checkout's box shows its threads.",
+    nodes: [{ id: "svc", x: 90, y: 150, w: 160, label: "Checkout", sub: "threads busy: 4 of 200" }, { id: "cb", x: 340, y: 150, w: 220, label: "Circuit breaker", sub: "CLOSED · failures 0/20" },
+      { id: "psp", x: 600, y: 60, w: 190, label: "Payment provider", sub: "200 ms" }, { id: "fb", x: 600, y: 240, w: 190, label: "Fallback", sub: "queue it, \"pay shortly\"" }],
     edges: [["svc", "cb"], ["cb", "psp"], ["cb", "fb"]],
-    width: 560, height: 235,
+    width: 720, height: 300,
     steps: [
-      { hl: { svc: "active", cb: "found", psp: "found" }, moves: [{ e: "svc>cb", t: "pay", k: "req" }, { e: "cb>psp", t: "pay", k: "req", delay: 1.0 }, { e: "cb>psp", t: "200 ms", k: "ok", back: true, delay: 2.1 }], pops: [{ n: "cb", t: "closed", k: "ok", at: 0.3 }], hold: 3.6,
-        note: "Normally the breaker is <b>closed</b>: calls pass straight through." },
-      { hl: { cb: "warm", psp: "bad" }, moves: [0, 1, 2].map((i) => ({ e: "cb>psp", t: "pay", k: "bad", delay: i * 0.35 })), pops: [{ n: "psp", t: "timeouts", k: "bad", at: 1.6 }, { n: "cb", t: "failures counted", k: "bad", at: 2.0 }], hold: 3.6,
-        note: "The provider starts timing out. Each caller waits for its timeout, threads pile up, and retries add load. This is how one failure spreads." },
-      { hl: { svc: "active", cb: "bad", fb: "found" }, moves: [{ e: "svc>cb", t: "pay", k: "req" }, { e: "cb>fb", t: "fail fast", k: "ok", delay: 1.0 }], pops: [{ n: "cb", t: "open: don't call", k: "bad", at: 0.6 }], hold: 3.4,
-        note: "Past a failure threshold the breaker <b>opens</b>: calls fail immediately to a fallback (queue the payment, show \"try again shortly\"). No waiting, no extra load on the struggling provider." },
-      { hl: { cb: "warm", psp: "found" }, moves: [{ e: "cb>psp", t: "one trial call", k: "req" }, { e: "cb>psp", t: "ok", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "cb", t: "closed again", k: "ok", at: 2.3 }], hold: 3.6,
-        note: "After a cool-down it's <b>half-open</b>: one trial call. It succeeds, so the breaker closes and traffic resumes." },
+      { hl: { cb: "found", psp: "found" }, moves: [{ e: "svc>cb", t: "pay" }, { e: "cb>psp", t: "pay", delay: 0.6 }, { e: "cb>psp", t: "OK", back: true, k: "ok", delay: 1.4 }], hold: 3.4,
+        note: "<b>Closed:</b> calls pass straight through, and the breaker counts failures over its last 20 calls." },
+      { hl: { psp: "bad", svc: "bad", cb: "warm" }, set: { psp: "timing out (5 s)", svc: "threads busy: 190 of 200", cb: "CLOSED · failures 9/20" }, moves: [{ e: "cb>psp", t: "pay", k: "bad" }, { e: "cb>psp", t: "pay", k: "bad", delay: 0.3 }, { e: "cb>psp", t: "pay", k: "bad", delay: 0.6 }], hold: 4,
+        note: "The provider starts timing out. Every call holds a checkout thread for the full 5-second timeout; threads pile up, and soon checkout can't serve anything else. This is how one failure spreads." },
+      { hl: { cb: "bad", fb: "found", svc: "found" }, set: { cb: "OPEN · 10/20 failed · wait 30 s", svc: "threads busy: 6 of 200" }, moves: [{ e: "svc>cb", t: "pay" }, { e: "cb>fb", t: "fail fast (1 ms)", k: "ok", delay: 0.6 }], hold: 4.4,
+        note: "At 10 failures of the last 20 (50%), the breaker <b>opens</b>. Calls fail in a millisecond to the fallback (queue the payment, tell the user it'll go through shortly). Threads free up, and the struggling provider gets no extra load." },
+      { hl: { cb: "warm", psp: "found" }, set: { cb: "HALF-OPEN · 1 trial call", psp: "recovered: 200 ms" }, moves: [{ e: "cb>psp", t: "trial call" }, { e: "cb>psp", t: "OK", back: true, k: "ok", delay: 0.9 }], hold: 3.8,
+        note: "After 30 seconds the breaker goes <b>half-open</b> and lets one trial call through. It succeeds." },
+      { hl: { cb: "found", psp: "found", svc: "found" }, set: { cb: "CLOSED · failures 0/20", svc: "threads busy: 4 of 200" }, moves: [{ e: "svc>cb", t: "pay" }, { e: "cb>psp", t: "pay", k: "ok", delay: 0.6 }], hold: 3.6,
+        note: "The breaker closes, resets its count, and traffic flows again. The queued payments are retried from the fallback queue." },
     ],
   });
   Viz.tour("#tour", [

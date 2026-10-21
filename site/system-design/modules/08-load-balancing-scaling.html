@@ -3064,22 +3064,22 @@ html.iks-open { overflow: hidden; }
   ["sim-u", "sim-slow"].forEach((k) => $(k).addEventListener("input", run));
   run();
   Viz.scene("#sc-main", {
-    title: "Spreading the load", sub: "<b>Blue</b> = quick requests, <b>red</b> = slow or failing, <b>green</b> = a good choice.",
-    nodes: [{ id: "c", x: 70, y: 115, w: 100, label: "Requests" }, { id: "lb", x: 250, y: 115, w: 130, label: "Load balancer" },
-      { id: "s1", x: 470, y: 40, w: 120, label: "Server 1" }, { id: "s2", x: 470, y: 115, w: 120, label: "Server 2" }, { id: "s3", x: 470, y: 190, w: 120, label: "Server 3" }],
+    title: "Spreading the load", sub: "Each server box shows the requests it's working on. <b>Red</b> = queued behind slow work or failing; <b>green</b> = a good choice.",
+    nodes: [{ id: "c", x: 75, y: 150, w: 110, label: "Requests", sub: " " }, { id: "lb", x: 270, y: 150, w: 190, label: "Load balancer", sub: "round robin" },
+      { id: "s1", x: 530, y: 50, w: 220, label: "Server 1", sub: "idle" }, { id: "s2", x: 530, y: 150, w: 220, label: "Server 2", sub: "idle" }, { id: "s3", x: 530, y: 250, w: 220, label: "Server 3", sub: "idle" }],
     edges: [["c", "lb"], ["lb", "s1"], ["lb", "s2"], ["lb", "s3"]],
-    width: 560, height: 230,
+    width: 680, height: 300,
     steps: [
-      { hl: { lb: "active", s1: "active", s2: "active", s3: "active" }, moves: [{ e: "c>lb", t: "3 requests", k: "req" }, { e: "lb>s1", t: "quick", k: "req", delay: 1.0 }, { e: "lb>s2", t: "slow report", k: "bad", delay: 1.2 }, { e: "lb>s3", t: "quick", k: "req", delay: 1.4 }], hold: 3.8,
-        note: "<b>Round robin</b> takes turns: 1, 2, 3. Server 2 happens to get a slow report." },
-      { hl: { lb: "active", s2: "bad" }, moves: [{ e: "lb>s1", t: "quick", k: "req" }, { e: "lb>s2", t: "quick", k: "bad", delay: 0.3 }, { e: "lb>s3", t: "quick", k: "req", delay: 0.6 }], pops: [{ n: "s2", t: "queued behind the slow one", k: "bad", at: 1.6 }], hold: 3.4,
-        note: "Round robin keeps sending server 2 its share, so its quick requests queue behind the slow one." },
-      { hl: { lb: "found", s1: "found", s3: "found", s2: "warm" }, moves: [{ e: "lb>s1", t: "quick", k: "ok" }, { e: "lb>s3", t: "quick", k: "ok", delay: 0.3 }, { e: "lb>s1", t: "quick", k: "ok", delay: 0.6 }], pops: [{ n: "lb", t: "fewest in progress", k: "ok", at: 0.3 }], hold: 3.4,
-        note: "<b>Least outstanding requests</b> sends work to whoever has the least in progress, so it steers around the busy server." },
-      { hl: { lb: "active", s3: "bad" }, moves: [{ e: "lb>s3", t: "/healthz", k: "req" }, { e: "lb>s3", t: "fail ×3", k: "bad", back: true, delay: 1.1 }], pops: [{ n: "s3", t: "removed", k: "bad", at: 2.3 }], hold: 3.6,
-        note: "<b>Health checks:</b> server 3 fails its check a few times in a row and stops getting traffic." },
-      { hl: { lb: "found", s1: "found", s2: "found", s3: "bad" }, moves: [{ e: "lb>s1", t: "quick", k: "ok" }, { e: "lb>s2", t: "quick", k: "ok", delay: 0.4 }],
-        note: "Traffic flows round the failure. This only works because the servers are <b>stateless</b>: any of them can serve any request." },
+      { hl: { s2: "warm" }, set: { s1: "done (10 ms)", s2: "busy: report (8 s)", s3: "done (10 ms)" }, moves: [{ e: "c>lb", t: "3 requests" }, { e: "lb>s1", t: "quick", delay: 0.8 }, { e: "lb>s2", t: "slow report", delay: 0.9 }, { e: "lb>s3", t: "quick", delay: 1.0 }], hold: 4,
+        note: "<b>Round robin</b> takes turns: 1, 2, 3. Server 2 happens to get an 8-second report." },
+      { hl: { s2: "bad" }, set: { s2: "report + 1 quick queued behind it" }, moves: [{ e: "lb>s1", t: "quick" }, { e: "lb>s2", t: "quick", k: "bad", delay: 0.1 }, { e: "lb>s3", t: "quick", delay: 0.2 }], pops: [{ n: "s2", t: "this quick request waits seconds", k: "bad", at: 1.4 }], hold: 4,
+        note: "Round robin doesn't look at load, so it keeps sending server 2 its third. Those quick requests queue behind the report: one user in three gets a slow page." },
+      { hl: { lb: "found", s1: "found", s3: "found" }, set: { lb: "least outstanding requests", s1: "1 in flight", s3: "1 in flight", s2: "report (1 in flight)" }, moves: [{ e: "lb>s1", t: "quick", k: "ok" }, { e: "lb>s3", t: "quick", k: "ok", delay: 0.2 }, { e: "lb>s1", t: "quick", k: "ok", delay: 0.4 }], hold: 4,
+        note: "<b>Least outstanding requests:</b> the balancer counts what each server is working on and picks the lowest. Server 2 shows 1 in flight for 8 seconds, so new work steers around it." },
+      { hl: { s3: "bad" }, set: { s3: "health check failed 3 in a row → removed" }, moves: [{ e: "lb>s3", t: "/healthz", k: "bad" }, { e: "lb>s3", t: "/healthz", k: "bad", delay: 0.6 }, { e: "lb>s3", t: "/healthz", k: "bad", delay: 1.2 }], hold: 4,
+        note: "Health checks: server 3 fails its check three times in a row (one slow answer isn't enough to remove it), so the balancer takes it out of rotation." },
+      { hl: { s1: "found", s2: "found" }, set: { s1: "serving", s2: "serving" }, moves: [{ e: "lb>s1", t: "quick", k: "ok" }, { e: "lb>s2", t: "quick", k: "ok", delay: 0.2 }], hold: 3.6,
+        note: "Traffic flows round the failure. That only works because the servers are stateless: any server can handle any request." },
     ],
   });
   Viz.tour("#tour", [

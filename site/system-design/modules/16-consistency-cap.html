@@ -3121,22 +3121,22 @@ html.iks-open { overflow: hidden; }
     sc += ok; dn++; $("feat-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
   Viz.scene("#sc-main", {
-    title: "A partition forces a choice", sub: "<b>Blue</b> = writes, <b>teal</b> = replication, <b>red</b> = cut off or refused, <b>green</b> = accepted.",
-    nodes: [{ id: "c1", x: 70, y: 55, w: 100, label: "Client 1" }, { id: "c2", x: 70, y: 185, w: 100, label: "Client 2" },
-      { id: "a", x: 260, y: 55, w: 100, label: "Node A" }, { id: "b", x: 450, y: 55, w: 100, label: "Node B" }, { id: "c", x: 355, y: 185, w: 100, label: "Node C" }],
-    edges: [["c1", "a"], ["a", "b"], ["a", "c"], ["b", "c"], ["c2", "c"]],
-    width: 530, height: 235,
+    title: "A partition forces a choice", sub: "Box text shows each node's value of x. <b>Red</b> = refused or diverged.",
+    nodes: [{ id: "c1", x: 85, y: 60, w: 120, label: "Client 1", sub: " " }, { id: "c2", x: 85, y: 240, w: 120, label: "Client 2", sub: " " },
+      { id: "a", x: 330, y: 60, w: 160, label: "Node A", sub: "x = 0" }, { id: "b", x: 330, y: 160, w: 160, label: "Node B", sub: "x = 0" }, { id: "c", x: 560, y: 240, w: 180, label: "Node C", sub: "x = 0" }],
+    edges: [["c1", "a"], ["a", "b"], ["a", "c"], ["b", "c"], ["c2", "c", "", { bend: 20 }]],
+    width: 690, height: 300,
     steps: [
-      { hl: { c1: "active", a: "found", b: "found", c: "found" }, moves: [{ e: "c1>a", t: "x = 1", k: "req" }, { e: "a>b", t: "x = 1", k: "evt", delay: 1.0 }, { e: "a>c", t: "x = 1", k: "evt", delay: 1.0 }], hold: 3.4,
+      { hl: { a: "found", b: "found", c: "found" }, set: { a: "x = 1", b: "x = 1", c: "x = 1" }, moves: [{ e: "c1>a", t: "x = 1" }, { e: "a>b", t: "x = 1", delay: 0.8 }, { e: "a>c", t: "x = 1", delay: 0.9 }], hold: 3.6,
         note: "Normally every write reaches all three nodes." },
-      { hl: { c: "bad" }, moves: [{ e: "a>c", t: "✂", k: "bad" }, { e: "b>c", t: "✂", k: "bad", delay: 0.2 }], pops: [{ n: "c", t: "cut off", k: "bad", at: 1.4 }],
-        note: "A network <b>partition</b>: node C can't reach A or B. It doesn't know whether they're down or just unreachable." },
-      { hl: { c2: "active", c: "bad" }, moves: [{ e: "c2>c", t: "x = 2", k: "req" }, { e: "c2>c", t: "refused", k: "bad", back: true, delay: 1.1 }], pops: [{ n: "c", t: "CP: no majority", k: "bad", at: 1.3 }], hold: 3.4,
-        note: "<b>Choose consistency:</b> C refuses writes it can't confirm with a majority. Correct, but unavailable to client 2." },
-      { hl: { c2: "active", c: "warm" }, moves: [{ e: "c2>c", t: "x = 2", k: "req" }, { e: "c2>c", t: "OK", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "c", t: "AP: may diverge", k: "bad", at: 1.3 }], hold: 3.4,
-        note: "<b>Choose availability:</b> C accepts the write. Client 2 is served, but now C says x = 2 while A and B say x = 1." },
-      { hl: { a: "active", b: "active", c: "active" }, moves: [{ e: "a>c", t: "heal", k: "evt" }, { e: "b>c", t: "heal", k: "evt", delay: 0.2 }], pops: [{ n: "c", t: "resolve the conflict", k: "evt", at: 1.4 }],
-        note: "When the network heals, the conflict must be resolved: last write wins (and loses data), merge, or a CRDT." },
+      { hl: { c: "warm" }, cut: ["a>c", "b>c"], set: { c: "x = 1 · can't reach A or B" }, pops: [{ n: "c", t: "network partition", k: "bad", at: 0.3 }], hold: 3.6,
+        note: "A network partition cuts node C off from A and B. C can't tell whether they're down or just unreachable. All three keep running." },
+      { hl: { c: "bad", c2: "bad" }, set: { c2: "error: try later", c: "x = 1 · refuses writes (no majority)" }, moves: [{ e: "c2>c", t: "x = 2" }, { e: "c2>c", t: "refused", back: true, k: "bad", delay: 0.9 }], hold: 4,
+        note: "<b>Choose consistency (CP):</b> C only accepts a write it can confirm with a majority (2 of 3). It can't, so client 2 gets an error. Every node still agrees on x = 1." },
+      { hl: { c: "bad", a: "warm", b: "warm", c2: "found" }, set: { c2: "OK", c: "x = 2", a: "x = 1", b: "x = 1" }, moves: [{ e: "c2>c", t: "x = 2" }, { e: "c2>c", t: "OK", back: true, k: "ok", delay: 0.9 }], hold: 4,
+        note: "<b>Choose availability (AP):</b> C accepts the write. Client 2 is happy, but now C says x = 2 while A and B say x = 1, and readers get different answers depending on the node." },
+      { hl: { a: "found", b: "found", c: "found" }, link: ["a>c", "b>c"], set: { a: "x = 2 (C's write was later)", b: "x = 2", c: "x = 2" }, moves: [{ e: "a>c", t: "sync" }, { e: "b>c", t: "sync", delay: 0.2 }], hold: 4,
+        note: "When the network heals, the AP side must reconcile. Last-write-wins picks one value and silently drops the other; merging (or a CRDT) keeps both intents. The CP side has nothing to reconcile: it paid in availability instead." },
     ],
   });
   Viz.tour("#tour", [

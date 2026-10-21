@@ -3167,22 +3167,24 @@ html.iks-open { overflow: hidden; }
   ["fn-p", "fn-on"].forEach((id) => $(id).addEventListener("input", fence));
   fence();
   Viz.scene("#sc-main", {
-    title: "Raft: commit, crash, elect", sub: "<b>Teal</b> = heartbeats and votes, <b>blue</b> = log entries, <b>green</b> = committed, <b>red</b> = a failure.",
-    nodes: [{ id: "c", x: 70, y: 120, w: 100, label: "Client" }, { id: "n1", x: 265, y: 120, w: 120, label: "Node 1", sub: "leader, term 1" },
-      { id: "n2", x: 475, y: 45, w: 120, label: "Node 2" }, { id: "n3", x: 475, y: 195, w: 120, label: "Node 3" }],
-    edges: [["c", "n1"], ["n1", "n2"], ["n1", "n3"], ["n2", "n3"], ["c", "n2", "", { bend: -40 }]],
-    width: 560, height: 240,
+    title: "Raft: commit, crash, elect", sub: "Box text shows each node's role, term and log. <b>Teal</b> = heartbeats and votes; <b>green</b> = committed.",
+    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Client", sub: " " }, { id: "n1", x: 340, y: 50, w: 260, label: "Node 1", sub: "leader · term 1 · log [1]" },
+      { id: "n2", x: 340, y: 250, w: 260, label: "Node 2", sub: "follower · term 1 · log [1]" }, { id: "n3", x: 640, y: 150, w: 240, label: "Node 3", sub: "follower · term 1 · log [1]" }],
+    edges: [["c", "n1"], ["c", "n2"], ["n1", "n2"], ["n1", "n3"], ["n2", "n3"]],
+    width: 790, height: 300,
     steps: [
-      { hl: { n1: "active", n2: "found", n3: "found" }, moves: [{ e: "n1>n2", t: "heartbeat", k: "evt" }, { e: "n1>n3", t: "heartbeat", k: "evt", delay: 0.2 }],
-        note: "The leader sends regular heartbeats. While followers hear them, nobody starts an election." },
-      { hl: { c: "active", n1: "active", n2: "active", n3: "active" }, moves: [{ e: "c>n1", t: "set x = 5", k: "req" }, { e: "n1>n2", t: "append", k: "req", delay: 1.0 }, { e: "n1>n3", t: "append", k: "req", delay: 1.1 }, { e: "n1>n2", t: "stored", k: "ok", back: true, delay: 2.2 }], pops: [{ n: "n1", t: "majority: committed", k: "ok", at: 3.4 }], hold: 4.6,
-        note: "A write goes to the leader's log and out to the followers. Once a <b>majority</b> (2 of 3) has stored it, it's committed and acknowledged." },
-      { hl: { n1: "bad", n2: "warm" }, pops: [{ n: "n1", t: "crashed", k: "bad", at: 0.3 }, { n: "n2", t: "no heartbeat: candidate", k: "evt", at: 1.4 }],
-        note: "The leader crashes. Node 2's randomised timeout (150–300 ms) runs out first, and it becomes a candidate for term 2." },
-      { hl: { n1: "bad", n2: "active", n3: "active" }, moves: [{ e: "n2>n3", t: "vote for me? term 2", k: "evt" }, { e: "n2>n3", t: "yes", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "n2", t: "leader, term 2", k: "ok", at: 2.4 }], hold: 3.8,
-        note: "Node 3 votes for it (its log is up to date, and it hasn't voted this term). Two votes of three: a new leader." },
-      { hl: { c: "active", n2: "found", n3: "active" }, moves: [{ e: "c>n2", t: "set y = 1", k: "req" }, { e: "n2>n3", t: "append", k: "req", delay: 1.2 }], hold: 3.6,
-        note: "Clients carry on with the new leader. If node 1 comes back, it sees the higher term and steps down." },
+      { hl: { n1: "found" }, moves: [{ e: "n1>n2", t: "heartbeat", k: "evt" }, { e: "n1>n3", t: "heartbeat", k: "evt", delay: 0.1 }], hold: 3.2,
+        note: "The leader sends heartbeats every 50 ms or so. A follower that hears them resets its election timer and stays a follower." },
+      { hl: { n1: "found", n2: "found", c: "found" }, set: { n1: "leader · term 1 · log [1, x=5] · committed 2", n2: "follower · term 1 · log [1, x=5]", n3: "follower · term 1 · log [1] (slow)", c: "x = 5 OK" },
+        moves: [{ e: "c>n1", t: "set x = 5" }, { e: "n1>n2", t: "append #2", delay: 0.8 }, { e: "n1>n3", t: "append #2", delay: 0.9 }, { e: "n1>n2", t: "stored", back: true, k: "ok", delay: 1.7 }, { e: "c>n1", t: "OK", back: true, k: "ok", delay: 2.5 }], hold: 4.8,
+        note: "A write is appended to the leader's log and sent to the followers. As soon as a <b>majority</b> (the leader plus node 2) has it on disk, entry 2 is committed and the client hears OK, even though node 3 hasn't caught up." },
+      { hl: { n1: "bad", n2: "warm" }, set: { n1: "crashed", n2: "candidate · term 2 · votes 1 (self)", n3: "follower · term 1 · log [1, x=5]" }, pops: [{ n: "n2", t: "no heartbeat for 180 ms", k: "evt", at: 0.4 }], hold: 4,
+        note: "Node 1 crashes. Node 3 has caught up meanwhile. Node 2's randomised election timeout fires first: it becomes a <b>candidate</b>, increases the term to 2 and votes for itself." },
+      { hl: { n2: "found", n3: "found" }, set: { n2: "leader · term 2 · log [1, x=5]", n3: "follower · term 2 · voted for node 2" }, moves: [{ e: "n2>n3", t: "vote for me? term 2, last entry 2" }, { e: "n2>n3", t: "yes", back: true, k: "ok", delay: 1.0 }], hold: 4.4,
+        note: "Node 3 grants its vote: it hasn't voted in term 2, and node 2's log is at least as up to date as its own. Two votes of three: node 2 is leader for term 2. A node with an older log could never win, so committed entries survive." },
+      { hl: { n2: "found", n3: "found", n1: "warm", c: "found" }, set: { n2: "leader · term 2 · log [1, x=5, y=1] · committed 3", n3: "follower · term 2 · log [1, x=5, y=1]", n1: "back: sees term 2 → follower", c: "y = 1 OK" },
+        moves: [{ e: "c>n2", t: "set y = 1" }, { e: "n2>n3", t: "append #3", delay: 0.8 }, { e: "n2>n3", t: "stored", back: true, k: "ok", delay: 1.6 }, { e: "n1>n2", t: "term 1?", back: true, k: "evt", delay: 2.2 }], hold: 4.8,
+        note: "Clients carry on with the new leader. When node 1 returns, any message shows it a higher term, so it steps down to follower and the leader repairs its log to match." },
     ],
   });
   Viz.tour("#tour", [
@@ -3257,15 +3259,20 @@ html.iks-open { overflow: hidden; }
     reset();
   })();
   Viz.scene("#sc-u21-fence", {
-    title: "Why locks need fencing tokens", sub: "<b>Red</b> = the paused client's stale write, <b>green</b> = accepted.",
-    nodes: [{ id: "a", x: 90, y: 60, w: 130, label: "Client A" }, { id: "b", x: 90, y: 220, w: 130, label: "Client B" }, { id: "lk", x: 320, y: 140, w: 140, label: "Lock service", sub: "etcd / ZooKeeper" }, { id: "st", x: 540, y: 140, w: 140, label: "Storage", sub: "checks tokens" }],
+    title: "Why locks need fencing tokens", sub: "Box text shows who holds the lock and the highest token storage has seen.",
+    nodes: [{ id: "a", x: 110, y: 60, w: 200, label: "Client A", sub: " " }, { id: "b", x: 110, y: 230, w: 200, label: "Client B", sub: " " },
+      { id: "lk", x: 400, y: 60, w: 240, label: "Lock service", sub: "free" }, { id: "st", x: 400, y: 230, w: 240, label: "Storage", sub: "highest token: 32" }],
     edges: [["a", "lk"], ["b", "lk"], ["a", "st"], ["b", "st"]],
-    width: 640, height: 280,
+    width: 600, height: 290,
     steps: [
-      { hl: { a: "active", lk: "found" }, moves: [{ e: "a>lk", t: "acquire", k: "req" }, { e: "a>lk", t: "granted, token 33", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "A gets the lease with fencing token 33." },
-      { hl: { a: "bad", lk: "warm" }, pops: [{ n: "a", t: "GC pause 40 s…", k: "bad", at: 0.2 }, { n: "lk", t: "lease expired", k: "evt", at: 1.4 }], hold: 3, note: "A freezes. Its lease expires while it's paused, and it doesn't know." },
-      { hl: { b: "active", lk: "found", st: "found" }, moves: [{ e: "b>lk", t: "acquire", k: "req" }, { e: "b>lk", t: "granted, token 34", k: "ok", back: true, delay: 0.9 }, { e: "b>st", t: "write (34)", k: "ok", delay: 1.8 }], hold: 3.4, note: "B gets the lock with token 34 and writes. Storage remembers 34." },
-      { hl: { a: "bad", st: "found" }, moves: [{ e: "a>st", t: "write (33)", k: "bad" }], pops: [{ n: "st", t: "33 < 34: rejected", k: "ok", at: 1.1 }], hold: 3.4, note: "A wakes up and writes as if it still held the lock. Storage rejects the lower token: no corruption." },
+      { hl: { a: "found", lk: "active" }, set: { lk: "held by A · token 33 · lease 10 s", a: "holds lock (token 33)" }, moves: [{ e: "a>lk", t: "acquire" }, { e: "a>lk", t: "granted, token 33", back: true, k: "ok", delay: 0.9 }], hold: 3.6,
+        note: "A gets the lock as a lease that expires in 10 seconds, with a <b>fencing token</b>: a number the lock service increases on every grant." },
+      { hl: { a: "bad" }, set: { a: "GC pause 15 s (lease expires)" }, pops: [{ n: "a", t: "frozen", k: "bad", at: 0.3 }], hold: 3.4,
+        note: "A freezes in a long garbage-collection pause. Its lease runs out while it's frozen, and it has no idea." },
+      { hl: { b: "found", lk: "active", st: "found" }, set: { lk: "held by B · token 34", b: "holds lock (token 34)", st: "highest token: 34 · file v2 (B)" }, moves: [{ e: "b>lk", t: "acquire" }, { e: "b>lk", t: "granted, token 34", back: true, k: "ok", delay: 0.9 }, { e: "b>st", t: "write v2, token 34", delay: 1.8 }], hold: 4.4,
+        note: "The lease expired, so B gets the lock with token 34 and writes. Storage remembers the highest token it has accepted." },
+      { hl: { a: "bad", st: "found" }, set: { a: "wakes, still thinks it's the holder", st: "highest token: 34 · rejected token 33" }, moves: [{ e: "a>st", t: "write v1, token 33", k: "bad" }, { e: "a>st", t: "rejected: 33 < 34", back: true, k: "bad", delay: 1.0 }], hold: 4.4,
+        note: "A wakes up and writes, believing it still holds the lock. Storage sees token 33, lower than 34, and rejects it: B's data is safe. Without the token check, both would have written and corrupted the file. The lock service alone can't prevent this; the storage must check." },
     ],
   });
   (function () {

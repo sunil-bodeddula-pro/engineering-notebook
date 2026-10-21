@@ -3283,20 +3283,19 @@ html.iks-open { overflow: hidden; }
   $("rc-run").addEventListener("click", () => run(true));
   run();
   Viz.scene("#sc-main", {
-    title: "The last ticket", sub: "<b>Blue</b> = reads and writes, <b>red</b> = a lost update, <b>green</b> = a safe outcome.",
-    nodes: [{ id: "b1", x: 80, y: 50, w: 110, label: "Buyer 1" }, { id: "b2", x: 80, y: 180, w: 110, label: "Buyer 2" },
-      { id: "db", x: 400, y: 115, w: 170, label: "Event 7", sub: "tickets left: 1" }],
+    title: "The last ticket", sub: "Box text shows the row and what each buyer was told. <b>Red</b> = oversold.",
+    nodes: [{ id: "b1", x: 90, y: 60, w: 160, label: "Buyer 1", sub: " " }, { id: "b2", x: 90, y: 220, w: 160, label: "Buyer 2", sub: " " }, { id: "db", x: 430, y: 140, w: 250, label: "Event 7", sub: "tickets left = 1" }],
     edges: [["b1", "db"], ["b2", "db"]],
-    width: 520, height: 230,
+    width: 600, height: 280,
     steps: [
-      { hl: { b1: "active", b2: "active", db: "active" }, moves: [{ e: "b1>db", t: "read left", k: "req" }, { e: "b2>db", t: "read left", k: "req", delay: 0.15 }, { e: "b1>db", t: "1", k: "ok", back: true, delay: 1.1 }, { e: "b2>db", t: "1", k: "ok", back: true, delay: 1.25 }], hold: 3.6,
-        note: "Two buyers read the stock within a millisecond. Both see <b>1 ticket left</b>." },
-      { hl: { b1: "active", b2: "bad", db: "bad" }, moves: [{ e: "b1>db", t: "set left = 0", k: "req" }, { e: "b2>db", t: "set left = 0", k: "bad", delay: 0.3 }], pops: [{ n: "db", t: "2 sold, 1 existed", k: "bad", at: 1.6 }], hold: 3.4,
-        note: "Each decides in code and writes <code>left = 0</code>. Both succeed: one update is <b>lost</b>, and the ticket is sold twice." },
-      { hl: { b1: "found", b2: "active", db: "found" }, moves: [{ e: "b1>db", t: "left − 1 if left > 0", k: "ok" }, { e: "b2>db", t: "left − 1 if left > 0", k: "req", delay: 0.3 }, { e: "b1>db", t: "1 row ✓", k: "ok", back: true, delay: 1.3 }, { e: "b2>db", t: "0 rows: sold out", k: "bad", back: true, delay: 1.6 }], hold: 4.2,
-        note: "Fix: a <b>conditional write</b>. The database checks the rule as it changes the row; the second buyer changes 0 rows and is told it's sold out." },
-      { hl: { db: "found" }, pops: [{ n: "db", t: "never below zero", k: "ok", at: 0.3 }],
-        note: "Start with the simplest tool that states the rule on the row. Locks, versions and serializable isolation are for rules a condition can't express." },
+      { hl: { b1: "active", b2: "active" }, set: { b1: "read: 1 left", b2: "read: 1 left" }, moves: [{ e: "b1>db", t: "SELECT left" }, { e: "b2>db", t: "SELECT left", delay: 0.1 }, { e: "b1>db", t: "1", back: true, k: "ok", delay: 1.0 }, { e: "b2>db", t: "1", back: true, k: "ok", delay: 1.1 }], hold: 4,
+        note: "Two buyers read the stock within the same millisecond. Both see 1 ticket left." },
+      { hl: { db: "bad", b1: "bad", b2: "bad" }, set: { db: "tickets left = 0 · 2 tickets sold", b1: "\"you got it\"", b2: "\"you got it\"" }, moves: [{ e: "b1>db", t: "SET left = 0", k: "bad" }, { e: "b2>db", t: "SET left = 0", k: "bad", delay: 0.2 }], hold: 4.4,
+        note: "Each decides in application code (1 > 0, so sell) and writes left = 0. Both writes succeed, the second overwriting the first: a <b>lost update</b>. Two people own one seat." },
+      { hl: { db: "active" }, set: { db: "tickets left = 1", b1: " ", b2: " " }, hold: 2.6, note: "Rewind. This time the rule moves into the database." },
+      { hl: { db: "found", b1: "found", b2: "warm" }, set: { db: "tickets left = 0 · 1 ticket sold", b1: "1 row changed: sold", b2: "0 rows changed: sold out" },
+        moves: [{ e: "b1>db", t: "left = left − 1 WHERE left > 0" }, { e: "b2>db", t: "same", delay: 0.2 }, { e: "b1>db", t: "1 row", back: true, k: "ok", delay: 1.2 }, { e: "b2>db", t: "0 rows", back: true, k: "bad", delay: 1.4 }], hold: 4.6,
+        note: "A <b>conditional write</b> checks the rule as it changes the row. The database applies the two updates one at a time on that row: the first changes one row, the second finds left = 0 and changes nothing, so its buyer is told it's sold out." },
     ],
   });
   Viz.tour("#tour", [
@@ -3309,20 +3308,19 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-occ", {
-    title: "Optimistic concurrency in an auction", sub: "<b>Blue</b> = reads and bids, <b>green</b> = accepted, <b>red</b> = rejected, then retried.",
-    nodes: [{ id: "a", x: 80, y: 55, w: 110, label: "Bidder A" }, { id: "b", x: 80, y: 195, w: 110, label: "Bidder B" },
-      { id: "db", x: 420, y: 125, w: 180, label: "Auction 7", sub: "current high bid" }],
+    title: "Optimistic concurrency in an auction", sub: "Box text shows the row and each bidder's view. No locks are held while bidders think.",
+    nodes: [{ id: "a", x: 90, y: 60, w: 170, label: "Bidder A", sub: " " }, { id: "b", x: 90, y: 220, w: 170, label: "Bidder B", sub: " " }, { id: "db", x: 440, y: 140, w: 240, label: "Auction 7", sub: "high bid $90" }],
     edges: [["a", "db"], ["b", "db"]],
-    width: 540, height: 250,
+    width: 600, height: 280,
     steps: [
-      { hl: { a: "active", b: "active", db: "active" }, moves: [{ e: "a>db", t: "read: $90", k: "ok", back: true }, { e: "b>db", t: "read: $90", k: "ok", back: true, delay: 0.2 }], hold: 3,
-        note: "Both bidders see a high bid of $90. No locks are taken." },
-      { hl: { a: "found", db: "found" }, moves: [{ e: "a>db", t: "$95 if high = $90", k: "req" }, { e: "a>db", t: "1 row ✓", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
-        note: "A bids $95 <b>only if</b> the high bid is still $90. It is, so one row changes." },
-      { hl: { b: "bad", db: "found" }, moves: [{ e: "b>db", t: "$100 if high = $90", k: "req" }, { e: "b>db", t: "0 rows", k: "bad", back: true, delay: 1.1 }], pops: [{ n: "b", t: "someone bid first", k: "bad", at: 2.2 }], hold: 3.4,
-        note: "B's condition no longer holds (the high bid is now $95), so zero rows change. Not an error: a signal to re-read." },
-      { hl: { b: "found", db: "found" }, moves: [{ e: "b>db", t: "read: $95", k: "ok", back: true }, { e: "b>db", t: "$100 if high = $95", k: "req", delay: 1.0 }, { e: "b>db", t: "1 row ✓", k: "ok", back: true, delay: 2.1 }], pops: [{ n: "db", t: "high bid only rises: no ABA", k: "ok", at: 2.6 }], hold: 4.2,
-        note: "B re-reads and retries. The high bid only goes up, so it can safely act as the version: no ABA problem." },
+      { hl: { a: "active", b: "active" }, set: { a: "sees $90", b: "sees $90" }, moves: [{ e: "a>db", t: "read", back: false }, { e: "b>db", t: "read", delay: 0.1 }, { e: "a>db", t: "$90", back: true, k: "ok", delay: 1.0 }, { e: "b>db", t: "$90", back: true, k: "ok", delay: 1.1 }], hold: 3.6,
+        note: "Both bidders read the high bid: $90. No locks are taken; they can think for as long as they like." },
+      { hl: { a: "found", db: "found" }, set: { db: "high bid $95 (A)", a: "1 row: you lead" }, moves: [{ e: "a>db", t: "SET $95 WHERE high = $90" }, { e: "a>db", t: "1 row", back: true, k: "ok", delay: 1.0 }], hold: 3.8,
+        note: "A bids $95 <i>only if</i> the high bid is still $90. It is, so one row changes." },
+      { hl: { b: "warm" }, set: { b: "0 rows: price moved" }, moves: [{ e: "b>db", t: "SET $100 WHERE high = $90" }, { e: "b>db", t: "0 rows", back: true, k: "bad", delay: 1.0 }], hold: 3.8,
+        note: "B's write carries the same condition, but the high bid is now $95, so nothing changes. Not an error: a signal that someone else got there first." },
+      { hl: { b: "found", db: "found" }, set: { b: "re-read $95 → 1 row: you lead", db: "high bid $100 (B)" }, moves: [{ e: "b>db", t: "read" }, { e: "b>db", t: "$95", back: true, k: "ok", delay: 0.8 }, { e: "b>db", t: "SET $100 WHERE high = $95", delay: 1.6 }, { e: "b>db", t: "1 row", back: true, k: "ok", delay: 2.4 }], hold: 4.6,
+        note: "B re-reads, decides $100 is still worth it, and retries with the new condition. Because a high bid only ever rises, it can act as the version number. Optimistic concurrency shines when conflicts are rare; under heavy contention the retries pile up." },
     ],
   });
   /* ---------- Under the hood: transactions ---------- */

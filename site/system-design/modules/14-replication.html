@@ -3251,20 +3251,22 @@ html.iks-open { overflow: hidden; }
   ["l-w", "l-lag", "l-rtt"].forEach((id) => $(id).addEventListener("input", loss));
   loss();
   Viz.scene("#sc-main", {
-    title: "Where did my comment go?", sub: "<b>Blue</b> = requests, <b>teal</b> = replication, <b>red</b> = stale or lost, <b>green</b> = correct.",
-    nodes: [{ id: "u", x: 70, y: 115, w: 100, label: "User" }, { id: "ld", x: 270, y: 45, w: 120, label: "Leader" },
-      { id: "f1", x: 480, y: 115, w: 130, label: "Follower 1", sub: "async, lagging" }, { id: "f2", x: 480, y: 195, w: 130, label: "Follower 2", sub: "async" }],
-    edges: [["u", "ld"], ["ld", "f1"], ["ld", "f2"], ["u", "f1"]],
-    width: 560, height: 235,
+    title: "Where did my comment go?", sub: "Box text shows the newest log entry each copy has. <b>Red</b> = behind or lost.",
+    nodes: [{ id: "u", x: 85, y: 150, w: 120, label: "User", sub: " " }, { id: "ld", x: 330, y: 150, w: 200, label: "Leader", sub: "log up to #40" },
+      { id: "f1", x: 590, y: 60, w: 200, label: "Follower 1", sub: "log up to #40" }, { id: "f2", x: 590, y: 240, w: 200, label: "Follower 2", sub: "log up to #40" }],
+    edges: [["u", "ld"], ["ld", "f1"], ["ld", "f2"], ["u", "f1", "", { bend: -60 }]],
+    width: 720, height: 300,
     steps: [
-      { hl: { u: "active", ld: "found" }, moves: [{ e: "u>ld", t: "post comment", k: "req" }, { e: "u>ld", t: "saved", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
-        note: "Writes go to the <b>leader</b>, which confirms straight away. Copying to followers happens afterwards (asynchronous)." },
-      { hl: { u: "bad", f1: "bad", ld: "active" }, moves: [{ e: "ld>f1", t: "comment", k: "evt", dur: 3.2 }, { e: "u>f1", t: "reload", k: "req", delay: 0.2 }, { e: "u>f1", t: "no comment", k: "bad", back: true, delay: 1.3 }], pops: [{ n: "u", t: "where did it go?", k: "bad", at: 2.4 }], hold: 4,
-        note: "The user reloads, and the read goes to a follower that hasn't caught up yet: <b>replication lag</b>." },
-      { hl: { u: "found", ld: "found" }, moves: [{ e: "u>ld", t: "my own data", k: "req" }, { e: "u>ld", t: "comment ✓", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "u", t: "read-your-writes", k: "ok", at: 2.2 }], hold: 3.4,
-        note: "Fix: read your own recent changes from the leader (or from a replica that has caught up to your write)." },
-      { hl: { ld: "bad", f2: "found" }, moves: [{ e: "ld>f2", t: "last writes", k: "bad" }], pops: [{ n: "ld", t: "crashed", k: "bad", at: 0.4 }, { n: "f2", t: "promoted", k: "ok", at: 1.5 }], hold: 3.4,
-        note: "If the leader dies, a follower is promoted. With async replication, writes it hadn't received yet are <b>lost</b>. That's the price of fast commits." },
+      { hl: { ld: "found", u: "found" }, set: { ld: "log up to #41 (comment)", u: "\"saved\"" }, moves: [{ e: "u>ld", t: "post comment" }, { e: "u>ld", t: "saved", back: true, k: "ok", delay: 1.0 }], hold: 3.6,
+        note: "Writes go to the leader. It appends entry #41 and confirms straight away: copying to followers happens afterwards (<b>asynchronous</b>)." },
+      { hl: { f2: "found", f1: "warm" }, set: { f2: "log up to #41", f1: "log up to #40 (2 s behind)" }, moves: [{ e: "ld>f2", t: "#41" }, { e: "ld>f1", t: "#41 (slow)", delay: 0.4 }], hold: 3.6,
+        note: "Follower 2 receives #41 quickly. Follower 1 is busy and two seconds behind: <b>replication lag</b>." },
+      { hl: { f1: "bad", u: "bad" }, set: { u: "comment gone!" }, moves: [{ e: "u>f1", t: "reload page" }, { e: "u>f1", t: "comments up to #40", back: true, k: "bad", delay: 1.0 }], hold: 4,
+        note: "The user reloads, and the read lands on follower 1, which hasn't got #41 yet. Their own comment has disappeared." },
+      { hl: { ld: "found", u: "found" }, set: { u: "sees #41 (leader read)" }, moves: [{ e: "u>ld", t: "my recent data" }, { e: "u>ld", t: "includes #41", back: true, k: "ok", delay: 0.9 }], hold: 4,
+        note: "Fix (<b>read your writes</b>): for a short time after a user writes, send their reads to the leader, or to a follower known to have reached #41." },
+      { hl: { ld: "bad", f1: "found", f2: "bad" }, set: { ld: "crashed (had #42, #43)", f1: "promoted: log up to #41", f2: "log up to #41" }, pops: [{ n: "f1", t: "#42 and #43 are lost", k: "bad", at: 1.0 }], hold: 4.4,
+        note: "If the leader dies, a follower is promoted. With asynchronous replication, entries it never received (#42, #43, already confirmed to their users) are gone. That's the price of fast commits; synchronous or quorum replication avoids it at the cost of latency." },
     ],
   });
   Viz.tour("#tour", [
