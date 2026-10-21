@@ -2898,6 +2898,34 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Hundreds of servers × 20 connections</strong> straight at one database, unmentioned. That's a real outage pattern.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-delete">
+      <div class="tech-h"><h3>Deleting data: soft deletes, retention and erasure</h3><span class="tech-status s-default">The default question nobody asks until legal does</span></div>
+      <p>Every design stores data; few say how it leaves. "Delete" can mean hide it, keep it for 30 days, archive it, or make it unrecoverable everywhere, including replicas, caches, search indexes, logs and backups. Choose per table and say so.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Approach</th><th>How</th><th>Use for</th></tr></thead><tbody>
+        <tr><td>Hard delete</td><td><code>DELETE</code> the row; foreign keys cascade or block</td><td>Data with no history value</td></tr>
+        <tr><td>Soft delete</td><td>A <code>deleted_at</code> column; every query filters on it; a partial index keeps lookups fast</td><td>Undo, trash folders, audit trails</td></tr>
+        <tr><td>Retention + purge</td><td>A scheduled job deletes rows older than N days in small batches; or time partitions you drop whole</td><td>Logs, events, sessions</td></tr>
+        <tr><td>Archive</td><td>Move old rows to cheap object storage (Parquet files), queryable but off the hot database</td><td>Orders older than 2 years</td></tr>
+        <tr><td>Crypto-shredding</td><td>Encrypt each user's data with their own key; delete the key and every copy becomes unreadable</td><td>Erasure that must reach backups and logs</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>Soft deletes have costs:</strong> unique constraints must allow a deleted duplicate (a partial unique index <code>WHERE deleted_at IS NULL</code> in PostgreSQL), every query and join must remember the filter, and the table keeps growing until something purges it.</li>
+        <li><strong>Big deletes hurt:</strong> one <code>DELETE</code> of 50 million rows holds locks, bloats the write-ahead log and lags replicas. Delete in batches of a few thousand, or partition by month and drop the old partition (instant).</li>
+        <li><strong>Distributed stores delete by writing:</strong> Cassandra and other LSM stores write a <em>tombstone</em>, removed at compaction. Cassandra keeps tombstones for <code>gc_grace_seconds</code> (default 10 days) so a node that was down can learn of the delete; a node away longer can bring the deleted data back ("zombies"). Lots of tombstones also slow reads.</li>
+        <li><strong>The law:</strong> under the GDPR's right to erasure (Article 17), a company must answer a request within one month (extendable by two for complex cases, Article 12(3)). The hard part is finding every copy: replicas, caches, search indexes, the data warehouse, event logs, backups. Crypto-shredding is the usual answer for backups you can't edit.</li>
+      </ul>
+      <div id="sc-shred"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>All of these are standard practice. Checked against the Apache Cassandra compaction docs (tombstones, gc_grace_seconds) and the text of GDPR Articles 12 and 17 (October 2026). Not legal advice: retention periods come from your lawyers and regulators.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any design with personal data: say what happens on account deletion</li><li>High-volume tables that need a retention period</li><li>Interviews where the interviewer asks about compliance or storage cost</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Toy designs where the interviewer clearly wants the core path: one sentence is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Messages are soft-deleted so the sender can undo for 30 seconds, then purged by a batch job. For account deletion, each user's data is encrypted with a per-user key, so deleting the key also covers backups and the event log.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We just delete the row"</strong> while copies live in caches, search and backups.</li><li><strong>Soft deletes without a purge job</strong>: the table grows forever and personal data never really leaves.</li><li><strong>One giant DELETE</strong> on a busy production table.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "One fact, one place; connect with keys"</strong>Store each fact once, point between tables with keys, and let joins and transactions do the connecting. Copy data only for a measured read problem.</div>
@@ -2985,6 +3013,16 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
         <p>Which reason for leaving PostgreSQL is weakest in an interview?</p>
         <div class="opts"><button>We need 500k writes a second of append-only events</button><button>Users in three regions must all write with low latency</button><button>It scales better</button></div>
         <div class="why">Name the limit with numbers. A vague "scales better" invites the follow-up you can't answer.</div>
+      </div>
+      <div class="quiz-q" data-answer="Encrypt each user's data with their own key and destroy the key">
+        <p>You must make a user's data unrecoverable, including in 30 days of immutable backups. What's the usual technique?</p>
+        <div class="opts"><button>Restore each backup, delete the rows, and re-save it</button><button>Encrypt each user's data with their own key and destroy the key</button><button>Add a deleted_at column</button></div>
+        <div class="why">Crypto-shredding: destroying one key makes every copy unreadable without touching the backups.</div>
+      </div>
+      <div class="quiz-q" data-answer="A partial unique index on username WHERE deleted_at IS NULL">
+        <p>With soft deletes, how do you keep usernames unique among live accounts but allow a deleted one to be reused?</p>
+        <div class="opts"><button>A normal unique index on username</button><button>A partial unique index on username WHERE deleted_at IS NULL</button><button>Check in application code only</button></div>
+        <div class="why">A normal unique index would block reuse; app-only checks race. A partial index covers only live rows.</div>
       </div>
     </div>
 
@@ -3117,6 +3155,25 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
         note: "Minutes later, a <b>checkpoint</b> writes the dirty pages to the data files in the background. The commit never waited for this random-access write." },
       { hl: { pg: "bad", data: "warm", wal: "found" }, link: ["wal>data"], set: { pg: "crash: memory lost", data: "row 7 = 100 → replay WAL → 80" }, moves: [{ e: "wal>data", t: "redo from last checkpoint", k: "ok" }], hold: 4.4,
         note: "Suppose instead the server crashed before the checkpoint: memory is gone and the data file still says 100. On restart PostgreSQL replays the WAL from the last checkpoint, and row 7 becomes 80 again. Every committed transaction comes back." },
+    ],
+  });
+  Viz.scene("#sc-shred", {
+    title: "Erasing one user everywhere with crypto-shredding", sub: "Box text shows what each store holds for user 42.",
+    nodes: [{ id: "app", x: 110, y: 150, w: 180, label: "App", sub: "\"delete my account\"" },
+            { id: "kms", x: 380, y: 50, w: 220, label: "Key store (KMS)", sub: "key-42: present" },
+            { id: "db", x: 380, y: 150, w: 220, label: "Database", sub: "rows: ciphertext" },
+            { id: "bk", x: 380, y: 250, w: 220, label: "Backups and event log", sub: "copies: ciphertext" },
+            { id: "res", x: 640, y: 150, w: 170, label: "Result", sub: " " }],
+    edges: [["app", "kms"], ["app", "db"], ["db", "bk"], ["db", "res"]],
+    width: 750, height: 310,
+    steps: [
+      { hl: { kms: "active", db: "active", bk: "active" }, note: "User 42's personal fields are encrypted with their own key, key-42, held in a key store. The database, the nightly backups and the event log all hold only ciphertext." },
+      { hl: { app: "warm", bk: "warm" }, set: { bk: "30 nightly backups: can't edit" }, hold: 3.6,
+        note: "The user asks to be deleted. Deleting the live rows is easy, but backups are immutable files and the event log is append-only. Rewriting all of them for one user isn't practical." },
+      { hl: { kms: "bad" }, set: { kms: "key-42: destroyed" }, moves: [{ e: "app>kms", t: "destroy key-42", k: "bad" }], hold: 3.6,
+        note: "Instead the app destroys key-42 in the key store. That is one small, auditable operation." },
+      { hl: { db: "found", bk: "found", res: "found" }, set: { db: "rows: unreadable, then purged", bk: "copies: unreadable", res: "user 42 erased" }, moves: [{ e: "db>res", t: "decrypt fails" }], hold: 4,
+        note: "Every copy of user 42's data, live or in a backup, is now unreadable noise. The live rows are deleted too, and old backups age out on their normal schedule." },
     ],
   });
 })();

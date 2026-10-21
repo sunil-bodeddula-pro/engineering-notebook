@@ -2929,6 +2929,32 @@ Content-Type: application/problem+json
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Designing a rate limiter in detail</strong> when the question is about something else; it eats the time for the real deep dives.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-apilife">
+      <div class="tech-h"><h3>API versions over time: compatibility, deprecation and sunset</h3><span class="tech-status s-default">The default answer for "how do you change the API?"</span></div>
+      <p>An API is a promise to code you don't control. Most changes should be additive and need no version at all; the rare breaking change gets a new version, a deprecation notice, a migration window and a published shutdown date.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>First, avoid needing one:</strong> additive changes (new endpoints, optional fields, new response fields) are safe as long as clients ignore unknown fields; only the breaking changes listed earlier on this page need a new version.</li>
+        <li><strong>Three ways to number versions:</strong> in the path (<code>/v2/orders</code>, the most common, easy to route and cache); in a header; or by date. GitHub's REST API uses <code>X-GitHub-Api-Version: 2026-03-10</code>, defaults to <code>2022-11-28</code> when no header is sent, and supports the previous version for at least 24 months after a new one. Stripe pins each account to a dated version (override with the <code>Stripe-Version</code> header); since 2024 it ships monthly non-breaking versions and twice-yearly major releases with names, such as <code>2024-09-30.acacia</code>.</li>
+        <li><strong>Telling clients:</strong> the <code>Deprecation</code> response header (RFC 9745, March 2025) says when an endpoint was or will be deprecated, and the <code>Sunset</code> header (RFC 8594) says when it will stop responding. Sunset must not be earlier than Deprecation. Add a <code>Link</code> to the migration guide, email the owners of the API keys still calling it, and watch the old version's traffic fall.</li>
+        <li><strong>Behind the scenes:</strong> keep one current internal model and translate old versions at the edge (Stripe describes this as version-change modules applied in reverse), so you don't maintain two copies of the business logic.</li>
+      </ul>
+      <table><thead><tr><th>Stage</th><th>What clients see</th></tr></thead><tbody>
+        <tr><td>v2 launched</td><td>v1 still works; docs point to v2</td></tr>
+        <tr><td>v1 deprecated</td><td><code>Deprecation</code> and <code>Sunset</code> headers on every v1 response; emails to callers</td></tr>
+        <tr><td>Brown-outs (optional)</td><td>v1 fails for short planned windows so forgotten callers notice</td></tr>
+        <tr><td>Sunset date</td><td>v1 returns <code>410 Gone</code> with a link to the guide</td></tr>
+      </tbody></table>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Path versioning is the most common for public REST APIs; date-based header versions are used by GitHub and Stripe. gRPC and GraphQL APIs usually evolve without versions by only adding fields and deprecating old ones in the schema. Checked against the GitHub REST API versions page, Stripe's versioning docs and RFC 9745 (October 2026).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any public or partner API, where you can't update the clients yourself</li><li>Mobile apps, where old versions stay installed for years</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Internal APIs whose callers you deploy together: change them in step instead (expand, migrate, contract)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>New fields are additive, so no version bump. If I must break something, I'll add /v2, put Deprecation and Sunset headers on v1 with at least a year's notice, and track v1 traffic per API key until it reaches zero.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A new version for every change</strong>: additive changes don't need one.</li><li><strong>Removing a field "because nobody uses it"</strong> without measuring.</li><li><strong>No sunset date</strong>, so old versions live forever.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Nouns, verbs, and a receipt"</strong>Resources are nouns, methods are verbs, and every important write carries a receipt number (an idempotency key) so asking twice can't buy twice.</div>
@@ -3017,6 +3043,16 @@ Content-Type: application/problem+json
         <p>Your GraphQL server lists 50 posts and their authors, and the database receives 51 queries. What's this, and the fix?</p>
         <div class="opts"><button>A cache stampede; add a TTL</button><button>The N+1 problem; batch with a dataloader</button><button>Normal behaviour; add replicas</button></div>
         <div class="why">Each author resolver runs its own query. A dataloader collects them into one batched lookup.</div>
+      </div>
+      <div class="quiz-q" data-answer="No: additive changes are compatible if clients ignore unknown fields">
+        <p>You add an optional field to an API response. Do you need a new API version?</p>
+        <div class="opts"><button>Yes, always</button><button>No: additive changes are compatible if clients ignore unknown fields</button><button>Only for mobile clients</button></div>
+        <div class="why">Adding is safe; removing, renaming or changing meaning is what breaks clients.</div>
+      </div>
+      <div class="quiz-q" data-answer="Sunset">
+        <p>Which HTTP response header tells clients the date an endpoint will stop working?</p>
+        <div class="opts"><button>Deprecation</button><button>Sunset</button><button>Retry-After</button></div>
+        <div class="why">Sunset (RFC 8594) gives the shutdown date; Deprecation (RFC 9745) gives the deprecation date, which must not be later than it.</div>
       </div>
     </div>
 

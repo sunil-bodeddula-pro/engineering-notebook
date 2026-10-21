@@ -2943,6 +2943,28 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Permission logic copied into every service</strong>.</li><li><strong>Caching "allowed" answers</strong> with no story for revocation.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-zerotrust">
+      <div class="tech-h"><h3>Zero trust</h3><span class="tech-status s-default">The default security model today</span></div>
+      <p>The old model trusted anything inside the network: get past the firewall or onto the VPN and you could reach every server. Zero trust drops that idea. Every request, from a laptop or from another service, must prove who it is and be allowed by policy, wherever it comes from.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>The principle,</strong> in NIST's words (SP 800-207, August 2020): move defences "from static, network-based perimeters to focus on users, assets, and resources". Being on the office network or the VPC grants nothing on its own.</li>
+        <li><strong>For people:</strong> an identity-aware proxy sits in front of each internal app. It checks the user's identity (single sign-on with MFA through OAuth and OIDC, above), the device's health (managed, patched, disk encrypted) and a policy for that app, on every request. Google's BeyondCorp (papers from 2014) is the best-known example; Google Cloud IAP, Cloudflare Access and Zscaler offer the same idea as products.</li>
+        <li><strong>For services:</strong> each workload has its own short-lived identity (SPIFFE IDs, certificates issued by a mesh) and talks over mTLS (above). An authorization policy says which service may call which endpoint. A compromised pod can't simply call the payments database because it shares a network.</li>
+        <li><strong>The parts NIST names:</strong> a <em>policy engine</em> decides, a <em>policy administrator</em> sets up or tears down the session, and a <em>policy enforcement point</em> (the proxy or sidecar) sits in the request path.</li>
+        <li><strong>It doesn't remove network controls:</strong> private subnets and security groups still shrink the attack surface; they just stop being the only line.</li>
+      </ul>
+      <div id="sc-zt"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Zero trust is now the mainstream model, and US federal agencies were directed to adopt it (OMB memo M-22-09, 2022). Most companies are part-way: SSO and MFA everywhere, an access proxy for some apps, mTLS inside a service mesh. Checked against NIST SP 800-207 (October 2026).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Internal tools and admin panels used by remote staff</li><li>Service-to-service calls in any system that handles money or personal data</li><li>Any design where the interviewer asks "what if an attacker gets inside?"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Don't present it as one product you buy: it's an approach made of identity, device checks, mTLS and policy</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I wouldn't trust the VPC. Internal services authenticate with mTLS identities from the mesh, and an authorization policy allows only the order service to call payments. Staff reach the admin panel through an identity-aware proxy with SSO and MFA, not a VPN.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"It's internal, so no auth"</strong>: the classic way one breach becomes total.</li><li><strong>A VPN as the security story</strong> for internal apps.</li><li><strong>Long-lived shared service passwords</strong> instead of per-workload identities.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Front desk, badge, locked floors"</strong>Authenticate once at the front desk, authorize every door with the badge (for this person and this room), and lock floors apart so one breach stays small.</div>
@@ -3030,6 +3052,16 @@ html.iks-open { overflow: hidden; }
         <p>Which OAuth flow should a mobile app use to sign users in?</p>
         <div class="opts"><button>Implicit</button><button>Authorization code with PKCE</button><button>Resource owner password</button></div>
         <div class="why">Implicit and password flows are deprecated; PKCE protects the code exchange.</div>
+      </div>
+      <div class="quiz-q" data-answer="Payments accepts only callers whose own identity the policy allows">
+        <p>An attacker gets a shell on one server inside your VPC. Under zero trust, what stops them calling the payments service?</p>
+        <div class="opts"><button>The firewall at the edge of the VPC</button><button>Payments accepts only callers whose own identity the policy allows</button><button>Nothing: they're already inside</button></div>
+        <div class="why">Zero trust grants nothing for being on the network; each call must carry an identity (for example an mTLS certificate) that policy allows.</div>
+      </div>
+      <div class="quiz-q" data-answer="An identity-aware proxy that checks user, device and policy on each request">
+        <p>What replaces the VPN for staff reaching internal apps in a zero-trust setup?</p>
+        <div class="opts"><button>A faster VPN</button><button>An identity-aware proxy that checks user, device and policy on each request</button><button>Putting the apps on the public internet without login</button></div>
+        <div class="why">BeyondCorp-style proxies make every internal app reachable only through per-request identity and device checks.</div>
       </div>
     </div>
 
@@ -3336,6 +3368,26 @@ html.iks-open { overflow: hidden; }
       { view: R([["ana", "sunshine1", "<code>$argon2id$m=19456,t=2,p=1$Q7x…$91be…</code>"], ["ben", "sunshine1", "<code>$argon2id$m=19456,t=2,p=1$M2c…$e40f…</code>"]], "The stored string records the algorithm, its cost parameters and the salt."), note: "Raise the cost later and rehash on each user's next login. OWASP suggests Argon2id with at least 19 MiB of memory and 2 iterations as a minimum." },
     ] });
   })();
+  Viz.scene("#sc-zt", {
+    title: "One request under zero trust", sub: "Box text shows what each part checks.",
+    nodes: [{ id: "u", x: 100, y: 70, w: 170, label: "Employee laptop", sub: "anywhere" },
+            { id: "pep", x: 340, y: 70, w: 200, label: "Access proxy", sub: "enforcement point" },
+            { id: "pdp", x: 340, y: 220, w: 220, label: "Policy engine", sub: "rules per app" },
+            { id: "app", x: 580, y: 70, w: 210, label: "Admin app", sub: "no public route" },
+            { id: "pod", x: 580, y: 220, w: 210, label: "Hacked pod", sub: "inside the VPC" }],
+    edges: [["u", "pep"], ["pep", "app"], ["pep", "pdp"], ["pod", "app"]],
+    width: 700, height: 290,
+    steps: [
+      { hl: { u: "active", pep: "active" }, moves: [{ e: "u>pep", t: "GET /admin" }], hold: 3.4,
+        note: "An employee opens the admin app from home. There is no VPN: the request goes to an access proxy on the internet, the only way in." },
+      { hl: { pep: "warm", pdp: "warm" }, set: { pep: "who? which device?", pdp: "SSO + MFA ok, managed laptop" }, moves: [{ e: "pep>pdp", t: "user + device + app" }], hold: 4,
+        note: "The proxy asks the policy engine. It checks the signed-in identity, that the laptop is managed and patched, and the rule for this app." },
+      { hl: { app: "found", pep: "found" }, set: { pep: "allowed, for this request" }, moves: [{ e: "pep>pdp", t: "allow", back: true, k: "ok" }, { e: "pep>app", t: "GET /admin (with identity)" }], hold: 3.6,
+        note: "Allowed: the proxy forwards the request with the user's identity attached. Trust lasts for this session only and is checked again." },
+      { hl: { pod: "bad", app: "found" }, set: { pod: "no valid identity: rejected", app: "mTLS + policy: only proxy may call" }, moves: [{ e: "pod>app", t: "GET /admin", k: "bad" }], hold: 4.2,
+        note: "An attacker controls a pod inside the same network. Under the old model that was enough. Here the app accepts only mTLS calls from identities the policy allows, so the request is refused." },
+    ],
+  });
 })();
 </script>
 </body>

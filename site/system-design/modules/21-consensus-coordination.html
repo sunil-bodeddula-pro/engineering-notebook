@@ -2880,6 +2880,28 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Implementing Paxos or Raft yourself</strong> in a product interview.</li><li><strong>Putting high-volume data in ZooKeeper or etcd</strong>: every write needs a majority.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-twogen">
+      <div class="tech-h"><h3>The Two Generals problem</h3><span class="tech-status s-default">The default explanation for "why can't we be sure?"</span></div>
+      <p>Two parties that can only talk over a link that may lose messages can never be certain they agree. It's the simplest impossibility result in distributed systems, and the reason "exactly once" is always built from retries plus deduplication, never from a perfect acknowledgement.</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>The story:</strong> two armies on either side of a valley win only if they attack together. Messengers crossing the valley may be captured. General A sends "attack at dawn". If it arrives, B must tell A it arrived, or A won't risk attacking. But B can't be sure its acknowledgement arrived, so B needs an acknowledgement of the acknowledgement, and so on forever. Whichever message is last, its sender can't know it got through.</li>
+        <li><strong>The proof idea:</strong> take the shortest protocol that works. The last message in it might be lost, and its sender must act the same either way, so the protocol works without that message too. That contradicts "shortest", so no finite protocol exists.</li>
+        <li><strong>Where you meet it:</strong> a client sends "charge £20" and the connection drops. Did the server charge? The client can't know. Every API that moves money or creates things faces this.</li>
+        <li><strong>What real systems do:</strong> accept uncertainty and make it harmless. Retry until acknowledged, and make the operation <em>idempotent</em> with a request ID, so a duplicate does nothing (Module 07, 24). Or keep a durable log and let both sides reconcile later (outbox, Module 22). TCP's handshake doesn't solve the problem either: it settles for "probably".</li>
+        <li><strong>Its relatives:</strong> Two Generals assumes honest parties and a lossy link. FLP (above) adds that with no timing bounds, even reliable messages plus one crash make guaranteed agreement impossible. Byzantine generals (failure models, above) adds liars.</li>
+      </ul>
+      <div id="sc-twogen"></div>
+      <h4>Status today</h4>
+      <p>First described by Akkoyunlu, Ekanadham and Huber (1975) and named by Jim Gray (1978). It isn't a product; it's the reason idempotency keys, retries and reconciliation jobs exist.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>An interviewer asks for exactly-once delivery or a guaranteed acknowledgement</li><li>Explaining why a payment API needs idempotency keys</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Don't recite the armies story at length: one sentence, then the practical fix</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Over a lossy network the sender can never know its last message arrived, that's Two Generals. So I don't try for exactly-once delivery: I retry until acknowledged and make the handler idempotent with a request ID, which gives exactly-once <em>effect</em>.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Promising exactly-once delivery</strong> over a network.</li><li><strong>Adding another acknowledgement round</strong> to remove the doubt: it never does.</li><li><strong>Treating a timeout as "it failed"</strong>: it means "unknown".</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Any two majorities share a member"</strong>That one fact makes consensus safe: two conflicting decisions can't both win a majority. Odd cluster sizes, at most one leader per term, and fencing tokens all follow from taking it seriously.</div>
@@ -2967,6 +2989,16 @@ html.iks-open { overflow: hidden; }
         <p>A node's reply arrives after 30 seconds. What can the sender conclude?</p>
         <div class="opts"><button>The node crashed</button><button>Nothing certain: slow and dead look the same from outside</button><button>The node is Byzantine</button></div>
         <div class="why">That's a timing failure. Timeouts guess; leases with fencing tokens make the guess safe.</div>
+      </div>
+      <div class="quiz-q" data-answer="Nothing: the charge may or may not have happened">
+        <p>A payment request times out. What does the client know?</p>
+        <div class="opts"><button>The charge failed</button><button>The charge succeeded but the reply was slow</button><button>Nothing: the charge may or may not have happened</button></div>
+        <div class="why">A lost request and a lost reply look the same to the sender. That's why the retry must carry the same idempotency key.</div>
+      </div>
+      <div class="quiz-q" data-answer="Every protocol has a last message, and its sender can't know it arrived">
+        <p>Why can't adding an acknowledgement of the acknowledgement fix the Two Generals problem?</p>
+        <div class="opts"><button>It can, with three rounds</button><button>Every protocol has a last message, and its sender can't know it arrived</button><button>Because messages can be forged</button></div>
+        <div class="why">Remove the last message and the protocol must still work; repeat and nothing is left. Forgery is the Byzantine problem, a different one.</div>
       </div>
     </div>
 
@@ -3311,6 +3343,26 @@ html.iks-open { overflow: hidden; }
     };
     g("cr-reset").onclick = reset; reset();
   })();
+  Viz.scene("#sc-twogen", {
+    title: "Why the last message always leaves doubt", sub: "Box text shows what each side knows.",
+    nodes: [{ id: "a", x: 110, y: 130, w: 200, label: "Client (A)", sub: "knows nothing yet" },
+            { id: "net", x: 340, y: 130, w: 140, label: "Network", sub: "may drop" },
+            { id: "b", x: 570, y: 130, w: 200, label: "Server (B)", sub: "knows nothing yet" }],
+    edges: [["a", "net"], ["net", "b"]],
+    width: 680, height: 250,
+    steps: [
+      { hl: { b: "active" }, set: { b: "charged £20 (id r-7)" }, moves: [{ e: "a>net", t: "charge £20, id r-7" }, { e: "net>b", t: "charge £20, id r-7" }], hold: 3.8,
+        note: "The client asks the server to charge £20, with request ID r-7. The server receives it and charges the card." },
+      { hl: { net: "bad", a: "warm" }, set: { net: "reply lost", a: "timeout: charged or not?" }, moves: [{ e: "net>b", t: "ok", back: true, k: "bad" }], hold: 3.8,
+        note: "The server's reply is lost on the way back. The client times out. It cannot tell \"never arrived\" from \"done, reply lost\". This is the Two Generals problem." },
+      { hl: { b: "warm" }, set: { b: "did A get my ok?" }, hold: 3.4,
+        note: "Asking the server to acknowledge the acknowledgement just moves the doubt: now the server doesn't know if its last message arrived. Any protocol has a last message, so the doubt never goes away." },
+      { hl: { a: "active", b: "found" }, set: { b: "r-7 seen: return the saved result", net: "may drop" }, moves: [{ e: "a>net", t: "retry: charge £20, id r-7" }, { e: "net>b", t: "retry, id r-7" }], hold: 3.8,
+        note: "The practical answer: retry with the same request ID. The server recognises r-7, doesn't charge again, and returns the result it saved." },
+      { hl: { a: "found", b: "found" }, set: { a: "charged exactly once" }, moves: [{ e: "net>b", t: "ok (from r-7)", back: true, k: "ok" }, { e: "a>net", t: "ok", back: true, k: "ok" }], hold: 3.8,
+        note: "Delivery happened twice, but the effect happened once. Retries plus idempotency turn an impossible guarantee into a practical one." },
+    ],
+  });
 })();
 </script>
 </body>

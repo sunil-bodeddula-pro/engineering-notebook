@@ -2915,6 +2915,33 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Name-dropping PACELC</strong> without connecting it to a latency number in your design.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-session">
+      <div class="tech-h"><h3>Session guarantees and the levels in between</h3><span class="tech-status s-default">The default answer for user-facing data</span></div>
+      <p>Most user-facing features don't need linearizability; they need each user's own view to make sense. Four <em>session guarantees</em> (Terry and others, 1994) give exactly that, per client, and databases sell them as levels between strong and eventual.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Guarantee</th><th>Promise, within one client's session</th><th>Bug it prevents</th></tr></thead><tbody>
+        <tr><td>Read your writes</td><td>After you write, your reads include that write</td><td>You change your name and the page still shows the old one</td></tr>
+        <tr><td>Monotonic reads</td><td>You never see an older state after a newer one</td><td>A comment appears, then vanishes on refresh</td></tr>
+        <tr><td>Monotonic writes</td><td>Your writes are applied everywhere in the order you made them</td><td>"Set password" then "log out other devices" applied backwards</td></tr>
+        <tr><td>Writes follow reads</td><td>A write you make after reading something is ordered after what you read</td><td>Your reply shows up on a replica that doesn't have the post yet</td></tr>
+      </tbody></table>
+      <ul>
+        <li><strong>How they're built:</strong> the client carries a <em>session token</em>, the highest version (log position) it has written or read. A replica serves the read only if it has caught up to that token; otherwise the read waits, retries on another replica, or goes to the leader. Sticky routing to one replica is the cheap version.</li>
+        <li><strong>Two more levels you'll meet:</strong> <em>consistent prefix</em> (you may be behind, but you see writes in an order that really happened: never an answer before its question) and <em>bounded staleness</em> (you may be behind, but by at most K versions or T seconds).</li>
+        <li><strong>Azure Cosmos DB names all five:</strong> strong, bounded staleness, session, consistent prefix, eventual. Its docs call session the most widely used level. Bounded staleness there has minimums of 100,000 writes or 300 seconds for multi-region accounts; if a region lags further, writes to that partition are throttled.</li>
+        <li><strong>Elsewhere:</strong> DynamoDB offers eventually consistent or strongly consistent reads per request; Spanner offers strong reads or stale reads with a bound you pick (for example, data at most 10 seconds old, served by the nearest replica); MongoDB offers causally consistent sessions.</li>
+      </ul>
+      <div id="sc-session"></div>
+      <h4>Status today <span class="idx">(checked October 2026)</span></h4>
+      <p>Session-style consistency is what most large systems actually ship for user data. Checked against the Azure Cosmos DB consistency-levels documentation (October 2026).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Profiles, settings, carts, comments: anything a user writes and then looks at</li><li>Read replicas or multiple regions where full linearizability costs too much latency</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Uniqueness, money, locks and stock counts: those need linearizable operations (Module 17, 21)</li><li>Data nobody reads right after writing it, such as analytics events</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Feeds can be eventually consistent, but a user must see their own post immediately. I'd give reads a session token, the log position of the user's last write, and only serve them from a replica that has caught up to it.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Eventual consistency" with no plan</strong> for a user who reloads right after writing.</li><li><strong>Claiming read-your-writes across devices</strong> when the session token lives in one browser.</li><li><strong>Choosing strong consistency everywhere</strong> because the weaker levels weren't considered.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "When the line is cut, refuse or guess; when it isn't, wait or guess"</strong>During a partition you refuse (C) or answer with possibly stale data (A). The rest of the time you wait for replicas (C) or answer from the nearest one (latency).</div>
@@ -3002,6 +3029,16 @@ html.iks-open { overflow: hidden; }
         <p>A call to the payment service times out. What do you know?</p>
         <div class="opts"><button>The payment failed</button><button>The payment succeeded</button><button>Only that no reply arrived in time</button></div>
         <div class="why">It may not have arrived, may have succeeded with the reply lost, or may still be running. Retry only with an idempotency key.</div>
+      </div>
+      <div class="quiz-q" data-answer="Read your writes">
+        <p>A user edits a comment, refreshes, and sees the old text. Which guarantee is missing?</p>
+        <div class="opts"><button>Linearizability</button><button>Read your writes</button><button>Consistent prefix</button></div>
+        <div class="why">The user's own read didn't include their own write. A session token or sticky routing fixes it without making every read strong.</div>
+      </div>
+      <div class="quiz-q" data-answer="It serves the read only if its log has reached the token's position">
+        <p>How does a replica enforce read-your-writes with a session token?</p>
+        <div class="opts"><button>It always forwards reads to the leader</button><button>It serves the read only if its log has reached the token's position</button><button>It locks the row until the client reads it</button></div>
+        <div class="why">The token records the client's last write position; a replica that is behind it must wait, retry elsewhere or redirect.</div>
       </div>
     </div>
 
@@ -3186,6 +3223,26 @@ html.iks-open { overflow: hidden; }
         note: "Retrying is the right instinct (it fixes case 1), but a plain retry double-charges in cases 2 and 3." },
       { hl: { c: "found", svc: "found" }, set: { c: "OK · charged exactly once", svc: "key k-81 seen → return first result" }, moves: [{ e: "c>svc", t: "charge $50, key k-81" }, { e: "c>svc", t: "OK (the original charge)", back: true, k: "ok", delay: 1.0 }], hold: 4.6,
         note: "The fix: the caller sends an <b>idempotency key</b> with the first try and every retry. The service stores the key with the result and, on a repeat, returns the stored result instead of charging again. Now retrying is always safe." },
+    ],
+  });
+  Viz.scene("#sc-session", {
+    title: "Read your writes with a session token", sub: "Box text shows each replica's log position and the client's token.",
+    nodes: [{ id: "c", x: 110, y: 150, w: 180, label: "Client", sub: "token: none" },
+            { id: "a", x: 470, y: 60, w: 250, label: "Replica A (leader)", sub: "at position 41" },
+            { id: "b", x: 470, y: 240, w: 250, label: "Replica B (follower)", sub: "at position 41" }],
+    edges: [["c", "a"], ["c", "b"], ["a", "b"]],
+    width: 660, height: 300,
+    steps: [
+      { hl: { a: "active" }, set: { a: "at position 42: name = Ana", c: "token: 42" }, moves: [{ e: "c>a", t: "set name = Ana" }, { e: "c>a", t: "ok, position 42", back: true, k: "ok" }], hold: 3.8,
+        note: "The client renames the user. The leader applies it at log position 42 and returns that position. The client keeps it as its session token." },
+      { hl: { b: "warm" }, set: { b: "at position 41 (lagging)" }, moves: [{ e: "c>b", t: "read name, token 42" }], hold: 3.6,
+        note: "The next read lands on follower B, which hasn't received position 42 yet. Without a token it would happily return the old name." },
+      { hl: { b: "bad" }, set: { b: "41 < 42: can't serve this read" }, hold: 3.4,
+        note: "B compares: it is at 41, the client needs at least 42. So it must not answer from its own data. It can wait briefly for replication, or send the client elsewhere." },
+      { hl: { a: "found", c: "found" }, set: { c: "sees Ana" }, moves: [{ e: "c>a", t: "retry on A" }, { e: "c>a", t: "name = Ana", back: true, k: "ok" }], hold: 3.6,
+        note: "The read is retried on A and returns the new name. The same token also gives monotonic reads: the client never accepts data older than what it has already seen." },
+      { hl: { b: "found" }, set: { b: "at position 42: name = Ana" }, moves: [{ e: "a>b", t: "replicate 42" }], hold: 3.4,
+        note: "Moments later B catches up, and from then on it can serve this client again. Other users reading B in the gap simply saw the old name, which is fine for them." },
     ],
   });
 })();

@@ -2891,6 +2891,34 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Proposing hardware in a cloud design.</strong> It suggests outdated assumptions, one of the failure signs interviewers look for.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-usl">
+      <div class="tech-h"><h3>Scalability laws: Amdahl and the Universal Scalability Law</h3><span class="tech-status s-default">The default way to reason about "just add servers"</span></div>
+      <p>Adding servers never gives a perfectly straight line. Two laws say why, and how bad the curve gets: Amdahl's law (the part that can't run in parallel caps the speed-up) and the Universal Scalability Law (coordination between nodes can make throughput go <em>down</em> after a point).</p>
+      <h4>How it works</h4>
+      <ul>
+        <li><strong>Amdahl's law (1967):</strong> if a fraction <em>p</em> of the work can run in parallel, N workers give a speed-up of at most 1 ÷ ((1 − p) + p ÷ N). With p = 95%, 10 workers give 6.9×, 100 give 16.8×, and no number of workers ever gives more than 20× (1 ÷ 5%). The serial 5% is a single lock, a single leader, a single database row everyone updates.</li>
+        <li><strong>Universal Scalability Law (Neil Gunther):</strong> capacity C(N) = N ÷ (1 + α(N − 1) + βN(N − 1)). <strong>α (contention)</strong> is time spent waiting in a queue for a shared resource; it alone gives Amdahl's flattening curve. <strong>β (coherence, or crosstalk)</strong> is time nodes spend keeping each other in sync: every node talking to every other node, cache invalidations, distributed locks. Because it grows with N², the curve has a peak and then falls.</li>
+        <li><strong>A worked example</strong> (α = 5%, β = 0.05%, 1,000 requests per second per node): 8 nodes give 5,800, 32 give 10,500, the peak is about 44 nodes at 10,700, and 128 nodes give only 8,300. The peak sits at N = √((1 − α) ÷ β).</li>
+        <li><strong>Fit it from measurements:</strong> load test at 1, 2, 4, 8 and 16 nodes, fit α and β, and the curve tells you where adding nodes stops paying. A near-zero α and β is what a shared-nothing, stateless tier looks like (Module 01).</li>
+      </ul>
+      <table><thead><tr><th>Nodes</th><th>Ideal</th><th>Contention only (α = 5%)</th><th>Contention + coherence (β = 0.05%)</th></tr></thead><tbody>
+        <tr><td>1</td><td>1,000</td><td>1,000</td><td>1,000</td></tr>
+        <tr><td>8</td><td>8,000</td><td>5,900</td><td>5,800</td></tr>
+        <tr><td>32</td><td>32,000</td><td>12,500</td><td>10,500</td></tr>
+        <tr><td>64</td><td>64,000</td><td>15,400</td><td>10,400</td></tr>
+        <tr><td>128</td><td>128,000</td><td>17,400</td><td>8,300</td></tr>
+      </tbody></table>
+      <div id="sc-usl"></div>
+      <h4>Status today</h4>
+      <p>Both are textbook results, not products. Amdahl's law dates from Gene Amdahl's 1967 paper; Gunther published the Universal Scalability Law in the 1990s and it is used in capacity planning for databases and clusters (Percona, for example, has written up USL fits for MySQL).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Someone proposes scaling out a tier that shares a lock, a leader or a hot row</li><li>Explaining why a cluster got slower after you added nodes</li><li>Capacity planning from a handful of load tests</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Stateless tiers behind a load balancer, where scaling really is close to linear: just say so</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The web tier is stateless, so it scales almost linearly. The inventory counter is one row everyone updates; that's Amdahl's serial fraction, so I'd shard it (Module 15) instead of adding app servers.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Assuming 10× servers means 10× throughput</strong> without naming what they share.</li><li><strong>Adding nodes to a gossiping or all-to-all cluster</strong> past its peak: the β term makes it slower.</li><li><strong>Quoting the formula</strong> without saying where α and β come from in your design.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Any till, open till, shortest queue"</strong>Stateless servers so any till can serve anyone; health checks so only open tills get customers; a balancing rule that prefers the shortest queue.</div>
@@ -2978,6 +3006,16 @@ html.iks-open { overflow: hidden; }
         <p>When should a hardware load balancer appear in your design?</p>
         <div class="opts"><button>Whenever traffic is high</button><button>Almost never in a cloud design</button><button>In front of every database</button></div>
         <div class="why">Cloud designs use managed or software balancers that scale out. Hardware appliances suggest outdated assumptions unless the interviewer sets up an on-premises scenario.</div>
+      </div>
+      <div class="quiz-q" data-answer="20×">
+        <p>95% of a job can run in parallel. What's the most speed-up any number of workers can give?</p>
+        <div class="opts"><button>95×</button><button>20×</button><button>Unlimited, with enough workers</button></div>
+        <div class="why">Amdahl's law: the serial 5% always takes the same time, so the best possible speed-up is 1 ÷ 0.05 = 20×.</div>
+      </div>
+      <div class="quiz-q" data-answer="β, coherence: nodes spending time keeping each other in sync">
+        <p>A cluster got slower after you doubled its size. Which term of the Universal Scalability Law explains that?</p>
+        <div class="opts"><button>α, contention: waiting for a shared resource</button><button>β, coherence: nodes spending time keeping each other in sync</button><button>Neither: the load balancer must be misconfigured</button></div>
+        <div class="why">Contention only flattens the curve; the coherence term grows with N² and makes throughput fall after a peak.</div>
       </div>
     </div>
 
@@ -3108,6 +3146,25 @@ html.iks-open { overflow: hidden; }
         note: "An <b>L4</b> balancer never decrypts. It picks a server when the connection opens and then forwards its packets there, for hours if the socket lives that long. Cheap and protocol-agnostic." },
       { hl: { w1: "warm", w2: "found" }, set: { w1: "980 connections (stay put)", w2: "430 connections", l4: "least connections: fill server 2" }, moves: [{ e: "c4>l4", t: "new sockets" }, { e: "l4>w2", t: "430 new", delay: 0.8 }], hold: 4.6,
         note: "Server 2 was just added. Existing sockets never move, so round-robin would leave server 1 overloaded for hours. <b>Least connections</b> sends new sockets to the emptier server until they even out; some systems also ask clients to reconnect gradually." },
+    ],
+  });
+  Viz.scene("#sc-usl", {
+    title: "Adding nodes to a cluster that coordinates", sub: "Each box shows throughput in requests per second (α = 5% contention, β = 0.05% coherence, 1,000 per node).",
+    nodes: [{ id: "n1", x: 90, y: 70, w: 150, label: "1 node", sub: "1,000/s" },
+            { id: "n8", x: 260, y: 70, w: 150, label: "8 nodes", sub: " " },
+            { id: "n32", x: 430, y: 70, w: 150, label: "32 nodes", sub: " " },
+            { id: "n128", x: 600, y: 70, w: 150, label: "128 nodes", sub: " " },
+            { id: "why", x: 345, y: 210, w: 470, label: "What eats the rest", sub: "nothing yet" }],
+    edges: [["n1", "n8"], ["n8", "n32"], ["n32", "n128"]],
+    width: 690, height: 270,
+    steps: [
+      { hl: { n1: "found" }, note: "One node handles 1,000 requests per second. Ideal scaling would give 1,000 for every node we add." },
+      { hl: { n8: "active" }, set: { n8: "5,800/s (ideal 8,000)", why: "α: waiting for the shared lock" }, moves: [{ e: "n1>n8", t: "×8 nodes" }], hold: 3.6,
+        note: "Eight nodes give 5,800, not 8,000. Requests queue for something they all share, such as one lock or one leader. That's α, the contention term, and on its own it is Amdahl's law." },
+      { hl: { n32: "warm" }, set: { n32: "10,500/s (ideal 32,000)", why: "α + β: nodes keeping each other in sync" }, moves: [{ e: "n8>n32", t: "×4 nodes" }], hold: 3.8,
+        note: "32 nodes give 10,500. Now the β term shows up too: every node spends time on crosstalk with the others (invalidations, membership, locks), and that grows with the square of the node count." },
+      { hl: { n128: "bad", why: "bad" }, set: { n128: "8,300/s: slower than 32", why: "peak ≈ 44 nodes = √((1 − α) ÷ β)" }, moves: [{ e: "n32>n128", t: "×4 nodes", k: "bad" }], hold: 4.4,
+        note: "128 nodes give 8,300: fewer than 32 did. Past the peak (about 44 nodes here) each new node adds more coordination than work. The fix is to remove the sharing (shard, go stateless), not to add servers." },
     ],
   });
 })();
