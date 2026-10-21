@@ -2979,17 +2979,23 @@ html.iks-open { overflow: hidden; }
   Viz.stepper("#viz-wrap", { title: "Envelopes inside envelopes", sub: "Highlighted = the layer just added.", frames: wframes, speed: 2600 });
 
   Viz.scene("#sc-dns", {
-    title: "Looking up shop.example.com", sub: "<b>Blue</b> = questions, <b>green</b> = answers.",
-    nodes: [{ id: "pc", x: 70, y: 140, w: 100, label: "Your computer" }, { id: "res", x: 240, y: 140, w: 120, label: "Resolver", sub: "caches answers" },
-      { id: "root", x: 460, y: 40, w: 140, label: "Root server" }, { id: "tld", x: 460, y: 140, w: 140, label: ".com servers" }, { id: "auth", x: 460, y: 240, w: 160, label: "example.com's server", sub: "authoritative" }],
+    title: "Looking up shop.example.com", sub: "The resolver's box is its cache. Each server only knows who to ask next.",
+    nodes: [{ id: "pc", x: 90, y: 150, w: 150, label: "Your computer", sub: " " }, { id: "res", x: 320, y: 150, w: 230, label: "Resolver", sub: "cache: (empty)" },
+      { id: "root", x: 640, y: 50, w: 220, label: "Root server", sub: "knows: who runs .com" }, { id: "tld", x: 640, y: 150, w: 220, label: ".com servers", sub: "knows: who runs example.com" },
+      { id: "auth", x: 640, y: 250, w: 220, label: "example.com's server", sub: "knows: shop → 203.0.113.10" }],
     edges: [["pc", "res"], ["res", "root"], ["res", "tld"], ["res", "auth"]],
-    width: 600, height: 290,
+    width: 770, height: 300,
     steps: [
-      { hl: { pc: "active", res: "active" }, moves: [{ e: "pc>res", t: "shop.example.com?", k: "req" }], pops: [{ n: "res", t: "not in cache", k: "bad", at: 1.0 }], hold: 2.8, note: "Your computer asks the resolver. It hasn't seen this name recently." },
-      { hl: { res: "active", root: "found" }, moves: [{ e: "res>root", t: "shop.example.com?", k: "req" }, { e: "res>root", t: "ask the .com servers", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "The root servers don't know the answer, but know who runs .com." },
-      { hl: { res: "active", tld: "found" }, moves: [{ e: "res>tld", t: "shop.example.com?", k: "req" }, { e: "res>tld", t: "ask example.com's server", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "The .com servers point to the servers that are authoritative for example.com." },
-      { hl: { res: "active", auth: "found" }, moves: [{ e: "res>auth", t: "shop.example.com?", k: "req" }, { e: "res>auth", t: "203.0.113.10, TTL 300 s", k: "ok", back: true, delay: 1.0 }], hold: 3, note: "The authoritative server answers, with a TTL saying how long the answer may be cached." },
-      { hl: { pc: "found", res: "found" }, moves: [{ e: "pc>res", t: "203.0.113.10", k: "ok", back: true }], pops: [{ n: "res", t: "cached for 5 min", k: "ok", at: 0.9 }], hold: 3, note: "The resolver returns it and caches it: the next person asking within 5 minutes gets an instant answer." },
+      { hl: { pc: "active", res: "warm" }, moves: [{ e: "pc>res", t: "shop.example.com?" }], pops: [{ n: "res", t: "not in cache", k: "bad", at: 1.0 }], hold: 3.6, note: "Your computer asks the resolver (your ISP's, or 1.1.1.1 / 8.8.8.8). It hasn't seen this name recently." },
+      { hl: { res: "active", root: "found" }, set: { res: "cache: .com → a.gtld-servers.net (2 days)" }, moves: [{ e: "res>root", t: "shop.example.com?" }, { e: "res>root", t: "ask the .com servers", back: true, k: "ok", delay: 1.0 }], hold: 4,
+        note: "The root servers don't know the answer, but know who runs .com. The resolver caches that referral for days, so it rarely asks the root again." },
+      { hl: { res: "active", tld: "found" }, set: { res: "cache: .com · example.com NS" }, moves: [{ e: "res>tld", t: "shop.example.com?" }, { e: "res>tld", t: "ask ns1.example.com", back: true, k: "ok", delay: 1.0 }], hold: 4,
+        note: "The .com servers point to the servers that are authoritative for example.com." },
+      { hl: { res: "active", auth: "found" }, set: { res: "cache: … · shop → 203.0.113.10 (300 s)" }, moves: [{ e: "res>auth", t: "shop.example.com?" }, { e: "res>auth", t: "203.0.113.10, TTL 300", back: true, k: "ok", delay: 1.0 }], hold: 4,
+        note: "The authoritative server answers, with a TTL saying how long the answer may be cached: here 300 seconds." },
+      { hl: { pc: "found", res: "found" }, set: { pc: "3 lookups, ~60 ms" }, moves: [{ e: "pc>res", t: "203.0.113.10", back: true, k: "ok" }], hold: 3.8, note: "The resolver returns the address. This first lookup took three round trips." },
+      { hl: { pc: "found", res: "found" }, set: { pc: "cached: ~1 ms" }, moves: [{ e: "pc>res", t: "shop.example.com?" }, { e: "pc>res", t: "203.0.113.10 (cached)", back: true, k: "ok", delay: 0.7 }], hold: 4.2,
+        note: "Anyone asking within 5 minutes gets the cached answer instantly. The trade-off: when you change the address, old answers live on until their TTL runs out, so lower the TTL before a planned move." },
     ],
   });
   Viz.scene("#sc-nat", {

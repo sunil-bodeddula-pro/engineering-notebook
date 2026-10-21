@@ -3134,21 +3134,23 @@ Consequences: every query is protected by default; connection pooling must reset
   Q.forEach(([k]) => $("pq-" + k).addEventListener("input", pick));
   $("pq-new").checked = true; pick();
   Viz.scene("#sc-main", {
-    title: "Strangler fig: replace a monolith piece by piece", sub: "<b>Blue</b> = requests, <b>green</b> = the new service, <b>teal</b> = what's left of the old one.",
-    nodes: [{ id: "u", x: 70, y: 115, w: 100, label: "Users" }, { id: "px", x: 235, y: 115, w: 130, label: "Routing layer" },
-      { id: "mono", x: 435, y: 45, w: 120, label: "Monolith" }, { id: "ord", x: 435, y: 190, w: 140, label: "Orders service", sub: "new" },
-      { id: "mdb", x: 615, y: 45, w: 110, label: "Monolith DB" }, { id: "odb", x: 615, y: 190, w: 110, label: "Orders DB" }],
-    edges: [["u", "px"], ["px", "mono"], ["px", "ord"], ["mono", "mdb"], ["ord", "odb"]],
-    width: 680, height: 235,
+    title: "Strangler fig: replace a monolith piece by piece", sub: "Box text shows the routing table and the share of traffic each side handles.",
+    nodes: [{ id: "u", x: 80, y: 140, w: 120, label: "Users", sub: " " }, { id: "px", x: 290, y: 140, w: 220, label: "Routing layer", sub: "* → monolith" },
+      { id: "mono", x: 560, y: 50, w: 180, label: "Monolith", sub: "100% of traffic" }, { id: "ord", x: 560, y: 240, w: 180, label: "Orders service", sub: " ", hidden: true },
+      { id: "mdb", x: 780, y: 50, w: 150, label: "Monolith DB", sub: "all tables" }, { id: "odb", x: 780, y: 240, w: 150, label: "Orders DB", sub: " ", hidden: true }],
+    edges: [["u", "px"], ["px", "mono"], ["px", "ord"], ["mono", "mdb"], ["ord", "odb"], ["mdb", "odb", "", { hidden: true }]],
+    width: 870, height: 290,
     steps: [
-      { hl: { u: "active", px: "active", mono: "active" }, moves: [{ e: "u>px", t: "all requests", k: "req" }, { e: "px>mono", t: "everything", k: "req", delay: 1.0 }], hold: 3.2,
-        note: "First, put a routing layer in front. It sends everything to the monolith, so nothing changes yet." },
-      { hl: { px: "active", mono: "active", ord: "found" }, moves: [{ e: "px>ord", t: "/orders", k: "ok" }, { e: "px>mono", t: "the rest", k: "req", delay: 0.4 }], pops: [{ n: "ord", t: "one capability moved", k: "ok", at: 1.6 }],
-        note: "Build one capability (orders) as a new service and route just its paths there. Easy to switch back if it misbehaves." },
-      { hl: { ord: "found", odb: "found" }, moves: [{ e: "ord>odb", t: "its own data", k: "ok" }], pops: [{ n: "odb", t: "no shared tables", k: "ok", at: 1.3 }],
-        note: "The new service <b>owns its data</b>. Others ask through its API or events, never by reading its tables." },
-      { hl: { px: "active", ord: "found", mono: "warm" }, moves: [{ e: "px>ord", t: "/orders /payments…", k: "ok" }, { e: "px>mono", t: "less and less", k: "evt", delay: 0.4 }], pops: [{ n: "mono", t: "shrinking", k: "evt", at: 1.6 }],
-        note: "Repeat, capability by capability, until the monolith can be switched off. No big-bang rewrite." },
+      { hl: { px: "active", mono: "active" }, moves: [{ e: "u>px", t: "all requests" }, { e: "px>mono", t: "everything", delay: 1.0 }], hold: 3.8,
+        note: "First, put a routing layer in front. It sends everything to the monolith, so nothing changes yet, but now you control where each path goes." },
+      { hl: { ord: "found", odb: "warm" }, show: ["ord", "odb"], link: ["mdb>odb"], set: { ord: "new · 0% (shadow reads)", odb: "copying orders…" }, moves: [{ e: "mdb>odb", t: "backfill + CDC", k: "evt" }], hold: 4.2,
+        note: "Build the orders capability as a new service with <b>its own database</b>, filled from the monolith's tables by a backfill plus change data capture, so the two stay in sync during the move." },
+      { hl: { px: "active", ord: "found" }, set: { px: "/orders → 5% new · rest → monolith", ord: "5% of /orders", mono: "98% of traffic" }, moves: [{ e: "px>ord", t: "/orders (5%)" }, { e: "px>mono", t: "the rest", delay: 0.4 }], hold: 4.4,
+        note: "Route a small slice of <code>/orders</code> to the new service, compare results and errors, and turn it up step by step. Switching back is one routing change." },
+      { hl: { ord: "found", odb: "found", mdb: "warm" }, cut: ["mdb>odb"], set: { px: "/orders → new service", ord: "100% of /orders", odb: "source of truth", mdb: "orders tables dropped", mono: "60% of traffic" }, moves: [{ e: "px>ord", t: "/orders" }, { e: "ord>odb", t: "its own data", delay: 0.6 }], hold: 4.4,
+        note: "Once all of <code>/orders</code> runs on the new service, its database becomes the source of truth and the old tables go. Other code asks the orders API or listens to its events; it never reads those tables directly." },
+      { hl: { mono: "warm", px: "active" }, set: { px: "/orders /payments /search → new", mono: "15% → then switched off" }, hold: 4.4,
+        note: "Repeat, capability by capability, until the monolith handles nothing and can be switched off. No big-bang rewrite, and the system works at every step." },
     ],
   });
   Viz.tour("#tour", [

@@ -3051,21 +3051,21 @@ Cache-Control: max-age=60                ← how long others may reuse this answ
   const E = [["client", "dns", "1 find"], ["client", "lb", "2–4"], ["lb", "app"], ["app", "cache"], ["app", "db"], ["client", "cdn", "assets"]];
   const fig = (hl, eh) => Viz.flow(N, E, { hl, edgeHl: eh, width: 610, height: 230, title: "request path" });
   Viz.scene("#fig-path", {
-    title: "One request, end to end", sub: "<b>Blue</b> = requests, <b>green</b> = answers, <b>red</b> = a cache miss. Round trip to the data centre: 60 ms.",
+    title: "One request, end to end", sub: "The client's box is a stopwatch. Round trip to the data centre: 60 ms.",
     nodes: N, edges: E, width: 610, height: 230,
     steps: [
-      { hl: { client: "active", dns: "active" }, moves: [{ e: "client>dns", t: "photos.example.com?", k: "req" }, { e: "client>dns", t: "203.0.113.10", k: "ok", back: true, delay: 1.1 }], hold: 3.6,
+      { hl: { client: "active", dns: "active" }, set: { client: "t = 40 ms" }, moves: [{ e: "client>dns", t: "photos.example.com?", k: "req" }, { e: "client>dns", t: "203.0.113.10", k: "ok", back: true, delay: 1.1 }], hold: 3.6,
         note: "<b>Find:</b> DNS turns the name into an IP address. <b>+40 ms</b>." },
-      { hl: { client: "active", lb: "active" }, moves: [{ e: "client>lb", t: "SYN", k: "req" }, { e: "client>lb", t: "SYN-ACK", k: "ok", back: true, delay: 1.1 }], hold: 3.6,
+      { hl: { client: "active", lb: "active" }, set: { client: "t = 100 ms" }, moves: [{ e: "client>lb", t: "SYN", k: "req" }, { e: "client>lb", t: "SYN-ACK", k: "ok", back: true, delay: 1.1 }], hold: 3.6,
         note: "<b>Knock:</b> the TCP handshake with the load balancer. One round trip, <b>+60 ms</b>." },
-      { hl: { client: "active", lb: "active" }, moves: [{ e: "client>lb", t: "TLS hello", k: "req" }, { e: "client>lb", t: "keys agreed", k: "ok", back: true, delay: 1.1 }], hold: 3.6,
+      { hl: { client: "active", lb: "active" }, set: { client: "t = 160 ms" }, moves: [{ e: "client>lb", t: "TLS hello", k: "req" }, { e: "client>lb", t: "keys agreed", k: "ok", back: true, delay: 1.1 }], hold: 3.6,
         note: "<b>Lock:</b> TLS 1.3 agrees keys and checks the certificate. One more round trip (<b>+60 ms</b>), and nothing has been asked yet." },
-      { hl: { lb: "active", app: "active", cache: "bad" }, moves: [{ e: "client>lb", t: "GET /photos/42", k: "req" }, { e: "lb>app", t: "forward", k: "req", delay: 1.1 }, { e: "app>cache", t: "photo:42?", k: "req", delay: 2.1 }, { e: "app>cache", t: "miss", k: "bad", back: true, delay: 3.1 }], hold: 4.6,
-        note: "<b>Ask:</b> the request reaches a healthy app server, which checks the cache first. A miss." },
-      { hl: { app: "active", db: "found", cache: "found" }, moves: [{ e: "app>db", t: "by id", k: "req" }, { e: "app>db", t: "row", k: "ok", back: true, delay: 1.1 }, { e: "app>cache", t: "store", k: "ok", delay: 2.2 }], pops: [{ n: "app", t: "10 ms of work", k: "ok", at: 2.6 }], hold: 4,
+      { hl: { lb: "active", app: "active", cache: "bad" }, set: { client: "t = 190 ms (waiting)", app: "cache miss" }, moves: [{ e: "client>lb", t: "GET /photos/42", k: "req" }, { e: "lb>app", t: "forward", k: "req", delay: 1.1 }, { e: "app>cache", t: "photo:42?", k: "req", delay: 2.1 }, { e: "app>cache", t: "miss", k: "bad", back: true, delay: 3.1 }], hold: 4.6,
+        note: "<b>Ask:</b> half a round trip later the request reaches a healthy app server, which checks the cache first. A miss." },
+      { hl: { app: "active", db: "found", cache: "found" }, set: { app: "10 ms of work" }, moves: [{ e: "app>db", t: "by id", k: "req" }, { e: "app>db", t: "row", k: "ok", back: true, delay: 1.1 }, { e: "app>cache", t: "store", k: "ok", delay: 2.2 }], hold: 4,
         note: "An indexed lookup in the database, then the answer goes into the cache for the next reader. The server's whole job: 10 ms." },
-      { hl: { client: "found", lb: "active", app: "active", cdn: "found" }, moves: [{ e: "lb>app", t: "200 OK", k: "ok", back: true }, { e: "client>lb", t: "JSON", k: "ok", back: true, delay: 1.0 }, { e: "client>cdn", t: "42.jpg", k: "req", delay: 2.1 }, { e: "client>cdn", t: "image", k: "ok", back: true, delay: 3.0 }], hold: 4.6,
-        note: "The response travels back, and the photo itself comes from a <b>CDN edge</b> nearby. About 240 ms in all: most of it round trips, not work." },
+      { hl: { client: "found", lb: "active", app: "active", cdn: "found" }, set: { client: "t ≈ 240 ms" }, moves: [{ e: "lb>app", t: "200 OK", k: "ok", back: true }, { e: "client>lb", t: "JSON", k: "ok", back: true, delay: 1.0 }, { e: "client>cdn", t: "42.jpg", k: "req", delay: 2.1 }, { e: "client>cdn", t: "image", k: "ok", back: true, delay: 3.0 }], hold: 4.6,
+        note: "The response travels back, and the photo itself comes from a <b>CDN edge</b> nearby. About 240 ms in all, of which 10 ms was work: the rest is round trips. That's why connection reuse, fewer round trips and edges near users matter more than faster code." },
     ],
   });
   Viz.tour("#tour", [

@@ -3189,23 +3189,23 @@ html.iks-open { overflow: hidden; }
   ["g-p", "g-m", "g-k"].forEach((id) => $(id).addEventListener("input", gpu));
   gpu();
   Viz.scene("#sc-main", {
-    title: "One question to a document assistant", sub: "<b>Blue</b> = requests, <b>green</b> = results and streamed tokens, <b>teal</b> = telemetry.",
-    nodes: [{ id: "u", x: 70, y: 115, w: 100, label: "Employee" }, { id: "gw", x: 240, y: 115, w: 120, label: "AI gateway" },
-      { id: "ret", x: 450, y: 40, w: 140, label: "Retrieval", sub: "vector + keyword" }, { id: "llm", x: 450, y: 115, w: 140, label: "Model" },
-      { id: "ev", x: 450, y: 195, w: 140, label: "Traces + evals" }],
+    title: "One question to a document assistant", sub: "Box text shows what each part knows about this request; the trace collects it all.",
+    nodes: [{ id: "u", x: 90, y: 150, w: 150, label: "Employee", sub: "ann · HR team" }, { id: "gw", x: 330, y: 150, w: 210, label: "AI gateway", sub: " " },
+      { id: "ret", x: 640, y: 50, w: 250, label: "Retrieval", sub: "vector + keyword" }, { id: "llm", x: 640, y: 150, w: 250, label: "Model", sub: " " },
+      { id: "ev", x: 640, y: 250, w: 250, label: "Traces + evals", sub: " " }],
     edges: [["u", "gw"], ["gw", "ret"], ["gw", "llm"], ["gw", "ev"]],
-    width: 560, height: 235,
+    width: 800, height: 300,
     steps: [
-      { hl: { u: "active", gw: "active" }, moves: [{ e: "u>gw", t: "policy question", k: "req" }], pops: [{ n: "gw", t: "auth · token budget", k: "ok", at: 1.3 }],
+      { hl: { u: "active", gw: "active" }, set: { gw: "ann ✓ · 12k of 200k tokens today" }, moves: [{ e: "u>gw", t: "\"parental leave policy?\"" }], hold: 4,
         note: "The <b>AI gateway</b> authenticates the employee, checks their token budget and rate limit, and starts a trace." },
-      { hl: { gw: "active", ret: "found" }, moves: [{ e: "gw>ret", t: "search", k: "req" }, { e: "gw>ret", t: "best 5 chunks", k: "ok", back: true, delay: 1.1 }], pops: [{ n: "ret", t: "only what they may see", k: "ok", at: 1.2 }], hold: 3.4,
-        note: "Retrieval searches by meaning and keywords, <b>filtered to documents this employee may see</b>, and keeps the best 5." },
-      { hl: { gw: "active", llm: "active" }, moves: [{ e: "gw>llm", t: "cached prefix + chunks + question", k: "req" }], pops: [{ n: "llm", t: "fast first token", k: "ok", at: 1.5 }],
-        note: "The prompt puts the stable part first, so the provider can reuse its cached prefix. The call has a timeout, a retry and a fallback model." },
-      { hl: { llm: "found", gw: "active", u: "found" }, moves: [{ e: "gw>llm", t: "tokens", k: "ok", back: true }, { e: "u>gw", t: "answer + citations", k: "ok", back: true, delay: 1.1 }], hold: 3.4,
-        note: "Tokens <b>stream</b> back to the browser, with citations the employee can check." },
-      { hl: { gw: "active", ev: "found" }, moves: [{ e: "gw>ev", t: "tokens, cost, latency", k: "evt" }], pops: [{ n: "ev", t: "sampled by evals", k: "evt", at: 1.3 }],
-        note: "The trace records retrieval, tokens, cost and latency. Evals score a sample of conversations, and thumbs-down feedback flags cases to fix." },
+      { hl: { ret: "found" }, set: { ret: "40 matches → 31 allowed → top 5" }, moves: [{ e: "gw>ret", t: "search as ann" }, { e: "gw>ret", t: "5 chunks", back: true, k: "ok", delay: 1.1 }], hold: 4.2,
+        note: "Retrieval searches by meaning and keywords, <b>drops documents ann may not see</b> (permissions apply before the model ever sees text), and keeps the best 5." },
+      { hl: { llm: "active" }, set: { llm: "4,000 cached + 2,100 new tokens" }, moves: [{ e: "gw>llm", t: "system prompt + chunks + question" }], hold: 4,
+        note: "The prompt puts the stable part (instructions, tool definitions) first, so the provider can reuse its cached prefix: cheaper and a faster first token. The call has a timeout, a retry and a fallback model." },
+      { hl: { llm: "found", u: "found" }, set: { llm: "first token 0.4 s · 310 tokens", u: "answer + 3 citations" }, moves: [{ e: "gw>llm", t: "tokens stream", back: true, k: "ok" }, { e: "u>gw", t: "streamed answer", back: true, k: "ok", delay: 1.0 }], hold: 4,
+        note: "Tokens <b>stream</b> back to the browser as they're generated, with citations ann can open and check." },
+      { hl: { ev: "found" }, set: { ev: "2.6 s · $0.004 · 5 chunks · 👍", gw: "ann: 14.4k tokens today" }, moves: [{ e: "gw>ev", t: "trace", k: "evt" }], hold: 4.4,
+        note: "The trace records the retrieved chunks, tokens, cost and latency. Evals score a sample of conversations for faithfulness to the sources, and thumbs-down feedback flags cases to fix." },
     ],
   });
   Viz.tour("#tour", [

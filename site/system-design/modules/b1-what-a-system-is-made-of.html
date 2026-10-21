@@ -2928,19 +2928,19 @@ html.iks-open { overflow: hidden; }
 (function () {
   const $ = (id) => document.getElementById(id);
   Viz.scene("#sc-main", {
-    title: "A web app, tier by tier", sub: "<b>Blue</b> = requests, <b>green</b> = responses.",
-    nodes: [{ id: "web", x: 80, y: 60, w: 110, label: "Browser" }, { id: "mob", x: 80, y: 200, w: 110, label: "Phone app" },
-      { id: "ws", x: 270, y: 60, w: 140, label: "Web server / CDN", sub: "same files for all" }, { id: "app", x: 300, y: 200, w: 140, label: "App server", sub: "your code" },
-      { id: "db", x: 520, y: 200, w: 120, label: "Database", sub: "keeps the data" }],
+    title: "A web app, tier by tier", sub: "Box text shows what each tier sent or did. Static files are the same for everyone; data is per user.",
+    nodes: [{ id: "web", x: 95, y: 60, w: 170, label: "Browser", sub: " " }, { id: "mob", x: 95, y: 220, w: 170, label: "Phone app", sub: " " },
+      { id: "ws", x: 380, y: 60, w: 220, label: "Web server / CDN", sub: "same files for all" }, { id: "app", x: 380, y: 220, w: 220, label: "App server", sub: "your code" },
+      { id: "db", x: 680, y: 220, w: 180, label: "Database", sub: "notes: 3 for user 31" }],
     edges: [["web", "ws"], ["web", "app"], ["mob", "app"], ["app", "db"]],
-    width: 610, height: 260,
+    width: 790, height: 280,
     steps: [
-      { hl: { web: "active", ws: "found" }, moves: [{ e: "web>ws", t: "GET /notes", k: "req" }, { e: "web>ws", t: "HTML + JavaScript", k: "ok", back: true, delay: 1.0 }], hold: 3,
-        note: "The browser first fetches the page's files. They're the same for every user, so a web server or CDN serves them." },
-      { hl: { web: "active", app: "active", db: "found" }, moves: [{ e: "web>app", t: "GET /api/notes", k: "req" }, { e: "app>db", t: "SELECT …", k: "req", delay: 1.0 }, { e: "app>db", t: "rows", k: "ok", back: true, delay: 1.9 }, { e: "web>app", t: "JSON", k: "ok", back: true, delay: 2.6 }], hold: 3.6,
-        note: "The page's JavaScript then asks the API for this user's data; the app server reads the database and answers with JSON." },
-      { hl: { mob: "active", app: "active" }, moves: [{ e: "mob>app", t: "GET /api/notes", k: "req" }, { e: "mob>app", t: "JSON", k: "ok", back: true, delay: 1.2 }], hold: 3,
-        note: "The phone app calls the same API. One backend serves every kind of client." },
+      { hl: { web: "active", ws: "found" }, set: { ws: "HTML + JS + CSS: 300 KB, cached", web: "page shell loaded" }, moves: [{ e: "web>ws", t: "GET /notes" }, { e: "web>ws", t: "HTML + JavaScript", back: true, k: "ok", delay: 1.0 }], hold: 4,
+        note: "The browser first fetches the page's files. They're identical for every user, so a CDN can serve them from nearby without touching your servers." },
+      { hl: { app: "active", db: "found", web: "found" }, set: { app: "user 31 → SELECT … → JSON", web: "3 notes shown" }, moves: [{ e: "web>app", t: "GET /api/notes" }, { e: "app>db", t: "SELECT … user 31", delay: 1.0 }, { e: "app>db", t: "3 rows", back: true, k: "ok", delay: 1.9 }, { e: "web>app", t: "JSON (2 KB)", back: true, k: "ok", delay: 2.6 }], hold: 4.4,
+        note: "The page's JavaScript then asks the API for this user's data. The app server checks who's asking, reads the database and answers with a small JSON document." },
+      { hl: { mob: "found", app: "active" }, set: { mob: "same 3 notes", app: "same endpoint, same code" }, moves: [{ e: "mob>app", t: "GET /api/notes" }, { e: "mob>app", t: "JSON", back: true, k: "ok", delay: 1.2 }], hold: 4,
+        note: "The phone app has its screens built in, so it skips the web server and calls the same API. One backend serves every kind of client." },
     ],
   });
   Viz.scene("#sc-request", {

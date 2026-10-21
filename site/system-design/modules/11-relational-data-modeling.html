@@ -3074,20 +3074,20 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
     sc += ok; dn++; $("rel-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
   Viz.scene("#sc-main", {
-    title: "One query, three tables", sub: "\"My upcoming bookings\". <b>Blue</b> = the query, <b>green</b> = rows, <b>teal</b> = an update.",
-    nodes: [{ id: "app", x: 70, y: 115, w: 100, label: "App" }, { id: "bk", x: 265, y: 115, w: 150, label: "bookings", sub: "user_id · event_id · seat_id" },
-      { id: "ev", x: 485, y: 45, w: 130, label: "events", sub: "name · starts_at" }, { id: "st", x: 485, y: 185, w: 130, label: "seats", sub: "label" }],
-    edges: [["app", "bk"], ["bk", "ev", "join"], ["bk", "st", "join"], ["app", "ev", "", { bend: -45 }]],
-    width: 570, height: 230,
+    title: "One query, three tables", sub: "\"My upcoming bookings\" for user 7. Box text shows the rows each table returns.",
+    nodes: [{ id: "app", x: 90, y: 140, w: 150, label: "App", sub: " " }, { id: "bk", x: 340, y: 140, w: 220, label: "bookings", sub: "user_id · event_id · seat_id" },
+      { id: "ev", x: 640, y: 50, w: 230, label: "events", sub: "id · name · starts_at" }, { id: "st", x: 640, y: 230, w: 230, label: "seats", sub: "id · label" }],
+    edges: [["app", "bk"], ["bk", "ev", "join"], ["bk", "st", "join"], ["app", "ev", "", { bend: -60 }]],
+    width: 780, height: 290,
     steps: [
-      { hl: { app: "active", bk: "active" }, moves: [{ e: "app>bk", t: "user_id = 7", k: "req" }], pops: [{ n: "bk", t: "index on user_id", k: "ok", at: 1.4 }],
-        note: "The query starts from this user's bookings, found through an index rather than a scan." },
-      { hl: { bk: "active", ev: "active", st: "active" }, moves: [{ e: "bk>ev", t: "event_id", k: "req" }, { e: "bk>st", t: "seat_id", k: "req", delay: 0.3 }], hold: 3,
-        note: "Each booking holds only <b>keys</b>. Joins look up the event's name and the seat's label." },
-      { hl: { ev: "found", st: "found", app: "found" }, moves: [{ e: "bk>ev", t: "name, time", k: "ok", back: true }, { e: "bk>st", t: "14C", k: "ok", back: true, delay: 0.3 }, { e: "app>bk", t: "3 rows", k: "ok", back: true, delay: 1.4 }], hold: 3.8,
-        note: "The rows come back, assembled from three tables, each fact stored in exactly one of them." },
-      { hl: { app: "active", ev: "found" }, moves: [{ e: "app>ev", t: "rename event", k: "evt" }], pops: [{ n: "ev", t: "1 row changes", k: "ok", at: 1.4 }],
-        note: "Renaming the event changes <b>one row</b>, and every booking sees it. That's what normalising buys: data that can't contradict itself." },
+      { hl: { app: "active", bk: "active" }, set: { bk: "3 rows: (7, e12, s4) (7, e15, s9) (7, e19, s2)" }, moves: [{ e: "app>bk", t: "WHERE user_id = 7" }], hold: 4,
+        note: "The query starts from this user's bookings, found through an index on <code>user_id</code> rather than a scan. Each booking holds only <b>keys</b>." },
+      { hl: { ev: "found", st: "found" }, set: { ev: "e12 Jazz Night · e15 … · e19 …", st: "s4 14C · s9 3A · s2 22F" }, moves: [{ e: "bk>ev", t: "e12, e15, e19" }, { e: "bk>st", t: "s4, s9, s2", delay: 0.3 }], hold: 4,
+        note: "Joins use those keys to look up each event's name and time and each seat's label, by primary key." },
+      { hl: { app: "found" }, set: { app: "Jazz Night · 14C · …" }, moves: [{ e: "app>bk", t: "3 rows assembled", back: true, k: "ok" }], hold: 3.8,
+        note: "The rows come back assembled from three tables, each fact stored in exactly one of them." },
+      { hl: { app: "active", ev: "found" }, set: { ev: "e12 Jazz Night → Jazz Night (Late)", app: "every booking of e12 sees it" }, moves: [{ e: "app>ev", t: "UPDATE events WHERE id = e12", k: "evt" }], hold: 4.4,
+        note: "Renaming the event changes <b>one row</b>, and all 2,000 bookings for it see the new name at once. That's what normalising buys: data that can't contradict itself. (Copying the name into each booking would make reads cheaper and this update 2,000 writes.)" },
     ],
   });
   Viz.tour("#tour", [
