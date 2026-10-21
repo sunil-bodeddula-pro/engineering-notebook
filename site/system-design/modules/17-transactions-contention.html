@@ -3364,15 +3364,30 @@ html.iks-open { overflow: hidden; }
     ] });
   })();
   Viz.scene("#sc-u17-2pc", {
-    title: "Two-phase commit, and where it gets stuck", sub: "<b>Blue</b> = coordinator messages, <b>green</b> = votes, <b>red</b> = failure.",
-    nodes: [{ id: "co", x: 90, y: 140, w: 130, label: "Coordinator" }, { id: "a", x: 430, y: 60, w: 150, label: "Orders DB" }, { id: "b", x: 430, y: 220, w: 150, label: "Payments DB" }],
-    edges: [["co", "a"], ["co", "b"]],
-    width: 560, height: 280,
+    title: "Two-phase commit, and where it gets stuck", sub: "Box text shows each participant's state and locks. <b>Red</b> = blocked.",
+    nodes: [
+      { id: "co", x: 140, y: 140, w: 170, label: "Coordinator", sub: "order 81" },
+      { id: "log", x: 140, y: 270, w: 250, label: "Coordinator's log", sub: "–" },
+      { id: "a", x: 430, y: 60, w: 250, label: "Orders DB", sub: "idle" },
+      { id: "b", x: 430, y: 220, w: 250, label: "Payments DB", sub: "idle" },
+      { id: "o", x: 700, y: 140, w: 140, label: "Other queries", sub: " " },
+    ],
+    edges: [["co", "a"], ["co", "b"], ["co", "log"], ["o", "a", "", { bend: -20 }], ["o", "b", "", { bend: 20 }]],
+    width: 780, height: 320,
     steps: [
-      { hl: { co: "active", a: "active", b: "active" }, moves: [{ e: "co>a", t: "PREPARE", k: "req" }, { e: "co>b", t: "PREPARE", k: "req" }], hold: 2.8, note: "Phase 1: each participant writes its changes and a prepare record durably, and keeps its locks." },
-      { hl: { co: "active", a: "found", b: "found" }, moves: [{ e: "co>a", t: "YES", k: "ok", back: true }, { e: "co>b", t: "YES", k: "ok", back: true }], hold: 2.8, note: "Both vote yes. From now on neither may decide alone: they promised to commit if told to." },
-      { hl: { co: "bad", a: "warm", b: "warm" }, pops: [{ n: "co", t: "crash before sending COMMIT", k: "bad", at: 0.3 }, { n: "a", t: "in doubt: locks held", k: "bad", at: 1.2 }, { n: "b", t: "in doubt: locks held", k: "bad", at: 1.4 }], hold: 3.6, note: "If the coordinator dies now, both participants are stuck in doubt, holding locks, until it comes back." },
-      { hl: { co: "found", a: "found", b: "found" }, moves: [{ e: "co>a", t: "COMMIT", k: "req" }, { e: "co>b", t: "COMMIT", k: "req" }], pops: [{ n: "co", t: "recovered from its log", k: "ok", at: 0.2 }], hold: 3.2, note: "Phase 2 finishes when the coordinator recovers. Systems like Spanner replicate the coordinator with consensus so this wait is short." },
+      { hl: { co: "active", a: "warm", b: "warm" }, set: { a: "PREPARED · row 81 locked", b: "PREPARED · row 81 locked" },
+        moves: [{ e: "co>a", t: "PREPARE" }, { e: "co>b", t: "PREPARE", delay: 0.2 }, { e: "co>a", t: "YES", back: true, k: "ok", delay: 1.2 }, { e: "co>b", t: "YES", back: true, k: "ok", delay: 1.4 }], hold: 4.4,
+        note: "<b>Phase 1:</b> each participant writes its changes and a prepare record to disk, keeps its locks and votes YES. A YES is a promise: it can no longer decide alone." },
+      { hl: { co: "bad", log: "warm" }, set: { co: "crashed", log: "PREPARE sent · no decision written" }, pops: [{ n: "co", t: "crash before sending a decision", k: "bad", at: 0.3 }], hold: 3.4,
+        note: "The coordinator crashes after collecting the votes and before telling anyone the outcome." },
+      { hl: { a: "bad", b: "bad", o: "bad" }, set: { a: "IN DOUBT · lock held 2 min…", b: "IN DOUBT · lock held 2 min…", o: "waiting on row 81" },
+        moves: [{ e: "o>a", t: "UPDATE order 81", k: "bad" }, { e: "o>b", t: "read payment 81", k: "bad", delay: 0.3 }], hold: 4.4,
+        note: "Both participants are <b>in doubt</b>. Committing alone might break atomicity if the other aborted; aborting alone might break it if the coordinator decided commit. So they wait, holding their locks, and other queries on those rows queue behind them." },
+      { hl: { co: "active", log: "found" }, set: { co: "restarted", log: "PREPARE sent · no decision → ABORT" }, moves: [{ e: "co>log", t: "read log", back: true, k: "ok" }], hold: 3.4,
+        note: "The coordinator restarts and reads its log. It never recorded COMMIT, so the safe outcome is ABORT. (Had it written COMMIT first, it would now resend COMMIT.)" },
+      { hl: { a: "found", b: "found", o: "found" }, set: { a: "aborted · lock released", b: "aborted · lock released", o: "proceeds" },
+        moves: [{ e: "co>a", t: "ABORT", k: "ok" }, { e: "co>b", t: "ABORT", k: "ok", delay: 0.2 }], hold: 4,
+        note: "Only now are the locks released. Two-phase commit is atomic but <b>blocking</b>: a coordinator failure freezes rows until it returns. Systems like Spanner replicate the coordinator with consensus so a new one takes over in seconds." },
     ],
   });
   /* ---------- Under the hood: ledgers ---------- */

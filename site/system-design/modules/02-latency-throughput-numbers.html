@@ -3134,23 +3134,25 @@ html.iks-open { overflow: hidden; }
   ["q-s", "q-u", "q-rps"].forEach((k) => $(k).addEventListener("input", queue));
   queue();
   Viz.scene("#sc-main", {
-    title: "One slow server makes a slow page", sub: "<b>Blue</b> = requests, <b>green</b> = fast answers, <b>red</b> = the slow one.",
-    nodes: [{ id: "user", x: 70, y: 110, w: 100, label: "User" }, { id: "fe", x: 245, y: 110, w: 130, label: "Front end", sub: "waits for all" },
-      { id: "s1", x: 470, y: 30, w: 120, h: 34, label: "Shard 1" }, { id: "s2", x: 470, y: 83, w: 120, h: 34, label: "Shard 2" },
-      { id: "s3", x: 470, y: 136, w: 120, h: 34, label: "Shard 3" }, { id: "s4", x: 470, y: 189, w: 120, h: 34, label: "Shard 4" }],
+    title: "One slow server makes a slow page", sub: "The front end must wait for every shard. Box text shows each answer's time.",
+    nodes: [
+      { id: "user", x: 80, y: 160, w: 110, label: "User", sub: " " },
+      { id: "fe", x: 280, y: 160, w: 180, label: "Front end", sub: "waits for all 4" },
+      { id: "s1", x: 540, y: 40, w: 170, label: "Shard 1", sub: " " }, { id: "s2", x: 540, y: 120, w: 170, label: "Shard 2", sub: " " },
+      { id: "s3", x: 540, y: 200, w: 170, label: "Shard 3", sub: " " }, { id: "s4", x: 540, y: 280, w: 170, label: "Shard 4", sub: " " },
+    ],
     edges: [["user", "fe"], ["fe", "s1"], ["fe", "s2"], ["fe", "s3"], ["fe", "s4"]],
-    width: 560, height: 220,
+    width: 680, height: 320,
     steps: [
-      { hl: { user: "active", fe: "active", s1: "active", s2: "active", s3: "active", s4: "active" },
-        moves: [{ e: "user>fe", t: "search", k: "req" }].concat([1, 2, 3, 4].map((i) => ({ e: "fe>s" + i, t: "query", k: "req", delay: 1.0 + i * 0.12 }))), hold: 3.4,
-        note: "A search <b>fans out</b> to every shard and must wait for all of them." },
-      { hl: { fe: "active", s1: "found", s2: "found", s4: "found", s3: "bad" },
-        moves: [1, 2, 4].map((i) => ({ e: "fe>s" + i, t: "10 ms", k: "ok", back: true, delay: i * 0.1 })).concat([{ e: "fe>s3", t: "1 s", k: "bad", back: true, delay: 1.6, dur: 1.8 }]), pops: [{ n: "s3", t: "slow 1% of the time", k: "bad", at: 0.6 }], hold: 4.2,
-        note: "Three shards answer in 10 ms. One hits its rare slow moment: its <b>p99</b>." },
-      { hl: { user: "bad", fe: "bad" }, moves: [{ e: "user>fe", t: "page: 1 s", k: "bad", back: true }], pops: [{ n: "user", t: "slow page", k: "bad", at: 1.3 }],
-        note: "The page is as slow as the slowest shard. With 100 shards, 63% of requests hit at least one slow server." },
-      { hl: { s1: "warm", s2: "warm", s3: "warm", s4: "warm" }, pops: [{ n: "fe", t: "target the p99", k: "ok", at: 0.4 }],
-        note: "So a server's rare tail becomes the user's typical experience. That's why large systems set targets on p99, not the average." },
+      { hl: { fe: "active" }, moves: [{ e: "user>fe", t: "search" }, { e: "fe>s1", t: "query", delay: 0.8 }, { e: "fe>s2", t: "query", delay: 0.85 }, { e: "fe>s3", t: "query", delay: 0.9 }, { e: "fe>s4", t: "query", delay: 0.95 }], hold: 3.4,
+        note: "A search asks four shards in parallel. Each usually answers in about 10 ms; 1 time in 100 a shard is slow (its p99: a GC pause, a busy disk)." },
+      { hl: { s1: "found", s2: "found", s3: "found", s4: "bad", fe: "warm" }, set: { s1: "10 ms", s2: "12 ms", s3: "9 ms", s4: "waiting…", fe: "has 3 of 4 at 12 ms" },
+        moves: [{ e: "fe>s1", t: "results", back: true, k: "ok" }, { e: "fe>s2", t: "results", back: true, k: "ok", delay: 0.1 }, { e: "fe>s3", t: "results", back: true, k: "ok", delay: 0.05 }], hold: 3.6,
+        note: "Three answers are back in 12 ms. The page still can't be built: shard 4 is in its slow moment." },
+      { hl: { s4: "bad", fe: "bad", user: "bad" }, set: { s4: "1,000 ms", fe: "page at 1,000 ms" }, moves: [{ e: "fe>s4", t: "results (1 s)", back: true, k: "bad" }, { e: "user>fe", t: "page: 1 s", back: true, k: "bad", delay: 0.8 }], hold: 3.8,
+        note: "The page takes as long as the slowest shard: 1 second, a hundred times the typical answer." },
+      { hl: { fe: "warm" }, set: { fe: "P(at least one slow) = 1 − 0.99ⁿ" , s1: "n = 1 → 1%", s2: "n = 4 → 4%", s3: "n = 20 → 18%", s4: "n = 100 → 63%" }, hold: 4.4,
+        note: "With n shards each slow 1% of the time, the chance that at least one is slow is 1 − 0.99ⁿ: 4% with four shards, 63% with a hundred. Fan-out turns a rare tail into the common case, which is why designs watch p99 and use hedging and timeouts." },
     ],
   });
   Viz.tour("#tour", [

@@ -2973,15 +2973,22 @@ FROM orders o JOIN users u ON u.id = o.user_id;</code></pre>
   Viz.stepper("#viz-three", { title: "One customer, three shapes", sub: "Same data, different questions made cheap.", frames, speed: 3200 });
 
   Viz.scene("#sc-txn", {
-    title: "Moving $50 from Ana to Ben", sub: "<b>Red</b> = money lost; <b>green</b> = safe.",
-    nodes: [{ id: "app", x: 80, y: 120, w: 110, label: "App server" }, { id: "a", x: 330, y: 50, w: 160, label: "Ana: $200" }, { id: "b", x: 330, y: 190, w: 160, label: "Ben: $100" }],
+    title: "Moving $50 from Ana to Ben", sub: "Box text shows the balances on disk. <b>Red</b> = money lost; <b>green</b> = safe.",
+    nodes: [{ id: "app", x: 90, y: 130, w: 130, label: "App server", sub: "running" }, { id: "a", x: 360, y: 50, w: 200, label: "Ana", sub: "$200" }, { id: "b", x: 360, y: 210, w: 200, label: "Ben", sub: "$100" },
+      { id: "tot", x: 600, y: 130, w: 150, label: "Total money", sub: "$300" }],
     edges: [["app", "a"], ["app", "b"]],
-    width: 500, height: 250,
+    width: 690, height: 260,
     steps: [
-      { hl: { app: "active", a: "active" }, moves: [{ e: "app>a", t: "Ana − $50", k: "req" }], pops: [{ n: "a", t: "now $150", k: "evt", at: 1.0 }], hold: 2.8, note: "Without a transaction: the first write succeeds…" },
-      { hl: { app: "bad", b: "bad" }, pops: [{ n: "app", t: "crash!", k: "bad", at: 0.2 }, { n: "b", t: "still $100: $50 vanished", k: "bad", at: 1.0 }], hold: 3, note: "…the server crashes before the second. $50 has disappeared." },
-      { hl: { app: "active", a: "warm", b: "warm" }, moves: [{ e: "app>a", t: "BEGIN; Ana − $50", k: "req" }, { e: "app>b", t: "Ben + $50", k: "req", delay: 0.9 }], hold: 3, note: "With a transaction: both writes are made inside BEGIN … COMMIT." },
-      { hl: { a: "found", b: "found" }, pops: [{ n: "app", t: "crash before COMMIT → both undone", k: "ok", at: 0.3 }], hold: 3.2, note: "If it crashes before COMMIT, the database undoes both on restart; after COMMIT, both are permanent. Never half." },
+      { hl: { app: "active", a: "active" }, set: { a: "$150" , tot: "$250 (for now)" }, moves: [{ e: "app>a", t: "UPDATE Ana − $50", k: "req" }], hold: 3.2, note: "Without a transaction, each write is saved on its own. Ana's balance drops to $150." },
+      { hl: { app: "bad", b: "bad", tot: "bad" }, set: { app: "crashed", tot: "$250: $50 vanished" }, pops: [{ n: "app", t: "crash before the second write", k: "bad", at: 0.3 }], hold: 3.6,
+        note: "The server crashes before crediting Ben. Ana's write is permanent, Ben's never happened, and $50 has disappeared." },
+      { hl: { app: "active", a: "warm", b: "warm" }, set: { app: "running", a: "$200 (pending: $150)", b: "$100 (pending: $150)", tot: "$300" },
+        moves: [{ e: "app>a", t: "BEGIN; Ana − $50", k: "req" }, { e: "app>b", t: "Ben + $50", k: "req", delay: 0.9 }], hold: 3.8,
+        note: "With a transaction: both changes are made after BEGIN. Until COMMIT they're pending, invisible to anyone else." },
+      { hl: { app: "bad", a: "found", b: "found", tot: "found" }, set: { app: "crashed, restarted", a: "$200", b: "$100", tot: "$300: nothing lost" }, pops: [{ n: "app", t: "crash before COMMIT", k: "bad", at: 0.3 }, { n: "a", t: "undone on restart", k: "ok", at: 1.4 }], hold: 4,
+        note: "If the crash comes before COMMIT, the database throws away both pending changes when it restarts. The app can simply try again." },
+      { hl: { a: "found", b: "found", tot: "found" }, set: { app: "COMMIT ✓", a: "$150", b: "$150", tot: "$300" }, moves: [{ e: "app>a", t: "COMMIT", k: "ok" }, { e: "app>b", t: "COMMIT", k: "ok", delay: 0.2 }], hold: 3.6,
+        note: "After COMMIT, both changes are permanent together. Every state anyone can ever see adds up to $300: all of the transfer or none of it." },
     ],
   });
   Viz.scene("#sc-store", {

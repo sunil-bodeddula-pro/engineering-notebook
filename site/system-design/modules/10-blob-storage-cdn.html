@@ -3402,18 +3402,27 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-ec", {
-    title: "Erasure coding: lose pieces, keep the object", sub: "6 data pieces + 3 parity pieces; any 6 rebuild the object. <b>Blue</b> = pieces, <b>red</b> = lost, <b>green</b> = rebuilt.",
-    nodes: [{ id: "obj", x: 90, y: 135, w: 120, label: "Object", sub: "60 MB" },
-      { id: "z1", x: 470, y: 50, w: 200, label: "Zone A", sub: "pieces 1, 2, 3" }, { id: "z2", x: 470, y: 135, w: 200, label: "Zone B", sub: "pieces 4, 5, 6" }, { id: "z3", x: 470, y: 220, w: 200, label: "Zone C", sub: "parity P1, P2, P3" }],
+    title: "Erasure coding: lose a zone, keep the object", sub: "Box text shows what each zone holds. <b>Red</b> = lost; <b>green</b> = rebuilt.",
+    nodes: [
+      { id: "obj", x: 100, y: 150, w: 160, label: "Object (60 MB)", sub: "split into 6 × 10 MB" },
+      { id: "z1", x: 400, y: 50, w: 250, label: "Zone A", sub: "empty" },
+      { id: "z2", x: 400, y: 150, w: 250, label: "Zone B", sub: "empty" },
+      { id: "z3", x: 400, y: 250, w: 250, label: "Zone C", sub: "empty" },
+    ],
     edges: [["obj", "z1"], ["obj", "z2"], ["obj", "z3"]],
-    width: 620, height: 265,
+    width: 600, height: 300,
     steps: [
-      { hl: { obj: "active", z1: "found", z2: "found", z3: "found" }, moves: [{ e: "obj>z1", t: "3 data pieces", k: "req" }, { e: "obj>z2", t: "3 data pieces", k: "req", delay: 0.3 }, { e: "obj>z3", t: "3 parity pieces", k: "evt", delay: 0.6 }], pops: [{ n: "obj", t: "1.5× the space", k: "ok", at: 2.2 }], hold: 3.6,
-        note: "The object is split into 6 data pieces of 10 MB, plus 3 parity pieces computed from them, spread over three zones." },
-      { hl: { z2: "bad" }, pops: [{ n: "z2", t: "zone lost", k: "bad", at: 0.3 }],
-        note: "A whole zone goes down, taking three pieces with it." },
-      { hl: { obj: "found", z1: "found", z3: "found", z2: "bad" }, moves: [{ e: "obj>z1", t: "3 pieces", k: "ok", back: true }, { e: "obj>z3", t: "3 parity", k: "ok", back: true, delay: 0.3 }], pops: [{ n: "obj", t: "any 6 of 9: rebuilt", k: "ok", at: 1.6 }], hold: 3.6,
-        note: "Any 6 of the 9 pieces rebuild the object. Three full replicas would give similar safety at 3× the space." },
+      { hl: { obj: "active" }, set: { obj: "6 data + 3 parity pieces" }, pops: [{ n: "obj", t: "parity = equations over the 6 data pieces", k: "evt", at: 0.4 }], hold: 3.4,
+        note: "The object is cut into 6 data pieces of 10 MB. From them, 3 <b>parity</b> pieces are computed (Reed–Solomon coding): any 6 of the 9 pieces are enough to solve for the original data." },
+      { hl: { z1: "found", z2: "found", z3: "found" }, set: { z1: "D1 D2 D3", z2: "D4 D5 D6", z3: "P1 P2 P3" },
+        moves: [{ e: "obj>z1", t: "D1 D2 D3" }, { e: "obj>z2", t: "D4 D5 D6", delay: 0.2 }, { e: "obj>z3", t: "P1 P2 P3", delay: 0.4 }], hold: 3.6,
+        note: "The 9 pieces are spread over three zones: 90 MB stored for a 60 MB object, <b>1.5×</b>. Three full copies, one per zone, would store 180 MB, <b>3×</b>." },
+      { hl: { z2: "bad" }, set: { z2: "zone outage: D4 D5 D6 lost" }, pops: [{ n: "z2", t: "3 of 9 pieces gone", k: "bad", at: 0.3 }], hold: 3, note: "A whole zone goes down, taking three data pieces with it." },
+      { hl: { obj: "found", z1: "active", z3: "active" }, set: { obj: "decoded from D1–D3 + P1–P3" },
+        moves: [{ e: "obj>z1", t: "D1 D2 D3", back: true, k: "ok" }, { e: "obj>z3", t: "P1 P2 P3", back: true, k: "ok", delay: 0.3 }], hold: 4,
+        note: "A read still works: fetch the six surviving pieces and decode. The decode costs CPU and reads six pieces instead of one copy, which is why hot, small objects are often replicated and big, cold ones erasure-coded." },
+      { hl: { z1: "found", z3: "found", z2: "warm" }, set: { z1: "D1 D2 D3 + D4 (rebuilt)", z3: "P1 P2 P3 + D5 D6 (rebuilt)", z2: "down" }, hold: 4,
+        note: "Repair rebuilds the three lost pieces on the surviving zones, so the object is back to tolerating any three lost pieces, though not another whole zone until zone B returns and pieces are spread out again. Each rebuilt piece needs six pieces read: on a large cluster that repair traffic is a real cost to plan for." },
     ],
   });
   /* ---------- Under the hood: object storage ---------- */

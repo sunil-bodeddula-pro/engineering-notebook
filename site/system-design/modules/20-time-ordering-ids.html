@@ -3132,21 +3132,25 @@ html.iks-open { overflow: hidden; }
   $("id-go").addEventListener("click", go);
   go();
   Viz.scene("#sc-main", {
-    title: "When clocks decide, skew decides", sub: "<b>Blue</b> = writes with timestamps, <b>red</b> = the wrong winner, <b>green</b> = the right one.",
-    nodes: [{ id: "u1", x: 70, y: 50, w: 100, label: "User 1" }, { id: "A", x: 255, y: 50, w: 130, label: "Server A", sub: "clock 50 ms fast" },
-      { id: "u2", x: 70, y: 185, w: 100, label: "User 2" }, { id: "B", x: 255, y: 185, w: 130, label: "Server B", sub: "clock correct" },
-      { id: "st", x: 480, y: 117, w: 140, label: "Store", sub: "last write wins" }],
-    edges: [["u1", "A"], ["u2", "B"], ["A", "st"], ["B", "st"]],
-    width: 560, height: 235,
+    title: "When clocks decide, skew decides", sub: "The store keeps whichever write has the later timestamp (last write wins). Box text shows what it holds.",
+    nodes: [
+      { id: "u1", x: 95, y: 60, w: 160, label: "User 1", sub: " " },
+      { id: "A", x: 320, y: 60, w: 190, label: "Server A", sub: "clock 50 ms fast" },
+      { id: "u2", x: 95, y: 230, w: 160, label: "User 2", sub: " " },
+      { id: "B", x: 320, y: 230, w: 190, label: "Server B", sub: "clock correct" },
+      { id: "st", x: 590, y: 145, w: 230, label: "Store (last write wins)", sub: "x = 0" },
+    ],
+    edges: [["u1", "A"], ["A", "st"], ["u2", "B"], ["B", "st"]],
+    width: 750, height: 290,
     steps: [
-      { hl: { u1: "active", A: "active", st: "active" }, moves: [{ e: "u1>A", t: "x = 1", k: "req" }, { e: "A>st", t: "x = 1 @ .050", k: "req", delay: 1.1 }], hold: 3.2,
-        note: "User 1 writes first. Server A's clock is 50 ms fast, so it stamps the write <b>.050</b>." },
-      { hl: { u2: "active", B: "active", st: "active" }, moves: [{ e: "u2>B", t: "x = 2", k: "req" }, { e: "B>st", t: "x = 2 @ .020", k: "req", delay: 1.1 }], hold: 3.2,
-        note: "20 ms later, user 2 writes through server B, whose clock is right: <b>.020</b>." },
-      { hl: { st: "bad", B: "bad" }, pops: [{ n: "st", t: "keeps x = 1: newer write lost", k: "bad", at: 0.3 }],
-        note: "Last-write-wins compares timestamps, so the <b>older</b> write wins and the newer one silently vanishes." },
-      { hl: { A: "active", B: "active", st: "found" }, moves: [{ e: "A>st", t: "x = 1, counter 5", k: "req" }, { e: "B>st", t: "x = 2, counter 6", k: "ok", delay: 0.8 }], pops: [{ n: "st", t: "keeps x = 2", k: "ok", at: 2.0 }], hold: 3.6,
-        note: "A <b>logical clock</b> orders by cause, not time: B had seen A's write, so its counter is higher, whatever the wall clocks say." },
+      { hl: { A: "active", st: "found" }, set: { st: "x = 1 (stamp .050)", u1: "real time .000" }, moves: [{ e: "u1>A", t: "x = 1" }, { e: "A>st", t: "x = 1 @ .050", delay: 0.8 }], hold: 3.6,
+        note: "User 1 writes x = 1 at real time .000. Server A's clock runs 50 ms fast, so the write is stamped .050." },
+      { hl: { B: "active", st: "bad", u2: "bad" }, set: { u2: "real time .020 (after user 1)", st: "x = 1 · x = 2 @ .020 discarded" },
+        moves: [{ e: "u2>B", t: "x = 2" }, { e: "B>st", t: "x = 2 @ .020", k: "bad", delay: 0.8 }], pops: [{ n: "st", t: ".020 < .050: the newer write loses", k: "bad", at: 1.8 }], hold: 4.4,
+        note: "Twenty milliseconds later, user 2 writes x = 2 through server B, whose clock is right: stamped .020. The store compares stamps, decides .050 is later, and throws away the write that really happened last. User 2's update silently vanishes." },
+      { hl: { A: "active", B: "active", st: "found", u2: "found" }, set: { A: "counter 5", B: "saw 5 → counter 6", st: "x = 2 (counter 6 > 5)" },
+        moves: [{ e: "A>st", t: "x = 1, counter 5" }, { e: "B>st", t: "x = 2, counter 6", k: "ok", delay: 0.8 }], hold: 4.4,
+        note: "A <b>logical clock</b> orders by cause instead of time: each node keeps a counter, and any node that has seen counter 5 stamps its next write higher. B had seen A's write, so x = 2 wins, whatever the wall clocks say." },
     ],
   });
   Viz.tour("#tour", [
@@ -3160,15 +3164,23 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-tt", {
-    title: "Commit wait with TrueTime", sub: "<b>Orange</b> = waiting out the clock uncertainty.",
-    nodes: [{ id: "t1", x: 100, y: 70, w: 140, label: "Transaction 1", sub: "region A" }, { id: "sp", x: 330, y: 135, w: 140, label: "Spanner leader" }, { id: "t2", x: 100, y: 200, w: 140, label: "Transaction 2", sub: "region B, later" }],
+    title: "Commit wait with TrueTime", sub: "TrueTime gives an interval that surely contains the real time. Box text shows the intervals and timestamps.",
+    nodes: [
+      { id: "t1", x: 100, y: 70, w: 200, label: "Transaction 1", sub: "region A" },
+      { id: "sp", x: 400, y: 150, w: 260, label: "Spanner leader", sub: " " },
+      { id: "t2", x: 100, y: 230, w: 200, label: "Transaction 2", sub: "region B, starts later" },
+    ],
     edges: [["t1", "sp"], ["t2", "sp"]],
-    width: 460, height: 250,
+    width: 600, height: 290,
     steps: [
-      { hl: { t1: "active", sp: "active" }, moves: [{ e: "t1>sp", t: "COMMIT", k: "req" }], pops: [{ n: "sp", t: "now = [10.000, 10.006]: ts = 10.006", k: "evt", at: 1.1 }], hold: 3.2, note: "TrueTime says the real time is somewhere in a 6 ms interval. The commit takes the latest possible time as its timestamp." },
-      { hl: { sp: "warm" }, pops: [{ n: "sp", t: "wait until earliest > 10.006", k: "evt", at: 0.2 }], hold: 3, note: "Commit wait: hold the result until even the earliest possible time is past the timestamp (about 6 ms)." },
-      { hl: { t1: "found", sp: "found" }, moves: [{ e: "t1>sp", t: "committed", k: "ok", back: true }], hold: 2.6, note: "Now every clock in the world is certainly past 10.006." },
-      { hl: { t2: "active", sp: "found" }, moves: [{ e: "t2>sp", t: "COMMIT", k: "req" }], pops: [{ n: "sp", t: "ts > 10.006, guaranteed", k: "ok", at: 1.1 }], hold: 3, note: "Any transaction that starts afterwards, anywhere, gets a larger timestamp: real-time order and timestamp order agree." },
+      { hl: { t1: "active", sp: "active" }, set: { sp: "now ∈ [10.000, 10.006] → s₁ = 10.006" }, moves: [{ e: "t1>sp", t: "COMMIT" }], hold: 3.8,
+        note: "TrueTime doesn't give a single time but an interval guaranteed to contain the real time, here 6 ms wide. The commit takes the interval's latest possible time as its timestamp: s₁ = 10.006." },
+      { hl: { sp: "warm" }, set: { sp: "commit wait: until earliest > 10.006" }, pops: [{ n: "sp", t: "waits ~6 ms, holding locks", k: "evt", at: 0.4 }], hold: 3.6,
+        note: "<b>Commit wait:</b> the leader doesn't report success until TrueTime's <i>earliest</i> possible time has passed 10.006. That takes about the width of the interval, a few milliseconds." },
+      { hl: { t1: "found", sp: "found" }, set: { sp: "now ∈ [10.007, 10.013] · s₁ committed" }, moves: [{ e: "t1>sp", t: "committed", back: true, k: "ok" }], hold: 3.4,
+        note: "Now the real time is certainly after 10.006, everywhere. Only then does transaction 1 learn it committed." },
+      { hl: { t2: "found", sp: "found" }, set: { sp: "T2: now ∈ [10.009, 10.015] → s₂ = 10.015 > s₁" }, moves: [{ e: "t2>sp", t: "COMMIT" }], hold: 4,
+        note: "Any transaction that starts after T1 finished, in any region, sees an interval entirely later than 10.006, so it gets a larger timestamp. Timestamp order matches real-time order across the planet, paid for with a few milliseconds per commit and very good clocks (GPS and atomic clocks)." },
     ],
   });
   /* ---------- ID anatomy lab ---------- */
