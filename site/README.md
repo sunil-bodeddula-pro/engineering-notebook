@@ -1,6 +1,6 @@
 # InterviewKata website (`site/`)
 
-Live at [interviewkata.com](https://interviewkata.com). Free, interactive interview prep in four tracks: the 24 coding-interview patterns, system design (6 basics modules, 29 modules, 20 "Under the hood" deep dives and 32 worked designs), software architecture (`architecture/`, being built) and AI engineering. This folder is the whole website source plus its build tools; [`assemble.sh`](assemble.sh) publishes only the pages, assets and 404 page.
+Live at [interviewkata.com](https://interviewkata.com). Free, interactive interview prep in four tracks: the 24 coding-interview patterns, system design (6 basics modules, 29 modules, 20 "Under the hood" deep dives and 32 worked designs), software architecture (`architecture/`: 33 modules in eight levels) and AI engineering. This folder is the whole website source plus its build tools; [`assemble.sh`](assemble.sh) publishes only the pages, assets and 404 page.
 
 ## Open it
 
