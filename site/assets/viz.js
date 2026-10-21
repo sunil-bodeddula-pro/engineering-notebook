@@ -502,17 +502,21 @@
     // Steps can change a box's text (set: {id: "new sub"} or {id: {label, sub}}) and reveal or remove boxes
     // (show / hide: [ids]; a node with hidden: true starts unseen). Both carry over to later steps.
     // A node whose sub will be set later needs a sub from the start (" " is fine), so its box keeps its size.
+    // Arrows: an edge with { hidden: true } as its 4th item starts unseen; link / cut: ["a>b"] add or remove one.
     const states = [];
     {
       const txt = {}, vis = Object.fromEntries(cfg.nodes.map((n) => [n.id, !n.hidden]));
+      const ev = Object.fromEntries(cfg.edges.map(([a, b, , o]) => [a + ">" + b, !(o && o.hidden)]));
       steps.forEach((s) => {
         Object.entries(s.set || {}).forEach(([k, v]) => { txt[k] = { ...(txt[k] || {}), ...(typeof v === "string" ? { sub: v } : v) }; });
         (s.show || []).forEach((k) => { vis[k] = true; }); (s.hide || []).forEach((k) => { vis[k] = false; });
-        states.push({ txt: { ...txt }, vis: { ...vis } });
+        (s.link || []).forEach((k) => { ev[k] = true; }); (s.cut || []).forEach((k) => { ev[k] = false; });
+        states.push({ txt: { ...txt }, vis: { ...vis }, ev: { ...ev } });
       });
     }
+    const edgeOn = (st, a, b) => st.vis[a] && st.vis[b] && st.ev[a + ">" + b] !== false;
     const nodesAt = (k) => cfg.nodes.filter((n) => states[k].vis[n.id]).map((n) => ({ ...n, ...(states[k].txt[n.id] || {}) }));
-    const edgesAt = (k) => cfg.edges.filter(([a, b]) => states[k].vis[a] && states[k].vis[b]);
+    const edgesAt = (k) => cfg.edges.filter(([a, b]) => edgeOn(states[k], a, b));
     const fig = (s, k) => flow(nodesAt(k), edgesAt(k), { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
     stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s, k) => ({ view: fig(s, k), note: s.note })), speed: cfg.speed || 3200 });
     if (reduceMotion()) return;
@@ -609,7 +613,7 @@
           const c = ec[p.dataset.e] || ""; p.setAttribute("class", "fe " + c);
           p.setAttribute("marker-end", `url(#${uid}-${c === "active" ? "a" : c === "bad" ? "b" : "n"})`);
         });
-        const st = states[k] || { txt: {}, vis: {} };
+        const st = states[k] || { txt: {}, vis: {}, ev: {} };
         cfg.nodes.forEach((n0) => {
           const g = nodeOf(n0.id); if (!g) return;
           if (st.vis[n0.id]) g.removeAttribute("data-hidden"); else g.setAttribute("data-hidden", "");
@@ -624,7 +628,7 @@
         });
         svg.querySelectorAll("[data-e]").forEach((el) => {
           const [a, b] = el.dataset.e.split(">");
-          if (st.vis[a] === false || st.vis[b] === false) el.setAttribute("data-hidden", ""); else el.removeAttribute("data-hidden");
+          if (edgeOn(st, a, b)) el.removeAttribute("data-hidden"); else el.setAttribute("data-hidden", "");
         });
         note.innerHTML = s.note || "";
         if (note.animate) note.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
