@@ -2947,16 +2947,22 @@ html.iks-open { overflow: hidden; }
   Viz.stepper("#viz-grow", { title: "Growing a photo-sharing app", sub: "Green = the part just added. Moving arrows = the new paths it creates.", frames, speed: 3000 });
 
   Viz.scene("#sc-main", {
-    title: "Scale up vs scale out", sub: "<b>Blue</b> = requests; <b>red</b> = a failure.",
-    nodes: [{ id: "u", x: 70, y: 120, w: 90, label: "Users" }, { id: "big", x: 260, y: 60, w: 150, label: "One big server", sub: "scaled up" },
-      { id: "lb", x: 260, y: 190, w: 120, label: "Load balancer" }, { id: "s1", x: 450, y: 140, w: 110, label: "Server 1" }, { id: "s2", x: 450, y: 200, w: 110, label: "Server 2" }, { id: "s3", x: 450, y: 260, w: 110, label: "Server 3" }],
-    edges: [["u", "big"], ["u", "lb"], ["lb", "s1"], ["lb", "s2"], ["lb", "s3"]],
-    width: 560, height: 300,
+    title: "Scale up vs scale out", sub: "9,000 requests per second. Box text shows each server's load against what it can handle.",
+    nodes: [{ id: "u", x: 80, y: 200, w: 130, label: "Users", sub: "9,000 req/s" }, { id: "big", x: 300, y: 60, w: 220, label: "One big server", sub: "handles 10,000/s" },
+      { id: "lb", x: 300, y: 260, w: 160, label: "Load balancer", sub: " " },
+      { id: "s1", x: 620, y: 140, w: 220, label: "Server 1", sub: "handles 4,000/s" }, { id: "s2", x: 620, y: 220, w: 220, label: "Server 2", sub: "handles 4,000/s" }, { id: "s3", x: 620, y: 300, w: 220, label: "Server 3", sub: "handles 4,000/s" },
+      { id: "s4", x: 620, y: 380, w: 220, label: "Server 4", sub: "handles 4,000/s", hidden: true }],
+    edges: [["u", "big"], ["u", "lb"], ["lb", "s1"], ["lb", "s2"], ["lb", "s3"], ["lb", "s4", "", { hidden: true }]],
+    width: 760, height: 430,
     steps: [
-      { hl: { u: "active", big: "found" }, moves: [{ e: "u>big", t: "all traffic", k: "req" }], hold: 2.8, note: "Scaling up: one bigger machine. Simple, no code changes." },
-      { hl: { big: "bad" }, pops: [{ n: "big", t: "crashed: site down", k: "bad", at: 0.3 }], hold: 2.8, note: "But it's still one machine: when it fails, everything stops." },
-      { hl: { u: "active", lb: "active", s1: "found", s2: "found", s3: "found" }, moves: [{ e: "u>lb", t: "traffic", k: "req" }, { e: "lb>s1", t: "⅓", k: "req", delay: 0.9 }, { e: "lb>s2", t: "⅓", k: "req", delay: 1.0 }, { e: "lb>s3", t: "⅓", k: "req", delay: 1.1 }], hold: 3.2, note: "Scaling out: several machines share the work behind a load balancer." },
-      { hl: { s2: "bad", s1: "found", s3: "found" }, moves: [{ e: "lb>s1", t: "½", k: "req" }, { e: "lb>s3", t: "½", k: "req", delay: 0.2 }], pops: [{ n: "s2", t: "down", k: "bad", at: 0.2 }], hold: 3.2, note: "When one dies, the others carry on. The software must be stateless for this to work (B1)." },
+      { hl: { big: "found" }, set: { big: "9,000 / 10,000 (90%)" }, moves: [{ e: "u>big", t: "all traffic" }], hold: 3.4, note: "<b>Scaling up:</b> buy a bigger machine. No code changes, and it copes, but it's already 90% busy and the next size up costs far more." },
+      { hl: { big: "bad", u: "bad" }, set: { big: "down: 0 of 9,000 served" }, pops: [{ n: "big", t: "crashed", k: "bad", at: 0.3 }], hold: 3.4, note: "And it's one machine: a crash, a reboot for patching, or a bad deploy stops everything." },
+      { hl: { lb: "active", s1: "found", s2: "found", s3: "found" }, set: { big: "(retired)", s1: "3,000 / 4,000 (75%)", s2: "3,000 / 4,000 (75%)", s3: "3,000 / 4,000 (75%)" }, moves: [{ e: "u>lb", t: "traffic" }, { e: "lb>s1", t: "⅓", delay: 0.9 }, { e: "lb>s2", t: "⅓", delay: 1.0 }, { e: "lb>s3", t: "⅓", delay: 1.1 }], hold: 4,
+        note: "<b>Scaling out:</b> three smaller servers behind a load balancer, 3,000 each. That only works if any server can handle any request: no user state kept on the machine (B1)." },
+      { hl: { s2: "bad", s1: "bad", s3: "bad" }, set: { s2: "down", s1: "4,500 / 4,000: overloaded", s3: "4,500 / 4,000: overloaded" }, moves: [{ e: "lb>s1", t: "½" }, { e: "lb>s3", t: "½", delay: 0.2 }], hold: 4.2,
+        note: "Now server 2 fails. Its 3,000 requests move to the other two, which can't take 4,500 each: they slow down, time out, and may fail in turn. Spreading out isn't enough on its own." },
+      { hl: { s4: "found", s1: "found", s3: "found", s2: "bad" }, show: ["s4"], link: ["lb>s4"], set: { s1: "3,000 / 4,000 (75%)", s3: "3,000 / 4,000 (75%)", s4: "3,000 / 4,000 (75%)" }, moves: [{ e: "lb>s4", t: "⅓" }, { e: "lb>s1", t: "⅓", delay: 0.1 }, { e: "lb>s3", t: "⅓", delay: 0.2 }], hold: 4.6,
+        note: "Plan for <b>N + 1</b>: enough servers that losing one still leaves enough capacity. With four, each normally runs at 56%; losing one puts the rest at 75%. Spare capacity is the price of surviving failure." },
     ],
   });
   Viz.tour("#tour", [

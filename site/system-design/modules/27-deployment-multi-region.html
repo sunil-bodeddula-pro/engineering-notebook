@@ -3176,15 +3176,23 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-pitr", {
-    title: "Point-in-time recovery", sub: "<b>Red</b> = the mistake; <b>green</b> = the recovered copy.",
-    nodes: [{ id: "db", x: 90, y: 120, w: 130, label: "Production DB" }, { id: "snap", x: 330, y: 50, w: 150, label: "Nightly snapshot", sub: "02:00" }, { id: "wal", x: 330, y: 190, w: 150, label: "WAL archive", sub: "every change since" }, { id: "new", x: 560, y: 120, w: 150, label: "Restored DB", sub: "as of 14:31:59" }],
-    edges: [["db", "snap"], ["db", "wal"], ["snap", "new"], ["wal", "new"]],
-    width: 650, height: 250,
+    title: "Point-in-time recovery", sub: "Box text shows what each copy contains. Times are on one day.",
+    nodes: [{ id: "db", x: 100, y: 70, w: 190, label: "Production DB", sub: "orders: 1,200,000 rows" }, { id: "rep", x: 100, y: 220, w: 190, label: "Replica", sub: "orders: 1,200,000 rows" },
+      { id: "snap", x: 380, y: 70, w: 200, label: "Nightly snapshot", sub: "02:00" }, { id: "wal", x: 380, y: 220, w: 200, label: "WAL archive", sub: "every change since 02:00" },
+      { id: "new", x: 640, y: 145, w: 210, label: "Restored DB", sub: " ", hidden: true }],
+    edges: [["db", "rep"], ["db", "snap"], ["db", "wal"], ["snap", "new"], ["wal", "new"]],
+    width: 760, height: 290,
     steps: [
-      { hl: { db: "active", snap: "found", wal: "found" }, moves: [{ e: "db>snap", t: "02:00 snapshot", k: "req" }, { e: "db>wal", t: "log segments", k: "req", delay: 0.8 }], hold: 3, note: "Snapshots once a day, and every change streamed to the log archive continuously." },
-      { hl: { db: "bad" }, pops: [{ n: "db", t: "14:32 DELETE without WHERE", k: "bad", at: 0.3 }], hold: 2.8, note: "At 14:32 a bad command deletes rows. The replicas delete them too, instantly." },
-      { hl: { snap: "active", new: "active" }, moves: [{ e: "snap>new", t: "restore 02:00 copy", k: "evt" }], hold: 2.8, note: "Recovery creates a new database from the last snapshot before the mistake…" },
-      { hl: { wal: "active", new: "found" }, moves: [{ e: "wal>new", t: "replay to 14:31:59", k: "ok" }], hold: 3.2, note: "…then replays the log up to one second before it. Copy the lost rows back, or switch over to the restored database." },
+      { hl: { snap: "found", wal: "found" }, set: { wal: "02:00 → 14:31 (live, 16 MB segments)" }, moves: [{ e: "db>snap", t: "02:00 full copy" }, { e: "db>wal", t: "log segments", delay: 0.8 }, { e: "db>wal", t: "…", delay: 1.6 }], hold: 4,
+        note: "Two things are backed up: a full snapshot once a night, and every change, as write-ahead-log segments, shipped continuously to the archive." },
+      { hl: { db: "bad", rep: "bad" }, set: { db: "DELETE at 14:32 → 0 rows", rep: "0 rows (replicated in ms)", wal: "02:00 → now, DELETE included" }, moves: [{ e: "db>rep", t: "DELETE", k: "bad" }], hold: 4.2,
+        note: "At 14:32 someone runs a DELETE without a WHERE. The replica faithfully deletes the rows too. Replicas protect against machines failing, not against mistakes." },
+      { hl: { new: "active", snap: "active" }, show: ["new"], set: { new: "state as of 02:00" }, moves: [{ e: "snap>new", t: "restore", k: "evt" }], hold: 3.8,
+        note: "Recovery starts a <b>new</b> database (never overwrite production during an incident) from the last snapshot before the mistake." },
+      { hl: { new: "active", wal: "active" }, set: { new: "replaying … 09:00 … 13:00 …" }, moves: [{ e: "wal>new", t: "02:00 → 14:31:59", k: "evt" }], hold: 3.8,
+        note: "Then it replays the archived log, change by change, and stops at the target time: 14:31:59, one second before the DELETE." },
+      { hl: { new: "found", db: "warm" }, set: { new: "orders: 1,200,000 rows as of 14:31:59" }, hold: 4.4,
+        note: "Copy the lost rows back into production (or switch over). How much you can lose (RPO) is set by how often log segments ship; how long it takes (RTO) by snapshot age, since replay time grows with it." },
     ],
   });
 })();

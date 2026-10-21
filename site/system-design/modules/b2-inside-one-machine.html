@@ -3037,16 +3037,21 @@ html.iks-open { overflow: hidden; }
 (function () {
   const $ = (id) => document.getElementById(id);
   Viz.scene("#sc-main", {
-    title: "One request inside one machine", sub: "<b>Blue</b> = work in progress, <b>green</b> = done.",
-    nodes: [{ id: "net", x: 80, y: 120, w: 120, label: "Network card" }, { id: "cpu", x: 270, y: 120, w: 120, label: "CPU core" },
-      { id: "ram", x: 460, y: 50, w: 120, label: "Memory", sub: "~100 ns" }, { id: "disk", x: 460, y: 190, w: 120, label: "SSD", sub: "~100 µs" }],
+    title: "One request inside one machine", sub: "The CPU box keeps a running clock of where the time goes.",
+    nodes: [{ id: "net", x: 90, y: 140, w: 150, label: "Network card", sub: " " }, { id: "cpu", x: 330, y: 140, w: 220, label: "CPU core", sub: "elapsed 0 µs" },
+      { id: "ram", x: 600, y: 50, w: 190, label: "Memory", sub: "~0.1 µs per read" }, { id: "disk", x: 600, y: 230, w: 190, label: "SSD", sub: "~100 µs per read" }],
     edges: [["net", "cpu"], ["cpu", "ram"], ["cpu", "disk"]],
-    width: 560, height: 250,
+    width: 720, height: 280,
     steps: [
-      { hl: { net: "active" }, moves: [{ e: "net>cpu", t: "request bytes", k: "req" }], hold: 2.6, note: "The request arrives as bytes from the network card; the operating system hands them to the server program." },
-      { hl: { cpu: "active", ram: "found" }, moves: [{ e: "cpu>ram", t: "read user", k: "req" }, { e: "cpu>ram", t: "found in memory", k: "ok", back: true, delay: 0.8 }], hold: 2.8, note: "Data already in memory comes back almost instantly." },
-      { hl: { cpu: "active", disk: "warm" }, moves: [{ e: "cpu>disk", t: "read photo", k: "req" }, { e: "cpu>disk", t: "…a thousand times later", k: "ok", back: true, delay: 1.6 }], hold: 3.4, note: "Data on disk takes about a thousand times longer. Meanwhile the core can serve other requests." },
-      { hl: { cpu: "found", net: "active" }, moves: [{ e: "net>cpu", t: "response", k: "ok", back: true }], hold: 2.6, note: "The response goes back out through the network card." },
+      { hl: { net: "active", cpu: "active" }, set: { net: "packet → kernel → app", cpu: "elapsed ~10 µs (receive + parse)" }, moves: [{ e: "net>cpu", t: "GET /profile/42" }], hold: 3.8,
+        note: "The bytes arrive at the network card, the kernel copies them to the server program, and the program parses the request: around 10 µs." },
+      { hl: { cpu: "active", ram: "found" }, set: { cpu: "elapsed ~30 µs (200 memory reads)" }, moves: [{ e: "cpu>ram", t: "user 42" }, { e: "cpu>ram", t: "found", back: true, k: "ok", delay: 0.7 }], hold: 3.8,
+        note: "Reading the user from an in-memory cache takes a couple of hundred memory accesses at about 100 ns each: about 20 µs." },
+      { hl: { cpu: "warm", disk: "warm" }, set: { cpu: "waiting on disk; runs others" }, moves: [{ e: "cpu>disk", t: "read photo" }], hold: 3.8,
+        note: "The photo isn't in memory, so it's read from the SSD: about 100 µs, a thousand times slower than one memory read. The core doesn't sit idle; it runs other requests meanwhile." },
+      { hl: { cpu: "found", disk: "found" }, set: { cpu: "elapsed ~135 µs" }, moves: [{ e: "cpu>disk", t: "photo", back: true, k: "ok" }], hold: 3.4, note: "The read completes; the disk was most of this request's time." },
+      { hl: { net: "found", cpu: "found" }, set: { cpu: "~150 µs → ~6,000 req/s per core", net: "response sent" }, moves: [{ e: "net>cpu", t: "200 OK", back: true, k: "ok" }], hold: 4.4,
+        note: "About 150 µs inside the machine. Compare: a round trip to another server in the same data centre is ~500 µs, and across an ocean ~150 ms. That's why the network, not the CPU, usually dominates." },
     ],
   });
   Viz.scene("#sc-loop", {
