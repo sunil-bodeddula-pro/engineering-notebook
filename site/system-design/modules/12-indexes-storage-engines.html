@@ -3385,17 +3385,21 @@ html.iks-open { overflow: hidden; }
     ] });
   })();
   Viz.scene("#sc-u12-lsm", {
-    title: "An LSM tree: write, flush, read, compact", sub: "<b>Blue</b> = writes, <b>green</b> = reads, <b>orange</b> = background work.",
-    nodes: [{ id: "c", x: 70, y: 140, w: 100, label: "Client" }, { id: "wal", x: 270, y: 50, w: 150, label: "Write-ahead log", sub: "append only, on disk" },
-      { id: "mem", x: 270, y: 140, w: 150, label: "Memtable", sub: "sorted, in memory" }, { id: "l0", x: 480, y: 140, w: 160, label: "Level 0 SSTables", sub: "newest, may overlap" },
-      { id: "l1", x: 480, y: 245, w: 160, label: "Level 1+", sub: "sorted, non-overlapping" }],
+    title: "An LSM tree: write, flush, read, compact", sub: "Box text shows the keys each part holds.",
+    nodes: [{ id: "c", x: 80, y: 150, w: 110, label: "Client", sub: " " }, { id: "wal", x: 300, y: 50, w: 220, label: "Write-ahead log", sub: "k1 k5" },
+      { id: "mem", x: 300, y: 150, w: 220, label: "Memtable (memory, sorted)", sub: "k1 k5" }, { id: "l0", x: 580, y: 150, w: 230, label: "Level 0 files", sub: "F1: k2 k3 · F2: k3 k8" },
+      { id: "l1", x: 580, y: 270, w: 230, label: "Level 1 (one sorted run)", sub: "k1…k9 (older)" }],
     edges: [["c", "wal"], ["c", "mem"], ["mem", "l0"], ["l0", "l1"]],
-    width: 600, height: 290,
+    width: 750, height: 310,
     steps: [
-      { hl: { c: "active", wal: "found", mem: "found" }, moves: [{ e: "c>wal", t: "append put(k7)", k: "req" }, { e: "c>mem", t: "insert k7", k: "req", delay: 0.6 }], pops: [{ n: "c", t: "ack", k: "ok", at: 1.8 }], hold: 3.2, note: "A write is an append to the log plus a memory insert. No page on disk is read or rewritten." },
-      { hl: { mem: "warm", l0: "found" }, moves: [{ e: "mem>l0", t: "flush: new SSTable", k: "evt" }], hold: 3, note: "When the memtable fills, it's written out as one sorted, immutable file, and the log can be trimmed." },
-      { hl: { c: "active", mem: "active", l0: "found" }, moves: [{ e: "c>mem", t: "get(k3): not here", k: "ok" }, { e: "mem>l0", t: "Bloom filters: skip 3 files", k: "ok", delay: 1.0 }], pops: [{ n: "l0", t: "found in 1 file", k: "ok", at: 2.0 }], hold: 3.4, note: "A read checks the memtable, then files newest first. Bloom filters rule most files out without touching disk." },
-      { hl: { l0: "warm", l1: "warm" }, moves: [{ e: "l0>l1", t: "compact: merge, drop old versions and tombstones", k: "evt" }], hold: 3.4, note: "Compaction merges files in the background, keeping only the newest value per key. This is where the write amplification goes." },
+      { hl: { wal: "found", mem: "found" }, set: { wal: "k1 k5 k7", mem: "k1 k5 k7" }, moves: [{ e: "c>wal", t: "append put(k7)" }, { e: "c>mem", t: "insert k7", delay: 0.4 }], hold: 3.8,
+        note: "A write is an append to the log (for durability) plus an insert into the in-memory sorted table. No page on disk is read or rewritten, which is why LSM trees take writes so fast." },
+      { hl: { l0: "found", mem: "warm" }, set: { mem: "empty", wal: "trimmed", l0: "F1 · F2 · F3: k1 k5 k7" }, moves: [{ e: "mem>l0", t: "flush → F3" }], hold: 3.8,
+        note: "When the memtable fills, it's written out as a new sorted, immutable file (F3) in level 0, and the log can be trimmed." },
+      { hl: { mem: "warm", l0: "active" }, set: { l0: "F3: Bloom says no · F2: has k3 ✓" }, moves: [{ e: "c>mem", t: "get(k3): not here" }, { e: "mem>l0", t: "check F3, F2…", delay: 0.8 }], hold: 4.4,
+        note: "A read checks the memtable, then files newest first. Each file's <b>Bloom filter</b> says \"definitely not here\" for most files without touching disk; F2 has k3, the newest version, so the search stops." },
+      { hl: { l1: "found", l0: "warm" }, set: { l0: "empty", l1: "k1…k9 merged, old k3 dropped" }, moves: [{ e: "l0>l1", t: "compact F1 F2 F3" }], hold: 4.4,
+        note: "In the background, <b>compaction</b> merges level-0 files into level 1, keeping only the newest value of each key and removing deleted ones. Data is rewritten several times over its life: that's the write amplification LSM trees pay for fast writes." },
     ],
   });
   /* B+tree lab */

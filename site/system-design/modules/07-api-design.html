@@ -3187,22 +3187,22 @@ Content-Type: application/problem+json
     sc += ok; dn++; $("smell-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
   Viz.scene("#sc-main", {
-    title: "A retry that doesn't charge twice", sub: "<b>Blue</b> = requests, <b>gold</b> = money, <b>red</b> = a lost response, <b>green</b> = a safe answer.",
-    nodes: [{ id: "app", x: 70, y: 110, w: 110, label: "Mobile app" }, { id: "api", x: 270, y: 110, w: 130, label: "Payments API" },
-      { id: "keys", x: 480, y: 45, w: 150, label: "Idempotency keys", sub: "key → stored response" }, { id: "card", x: 480, y: 180, w: 150, label: "Card network" }],
+    title: "A retry that doesn't charge twice", sub: "Box text shows the idempotency-key table and the card's charges.",
+    nodes: [{ id: "app", x: 90, y: 140, w: 140, label: "Mobile app", sub: " " }, { id: "api", x: 320, y: 140, w: 160, label: "Payments API", sub: " " },
+      { id: "keys", x: 320, y: 270, w: 270, label: "Idempotency keys", sub: "empty" }, { id: "card", x: 580, y: 140, w: 170, label: "Card network", sub: "charges: none" }],
     edges: [["app", "api"], ["api", "keys"], ["api", "card"]],
-    width: 560, height: 225,
+    width: 700, height: 310,
     steps: [
-      { hl: { app: "active", api: "active", keys: "found" }, moves: [{ e: "app>api", t: "POST, key k1", k: "req" }, { e: "api>keys", t: "k1 new?", k: "req", delay: 1.1 }], pops: [{ n: "keys", t: "new: record it", k: "ok", at: 2.3 }], hold: 3.6,
-        note: "The app makes up a unique <b>idempotency key</b> and sends it with the payment. The API hasn't seen it before." },
-      { hl: { api: "active", card: "found" }, moves: [{ e: "api>card", t: "charge $50", k: "money" }], pops: [{ n: "card", t: "charged", k: "ok", at: 1.4 }],
-        note: "The card is charged, and the response is stored under k1." },
-      { hl: { app: "bad", api: "active" }, moves: [{ e: "app>api", t: "201 lost", k: "bad", back: true }], pops: [{ n: "app", t: "timeout", k: "bad", at: 1.3 }],
-        note: "The reply is lost on a flaky network. The app can't tell whether the payment happened, so it retries." },
-      { hl: { app: "active", api: "active", keys: "found" }, moves: [{ e: "app>api", t: "retry, key k1", k: "req" }, { e: "api>keys", t: "k1?", k: "req", delay: 1.1 }, { e: "api>keys", t: "seen: 201", k: "ok", back: true, delay: 2.2 }], pops: [{ n: "card", t: "not charged again", k: "ok", at: 2.6 }], hold: 4.2,
-        note: "Same key: the API finds the stored result and doesn't touch the card. Without a key, this retry would charge $100." },
-      { hl: { app: "found", api: "active" }, moves: [{ e: "app>api", t: "201 Created", k: "ok", back: true }],
-        note: "The app gets the original answer. Asked twice, the waiter brings one meal." },
+      { hl: { app: "active", api: "active", keys: "warm" }, set: { app: "key k1 = random UUID", keys: "k1 → in progress" }, moves: [{ e: "app>api", t: "POST /payments, key k1" }, { e: "api>keys", t: "insert k1", delay: 0.9 }], hold: 4,
+        note: "The app makes up a unique key for this payment and sends it with the request. The API records k1 as in progress (an insert that fails if k1 already exists)." },
+      { hl: { card: "found", keys: "found" }, set: { card: "charges: $50 (k1)", keys: "k1 → 201 Created, payment p_77" }, moves: [{ e: "api>card", t: "charge $50" }, { e: "api>card", t: "approved", back: true, k: "ok", delay: 0.9 }, { e: "api>keys", t: "store response", delay: 1.6 }], hold: 4,
+        note: "The card is charged once, and the full response is stored under k1." },
+      { hl: { app: "bad" }, set: { app: "timeout: charged or not?" }, moves: [{ e: "app>api", t: "201 Created", back: true, k: "bad" }], pops: [{ n: "app", t: "reply lost", k: "bad", at: 1.0 }], hold: 3.6,
+        note: "The reply is lost on a flaky mobile network. The app can't tell whether the payment happened." },
+      { hl: { api: "active", keys: "found", card: "found" }, set: { app: "retry with the same key k1" }, moves: [{ e: "app>api", t: "POST /payments, key k1" }, { e: "api>keys", t: "k1?", delay: 0.9 }, { e: "api>keys", t: "seen: 201, p_77", back: true, k: "ok", delay: 1.6 }], hold: 4.4,
+        note: "It retries with the <b>same</b> key. The API finds k1 and returns the stored response without touching the card. The charges stay at one." },
+      { hl: { app: "found" }, set: { app: "201 Created, p_77 ✓" }, moves: [{ e: "app>api", t: "201 Created, p_77", back: true, k: "ok" }], hold: 3.6,
+        note: "The app gets the original answer. Without the key the retry would have charged $100. If the retry arrives while k1 is still in progress, the API answers 409 \"try again shortly\" instead of starting a second charge." },
     ],
   });
   Viz.tour("#tour", [

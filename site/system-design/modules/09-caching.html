@@ -3352,15 +3352,19 @@ html.iks-open { overflow: hidden; }
     g("ev-c").oninput = run; run();
   })();
   Viz.scene("#sc-u09-stampede", {
-    title: "A hot key expires: stampede, then single-flight", sub: "<b>Red</b> = overload, <b>green</b> = one refresh.",
-    nodes: [{ id: "a", x: 80, y: 60, w: 120, label: "App server 1" }, { id: "b", x: 80, y: 140, w: 120, label: "App server 2" }, { id: "c", x: 80, y: 220, w: 120, label: "App server 3" }, { id: "k", x: 320, y: 140, w: 140, label: "Cache", sub: "home:feed expired" }, { id: "db", x: 530, y: 140, w: 130, label: "Database" }],
-    edges: [["a", "k"], ["b", "k"], ["c", "k"], ["k", "db"]],
-    width: 620, height: 270,
+    title: "A hot key expires: stampede, then single-flight", sub: "Box text counts identical queries reaching the database.",
+    nodes: [{ id: "a", x: 90, y: 50, w: 150, label: "App servers", sub: "3,000 requests/s" }, { id: "k", x: 360, y: 150, w: 220, label: "Cache", sub: "home:feed (TTL 300 s)" },
+      { id: "db", x: 360, y: 280, w: 300, label: "Database", sub: "home:feed query: 0/s" }, { id: "lk", x: 620, y: 50, w: 170, label: "Lock key", sub: "free" }],
+    edges: [["a", "k"], ["k", "db"], ["a", "lk"]],
+    width: 720, height: 320,
     steps: [
-      { hl: { a: "active", b: "active", c: "active", k: "warm" }, moves: [{ e: "a>k", t: "GET", k: "req" }, { e: "b>k", t: "GET", k: "req" }, { e: "c>k", t: "GET", k: "req" }, { e: "a>k", t: "miss", k: "bad", back: true, delay: 0.9 }, { e: "b>k", t: "miss", k: "bad", back: true, delay: 0.9 }, { e: "c>k", t: "miss", k: "bad", back: true, delay: 0.9 }], hold: 3, note: "The popular key expires; every server's next request misses at the same moment." },
-      { hl: { db: "bad", k: "warm" }, moves: [{ e: "k>db", t: "same query ×3,000", k: "bad" }], pops: [{ n: "db", t: "CPU 100%: everything slows", k: "bad", at: 1.0 }], hold: 3.2, note: "Thousands of identical expensive queries hit the database at once: a stampede, sometimes enough to take it down." },
-      { hl: { a: "found", k: "found", db: "found" }, moves: [{ e: "a>k", t: "SET lock NX: won", k: "ok" }, { e: "k>db", t: "one query", k: "ok", delay: 0.8 }], pops: [{ n: "b", t: "lock taken: serve stale copy", k: "evt", at: 0.6 }, { n: "c", t: "serve stale copy", k: "evt", at: 0.8 }], hold: 3.6, note: "Single-flight: one request wins a short lock and refreshes; the others serve the slightly stale copy or wait briefly." },
-      { hl: { a: "found", b: "found", c: "found", k: "found" }, moves: [{ e: "a>k", t: "SET home:feed (TTL 300 s ± 10%)", k: "ok" }], hold: 3, note: "One database query instead of thousands, and jittered TTLs stop many keys expiring together." },
+      { hl: { k: "found" }, moves: [{ e: "a>k", t: "GET home:feed" }, { e: "a>k", t: "hit", back: true, k: "ok", delay: 0.8 }], hold: 3, note: "The home feed is read 3,000 times a second, all hits." },
+      { hl: { k: "bad", db: "bad" }, set: { k: "home:feed expired", db: "home:feed query: 3,000 at once (400 ms each)" }, moves: [{ e: "a>k", t: "miss ×3,000", k: "bad" }, { e: "k>db", t: "same query ×3,000", k: "bad", delay: 0.8 }], hold: 4.4,
+        note: "The key expires. Every request in the next instant misses, and each one runs the same expensive 400 ms query. The database gets 3,000 copies of one query: a <b>stampede</b>, sometimes enough to take it down." },
+      { hl: { lk: "found", db: "found", k: "warm" }, set: { k: "expired, stale copy kept", lk: "held by server 12 (5 s)", db: "home:feed query: 1" }, moves: [{ e: "a>lk", t: "SET lock NX → won (1 server)" }, { e: "k>db", t: "1 query", delay: 0.8 }], hold: 4.4,
+        note: "<b>Single-flight:</b> on a miss, servers try to take a short lock with SET NX. Exactly one wins and recomputes; the other 2,999 serve the stale copy (or wait a moment)." },
+      { hl: { k: "found", lk: "found" }, set: { k: "home:feed fresh · TTL 300 s ± 30 s", lk: "free" }, moves: [{ e: "a>k", t: "SET home:feed", k: "ok" }], hold: 4,
+        note: "One query instead of 3,000. Adding random jitter to TTLs also stops many keys expiring in the same second." },
     ],
   });
   (function () {

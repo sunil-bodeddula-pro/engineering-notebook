@@ -2958,19 +2958,21 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-state", {
-    title: "Why stateless matters", sub: "<b>Red</b> = the login was lost; <b>green</b> = it worked.",
-    nodes: [{ id: "u", x: 70, y: 130, w: 90, label: "User" }, { id: "lb", x: 220, y: 130, w: 120, label: "Load balancer" },
-      { id: "a", x: 410, y: 60, w: 130, label: "Server A" }, { id: "b", x: 410, y: 200, w: 130, label: "Server B" }, { id: "s", x: 570, y: 130, w: 110, label: "Session store" }],
-    edges: [["u", "lb"], ["lb", "a"], ["lb", "b"], ["a", "s"], ["b", "s"]],
-    width: 640, height: 260,
+    title: "Why stateless matters", sub: "Box text shows what each server remembers.",
+    nodes: [{ id: "u", x: 80, y: 150, w: 120, label: "User", sub: "cookie: –" }, { id: "lb", x: 270, y: 150, w: 150, label: "Load balancer", sub: "round robin" },
+      { id: "a", x: 500, y: 60, w: 200, label: "Server A", sub: "memory: –" }, { id: "b", x: 500, y: 240, w: 200, label: "Server B", sub: "memory: –" },
+      { id: "s", x: 700, y: 150, w: 170, label: "Session store", sub: "–", hidden: true }],
+    edges: [["u", "lb"], ["lb", "a"], ["lb", "b"], ["a", "s", "", { hidden: true }], ["b", "s", "", { hidden: true }]],
+    width: 800, height: 300,
     steps: [
-      { hl: { u: "active", a: "active" }, moves: [{ e: "u>lb", t: "log in", k: "req" }, { e: "lb>a", t: "log in", k: "req", delay: 0.9 }], pops: [{ n: "a", t: "remembers user in memory", k: "evt", at: 1.6 }], hold: 3.2,
-        note: "Stateful: server A remembers the login in its own memory." },
-      { hl: { u: "active", b: "bad" }, moves: [{ e: "u>lb", t: "GET /notes", k: "req" }, { e: "lb>b", t: "GET /notes", k: "req", delay: 0.9 }, { e: "u>lb", t: "401: please log in", k: "bad", back: true, delay: 2.0 }], hold: 3.6,
-        note: "The next request goes to server B, which has never heard of the user." },
-      { hl: { a: "active", s: "found" }, moves: [{ e: "a>s", t: "save session", k: "evt" }], hold: 2.8, note: "Stateless fix: servers keep the session in a shared store (or in a signed token the browser sends)." },
-      { hl: { b: "active", s: "found", u: "found" }, moves: [{ e: "lb>b", t: "GET /notes", k: "req" }, { e: "b>s", t: "session?", k: "req", delay: 0.9 }, { e: "b>s", t: "user 42", k: "ok", back: true, delay: 1.7 }, { e: "u>lb", t: "200 OK", k: "ok", back: true, delay: 2.5 }], hold: 3.6,
-        note: "Now any server can look the user up, so it doesn't matter which one answers." },
+      { hl: { a: "warm" }, set: { a: "memory: session s9 = user 42", u: "cookie: s9" }, moves: [{ e: "u>lb", t: "log in" }, { e: "lb>a", t: "log in", delay: 0.7 }], hold: 3.8,
+        note: "<b>Stateful:</b> server A remembers the login in its own memory (session s9 = user 42) and gives the browser a cookie with the session ID." },
+      { hl: { b: "bad", u: "bad" }, set: { b: "memory: s9? never heard of it" }, moves: [{ e: "u>lb", t: "GET /notes, cookie s9" }, { e: "lb>b", t: "GET /notes", delay: 0.7 }, { e: "u>lb", t: "401: please log in", back: true, k: "bad", delay: 1.6 }], hold: 4,
+        note: "The next request goes to server B, which has never heard of s9. The user is logged out at random. And if server A restarts, everyone it remembered is logged out." },
+      { hl: { s: "found" }, show: ["s"], link: ["a>s", "b>s"], set: { s: "s9 = user 42 (expires 30 min)", a: "memory: nothing about users", b: "memory: nothing about users" }, moves: [{ e: "a>s", t: "save s9" }], hold: 4,
+        note: "<b>Stateless fix:</b> servers keep nothing between requests. Sessions live in a shared store (or in a signed token the browser carries)." },
+      { hl: { b: "found", u: "found", s: "found" }, moves: [{ e: "lb>b", t: "GET /notes, cookie s9" }, { e: "b>s", t: "s9?", delay: 0.8 }, { e: "b>s", t: "user 42", back: true, k: "ok", delay: 1.5 }, { e: "u>lb", t: "200 OK", back: true, k: "ok", delay: 2.2 }], hold: 4.4,
+        note: "Now any server can look the session up, so it doesn't matter which one answers, or how many there are. That's what makes adding servers and replacing failed ones easy." },
     ],
   });
   Viz.tour("#tour", [

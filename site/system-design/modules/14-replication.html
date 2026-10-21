@@ -3317,15 +3317,21 @@ html.iks-open { overflow: hidden; }
   });
   /* ---------- Under the hood: replication ---------- */
   Viz.scene("#sc-u14-commit", {
-    title: "Where the commit point sits", sub: "<b>Blue</b> = the write, <b>green</b> = the client's OK, <b>red</b> = lost.",
-    nodes: [{ id: "c", x: 70, y: 135, w: 100, label: "Client" }, { id: "p", x: 270, y: 135, w: 130, label: "Primary" }, { id: "r1", x: 490, y: 60, w: 130, label: "Replica 1" }, { id: "r2", x: 490, y: 210, w: 130, label: "Replica 2" }],
+    title: "Where the commit point sits", sub: "Box text shows each copy's value of x and when the client hears OK.",
+    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Client", sub: " " }, { id: "p", x: 300, y: 150, w: 170, label: "Primary", sub: "x = 4" },
+      { id: "r1", x: 560, y: 70, w: 200, label: "Replica 1", sub: "x = 4" }, { id: "r2", x: 560, y: 230, w: 200, label: "Replica 2", sub: "x = 4" }],
     edges: [["c", "p"], ["p", "r1"], ["p", "r2"]],
-    width: 600, height: 270,
+    width: 690, height: 300,
     steps: [
-      { hl: { c: "active", p: "found" }, moves: [{ e: "c>p", t: "write x=5", k: "req" }, { e: "c>p", t: "OK", k: "ok", back: true, delay: 1.0 }, { e: "p>r1", t: "x=5 (later)", k: "req", delay: 2.0 }], hold: 3.4, note: "Asynchronous: the primary says OK first and ships the change afterwards. Fastest, but…" },
-      { hl: { p: "bad", r1: "warm" }, pops: [{ n: "p", t: "crash before shipping", k: "bad", at: 0.2 }, { n: "r1", t: "promoted: has no x=5", k: "bad", at: 1.2 }], hold: 3.2, note: "…if the primary dies before shipping, the promoted replica never saw x=5. The client was told OK: an acknowledged write is lost." },
-      { hl: { c: "active", p: "active", r1: "found" }, moves: [{ e: "c>p", t: "write x=6", k: "req" }, { e: "p>r1", t: "x=6", k: "req", delay: 0.9 }, { e: "p>r1", t: "received", k: "ok", back: true, delay: 1.8 }, { e: "c>p", t: "OK", k: "ok", back: true, delay: 2.6 }], hold: 3.6, note: "Semi-sync or quorum: OK only after at least one replica has the change. One extra round trip per commit, and a failover keeps the write." },
-      { hl: { c: "warm", p: "active", r1: "found", r2: "bad" }, moves: [{ e: "p>r1", t: "x=7", k: "req" }, { e: "p>r2", t: "x=7", k: "req" }], pops: [{ n: "r2", t: "down", k: "bad", at: 0.6 }, { n: "c", t: "waits… forever?", k: "bad", at: 1.6 }], hold: 3.4, note: "Fully synchronous to every replica: one dead replica stops all writes. That's why systems wait for one of several, or a majority." },
+      { hl: { p: "found", c: "found" }, set: { p: "x = 5", c: "OK after 1 ms" }, moves: [{ e: "c>p", t: "write x = 5" }, { e: "c>p", t: "OK", back: true, k: "ok", delay: 0.8 }, { e: "p>r1", t: "x = 5 (later)", delay: 1.4 }], hold: 4,
+        note: "<b>Asynchronous:</b> the primary says OK as soon as x = 5 is on its own disk and ships it afterwards. Fastest." },
+      { hl: { p: "bad", r1: "warm" }, set: { p: "crashed before shipping", r1: "x = 4 (promoted)", c: "was told OK, x is 4" }, hold: 3.8,
+        note: "…but if the primary dies before shipping, the promoted replica never saw x = 5. The client was told OK for a write that's now gone." },
+      { hl: { p: "found", r1: "found", c: "found" }, set: { p: "x = 6", r1: "x = 6", r2: "x = 5 (catching up)", c: "OK after ~2 ms" },
+        moves: [{ e: "c>p", t: "write x = 6" }, { e: "p>r1", t: "x = 6", delay: 0.8 }, { e: "p>r1", t: "received", back: true, k: "ok", delay: 1.5 }, { e: "c>p", t: "OK", back: true, k: "ok", delay: 2.2 }], hold: 4.6,
+        note: "<b>Semi-synchronous / quorum:</b> OK only after at least one replica also has x = 6. One extra round trip per commit, and a failover to that replica keeps the write." },
+      { hl: { r2: "bad", p: "bad", c: "bad" }, set: { r2: "down", c: "waiting… (no OK)" }, moves: [{ e: "p>r1", t: "x = 7" }, { e: "p>r2", t: "x = 7", k: "bad", delay: 0.2 }], hold: 4,
+        note: "<b>Fully synchronous to every replica:</b> one dead replica stops all writes. That's why real systems wait for <i>one of several</i> replicas, or a majority." },
     ],
   });
   (function () {

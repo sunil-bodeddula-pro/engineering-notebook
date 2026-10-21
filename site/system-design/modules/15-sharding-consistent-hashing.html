@@ -3243,21 +3243,21 @@ html.iks-open { overflow: hidden; }
     sc += ok; dn++; $("sk-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
   Viz.scene("#sc-main", {
-    title: "Adding a shard", sub: "<b>Blue</b> = keys placed, <b>red</b> = keys forced to move, <b>green</b> = a cheap change.",
-    nodes: [{ id: "k", x: 70, y: 125, w: 100, label: "Keys" }, { id: "r", x: 250, y: 125, w: 130, label: "Router", sub: "which shard?" },
-      { id: "a", x: 470, y: 35, w: 120, h: 36, label: "Shard A" }, { id: "b", x: 470, y: 95, w: 120, h: 36, label: "Shard B" },
-      { id: "c", x: 470, y: 155, w: 120, h: 36, label: "Shard C" }, { id: "d", x: 470, y: 215, w: 120, h: 36, label: "Shard D (new)" }],
-    edges: [["k", "r"], ["r", "a"], ["r", "b"], ["r", "c"], ["r", "d"]],
-    width: 560, height: 250,
+    title: "Adding a shard", sub: "12 keys, k1…k12. Box text shows the keys each shard holds; <b>red</b> = data moving.",
+    nodes: [{ id: "r", x: 100, y: 160, w: 170, label: "Router", sub: "hash(key) mod 3" },
+      { id: "a", x: 420, y: 40, w: 260, label: "Shard A", sub: "k3 k6 k9 k12" }, { id: "b", x: 420, y: 120, w: 260, label: "Shard B", sub: "k1 k4 k7 k10" },
+      { id: "c", x: 420, y: 200, w: 260, label: "Shard C", sub: "k2 k5 k8 k11" }, { id: "d", x: 420, y: 280, w: 260, label: "Shard D (new)", sub: " ", hidden: true }],
+    edges: [["r", "a"], ["r", "b"], ["r", "c"], ["r", "d"]],
+    width: 640, height: 320,
     steps: [
-      { hl: { k: "active", r: "active", a: "active", b: "active", c: "active" }, moves: [{ e: "k>r", t: "user:1…", k: "req" }, { e: "r>a", t: "⅓", k: "req", delay: 1.0 }, { e: "r>b", t: "⅓", k: "req", delay: 1.2 }, { e: "r>c", t: "⅓", k: "req", delay: 1.4 }], hold: 3.8,
-        note: "<code>hash(key) % 3</code> spreads keys evenly over three shards." },
-      { hl: { r: "bad", a: "bad", b: "bad", c: "bad", d: "active" }, moves: [{ e: "r>a", t: "moved", k: "bad" }, { e: "r>b", t: "moved", k: "bad", delay: 0.2 }, { e: "r>c", t: "moved", k: "bad", delay: 0.4 }, { e: "r>d", t: "moved", k: "bad", delay: 0.6 }], pops: [{ n: "r", t: "now % 4", k: "bad", at: 0.3 }], hold: 3.6,
-        note: "Add a fourth shard and the formula changes for almost every key: about <b>three quarters</b> of the data moves at once." },
-      { hl: { r: "found", d: "found" }, moves: [{ e: "r>d", t: "¼ of keys", k: "ok" }], pops: [{ n: "r", t: "consistent hashing", k: "ok", at: 0.3 }], hold: 3.2,
-        note: "With <b>consistent hashing</b>, the new shard takes over only the keys next to it on the ring: about 1/N of the data." },
-      { hl: { k: "bad", b: "bad" }, moves: [{ e: "k>r", t: "celebrity", k: "bad" }, { e: "r>b", t: "all traffic", k: "bad", delay: 1.0 }], pops: [{ n: "b", t: "hot spot", k: "bad", at: 2.1 }], hold: 3.4,
-        note: "Even shards can't save a hot key: one celebrity's traffic all lands on one shard. Choose the shard key with that in mind." },
+      { hl: { a: "found", b: "found", c: "found" }, moves: [{ e: "r>a", t: "k3" }, { e: "r>b", t: "k7", delay: 0.2 }, { e: "r>c", t: "k11", delay: 0.4 }], hold: 3.6,
+        note: "With <code>hash(key) mod 3</code>, twelve keys spread evenly: four per shard. (Here hash(kN) = N, to keep it readable.)" },
+      { hl: { a: "bad", b: "bad", c: "bad", d: "warm" }, show: ["d"], set: { r: "hash(key) mod 4", a: "k4 k8 k12 (k3 k6 k9 leave)", b: "k1 k5 k9 (k4 k7 k10 leave)", c: "k2 k6 k10 (k5 k8 k11 leave)", d: "k3 k7 k11" }, hold: 5,
+        note: "Add a fourth shard and the formula becomes mod 4. Only k1, k2 and k12 stay put: <b>9 of 12 keys move</b> (75%), all at once, while the system is serving traffic." },
+      { hl: { a: "found", b: "found", c: "warm", d: "found" }, set: { r: "consistent hashing ring", a: "k1 k2 k3 k4", b: "k5 k6 k7 k8", c: "k9 k10", d: "k11 k12 (from C)" }, moves: [{ e: "r>d", t: "k11 k12" }], hold: 4.6,
+        note: "With <b>consistent hashing</b>, each shard owns an arc of a ring. The new shard takes over part of one neighbour's arc: here just 2 of 12 keys move. With many virtual nodes per shard, the new one takes about 1/N from everyone, evenly." },
+      { hl: { b: "bad" }, set: { b: "k5 k6 k7 k8 · k6 = celebrity: 90% of traffic" }, moves: [{ e: "r>b", t: "k6 k6 k6 k6", k: "bad" }], hold: 4,
+        note: "Even placement can't save a hot key: all of one celebrity's traffic lands on one shard, whatever the hashing. That needs salting (below) or caching." },
     ],
   });
   Viz.tour("#tour", [

@@ -3161,22 +3161,19 @@ async function placeOrder(order) {
   $("ob-c").addEventListener("input", ob);
   ob();
   Viz.scene("#sc-main", {
-    title: "A saga that fails at step 3", sub: "<b>Blue</b> = steps, <b>gold</b> = money, <b>red</b> = the failure, <b>teal</b> = compensations.",
-    nodes: [{ id: "o", x: 100, y: 120, w: 130, label: "Orchestrator", sub: "order 881" },
-      { id: "inv", x: 410, y: 40, w: 130, label: "Stock" }, { id: "pay", x: 410, y: 120, w: 130, label: "Payments" }, { id: "cour", x: 410, y: 200, w: 130, label: "Courier" }],
+    title: "A saga that fails at step 3", sub: "Box text shows each service's state for order 881. <b>Gold</b> = compensating.",
+    nodes: [{ id: "o", x: 110, y: 160, w: 190, label: "Orchestrator", sub: "order 881: started" },
+      { id: "inv", x: 450, y: 60, w: 220, label: "Stock", sub: "item 5: 3 free" }, { id: "pay", x: 450, y: 160, w: 220, label: "Payments", sub: "no charge" }, { id: "cour", x: 450, y: 260, w: 220, label: "Courier", sub: "no booking" }],
     edges: [["o", "inv"], ["o", "pay"], ["o", "cour"]],
-    width: 520, height: 240,
+    width: 640, height: 310,
     steps: [
-      { hl: { o: "active", inv: "found" }, moves: [{ e: "o>inv", t: "1 · reserve", k: "req" }, { e: "o>inv", t: "reserved", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
-        note: "Each step is a local transaction in its own service. Step 1 reserves the stock." },
-      { hl: { o: "active", pay: "found" }, moves: [{ e: "o>pay", t: "2 · charge $40", k: "money" }, { e: "o>pay", t: "charged", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
-        note: "Step 2 charges the card." },
-      { hl: { o: "active", cour: "bad" }, moves: [{ e: "o>cour", t: "3 · book courier", k: "req" }, { e: "o>cour", t: "none available", k: "bad", back: true, delay: 1.1 }], hold: 3.2,
-        note: "Step 3 fails. There's no transaction spanning all three services to roll back." },
-      { hl: { o: "warm", pay: "active", inv: "active" }, moves: [{ e: "o>pay", t: "refund $40", k: "money" }, { e: "o>inv", t: "release stock", k: "evt", delay: 0.9 }], pops: [{ n: "o", t: "undo in reverse order", k: "evt", at: 0.3 }], hold: 3.6,
-        note: "So the orchestrator runs <b>compensations</b>: undo each completed step, in reverse. Compensations are retried until they succeed." },
-      { hl: { o: "found" }, pops: [{ n: "o", t: "cancelled cleanly", k: "ok", at: 0.3 }],
-        note: "The order ends cancelled, with nothing charged or held. The orchestrator saves its progress after each step, so a crash resumes instead of starting over." },
+      { hl: { inv: "found" }, set: { inv: "item 5: 2 free · 1 reserved (881)", o: "order 881: step 1 done" }, moves: [{ e: "o>inv", t: "1 · reserve" }, { e: "o>inv", t: "reserved", back: true, k: "ok", delay: 0.9 }], hold: 3.6,
+        note: "Each step is a <b>local transaction</b> in its own service. Step 1 reserves the item; that's committed and visible straight away." },
+      { hl: { pay: "found" }, set: { pay: "charged $40 (ch_91)", o: "order 881: step 2 done" }, moves: [{ e: "o>pay", t: "2 · charge $40" }, { e: "o>pay", t: "charged", back: true, k: "ok", delay: 0.9 }], hold: 3.6, note: "Step 2 charges the card." },
+      { hl: { cour: "bad", o: "warm" }, set: { cour: "none available", o: "order 881: step 3 failed" }, moves: [{ e: "o>cour", t: "3 · book courier" }, { e: "o>cour", t: "none available", back: true, k: "bad", delay: 0.9 }], hold: 3.8,
+        note: "Step 3 fails. There's no transaction spanning three services to roll back, and steps 1 and 2 are already committed." },
+      { hl: { pay: "warm", inv: "warm", o: "warm" }, set: { pay: "refunded $40 (re_12)", inv: "item 5: 3 free", o: "order 881: compensated" }, moves: [{ e: "o>pay", t: "refund ch_91", k: "evt" }, { e: "o>inv", t: "release 881", k: "evt", delay: 1.0 }], hold: 4.4,
+        note: "So the orchestrator runs <b>compensations</b>: undo each completed step in reverse order. A refund isn't a rollback: the charge happened and the customer may see both. Compensations are retried until they succeed, and must be idempotent." },
     ],
   });
   Viz.tour("#tour", [
