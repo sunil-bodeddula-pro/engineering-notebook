@@ -3274,21 +3274,20 @@ html.iks-open { overflow: hidden; }
     ],
   });
   Viz.scene("#sc-hwm", {
-    title: "The high-water mark: read only what's safely replicated", sub: "<b>Blue</b> = appends, <b>teal</b> = replication, <b>green</b> = readable.",
-    nodes: [{ id: "p", x: 80, y: 130, w: 110, label: "Producer" }, { id: "ld", x: 300, y: 130, w: 150, label: "Leader", sub: "log 0–105" },
-      { id: "f1", x: 530, y: 45, w: 150, label: "Follower 1", sub: "has 0–105" }, { id: "f2", x: 530, y: 215, w: 150, label: "Follower 2", sub: "has 0–100" },
-      { id: "c", x: 300, y: 250, w: 130, label: "Consumer" }],
+    title: "The high-water mark: read only what's safely replicated", sub: "Box text shows each log's last offset and the high-water mark (HW).",
+    nodes: [{ id: "p", x: 85, y: 150, w: 120, label: "Producer", sub: " " }, { id: "ld", x: 320, y: 150, w: 210, label: "Leader", sub: "log 0–100 · HW 100" },
+      { id: "f1", x: 600, y: 60, w: 190, label: "Follower 1", sub: "log 0–100" }, { id: "f2", x: 600, y: 240, w: 190, label: "Follower 2", sub: "log 0–100" }, { id: "c", x: 320, y: 270, w: 150, label: "Consumer", sub: "read up to 100" }],
     edges: [["p", "ld"], ["ld", "f1"], ["ld", "f2"], ["c", "ld"]],
-    width: 640, height: 290,
+    width: 720, height: 310,
     steps: [
-      { hl: { p: "active", ld: "active" }, moves: [{ e: "p>ld", t: "msgs 101–105", k: "req" }],
-        note: "The leader appends messages 101–105 to the active segment of its log." },
-      { hl: { ld: "active", f1: "found", f2: "warm" }, moves: [{ e: "ld>f1", t: "101–105", k: "evt" }, { e: "ld>f2", t: "101–105", k: "evt", delay: 0.4, dur: 2.6 }], pops: [{ n: "f2", t: "still at 100", k: "bad", at: 1.4 }], hold: 3.6,
-        note: "Follower 1 copies them quickly; follower 2 is behind." },
-      { hl: { ld: "found", c: "active" }, moves: [{ e: "c>ld", t: "read", k: "req" }, { e: "c>ld", t: "up to 100", k: "ok", back: true, delay: 1.0 }], pops: [{ n: "ld", t: "high-water mark = 100", k: "evt", at: 0.4 }], hold: 3.4,
-        note: "The <b>high-water mark</b> is the last offset every in-sync replica has: 100. Consumers can read only that far." },
-      { hl: { f2: "found", ld: "found", c: "found" }, moves: [{ e: "ld>f2", t: "caught up", k: "ok" }, { e: "c>ld", t: "101–105", k: "ok", back: true, delay: 1.2 }], pops: [{ n: "ld", t: "high-water mark = 105", k: "ok", at: 1.0 }], hold: 3.6,
-        note: "Once follower 2 catches up, the mark moves to 105 and consumers get the rest. A leader crash at any moment can't take away what they've read." },
+      { hl: { ld: "warm" }, set: { ld: "log 0–105 · HW 100" }, moves: [{ e: "p>ld", t: "msgs 101–105" }], hold: 3.4, note: "The leader appends messages 101–105 to its log. They're not yet on any other replica." },
+      { hl: { f1: "found", f2: "warm" }, set: { f1: "log 0–105", f2: "log 0–102 (slow disk)" }, moves: [{ e: "ld>f1", t: "101–105" }, { e: "ld>f2", t: "101–102", delay: 0.3 }], hold: 3.8, note: "Follower 1 copies them quickly; follower 2 is behind." },
+      { hl: { c: "warm", ld: "active" }, set: { ld: "log 0–105 · HW 102", c: "read up to 102" }, moves: [{ e: "c>ld", t: "fetch" }, { e: "c>ld", t: "101–102 only", back: true, k: "ok", delay: 0.8 }], hold: 4.4,
+        note: "The <b>high-water mark</b> is the last offset every in-sync replica has: 102. Consumers can read only up to it, even though the leader holds 105." },
+      { hl: { ld: "bad", f1: "found" }, set: { ld: "crashed", f1: "new leader · log 0–105 · HW 102" }, pops: [{ n: "f1", t: "elected from the in-sync set", k: "ok", at: 0.8 }], hold: 4,
+        note: "If the leader crashes now, a follower takes over. Whatever it lacks beyond the high-water mark may be lost or rewritten, but no consumer ever saw it, so nobody acted on data that later vanished." },
+      { hl: { f1: "found", f2: "found", c: "found" }, set: { f2: "log 0–105", f1: "leader · log 0–105 · HW 105", c: "read up to 105" }, moves: [{ e: "c>ld", t: "fetch" }], hold: 3.8,
+        note: "(Back in the normal case.) Once follower 2 catches up, the mark moves to 105 and consumers get the rest. Producers that need the same guarantee wait for acks=all before treating a message as sent." },
     ],
   });
   /* ---------- Under the hood: messaging ---------- */
@@ -3313,15 +3312,20 @@ html.iks-open { overflow: hidden; }
     ] });
   })();
   Viz.scene("#sc-u18-vis", {
-    title: "SQS: visibility timeout, redelivery, dead-letter queue", sub: "<b>Red</b> = failure, <b>orange</b> = parked.",
-    nodes: [{ id: "q", x: 100, y: 140, w: 140, label: "Orders queue" }, { id: "w1", x: 400, y: 60, w: 130, label: "Worker 1" }, { id: "w2", x: 400, y: 220, w: 130, label: "Worker 2" }, { id: "dlq", x: 100, y: 260, w: 140, label: "Dead-letter queue" }],
+    title: "SQS: visibility timeout, redelivery, dead-letter queue", sub: "Box text shows message 42's state and receive count. maxReceiveCount = 3.",
+    nodes: [{ id: "q", x: 120, y: 150, w: 210, label: "Orders queue", sub: "msg 42 visible · receives 0" }, { id: "w1", x: 450, y: 60, w: 190, label: "Worker 1", sub: "idle" },
+      { id: "w2", x: 450, y: 240, w: 190, label: "Worker 2", sub: "idle" }, { id: "dlq", x: 120, y: 290, w: 210, label: "Dead-letter queue", sub: "empty" }],
     edges: [["q", "w1"], ["q", "w2"], ["q", "dlq"]],
-    width: 580, height: 310,
+    width: 600, height: 340,
     steps: [
-      { hl: { q: "active", w1: "active" }, moves: [{ e: "q>w1", t: "receive msg 42", k: "req" }], pops: [{ n: "q", t: "42 hidden for 30 s", k: "evt", at: 1.0 }], hold: 3, note: "Receiving doesn't delete: the message is hidden for the visibility timeout." },
-      { hl: { w1: "bad", q: "warm" }, pops: [{ n: "w1", t: "crash (no delete)", k: "bad", at: 0.2 }, { n: "q", t: "30 s pass: 42 visible again", k: "evt", at: 1.4 }], hold: 3.2, note: "The worker dies before deleting. When the timeout passes, the message reappears." },
-      { hl: { q: "active", w2: "active" }, moves: [{ e: "q>w2", t: "receive 42 (2nd time)", k: "req" }], pops: [{ n: "w2", t: "fails: bad data", k: "bad", at: 1.2 }], hold: 3, note: "Another worker gets it. If the message itself is bad, it fails every time: a poison message." },
-      { hl: { q: "warm", dlq: "warm" }, moves: [{ e: "q>dlq", t: "after 5 receives", k: "evt" }], hold: 3, note: "After maxReceiveCount attempts the redrive policy moves it to the dead-letter queue, where someone can inspect and replay it." },
+      { hl: { w1: "warm" }, set: { q: "msg 42 hidden 30 s · receives 1", w1: "processing 42" }, moves: [{ e: "q>w1", t: "receive msg 42" }], hold: 3.6,
+        note: "Receiving doesn't delete a message: it's hidden for the visibility timeout (30 s) while the worker works." },
+      { hl: { w1: "bad", q: "active" }, set: { w1: "throws: bad address field", q: "msg 42 visible again · receives 1" }, pops: [{ n: "w1", t: "no delete", k: "bad", at: 0.4 }], hold: 3.6,
+        note: "The worker fails and never deletes it. After 30 seconds the message becomes visible again." },
+      { hl: { w2: "bad" }, set: { q: "msg 42 hidden · receives 2 → 3", w2: "throws: bad address field" }, moves: [{ e: "q>w2", t: "receive 42 (2nd)", k: "bad" }, { e: "q>w1", t: "receive 42 (3rd)", k: "bad", delay: 1.2 }], hold: 4.2,
+        note: "Other workers get it and fail the same way: the message itself is bad. A <b>poison message</b> would otherwise loop forever, wasting workers." },
+      { hl: { dlq: "found", q: "found" }, set: { q: "msg 42 removed", dlq: "msg 42 (after 3 receives)" }, moves: [{ e: "q>dlq", t: "redrive msg 42", k: "evt" }], hold: 4,
+        note: "On the next receive past maxReceiveCount, the redrive policy moves it to the dead-letter queue. An alarm on its size tells someone to inspect it, fix the cause and replay it." },
     ],
   });
   (function () {

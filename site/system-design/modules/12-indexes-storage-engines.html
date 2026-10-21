@@ -3279,23 +3279,21 @@ html.iks-open { overflow: hidden; }
     sc += ok; dn++; $("ix-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
   Viz.scene("#sc-main", {
-    title: "Index lookup vs full scan", sub: "Finding id 42 among a billion rows. <b>Blue</b> = page reads, <b>green</b> = found, <b>red</b> = a scan.",
-    nodes: [{ id: "q", x: 70, y: 110, w: 110, label: "WHERE id = 42" }, { id: "root", x: 240, y: 45, w: 120, label: "Root page", sub: "in memory" },
-      { id: "inner", x: 405, y: 45, w: 120, label: "Inner pages", sub: "in memory" }, { id: "leaf", x: 570, y: 45, w: 120, label: "Leaf page", sub: "1 disk read" },
-      { id: "scan", x: 320, y: 180, w: 150, label: "Every page", sub: "no index" }, { id: "row", x: 570, y: 180, w: 120, label: "Row 42" }],
-    edges: [["q", "root"], ["root", "inner"], ["inner", "leaf"], ["leaf", "row"], ["q", "scan"], ["scan", "row"]],
-    width: 640, height: 225,
+    title: "Index lookup vs full scan", sub: "Table of 1 billion rows. The counter box shows pages read from disk.",
+    nodes: [{ id: "q", x: 85, y: 150, w: 140, label: "WHERE id = 42", sub: " " }, { id: "root", x: 300, y: 60, w: 180, label: "Root page", sub: "in memory" },
+      { id: "inner", x: 300, y: 150, w: 180, label: "Inner pages (2 levels)", sub: "in memory" }, { id: "leaf", x: 300, y: 240, w: 180, label: "Leaf page", sub: "on disk" },
+      { id: "row", x: 560, y: 240, w: 160, label: "Row 42", sub: " " }, { id: "cnt", x: 560, y: 60, w: 210, label: "Disk pages read", sub: "0" }],
+    edges: [["q", "root"], ["root", "inner"], ["inner", "leaf"], ["leaf", "row"], ["q", "row", "", { hidden: true, bend: 70 }]],
+    width: 700, height: 300,
     steps: [
-      { hl: { q: "active", root: "active" }, moves: [{ e: "q>root", t: "42?", k: "req" }], pops: [{ n: "root", t: "hundreds of keys per page", k: "req", at: 1.4 }],
-        note: "A B-tree is shallow and wide: each page holds hundreds of sorted keys, so the root narrows a billion rows straight away." },
-      { hl: { root: "active", inner: "active" }, moves: [{ e: "root>inner", t: "child page", k: "req" }], pops: [{ n: "inner", t: "cached", k: "ok", at: 1.4 }],
-        note: "The upper levels are read so often that they're almost always in memory." },
-      { hl: { inner: "active", leaf: "active" }, moves: [{ e: "inner>leaf", t: "leaf page", k: "req" }], pops: [{ n: "leaf", t: "~0.1 ms on SSD", k: "ok", at: 1.4 }],
-        note: "Usually just one real disk read, at the leaf. About four levels for a billion rows." },
-      { hl: { leaf: "found", row: "found" }, moves: [{ e: "leaf>row", t: "pointer", k: "ok" }], pops: [{ n: "row", t: "found in ~4 pages", k: "ok", at: 1.4 }],
-        note: "The leaf points to the row. Milliseconds." },
-      { hl: { q: "bad", scan: "bad", row: "warm" }, moves: [{ e: "q>scan", t: "no index", k: "bad" }, { e: "scan>row", t: "read everything", k: "bad", delay: 1.1, dur: 2.2 }], pops: [{ n: "scan", t: "minutes, not milliseconds", k: "bad", at: 1.6 }], hold: 4,
-        note: "Without the index, the database reads every page to find one row. That's the most common performance problem in real systems." },
+      { hl: { root: "found" }, set: { root: "keys 1…1B in ~500 ranges" }, moves: [{ e: "q>root", t: "42?" }], hold: 3.6,
+        note: "A B-tree is shallow and wide: each 8 KB page holds hundreds of keys. The root splits a billion rows into a few hundred ranges and points to the one containing 42." },
+      { hl: { inner: "found" }, set: { inner: "→ 1…4M → 1…8,000" }, moves: [{ e: "root>inner", t: "child page" }], hold: 3.4,
+        note: "Two inner levels narrow it further. The upper levels are read so often that they're almost always cached in memory." },
+      { hl: { leaf: "found", row: "found" }, set: { cnt: "1 (maybe 2)", leaf: "row 42 at page 9, slot 3", row: "found in ~1 ms" }, moves: [{ e: "inner>leaf", t: "leaf page" }, { e: "leaf>row", t: "pointer", delay: 0.8 }], hold: 4,
+        note: "About four levels for a billion rows, and usually only the leaf (and the row's page) come from disk. A millisecond." },
+      { hl: { q: "bad", cnt: "bad", row: "warm" }, link: ["q>row"], set: { cnt: "≈ 12 million pages (100 GB)", row: "found after ~minutes" }, moves: [{ e: "q>row", t: "no index: read every page", k: "bad" }], hold: 4.4,
+        note: "Without the index, the database reads every page of the table to find one row: about 12 million pages. A missing index is the most common performance problem in real systems." },
     ],
   });
   Viz.tour("#tour", [

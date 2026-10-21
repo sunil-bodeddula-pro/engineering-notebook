@@ -3200,23 +3200,22 @@ html.iks-open { overflow: hidden; }
     sc += ok; dn++; $("jbs-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
   Viz.scene("#sc-main", {
-    title: "A background job, done properly", sub: "<b>Blue</b> = requests, <b>teal</b> = the job moving through, <b>green</b> = done, <b>red</b> = gave up.",
-    nodes: [{ id: "cl", x: 70, y: 110, w: 100, label: "Client" }, { id: "api", x: 220, y: 110, w: 110, label: "API" },
-      { id: "q", x: 380, y: 110, w: 110, label: "Queue" }, { id: "w", x: 545, y: 110, w: 110, label: "Worker" },
-      { id: "jobs", x: 380, y: 205, w: 120, label: "Jobs table" }, { id: "st", x: 545, y: 30, w: 130, label: "Object storage" }, { id: "dlq", x: 545, y: 205, w: 120, label: "Dead letters" }],
-    edges: [["cl", "api"], ["api", "jobs"], ["api", "q"], ["q", "w"], ["w", "st"], ["w", "jobs"], ["w", "dlq"]],
-    width: 620, height: 240,
+    title: "A background job, done properly", sub: "Box text shows job 55's state and where it is.",
+    nodes: [{ id: "cl", x: 85, y: 150, w: 120, label: "Client", sub: " " }, { id: "api", x: 280, y: 150, w: 140, label: "API", sub: " " }, { id: "jobs", x: 280, y: 40, w: 220, label: "Jobs table", sub: "–" },
+      { id: "q", x: 470, y: 150, w: 120, label: "Queue", sub: "–" }, { id: "w", x: 640, y: 150, w: 160, label: "Worker", sub: "idle" }, { id: "st", x: 640, y: 40, w: 160, label: "Object storage", sub: "–" }, { id: "dlq", x: 640, y: 270, w: 160, label: "Dead letters", sub: "empty" }],
+    edges: [["cl", "api"], ["api", "jobs"], ["api", "q"], ["q", "w"], ["w", "st"], ["w", "jobs", "", { bend: 60 }], ["w", "dlq"]],
+    width: 760, height: 320,
     steps: [
-      { hl: { cl: "active", api: "active", jobs: "active", q: "active" }, moves: [{ e: "cl>api", t: "export", k: "req" }, { e: "api>jobs", t: "pending", k: "evt", delay: 1.0 }, { e: "api>q", t: "job 55", k: "evt", delay: 1.3 }, { e: "cl>api", t: "202 + job id", k: "ok", back: true, delay: 2.4 }], hold: 4.2,
-        note: "The API records the job as pending, queues its ID, and answers <b>202 Accepted</b> in milliseconds." },
-      { hl: { q: "active", w: "active" }, moves: [{ e: "q>w", t: "job 55", k: "evt" }], pops: [{ n: "w", t: "processing, heartbeats", k: "evt", at: 1.3 }],
-        note: "A worker takes the job and sends heartbeats, so if it crashes another worker picks the job up." },
-      { hl: { w: "active", st: "found", jobs: "found" }, moves: [{ e: "w>st", t: "report.csv", k: "ok" }, { e: "w>jobs", t: "completed", k: "ok", delay: 1.1 }], hold: 3.4,
-        note: "It stores the result in object storage and marks the job completed." },
-      { hl: { cl: "active", api: "found" }, moves: [{ e: "cl>api", t: "GET /jobs/55", k: "req" }, { e: "cl>api", t: "done + link", k: "ok", back: true, delay: 1.1 }], hold: 3.2,
-        note: "The client polls the job (or gets a push or webhook) and downloads the result." },
-      { hl: { q: "active", w: "bad", dlq: "bad" }, moves: [{ e: "q>w", t: "job 56", k: "evt" }, { e: "w>dlq", t: "failed 5 times", k: "bad", delay: 1.1 }], pops: [{ n: "dlq", t: "alert fires", k: "bad", at: 2.3 }], hold: 3.6,
-        note: "A job that keeps failing is retried with backoff, then moved to a <b>dead-letter queue</b> and someone is alerted, instead of blocking the queue forever." },
+      { hl: { api: "active", jobs: "warm", q: "warm" }, set: { jobs: "55: pending", q: "55", cl: "202 Accepted, job 55" }, moves: [{ e: "cl>api", t: "export last year" }, { e: "api>jobs", t: "insert 55", delay: 0.7 }, { e: "api>q", t: "job 55", delay: 1.1 }, { e: "cl>api", t: "202, job 55", back: true, k: "ok", delay: 1.6 }], hold: 4.4,
+        note: "The API records the job as pending, queues its ID and answers <b>202 Accepted</b> in milliseconds. The export itself will take ten minutes." },
+      { hl: { w: "active", jobs: "warm" }, set: { q: "55 (in flight)", w: "55 · heartbeat / 30 s", jobs: "55: running (worker 3)" }, moves: [{ e: "q>w", t: "job 55" }, { e: "w>jobs", t: "running", delay: 0.8 }], hold: 4,
+        note: "A worker takes the job and heartbeats while it runs. If the heartbeats stop (a crash), the job goes back to the queue for another worker." },
+      { hl: { st: "found", jobs: "found" }, set: { st: "exports/55.csv", jobs: "55: done · exports/55.csv", w: "idle", q: "–" }, moves: [{ e: "w>st", t: "upload result" }, { e: "w>jobs", t: "done", delay: 0.8 }], hold: 3.8,
+        note: "It stores the result in object storage and marks the job done." },
+      { hl: { cl: "found" }, set: { cl: "downloads the file" }, moves: [{ e: "cl>api", t: "GET /jobs/55" }, { e: "cl>api", t: "done + link", back: true, k: "ok", delay: 0.8 }], hold: 3.6,
+        note: "The client polls the job (or gets a push or webhook) and downloads the result directly from storage." },
+      { hl: { dlq: "bad", w: "bad" }, set: { w: "job 56 failed (attempt 5 of 5)", dlq: "56 (corrupt input) · alert sent" }, moves: [{ e: "q>w", t: "job 56", k: "bad" }, { e: "w>dlq", t: "give up", k: "bad", delay: 0.8 }], hold: 4,
+        note: "A job that keeps failing is retried with backoff, then moved to a dead-letter queue with an alert, instead of blocking a worker forever." },
     ],
   });
   Viz.tour("#tour", [

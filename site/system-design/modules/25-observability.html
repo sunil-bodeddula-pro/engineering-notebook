@@ -3169,23 +3169,18 @@ html.iks-open { overflow: hidden; }
   L.forEach((_, i) => $("cl-" + i).addEventListener("input", card));
   card();
   Viz.scene("#sc-main", {
-    title: "A trace finds the slow call", sub: "<b>Teal</b> = trace context passed along, <b>green</b> = fast spans, <b>red</b> = the slow one.",
-    nodes: [{ id: "u", x: 70, y: 120, w: 100, label: "User" }, { id: "co", x: 240, y: 120, w: 130, label: "Checkout", sub: "root span 3.1 s" },
-      { id: "auth", x: 460, y: 25, w: 130, h: 34, label: "Auth" }, { id: "cart", x: 460, y: 80, w: 130, h: 34, label: "Cart (Redis)" },
-      { id: "price", x: 460, y: 135, w: 130, h: 34, label: "Pricing (Postgres)" }, { id: "fraud", x: 460, y: 200, w: 150, label: "Fraud check", sub: "third party" }],
+    title: "A trace finds the slow call", sub: "Box text shows each span's duration as the trace fills in.",
+    nodes: [{ id: "u", x: 85, y: 160, w: 110, label: "User", sub: " " }, { id: "co", x: 280, y: 160, w: 200, label: "Checkout (root span)", sub: "3.1 s" },
+      { id: "auth", x: 560, y: 40, w: 180, label: "Auth", sub: " " }, { id: "cart", x: 560, y: 120, w: 180, label: "Cart (Redis)", sub: " " }, { id: "price", x: 560, y: 200, w: 180, label: "Pricing (Postgres)", sub: " " }, { id: "fraud", x: 560, y: 280, w: 180, label: "Fraud check (3rd party)", sub: " " }],
     edges: [["u", "co"], ["co", "auth"], ["co", "cart"], ["co", "price"], ["co", "fraud"]],
-    width: 560, height: 240,
+    width: 700, height: 320,
     steps: [
-      { hl: { u: "active", co: "active" }, moves: [{ e: "u>co", t: "POST /checkout", k: "req" }],
-        note: "Checkout p99 has jumped to 3 s. Open one slow request's <b>trace</b>: its root span is the whole request, 3.1 seconds." },
-      { hl: { co: "active", auth: "found", cart: "found", price: "found" },
-        moves: [{ e: "co>auth", t: "traceparent", k: "evt" }, { e: "co>cart", t: "traceparent", k: "evt", delay: 0.2 }, { e: "co>price", t: "traceparent", k: "evt", delay: 0.4 },
-          { e: "co>auth", t: "8 ms", k: "ok", back: true, delay: 1.4 }, { e: "co>cart", t: "2 ms", k: "ok", back: true, delay: 1.6 }, { e: "co>price", t: "120 ms", k: "ok", back: true, delay: 1.8 }], hold: 4,
-        note: "Every call carries the trace ID in the <code>traceparent</code> header, so each service's span joins the same tree. These are fast." },
-      { hl: { co: "active", fraud: "bad" }, moves: [{ e: "co>fraud", t: "traceparent", k: "evt" }, { e: "co>fraud", t: "2.6 s", k: "bad", back: true, delay: 1.0, dur: 2.4 }], pops: [{ n: "fraud", t: "2.6 s of 3.1", k: "bad", at: 3.2 }], hold: 4.6,
-        note: "The <b>fraud check</b>, a third-party call, took 2.6 of the 3.1 seconds. Found in seconds." },
-      { hl: { fraud: "bad", co: "warm" }, pops: [{ n: "co", t: "same trace ID → its logs", k: "evt", at: 0.3 }],
-        note: "The logs carrying the same trace ID show timeouts and a retry. Fix: a tighter timeout, a circuit breaker and a fallback (Module 24)." },
+      { hl: { co: "bad" }, moves: [{ e: "u>co", t: "POST /checkout" }], hold: 3.4,
+        note: "Dashboards show checkout p99 jumped to 3 seconds. Open one slow request's trace: the root span is the whole request, 3.1 s. Where did the time go?" },
+      { hl: { auth: "found", cart: "found", price: "found" }, set: { auth: "8 ms", cart: "2 ms", price: "120 ms" }, moves: [{ e: "co>auth", t: "traceparent: 4bf9…" }, { e: "co>cart", t: "traceparent", delay: 0.2 }, { e: "co>price", t: "traceparent", delay: 0.4 }], hold: 4.2,
+        note: "Every outgoing call carries the trace ID in the <code>traceparent</code> header, so each service's span joins the same tree. Auth, cart and pricing add up to 130 ms." },
+      { hl: { fraud: "bad" }, set: { fraud: "2.6 s (timeout 5 s, no retries)" }, moves: [{ e: "co>fraud", t: "traceparent", k: "bad" }], hold: 4,
+        note: "The fraud check, a third-party call, took 2.6 of the 3.1 seconds. Found in one trace, without reading a single log line. Next: a tighter timeout and a fallback for that call (Module 24)." },
     ],
   });
   Viz.tour("#tour", [

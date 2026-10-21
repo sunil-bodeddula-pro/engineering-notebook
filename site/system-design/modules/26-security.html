@@ -3278,15 +3278,20 @@ html.iks-open { overflow: hidden; }
     { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-env", {
-    title: "Envelope encryption", sub: "<b>Blue</b> = requests, <b>green</b> = keys or data returned. The master key never leaves KMS.",
-    nodes: [{ id: "app", x: 90, y: 120, w: 120, label: "App server" }, { id: "kms", x: 420, y: 50, w: 150, label: "KMS", sub: "holds the master key" }, { id: "s3", x: 420, y: 190, w: 150, label: "Storage", sub: "ciphertext + wrapped key" }],
+    title: "Envelope encryption", sub: "Box text shows which keys exist where. The master key never leaves KMS.",
+    nodes: [{ id: "app", x: 110, y: 150, w: 190, label: "App server (memory)", sub: "no keys" }, { id: "kms", x: 440, y: 50, w: 230, label: "KMS", sub: "master key (never exported)" },
+      { id: "s3", x: 440, y: 250, w: 230, label: "Storage", sub: "empty" }],
     edges: [["app", "kms"], ["app", "s3"]],
-    width: 540, height: 250,
+    width: 640, height: 300,
     steps: [
-      { hl: { app: "active", kms: "active" }, moves: [{ e: "app>kms", t: "GenerateDataKey", k: "req" }, { e: "app>kms", t: "plain key + wrapped key", k: "ok", back: true, delay: 1.1 }], hold: 3.2, note: "KMS creates a fresh data key and returns it twice: in plain form, and encrypted (\"wrapped\") with the master key." },
-      { hl: { app: "found" }, pops: [{ n: "app", t: "AES-GCM encrypt locally, forget the plain key", k: "evt", at: 0.3 }], hold: 2.8, note: "The app encrypts the data itself, quickly, then throws the plain data key away." },
-      { hl: { app: "active", s3: "found" }, moves: [{ e: "app>s3", t: "ciphertext + wrapped key", k: "req" }], hold: 2.8, note: "Only ciphertext and the wrapped key are stored. A stolen disk or bucket reveals nothing." },
-      { hl: { app: "active", kms: "found", s3: "found" }, moves: [{ e: "app>s3", t: "read", k: "ok", back: true }, { e: "app>kms", t: "Decrypt(wrapped key)", k: "req", delay: 1.0 }, { e: "app>kms", t: "plain key", k: "ok", back: true, delay: 2.0 }], hold: 3.4, note: "To read: KMS unwraps the small key (permission-checked and logged), and the app decrypts the data locally." },
+      { hl: { kms: "active", app: "warm" }, set: { app: "data key (plain) + wrapped copy" }, moves: [{ e: "app>kms", t: "GenerateDataKey" }, { e: "app>kms", t: "plain key + wrapped key", back: true, k: "ok", delay: 1.0 }], hold: 4,
+        note: "KMS creates a fresh data key and returns it twice: in plain form, and encrypted (\"wrapped\") under the master key, which never leaves KMS." },
+      { hl: { s3: "found", app: "found" }, set: { s3: "ciphertext + wrapped key", app: "plain key wiped from memory" }, moves: [{ e: "app>s3", t: "AES-GCM ciphertext + wrapped key" }], hold: 4,
+        note: "The app encrypts the file locally with the data key (fast, no size limit), stores the ciphertext next to the wrapped key, and forgets the plain key. A stolen disk or bucket reveals nothing." },
+      { hl: { app: "active", kms: "found" }, set: { app: "plain key (for this read only)" }, moves: [{ e: "app>s3", t: "read", back: true }, { e: "app>kms", t: "Decrypt(wrapped key)", delay: 0.8 }, { e: "app>kms", t: "plain key", back: true, k: "ok", delay: 1.6 }], hold: 4.4,
+        note: "To read: send only the small wrapped key to KMS. KMS checks permissions and logs the request, then unwraps it; the app decrypts the data locally." },
+      { hl: { kms: "found" }, set: { kms: "master key rotated: new version" }, hold: 3.6,
+        note: "Rotating the master key doesn't mean re-encrypting terabytes: only the small wrapped keys need re-wrapping, and old versions stay usable for decryption. And revoking one service's KMS permission cuts off its access to all the data at once." },
     ],
   });
   /* ---------- Under the hood: cryptography and web security ---------- */
