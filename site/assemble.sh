@@ -9,13 +9,15 @@
 #   /ai/               site/ai/ (the AI engineering track)
 #   /system-design/    site/system-design/ (the System design track)
 #   /architecture/     site/architecture/ (the Software architecture track)
+#   /behavioural/      site/behavioural/ (the Behavioural interviews track)
+#   /lld/              site/lld/ (the Low-level design track)
 #   /404.html          site/404.html, plus the favicon at /favicon.svg
 set -euo pipefail
 OUT="${1:-_site}"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp site/*.html "$OUT/"
-cp -r site/patterns site/assets site/ai site/system-design site/architecture "$OUT/"
+for d in patterns assets ai system-design architecture behavioural lld; do [ -d "site/$d" ] && cp -r "site/$d" "$OUT/"; done
 cp site/assets/favicon.svg "$OUT/"
 touch "$OUT/.nojekyll"
 

@@ -30,13 +30,15 @@ TRACKS = {
     "ai": ("AI engineering", "/ai/"),
     "system-design": ("System design", "/system-design/"),
     "architecture": ("Software architecture", "/architecture/"),
+    "behavioural": ("Behavioural interviews", "/behavioural/"),
+    "lld": ("Low-level design", "/lld/"),
 }
 START, END = "<!-- seo:start -->", "<!-- seo:end -->"
 
 
 def pages():
     out = [p for p in glob.glob("*.html") if p != "404.html"] + glob.glob("patterns/*.html")
-    for t in ("ai", "system-design", "architecture"):
+    for t in ("ai", "system-design", "architecture", "behavioural", "lld"):
         out += glob.glob(f"{t}/**/*.html", recursive=True)
     return sorted(out)
 
@@ -59,7 +61,7 @@ def ld(obj):
 def block(path, title, desc):
     url, plain_t, plain_d = url_of(path), html.unescape(title), html.unescape(desc)
     track = path.split("/")[0] if "/" in path and path.split("/")[0] in TRACKS else ""
-    hub = path in ("index.html", "ai/index.html", "system-design/index.html", "architecture/index.html")
+    hub = path in ("index.html", "ai/index.html", "system-design/index.html", "architecture/index.html", "behavioural/index.html", "lld/index.html")
     org = {"@type": "Organization", "name": "InterviewKata", "url": SITE + "/", "logo": SITE + "/favicon.svg"}
     tags = [
         f'<link rel="canonical" href="{url}">',
@@ -84,6 +86,8 @@ def block(path, title, desc):
             {"@type": "Course", "name": "Coding interview patterns", "description": "24 coding interview patterns with step-through visualizations, templates and solved LeetCode problems.", "url": SITE + "/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
             {"@type": "Course", "name": "System design interview course", "description": "A beginner-to-architect system design course: basics, 29 modules, deep dives into how the technologies work, and 32 worked designs.", "url": SITE + "/system-design/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
             {"@type": "Course", "name": "Software architecture course", "description": "From the architect's role to architecture characteristics, styles, trade-offs, integration, distributed data and governance.", "url": SITE + "/architecture/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
+            {"@type": "Course", "name": "Behavioural interview course", "description": "How behavioural interviews are scored, the STAR method, a story bank, the core question types, company values and senior signals.", "url": SITE + "/behavioural/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
+            {"@type": "Course", "name": "Low-level design interview course", "description": "Object-oriented design for interviews: OOP, SOLID, design patterns, diagrams, concurrency and 15 classic problems solved in Python, TypeScript and Java.", "url": SITE + "/lld/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
             {"@type": "Course", "name": "AI engineering course", "description": "From how LLMs work to agents, MCP, RAG, evals and AI system design.", "url": SITE + "/ai/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
         ]}))
     elif hub:

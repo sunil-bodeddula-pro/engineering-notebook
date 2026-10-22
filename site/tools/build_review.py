@@ -3,7 +3,7 @@
 
 Run from the site/ folder after adding or editing quiz questions or memory hooks:
 
-    python3 tools/build_review.py          # writes review.html, ai/review.html, system-design/review.html, architecture/review.html
+    python3 tools/build_review.py          # writes review.html, ai/review.html, system-design/review.html, architecture/review.html, behavioural/review.html, lld/review.html
     python3 tools/inline_assets.py         # then fill in the shared CSS/JS, menus and footer
 
 Each card is one quiz question (question, options, answer, explanation) or one memory hook.
@@ -24,6 +24,8 @@ TRACKS = {
     "coding": {"out": "review.html", "label": "Coding patterns", "pages": ["start-here.html", "cheatsheet.html", "patterns/*.html"]},
     "ai": {"out": "ai/review.html", "label": "AI engineering", "pages": ["ai/start-here.html", "ai/modules/*.html", "ai/cases/*.html"]},
     "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
+    "behavioural": {"out": "behavioural/review.html", "label": "Behavioural interviews", "pages": ["behavioural/start-here.html", "behavioural/modules/*.html"]},
+    "lld": {"out": "lld/review.html", "label": "Low-level design", "pages": ["lld/start-here.html", "lld/modules/*.html", "lld/problems/*.html"]},
     "architecture": {"out": "architecture/review.html", "label": "Software architecture", "pages": ["architecture/start-here.html", "architecture/modules/*.html", "architecture/cases/*.html"],
                      "note": 'Topics follow Mark Richards\' <a href="https://www.youtube.com/playlist?list=PLdsOZAx8I5umhnn5LLTNJbFgwA3xbycar" target="_blank" rel="noopener">Software Architecture Monday</a> lessons; the cards and pages are original.'},
 }
@@ -229,6 +231,8 @@ PAGE = """<!DOCTYPE html>
 def main():
     for track, cfg in TRACKS.items():
         cards, topics = cards_for(track)
+        if not topics:
+            continue   # a track that has no pages yet gets no deck
         deck = json.dumps({"cards": cards, "topics": topics}, ensure_ascii=False).replace("</", "<\\/")
         out = PAGE.replace("__LABEL__", cfg["label"]).replace("__TRACK__", track).replace("__COUNT__", str(len(topics))).replace("__DECK__", deck).replace("__NOTE__", " " + cfg["note"] if cfg.get("note") else "")
         path = os.path.join(ROOT, cfg["out"])
@@ -241,6 +245,7 @@ def main():
                 k, l = out.find(a), out.find(b)
                 if i >= 0 and j >= 0 and k >= 0 and l >= 0:
                     out = out[:k] + old[i:j] + out[l:]
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(out)
         print(f"{cfg['out']}: {len(cards)} cards from {len(topics)} pages")

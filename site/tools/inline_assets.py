@@ -12,7 +12,7 @@ Each page keeps its copy between the markers
 and its footer between
     <!-- site-footer:start ... -->  and  <!-- site-footer:end -->
 ({root} in footer.html becomes the relative path back to the site root: "" for top-level pages,
-"../" for patterns/, ai/, system-design/ and architecture/, "../../" for ai/{modules,cases}/, system-design/{modules,designs}/ and architecture/{modules,cases}/.)
+"../" for patterns/, ai/, system-design/, architecture/, behavioural/ and lld/, "../../" for ai/{modules,cases}/, system-design/{modules,designs}/ architecture/{modules,cases}/, behavioural/modules/ and lld/{modules,problems}/.)
 and its menus (top bar = the tracks, left sidebar = the current track's pages) between
     <!-- site-chrome:start ... -->  and  <!-- site-chrome:end -->
 A page's track comes from <body data-track="…"> (no attribute = "coding").
@@ -60,7 +60,9 @@ def chrome(path, page_html, nav):
             tabs.append(f'<span class="track-soon" title="Coming soon">{esc(t["label"])} <small>soon</small></span>')
         else:
             cur = ' aria-current="true"' if t["id"] == track_id else ""
-            tabs.append(f'<a href="{root}{t["home"]}"{cur}>{esc(t["label"])}</a>')
+            # "tab" is an optional shorter name for the top bar, so six tracks fit; the sidebar title keeps "label".
+            tip = f' title="{esc(t["label"])}"' if t.get("tab") else ""
+            tabs.append(f'<a href="{root}{t["home"]}"{cur}{tip}>{esc(t.get("tab", t["label"]))}</a>')
     tabs = "".join(tabs)
     track = next(t for t in nav["tracks"] if t["id"] == track_id)
     groups = []
@@ -124,7 +126,7 @@ def block():
 def pages():
     names = ["index.html", "start-here.html", "cheatsheet.html", "review.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
     names += sorted(glob.glob(os.path.join("ai", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "modules", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "cases", "*.html"), root_dir=ROOT))
-    for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), "architecture", os.path.join("architecture", "modules"), os.path.join("architecture", "cases")):
+    for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), "architecture", os.path.join("architecture", "modules"), os.path.join("architecture", "cases"), "behavioural", os.path.join("behavioural", "modules"), "lld", os.path.join("lld", "modules"), os.path.join("lld", "problems")):
         names += sorted(glob.glob(os.path.join(d, "*.html"), root_dir=ROOT))
     return [os.path.join(ROOT, n) for n in names]
 
