@@ -1760,6 +1760,40 @@
   }
 
   // Phones and tablets: the left sidebar (the track's menu) is a drawer opened by the top bar's Menu button.
+  // A copy-link button on every heading, "up close" block and collapsible section that has an id,
+  // so any part of a page can be shared. The link uses the page's canonical URL when it has one.
+  function bootAnchors() {
+    const root = document.querySelector("main") || document.querySelector(".wrap");
+    if (!root || !navigator) return;
+    const canon = document.querySelector('link[rel="canonical"]');
+    const base = (canon && canon.href) || location.href.split("#")[0];
+    const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>';
+    const copy = (text) => {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+      return new Promise((ok, fail) => {
+        const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;top:0;left:0;opacity:0"; document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy") ? ok() : fail(); } catch (e) { fail(e); } finally { ta.remove(); }
+      });
+    };
+    root.querySelectorAll("h2[id], h3[id], section.tech[id], details[id]").forEach((el) => {
+      if (el.closest(".viz, .widget, .toc, .glossary-list")) return;
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "anchor-copy"; b.title = "Copy link to this section";
+      b.setAttribute("aria-label", "Copy link to this section");
+      b.innerHTML = ICON + '<span class="ac-done">Copied</span>';
+      b.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();   // inside a <summary>, don't toggle the section
+        const url = base + "#" + el.id;
+        const done = () => { b.classList.add("copied"); b.title = "Link copied"; clearTimeout(b._t); b._t = setTimeout(() => { b.classList.remove("copied"); b.title = "Copy link to this section"; }, 1800); };
+        copy(url).then(done, () => { history.replaceState(null, "", "#" + el.id); b.title = "Copy the link from the address bar"; });
+      });
+      if (el.matches("section.tech")) { const h = el.querySelector(".tech-h > h3, .tech-h > h4"); if (h) h.after(b); else el.prepend(b); }
+      else if (el.tagName === "DETAILS") { const sm = el.querySelector(":scope > summary"); if (sm) sm.appendChild(b); }
+      else el.appendChild(b);
+    });
+  }
+
   function bootSideNav() {
     const btn = document.querySelector(".topbar .nav-toggle"), nav = document.getElementById("sidenav");
     if (!btn || !nav) return;
@@ -1848,12 +1882,20 @@
     bootCodeTabs();
     bootTraces();
     bootGlossary();
+    bootAnchors();
     // Open a collapsed <details> solution when its #p-NNN link is followed or the page loads with that hash.
     const openTarget = () => {
       if (typeof location === "undefined" || !location.hash) return;
       const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-      if (t && t.tagName === "DETAILS") { t.open = true; t.scrollIntoView(); }
-      else if (t && t.id.startsWith("g-")) { t.scrollIntoView({ block: "center" }); t.classList.remove("g-hit"); void t.offsetWidth; t.classList.add("g-hit"); }
+      if (!t) return;
+      if (t.id.startsWith("g-")) { t.scrollIntoView({ block: "center" }); t.classList.remove("g-hit"); void t.offsetWidth; t.classList.add("g-hit"); return; }
+      // Open the target if it's collapsible, and every collapsed section around it, then bring it into view.
+      if (t.tagName === "DETAILS") t.open = true;
+      for (let d = t.parentElement && t.parentElement.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+      const go = () => t.scrollIntoView();
+      go(); requestAnimationFrame(go);
+      if (document.readyState !== "complete") window.addEventListener("load", go, { once: true });
+      t.classList.remove("anchor-hit"); void t.offsetWidth; t.classList.add("anchor-hit");
     };
     if (typeof window.addEventListener === "function") window.addEventListener("hashchange", openTarget);
     openTarget();
