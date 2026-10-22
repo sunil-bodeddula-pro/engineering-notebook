@@ -7,8 +7,8 @@ kept to the basics; the depth goes into practice.
 ## Interactive course: [interviewkata.com/ai](https://interviewkata.com/ai/)
 
 The roadmap below is being rebuilt as a visual, zero-to-advanced course in the same style as the coding
-patterns: 20 modules with flow diagrams, step-through players, interactive widgets, memory hooks and labs in all
-five tools. Source: [`../site/ai/`](../site/ai/). All 20 modules are built (October 2026).
+patterns: 21 modules and a case study, with flow diagrams, step-through players, interactive widgets, memory hooks and labs in all
+five tools. Source: [`../site/ai/`](../site/ai/). All 21 modules are built (October 2026); Module 21 and case study C01 bring the "Leading the team" section and B13 onto the site.
 
 ## Start here
 
