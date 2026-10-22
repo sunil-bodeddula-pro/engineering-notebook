@@ -12,7 +12,7 @@ Each page keeps its copy between the markers
 and its footer between
     <!-- site-footer:start ... -->  and  <!-- site-footer:end -->
 ({root} in footer.html becomes the relative path back to the site root: "" for top-level pages,
-"../" for patterns/, ai/, system-design/ and architecture/, "../../" for ai/modules/, system-design/{modules,designs}/ and architecture/modules/.)
+"../" for patterns/, ai/, system-design/ and architecture/, "../../" for ai/modules/, system-design/{modules,designs}/ and architecture/{modules,cases}/.)
 and its menus (top bar = the tracks, left sidebar = the current track's pages) between
     <!-- site-chrome:start ... -->  and  <!-- site-chrome:end -->
 A page's track comes from <body data-track="…"> (no attribute = "coding").
@@ -124,7 +124,7 @@ def block():
 def pages():
     names = ["index.html", "start-here.html", "cheatsheet.html", "review.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
     names += sorted(glob.glob(os.path.join("ai", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "modules", "*.html"), root_dir=ROOT))
-    for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), "architecture", os.path.join("architecture", "modules")):
+    for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), "architecture", os.path.join("architecture", "modules"), os.path.join("architecture", "cases")):
         names += sorted(glob.glob(os.path.join(d, "*.html"), root_dir=ROOT))
     return [os.path.join(ROOT, n) for n in names]
 

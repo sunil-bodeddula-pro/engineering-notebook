@@ -24,7 +24,7 @@ TRACKS = {
     "coding": {"out": "review.html", "label": "Coding patterns", "pages": ["start-here.html", "cheatsheet.html", "patterns/*.html"]},
     "ai": {"out": "ai/review.html", "label": "AI engineering", "pages": ["ai/start-here.html", "ai/modules/*.html"]},
     "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
-    "architecture": {"out": "architecture/review.html", "label": "Software architecture", "pages": ["architecture/start-here.html", "architecture/modules/*.html"],
+    "architecture": {"out": "architecture/review.html", "label": "Software architecture", "pages": ["architecture/start-here.html", "architecture/modules/*.html", "architecture/cases/*.html"],
                      "note": 'Topics follow Mark Richards\' <a href="https://www.youtube.com/playlist?list=PLdsOZAx8I5umhnn5LLTNJbFgwA3xbycar" target="_blank" rel="noopener">Software Architecture Monday</a> lessons; the cards and pages are original.'},
 }
 
