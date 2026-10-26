@@ -3081,11 +3081,11 @@ html.iks-open { overflow: hidden; }
     edges: [["shop", "mid"], ["mid", "wh"], ["shop", "wh", "", { hidden: true, bend: -70 }]],
     width: 660, height: 280,
     steps: [
-      { hl: { mid: "warm" }, set: { mid: "orders.csv, written 01:00", wh: "imports at 02:00: sees 81 at 02:00" }, moves: [{ e: "shop>mid", t: "export 4,812 rows", k: "evt" }, { e: "mid>wh", t: "import", k: "evt", delay: 1.0 }], hold: 4,
+      { hl: { mid: "warm" }, set: { mid: "orders.csv, written 01:00", wh: "sees 81 at 02:00 import" }, moves: [{ e: "shop>mid", t: "export 4,812 rows", k: "evt" }, { e: "mid>wh", t: "import", k: "evt", delay: 1.0 }], hold: 4,
         note: "<b>File transfer.</b> Every night the shop exports the day's orders; the warehouse imports them at 2am. Simple and bulk-friendly, but order 81 waits 16 hours." },
       { hl: { mid: "bad", wh: "bad" }, set: { mid: "new column added", wh: "import fails: 0 rows" }, pops: [{ n: "wh", t: "nobody notices until morning", k: "bad", at: 0.6 }], hold: 3.6,
         note: "The shop adds a column to the export. The import rejects the file, and nobody finds out until the morning shift asks where the orders are." },
-      { hl: { mid: "warm", wh: "found" }, set: { mid: { label: "Shared database", sub: "orders table" }, wh: "reads orders table: sees 81 at once" }, moves: [{ e: "shop>mid", t: "INSERT order 81" }, { e: "mid>wh", t: "SELECT new orders", delay: 0.9 }], hold: 3.6,
+      { hl: { mid: "warm", wh: "found" }, set: { mid: { label: "Shared database", sub: "orders table" }, wh: "sees 81 at once" }, moves: [{ e: "shop>mid", t: "INSERT order 81" }, { e: "mid>wh", t: "SELECT new orders", delay: 0.9 }], hold: 3.6,
         note: "<b>Shared database.</b> The warehouse reads the shop's orders table directly. Always up to date, no copying." },
       { hl: { mid: "bad", wh: "bad" }, set: { mid: "status column renamed", wh: "queries break" }, hold: 3.4, note: "Until the shop's team renames a column for their own reasons. The warehouse breaks, because both depend on one schema." },
       { hl: { shop: "active", wh: "found" }, set: { mid: { label: "Warehouse API", sub: "POST /shipments" }, wh: "sees 81 in 40 ms" }, moves: [{ e: "shop>mid", t: "POST order 81" }, { e: "mid>wh", t: "create shipment", delay: 0.7 }, { e: "shop>mid", t: "201 Created", back: true, k: "ok", delay: 1.4 }], hold: 3.8,
