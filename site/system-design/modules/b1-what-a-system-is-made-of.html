@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3250,9 +3250,9 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   Viz.scene("#sc-main", {
     title: "A web app, tier by tier", sub: "Box text shows what each tier sent or did. Static files are the same for everyone; data is per user.",
-    nodes: [{ id: "web", x: 95, y: 60, w: 170, label: "Browser", sub: " " }, { id: "mob", x: 95, y: 220, w: 170, label: "Phone app", sub: " " },
-      { id: "ws", x: 380, y: 60, w: 220, label: "Web server / CDN", sub: "same files for all" }, { id: "app", x: 380, y: 220, w: 220, label: "App server", sub: "your code" },
-      { id: "db", x: 680, y: 220, w: 180, label: "Database", sub: "notes: 3 for user 31" }],
+    nodes: [{ id: "web", x: 95, y: 60, w: 170, label: "Browser", sub: " ", kind: "client" }, { id: "mob", x: 95, y: 220, w: 170, label: "Phone app", sub: " ", kind: "client" },
+      { id: "ws", x: 380, y: 60, w: 220, label: "Web server / CDN", sub: "same files for all", kind: "cdn" }, { id: "app", x: 380, y: 220, w: 220, label: "App server", sub: "your code", kind: "service" },
+      { id: "db", x: 680, y: 220, w: 180, label: "Database", sub: "notes: 3 for user 31", kind: "db" }],
     edges: [["web", "ws"], ["web", "app"], ["mob", "app"], ["app", "db"]],
     width: 790, height: 280,
     steps: [
@@ -3266,9 +3266,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-request", {
     title: "Opening note 7, hop by hop", sub: "Box text shows what each part knows. App servers keep nothing between requests.",
-    nodes: [{ id: "c", x: 95, y: 150, w: 170, label: "Browser", sub: "cookie: session=s_8f2" }, { id: "fd", x: 320, y: 150, w: 200, label: "Front door", sub: "load balancer" },
-      { id: "a1", x: 560, y: 60, w: 210, label: "App server 1", sub: "idle" }, { id: "a2", x: 560, y: 240, w: 210, label: "App server 2", sub: "idle" },
-      { id: "db", x: 800, y: 150, w: 170, label: "Database", sub: " " }],
+    nodes: [{ id: "c", x: 95, y: 150, w: 170, label: "Browser", sub: "cookie: session=s_8f2", kind: "client" }, { id: "fd", x: 320, y: 150, w: 200, label: "Front door", sub: "load balancer", kind: "lb" },
+      { id: "a1", x: 560, y: 60, w: 210, label: "App server 1", sub: "idle", kind: "service" }, { id: "a2", x: 560, y: 240, w: 210, label: "App server 2", sub: "idle", kind: "service" },
+      { id: "db", x: 800, y: 150, w: 170, label: "Database", sub: " ", kind: "db" }],
     edges: [["c", "fd"], ["fd", "a1"], ["fd", "a2"], ["a1", "db"], ["a2", "db"]],
     width: 900, height: 290,
     steps: [
@@ -3285,9 +3285,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-state", {
     title: "Why stateless matters", sub: "Box text shows what each server remembers.",
-    nodes: [{ id: "u", x: 80, y: 150, w: 120, label: "User", sub: "cookie: –" }, { id: "lb", x: 270, y: 150, w: 150, label: "Load balancer", sub: "round robin" },
-      { id: "a", x: 500, y: 60, w: 200, label: "Server A", sub: "memory: –" }, { id: "b", x: 500, y: 240, w: 200, label: "Server B", sub: "memory: –" },
-      { id: "s", x: 700, y: 150, w: 170, label: "Session store", sub: "–", hidden: true }],
+    nodes: [{ id: "u", x: 80, y: 150, w: 120, label: "User", sub: "cookie: –", kind: "client" }, { id: "lb", x: 270, y: 150, w: 150, label: "Load balancer", sub: "round robin", kind: "lb" },
+      { id: "a", x: 500, y: 60, w: 200, label: "Server A", sub: "memory: –", kind: "service" }, { id: "b", x: 500, y: 240, w: 200, label: "Server B", sub: "memory: –", kind: "service" },
+      { id: "s", x: 700, y: 150, w: 170, label: "Session store", sub: "–", hidden: true, kind: "cache" }],
     edges: [["u", "lb"], ["lb", "a"], ["lb", "b"], ["a", "s", "", { hidden: true }], ["b", "s", "", { hidden: true }]],
     width: 800, height: 300,
     steps: [

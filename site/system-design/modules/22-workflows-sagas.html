@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3080,6 +3080,7 @@ html.iks-open { overflow: hidden; }
         <tr><td>Use for</td><td>Simple flows with a few steps owned by different teams</td><td>Complex flows, long waits, human steps, anything you'll need to debug at 3 a.m.</td></tr>
       </tbody>
     </table>
+    <div id="fig-coord"></div>
 
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
@@ -3483,8 +3484,8 @@ async function placeOrder(order) {
   ob();
   Viz.scene("#sc-main", {
     title: "A saga that fails at step 3", sub: "Box text shows each service's state for order 881. <b>Gold</b> = compensating.",
-    nodes: [{ id: "o", x: 110, y: 160, w: 190, label: "Orchestrator", sub: "order 881: started" },
-      { id: "inv", x: 450, y: 60, w: 220, label: "Stock", sub: "item 5: 3 free" }, { id: "pay", x: 450, y: 160, w: 220, label: "Payments", sub: "no charge" }, { id: "cour", x: 450, y: 260, w: 220, label: "Courier", sub: "no booking" }],
+    nodes: [{ id: "o", x: 110, y: 160, w: 190, label: "Orchestrator", sub: "order 881: started", kind: "service" },
+      { id: "inv", x: 450, y: 60, w: 220, label: "Stock", sub: "item 5: 3 free", kind: "service" }, { id: "pay", x: 450, y: 160, w: 220, label: "Payments", sub: "no charge", kind: "service" }, { id: "cour", x: 450, y: 260, w: 220, label: "Courier", sub: "no booking", kind: "ext" }],
     edges: [["o", "inv"], ["o", "pay"], ["o", "cour"]],
     width: 640, height: 310,
     steps: [
@@ -3497,6 +3498,31 @@ async function placeOrder(order) {
         note: "So the orchestrator runs <b>compensations</b>: undo each completed step in reverse order. A refund isn't a rollback: the charge happened and the customer may see both. Compensations are retried until they succeed, and must be idempotent." },
     ],
   });
+  Viz.figures("#fig-coord", {
+    "Choreography": { title: "Choreography: services react to events", sub: "A grocery order: take payment, then book a delivery slot. Nobody is in charge.",
+      nodes: [{ id: "ord", x: 95, y: 150, w: 140, label: "Orders", sub: "status: placed", kind: "service" }, { id: "bus", x: 340, y: 150, w: 150, label: "Event bus", sub: "Kafka topics", kind: "queue" },
+        { id: "pay", x: 600, y: 55, w: 140, label: "Payments", sub: "listens: OrderPlaced", kind: "service" }, { id: "del", x: 600, y: 245, w: 140, label: "Delivery", sub: "listens: PaymentTaken", kind: "service" }],
+      edges: [["ord", "bus", "OrderPlaced", { n: 1, bend: -30 }], ["bus", "pay", "", { n: 2, bend: -20 }], ["pay", "bus", "PaymentTaken", { n: 3, bend: -20 }], ["bus", "del", "", { n: 4, bend: 20 }], ["del", "bus", "SlotBooked", { n: 4, bend: 20 }], ["bus", "ord", "", { n: 5, bend: -30 }]],
+      width: 700, height: 300,
+      steps: ["Orders saves the order and publishes <code>OrderPlaced</code> (through an outbox, so the save and the event can't disagree).",
+        "Payments is subscribed to <code>OrderPlaced</code>, so it charges the card.",
+        "It publishes <code>PaymentTaken</code>. It doesn't know or care who listens.",
+        "Delivery reacts to <code>PaymentTaken</code>, books a slot and publishes <code>SlotBooked</code>.",
+        "Orders listens to all of these to keep its status up to date. If the slot booking fails, Delivery publishes <code>SlotFailed</code> and Payments must react with a refund."],
+      after: "<b>The flow lives nowhere.</b> It's the sum of who subscribes to what. Adding a listener is easy; answering \"why is order 77 stuck?\" means reading three services' logs." },
+    "Orchestration": { title: "Orchestration: one component runs the steps", sub: "The same order, driven by a workflow.",
+      nodes: [{ id: "ord", x: 95, y: 150, w: 140, label: "Orders", sub: "starts the workflow", kind: "service" }, { id: "orc", x: 340, y: 150, w: 150, label: "Orchestrator", sub: "order workflow", kind: "service" },
+        { id: "pay", x: 600, y: 55, w: 140, label: "Payments", sub: "charge, refund", kind: "service" }, { id: "del", x: 600, y: 245, w: 140, label: "Delivery", sub: "book slot", kind: "service" },
+        { id: "h", x: 340, y: 280, w: 150, label: "Workflow history", sub: "every step's result", kind: "db" }],
+      edges: [["ord", "orc", "start order 77", { n: 1 }], ["orc", "pay", "charge £64", { n: 2 }], ["orc", "del", "book a slot", { n: 3 }], ["orc", "h", "", { n: 4 }], ["orc", "pay", "refund", { n: 5, bend: 50 }]],
+      width: 700, height: 330,
+      steps: ["Orders starts a workflow for order 77.",
+        "The orchestrator calls Payments: charge £64.",
+        "Then it calls Delivery: book a slot.",
+        "After each step it records the result in its history, so if it crashes it carries on from the last finished step instead of starting again.",
+        { text: "If Delivery says no slots are left, the orchestrator runs the compensation itself: refund the £64.", hl: { del: "bad" } }],
+      after: "<b>The flow lives in one place.</b> You can read it, change the order of steps, and ask the orchestrator where any order is. The price: every step depends on the orchestrator, so it must be run reliably." },
+  }, { label: "Coordination style" });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "A process across services: no global transaction, so every step needs an undo." },
     { el: "#sc-main", title: "2 · A failing saga", text: "Watch step 3 fail and the earlier steps get compensated." },
@@ -3509,8 +3535,8 @@ async function placeOrder(order) {
   ]);
   Viz.scene("#sc-replay", {
     title: "Durable execution: a crash after charging doesn't charge twice", sub: "The history box shows what the workflow engine has recorded.",
-    nodes: [{ id: "w1", x: 100, y: 60, w: 160, label: "Worker 1", sub: "running order 881" }, { id: "w2", x: 100, y: 240, w: 160, label: "Worker 2", sub: "idle" },
-      { id: "srv", x: 380, y: 150, w: 240, label: "Workflow history", sub: "started" }, { id: "pay", x: 640, y: 60, w: 160, label: "Payments", sub: "charges: none" }, { id: "inv", x: 640, y: 240, w: 160, label: "Inventory", sub: "reserved: none" }],
+    nodes: [{ id: "w1", x: 100, y: 60, w: 160, label: "Worker 1", sub: "running order 881", kind: "service" }, { id: "w2", x: 100, y: 240, w: 160, label: "Worker 2", sub: "idle", kind: "service" },
+      { id: "srv", x: 380, y: 150, w: 240, label: "Workflow history", sub: "started", kind: "db" }, { id: "pay", x: 640, y: 60, w: 160, label: "Payments", sub: "charges: none", kind: "service" }, { id: "inv", x: 640, y: 240, w: 160, label: "Inventory", sub: "reserved: none", kind: "service" }],
     edges: [["w1", "srv"], ["w2", "srv"], ["w1", "pay", "", { bend: -30 }], ["w2", "inv", "", { bend: 30 }]],
     width: 740, height: 300,
     steps: [
@@ -3527,8 +3553,8 @@ async function placeOrder(order) {
   /* ---------- Under the hood: workflows and timers ---------- */
   Viz.scene("#sc-u22-replay", {
     title: "A worker crashes mid-workflow", sub: "The history (on the workflow server) is the source of truth. The payment API counts real charges.",
-    nodes: [{ id: "w1", x: 110, y: 60, w: 190, label: "Worker 1", sub: "running order 55" }, { id: "w2", x: 110, y: 260, w: 190, label: "Worker 2", sub: "idle" },
-      { id: "h", x: 420, y: 160, w: 260, label: "Workflow history", sub: "1 started" }, { id: "pay", x: 690, y: 60, w: 190, label: "Payment API", sub: "charges: 0" }],
+    nodes: [{ id: "w1", x: 110, y: 60, w: 190, label: "Worker 1", sub: "running order 55", kind: "service" }, { id: "w2", x: 110, y: 260, w: 190, label: "Worker 2", sub: "idle", kind: "service" },
+      { id: "h", x: 420, y: 160, w: 260, label: "Workflow history", sub: "1 started", kind: "db" }, { id: "pay", x: 690, y: 60, w: 190, label: "Payment API", sub: "charges: 0", kind: "ext" }],
     edges: [["w1", "pay"], ["w1", "h"], ["w2", "h"]],
     width: 800, height: 310,
     steps: [

@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3378,7 +3378,7 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-loop", {
     title: "Thread per request vs event loop", sub: "Box text shows what each model holds in memory while requests wait on the database (50 ms each).",
     nodes: [{ id: "tp", x: 140, y: 70, w: 250, label: "Thread per request", sub: "idle" }, { id: "loop", x: 140, y: 220, w: 250, label: "Event loop (1 thread)", sub: "idle" },
-      { id: "db", x: 520, y: 150, w: 180, label: "Database", sub: "50 ms per query" }],
+      { id: "db", x: 520, y: 150, w: 180, label: "Database", sub: "50 ms per query", kind: "db" }],
     edges: [["tp", "db"], ["loop", "db"]],
     width: 660, height: 280,
     steps: [
@@ -3479,8 +3479,8 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-ub2-rec", {
     title: "Kubernetes replaces a crashed pod", sub: "Each component only watches the API server and nudges state. Box text shows desired vs actual.",
-    nodes: [{ id: "api", x: 330, y: 150, w: 240, label: "API server (state in etcd)", sub: "web: want 3 · have 3" }, { id: "ctl", x: 100, y: 50, w: 190, label: "ReplicaSet controller", sub: "watching" },
-      { id: "sch", x: 100, y: 250, w: 190, label: "Scheduler", sub: "watching" }, { id: "k1", x: 600, y: 60, w: 190, label: "kubelet, node 1", sub: "web-1 web-7" }, { id: "k2", x: 600, y: 240, w: 190, label: "kubelet, node 2", sub: "web-2" }],
+    nodes: [{ id: "api", x: 330, y: 150, w: 240, label: "API server (state in etcd)", sub: "web: want 3 · have 3", kind: "service" }, { id: "ctl", x: 100, y: 50, w: 190, label: "ReplicaSet controller", sub: "watching", kind: "service" },
+      { id: "sch", x: 100, y: 250, w: 190, label: "Scheduler", sub: "watching", kind: "service" }, { id: "k1", x: 600, y: 60, w: 190, label: "kubelet, node 1", sub: "web-1 web-7", kind: "service" }, { id: "k2", x: 600, y: 240, w: 190, label: "kubelet, node 2", sub: "web-2", kind: "service" }],
     edges: [["ctl", "api"], ["sch", "api"], ["k1", "api"], ["k2", "api"]],
     width: 720, height: 300,
     steps: [
@@ -3496,7 +3496,7 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-ub2-cold", {
     title: "Cold start vs warm invocation", sub: "Box text shows the function instance's state and the time the request waited.",
-    nodes: [{ id: "c", x: 100, y: 120, w: 150, label: "Request", sub: " " }, { id: "fn", x: 420, y: 120, w: 280, label: "Function instance", sub: "none running" }],
+    nodes: [{ id: "c", x: 100, y: 120, w: 150, label: "Request", sub: " ", kind: "client" }, { id: "fn", x: 420, y: 120, w: 280, label: "Function instance", sub: "none running", kind: "service" }],
     edges: [["c", "fn"]],
     width: 620, height: 230,
     steps: [

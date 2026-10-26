@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3521,8 +3521,8 @@ html.iks-open { overflow: hidden; }
   fence();
   Viz.scene("#sc-main", {
     title: "Raft: commit, crash, elect", sub: "Box text shows each node's role, term and log. <b>Teal</b> = heartbeats and votes; <b>green</b> = committed.",
-    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Client", sub: " " }, { id: "n1", x: 340, y: 50, w: 260, label: "Node 1", sub: "leader · term 1 · log [1]" },
-      { id: "n2", x: 340, y: 250, w: 260, label: "Node 2", sub: "follower · term 1 · log [1]" }, { id: "n3", x: 640, y: 150, w: 240, label: "Node 3", sub: "follower · term 1 · log [1]" }],
+    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Client", sub: " ", kind: "client" }, { id: "n1", x: 340, y: 50, w: 260, label: "Node 1", sub: "leader · term 1 · log [1]", kind: "service" },
+      { id: "n2", x: 340, y: 250, w: 260, label: "Node 2", sub: "follower · term 1 · log [1]", kind: "service" }, { id: "n3", x: 640, y: 150, w: 240, label: "Node 3", sub: "follower · term 1 · log [1]", kind: "service" }],
     edges: [["c", "n1"], ["c", "n2"], ["n1", "n2"], ["n1", "n3"], ["n2", "n3"]],
     width: 790, height: 300,
     steps: [
@@ -3552,7 +3552,7 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-faults", {
     title: "Four ways a node can fail", sub: "<b>Blue</b> = requests, <b>green</b> = correct replies, <b>red</b> = the failure.",
-    nodes: [{ id: "c", x: 90, y: 110, w: 120, label: "Sender" }, { id: "n", x: 500, y: 110, w: 140, label: "Replica" }],
+    nodes: [{ id: "c", x: 90, y: 110, w: 120, label: "Sender", kind: "client" }, { id: "n", x: 500, y: 110, w: 140, label: "Replica", kind: "service" }],
     edges: [["c", "n"]],
     width: 620, height: 200,
     steps: [
@@ -3613,8 +3613,8 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-u21-fence", {
     title: "Why locks need fencing tokens", sub: "Box text shows who holds the lock and the highest token storage has seen.",
-    nodes: [{ id: "a", x: 110, y: 60, w: 200, label: "Client A", sub: " " }, { id: "b", x: 110, y: 230, w: 200, label: "Client B", sub: " " },
-      { id: "lk", x: 400, y: 60, w: 240, label: "Lock service", sub: "free" }, { id: "st", x: 400, y: 230, w: 240, label: "Storage", sub: "highest token: 32" }],
+    nodes: [{ id: "a", x: 110, y: 60, w: 200, label: "Client A", sub: " ", kind: "client" }, { id: "b", x: 110, y: 230, w: 200, label: "Client B", sub: " ", kind: "client" },
+      { id: "lk", x: 400, y: 60, w: 240, label: "Lock service", sub: "free", kind: "service" }, { id: "st", x: 400, y: 230, w: 240, label: "Storage", sub: "highest token: 32", kind: "db" }],
     edges: [["a", "lk"], ["b", "lk"], ["a", "st"], ["b", "st"]],
     width: 600, height: 290,
     steps: [
@@ -3666,9 +3666,9 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-twogen", {
     title: "Why the last message always leaves doubt", sub: "Box text shows what each side knows.",
-    nodes: [{ id: "a", x: 110, y: 130, w: 200, label: "Client (A)", sub: "knows nothing yet" },
+    nodes: [{ id: "a", x: 110, y: 130, w: 200, label: "Client (A)", sub: "knows nothing yet", kind: "client" },
             { id: "net", x: 340, y: 130, w: 140, label: "Network", sub: "may drop" },
-            { id: "b", x: 570, y: 130, w: 200, label: "Server (B)", sub: "knows nothing yet" }],
+            { id: "b", x: 570, y: 130, w: 200, label: "Server (B)", sub: "knows nothing yet", kind: "service" }],
     edges: [["a", "net"], ["net", "b"]],
     width: 680, height: 250,
     steps: [

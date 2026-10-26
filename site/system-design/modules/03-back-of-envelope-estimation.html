@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3424,9 +3424,9 @@ html.iks-open { overflow: hidden; }
   next();
   Viz.scene("#sc-main", {
     title: "From users to a design", sub: "Each box fills in as the number is worked out; green boxes are the decisions the numbers force.",
-    nodes: [{ id: "users", x: 95, y: 140, w: 160, label: "50M daily users", sub: " " },
-      { id: "reads", x: 330, y: 60, w: 200, label: "Reads", sub: "× 50 views a day" }, { id: "writes", x: 330, y: 220, w: 200, label: "Writes", sub: "× 0.2 uploads a day" },
-      { id: "cache", x: 620, y: 40, w: 220, label: "Cache + CDN", sub: "?" }, { id: "db", x: 620, y: 140, w: 220, label: "One database", sub: "?" }, { id: "blob", x: 620, y: 240, w: 220, label: "Blob storage", sub: "?" }],
+    nodes: [{ id: "users", x: 95, y: 140, w: 160, label: "50M daily users", sub: " ", kind: "client" },
+      { id: "reads", x: 330, y: 60, w: 200, label: "Reads", sub: "× 50 views a day", kind: "service" }, { id: "writes", x: 330, y: 220, w: 200, label: "Writes", sub: "× 0.2 uploads a day", kind: "service" },
+      { id: "cache", x: 620, y: 40, w: 220, label: "Cache + CDN", sub: "?", kind: "cache" }, { id: "db", x: 620, y: 140, w: 220, label: "One database", sub: "?", kind: "db" }, { id: "blob", x: 620, y: 240, w: 220, label: "Blob storage", sub: "?", kind: "store" }],
     edges: [["users", "reads"], ["users", "writes"], ["reads", "cache"], ["writes", "db"], ["writes", "blob"]],
     width: 740, height: 290,
     steps: [

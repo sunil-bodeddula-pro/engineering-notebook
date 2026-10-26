@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3456,9 +3456,9 @@ Consequences: every query is protected by default; connection pooling must reset
   $("pq-new").checked = true; pick();
   Viz.scene("#sc-main", {
     title: "Strangler fig: replace a monolith piece by piece", sub: "Box text shows the routing table and the share of traffic each side handles.",
-    nodes: [{ id: "u", x: 80, y: 140, w: 120, label: "Users", sub: " " }, { id: "px", x: 290, y: 140, w: 220, label: "Routing layer", sub: "* → monolith" },
-      { id: "mono", x: 560, y: 50, w: 180, label: "Monolith", sub: "100% of traffic" }, { id: "ord", x: 560, y: 240, w: 180, label: "Orders service", sub: " ", hidden: true },
-      { id: "mdb", x: 780, y: 50, w: 150, label: "Monolith DB", sub: "all tables" }, { id: "odb", x: 780, y: 240, w: 150, label: "Orders DB", sub: " ", hidden: true }],
+    nodes: [{ id: "u", x: 80, y: 140, w: 120, label: "Users", sub: " ", kind: "client" }, { id: "px", x: 290, y: 140, w: 220, label: "Routing layer", sub: "* → monolith", kind: "lb" },
+      { id: "mono", x: 560, y: 50, w: 180, label: "Monolith", sub: "100% of traffic", kind: "service" }, { id: "ord", x: 560, y: 240, w: 180, label: "Orders service", sub: " ", hidden: true, kind: "service" },
+      { id: "mdb", x: 780, y: 50, w: 150, label: "Monolith DB", sub: "all tables", kind: "db" }, { id: "odb", x: 780, y: 240, w: 150, label: "Orders DB", sub: " ", hidden: true, kind: "db" }],
     edges: [["u", "px"], ["px", "mono"], ["px", "ord"], ["mono", "mdb"], ["ord", "odb"], ["mdb", "odb", "", { hidden: true }]],
     width: 870, height: 290,
     steps: [
@@ -3486,8 +3486,8 @@ Consequences: every query is protected by default; connection pooling must reset
   ]);
   Viz.scene("#sc-es", {
     title: "Event sourcing with CQRS: events in, views out", sub: "The log keeps every event; each view is computed from it. Box text shows their contents.",
-    nodes: [{ id: "cmd", x: 90, y: 150, w: 150, label: "Commands", sub: "account 9" }, { id: "es", x: 320, y: 150, w: 240, label: "Event log (append-only)", sub: "empty" },
-      { id: "bal", x: 620, y: 50, w: 190, label: "Balance view", sub: "–" }, { id: "stm", x: 620, y: 150, w: 190, label: "Statement view", sub: "–" }, { id: "fraud", x: 620, y: 250, w: 190, label: "Fraud view (new)", sub: " ", hidden: true }],
+    nodes: [{ id: "cmd", x: 90, y: 150, w: 150, label: "Commands", sub: "account 9", kind: "client" }, { id: "es", x: 320, y: 150, w: 240, label: "Event log (append-only)", sub: "empty", kind: "queue" },
+      { id: "bal", x: 620, y: 50, w: 190, label: "Balance view", sub: "–", kind: "db" }, { id: "stm", x: 620, y: 150, w: 190, label: "Statement view", sub: "–", kind: "db" }, { id: "fraud", x: 620, y: 250, w: 190, label: "Fraud view (new)", sub: " ", hidden: true, kind: "db" }],
     edges: [["cmd", "es"], ["es", "bal"], ["es", "stm"], ["es", "fraud"]],
     width: 760, height: 300,
     steps: [

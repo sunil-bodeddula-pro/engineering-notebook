@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3457,10 +3457,10 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-main", {
     title: "One slow server makes a slow page", sub: "The front end must wait for every shard. Box text shows each answer's time.",
     nodes: [
-      { id: "user", x: 80, y: 160, w: 110, label: "User", sub: " " },
-      { id: "fe", x: 280, y: 160, w: 180, label: "Front end", sub: "waits for all 4" },
-      { id: "s1", x: 540, y: 40, w: 170, label: "Shard 1", sub: " " }, { id: "s2", x: 540, y: 120, w: 170, label: "Shard 2", sub: " " },
-      { id: "s3", x: 540, y: 200, w: 170, label: "Shard 3", sub: " " }, { id: "s4", x: 540, y: 280, w: 170, label: "Shard 4", sub: " " },
+      { id: "user", x: 80, y: 160, w: 110, label: "User", sub: " ", kind: "client" },
+      { id: "fe", x: 280, y: 160, w: 180, label: "Front end", sub: "waits for all 4", kind: "service" },
+      { id: "s1", x: 540, y: 40, w: 170, label: "Shard 1", sub: " ", kind: "db" }, { id: "s2", x: 540, y: 120, w: 170, label: "Shard 2", sub: " ", kind: "db" },
+      { id: "s3", x: 540, y: 200, w: 170, label: "Shard 3", sub: " ", kind: "db" }, { id: "s4", x: 540, y: 280, w: 170, label: "Shard 4", sub: " ", kind: "db" },
     ],
     edges: [["user", "fe"], ["fe", "s1"], ["fe", "s2"], ["fe", "s3"], ["fe", "s4"]],
     width: 680, height: 320,
@@ -3488,9 +3488,9 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-dist", {
     title: "Distance you can't optimise away", sub: "One page makes 10 database calls. The app's box adds up the time spent travelling.",
-    nodes: [{ id: "app", x: 120, y: 160, w: 220, label: "App (Virginia, zone a)", sub: "network time: 0 ms" },
-      { id: "z", x: 520, y: 50, w: 260, label: "DB, same zone", sub: "round trip ~0.3 ms" }, { id: "az", x: 520, y: 160, w: 260, label: "DB, other zone (same region)", sub: "round trip ~1.5 ms" },
-      { id: "eu", x: 520, y: 270, w: 260, label: "DB in London", sub: "round trip ~80 ms" }],
+    nodes: [{ id: "app", x: 120, y: 160, w: 220, label: "App (Virginia, zone a)", sub: "network time: 0 ms", kind: "service" },
+      { id: "z", x: 520, y: 50, w: 260, label: "DB, same zone", sub: "round trip ~0.3 ms", kind: "db" }, { id: "az", x: 520, y: 160, w: 260, label: "DB, other zone (same region)", sub: "round trip ~1.5 ms", kind: "db" },
+      { id: "eu", x: 520, y: 270, w: 260, label: "DB in London", sub: "round trip ~80 ms", kind: "db" }],
     edges: [["app", "z"], ["app", "az"], ["app", "eu"]],
     width: 740, height: 320,
     steps: [
@@ -3506,7 +3506,7 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-hedge", {
     title: "A hedged read", sub: "Box text shows the clock and each replica's state.",
-    nodes: [{ id: "c", x: 100, y: 140, w: 170, label: "Client", sub: "t = 0 ms" }, { id: "r1", x: 440, y: 60, w: 240, label: "Replica 1", sub: "usually ~2 ms" }, { id: "r2", x: 440, y: 220, w: 240, label: "Replica 2", sub: "idle" }],
+    nodes: [{ id: "c", x: 100, y: 140, w: 170, label: "Client", sub: "t = 0 ms", kind: "client" }, { id: "r1", x: 440, y: 60, w: 240, label: "Replica 1", sub: "usually ~2 ms", kind: "db" }, { id: "r2", x: 440, y: 220, w: 240, label: "Replica 2", sub: "idle", kind: "db" }],
     edges: [["c", "r1"], ["c", "r2"]],
     width: 640, height: 280,
     steps: [

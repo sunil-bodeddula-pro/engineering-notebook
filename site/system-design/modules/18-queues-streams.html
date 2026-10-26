@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3098,6 +3098,7 @@ html.iks-open { overflow: hidden; }
       <li><strong>Exactly-once</strong> delivery over a network isn't possible in general. What systems offer is <strong>effectively once</strong>: at-least-once delivery plus <strong>idempotent processing</strong> (a duplicate has no extra effect), or transactions that commit the result and the consumer's position together (Kafka's exactly-once within Kafka).</li>
     </ul>
     <p>In practice: assume duplicates, and make consumers idempotent. Record processed message IDs, use upserts, or use the idempotency keys from Module 07.</p>
+    <div id="fig-deliver"></div>
     <h3>Acknowledgements and the visibility timeout</h3>
     <p>In SQS, receiving a message hides it from other consumers for a <strong>visibility timeout</strong> (30 seconds by default). If the consumer deletes it in time, it's done; if the consumer crashes, the message reappears and another worker takes it. Set the timeout longer than the slowest normal processing time, or a slow worker and a second worker will process the same message at once.</p>
     <h3>Partitions, ordering and consumer groups</h3>
@@ -3543,8 +3544,8 @@ html.iks-open { overflow: hidden; }
   sim();
   Viz.scene("#sc-main", {
     title: "A queue between two services", sub: "Box text shows the queue, the message in flight and the worker's record of processed IDs.",
-    nodes: [{ id: "api", x: 85, y: 140, w: 130, label: "Order API", sub: " " }, { id: "q", x: 310, y: 140, w: 200, label: "Queue", sub: "empty" },
-      { id: "w", x: 560, y: 60, w: 170, label: "Email worker", sub: "idle" }, { id: "db", x: 560, y: 230, w: 170, label: "Processed IDs", sub: "{ 879, 880 }" }],
+    nodes: [{ id: "api", x: 85, y: 140, w: 130, label: "Order API", sub: " ", kind: "service" }, { id: "q", x: 310, y: 140, w: 200, label: "Queue", sub: "empty", kind: "queue" },
+      { id: "w", x: 560, y: 60, w: 170, label: "Email worker", sub: "idle", kind: "service" }, { id: "db", x: 560, y: 230, w: 170, label: "Processed IDs", sub: "{ 879, 880 }" }],
     edges: [["api", "q"], ["q", "w"], ["w", "db"]],
     width: 680, height: 290,
     steps: [
@@ -3561,6 +3562,40 @@ html.iks-open { overflow: hidden; }
         note: "This time the check finds 881, so the worker skips the email and acknowledges; the queue deletes the message. The worker is <b>idempotent</b>. (A crash between sending and recording could still send twice, so the email provider's own idempotency key closes that last gap.)" },
     ],
   });
+  Viz.figures("#fig-deliver", {
+    "At most once": { title: "At most once: delete first", sub: "A paid order should earn the customer 50 loyalty points, exactly once.",
+      nodes: [{ id: "q", x: 95, y: 120, w: 140, label: "Orders queue", sub: "order 881 paid", kind: "queue" }, { id: "w1", x: 330, y: 55, w: 140, label: "Worker 1", sub: "adds points", kind: "service" },
+        { id: "db", x: 580, y: 120, w: 160, label: "Loyalty DB", sub: "points per customer", kind: "db" }],
+      edges: [["q", "w1", "receive + delete", { n: 1 }]],
+      width: 660, height: 230,
+      steps: ["Worker 1 takes the message and the queue deletes it at once.",
+        { text: "Worker 1 crashes before it writes anything.", hl: { w1: "bad" } },
+        { text: "The +50 points never happen, and nobody will try again: the message is gone.", hl: { db: "bad", q: "bad" } }],
+      after: "<b>Never twice, sometimes never.</b> Fine for a metrics sample you can afford to lose; wrong for anything a customer will notice." },
+    "At least once": { title: "At least once: delete after the work", sub: "The same order, but the message is deleted only when the worker says it's done.",
+      nodes: [{ id: "q", x: 95, y: 145, w: 140, label: "Orders queue", sub: "order 881 paid", kind: "queue" }, { id: "w1", x: 330, y: 55, w: 140, label: "Worker 1", sub: "adds points", kind: "service" },
+        { id: "w2", x: 330, y: 235, w: 140, label: "Worker 2", sub: "adds points", kind: "service" }, { id: "db", x: 580, y: 145, w: 160, label: "Loyalty DB", sub: "points per customer", kind: "db" }],
+      edges: [["q", "w1", "receive", { n: 1 }], ["w1", "db", "+50 points", { n: 2 }], ["q", "w2", "visible again", { n: 4 }], ["w2", "db", "+50 points", { n: 5 }]],
+      width: 660, height: 290,
+      steps: ["Worker 1 receives the message. The queue hides it from other workers for 30 seconds (the visibility timeout) but keeps it.",
+        "Worker 1 adds the 50 points.",
+        { text: "Worker 1 crashes before it acknowledges (deletes) the message.", hl: { w1: "bad" } },
+        "30 seconds pass with no acknowledgement, so the message becomes visible again and worker 2 takes it.",
+        { text: "Worker 2 adds the points again. The customer now has 100.", hl: { db: "bad" } }],
+      after: "<b>Never lost, sometimes twice.</b> The usual default, as long as the work can safely be repeated (next tab)." },
+    "Effectively once": { title: "Effectively once: at least once, made harmless", sub: "Same delivery as the last tab. The worker records which messages it has applied.",
+      nodes: [{ id: "q", x: 95, y: 145, w: 140, label: "Orders queue", sub: "order 881 paid", kind: "queue" }, { id: "w1", x: 330, y: 55, w: 140, label: "Worker 1", sub: "adds points", kind: "service" },
+        { id: "w2", x: 330, y: 235, w: 140, label: "Worker 2", sub: "adds points", kind: "service" }, { id: "db", x: 580, y: 145, w: 160, label: "Loyalty DB", sub: "points + applied IDs", kind: "db" }],
+      edges: [["q", "w1", "receive", { n: 1 }], ["w1", "db", "+50, record 881", { n: 2 }], ["q", "w2", "visible again", { n: 4 }], ["w2", "db", "881 applied?", { n: 5 }], ["w2", "q", "delete", { n: 6, bend: -40 }]],
+      width: 660, height: 290,
+      steps: ["Worker 1 receives the message, as before.",
+        "In one database transaction it adds the points and inserts message 881 into an <code>applied_messages</code> table with a unique key. Both happen or neither does.",
+        { text: "Worker 1 crashes before acknowledging.", hl: { w1: "bad" } },
+        "The message comes back and worker 2 takes it.",
+        { text: "Worker 2's insert of 881 hits the unique key: already applied. It skips the points.", hl: { db: "found" } },
+        "Worker 2 deletes the message. The customer has 50 points, as they should."],
+      after: "<b>Delivered twice, applied once.</b> This is what \"exactly once\" means in practice: duplicates still arrive, and the consumer makes them harmless." },
+  }, { label: "Delivery guarantee" });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Work that doesn't need the user waiting goes on a queue." },
     { el: "#sc-main", title: "2 · A queue at work", text: "Watch a spike become a backlog, a redelivery, and an idempotent worker." },
@@ -3573,12 +3608,12 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-hier", {
     title: "Hierarchical aggregation: millions of likes, one update a second", sub: "Box text shows what each tier receives and sends per second.",
     nodes: [
-      { id: "v", x: 85, y: 160, w: 140, label: "Viewers liking", sub: "400,000 likes/s" },
-      { id: "a1", x: 290, y: 90, w: 170, label: "Aggregator 1", sub: " " },
-      { id: "a2", x: 290, y: 230, w: 170, label: "Aggregator 2", sub: " " },
-      { id: "root", x: 480, y: 160, w: 130, label: "Root", sub: " " },
-      { id: "b1", x: 650, y: 90, w: 150, label: "Broadcast 1", sub: " " },
-      { id: "b2", x: 650, y: 230, w: 150, label: "Broadcast 2", sub: " " },
+      { id: "v", x: 85, y: 160, w: 140, label: "Viewers liking", sub: "400,000 likes/s", kind: "client" },
+      { id: "a1", x: 290, y: 90, w: 170, label: "Aggregator 1", sub: " ", kind: "service" },
+      { id: "a2", x: 290, y: 230, w: 170, label: "Aggregator 2", sub: " ", kind: "service" },
+      { id: "root", x: 480, y: 160, w: 130, label: "Root", sub: " ", kind: "service" },
+      { id: "b1", x: 650, y: 90, w: 150, label: "Broadcast 1", sub: " ", kind: "service" },
+      { id: "b2", x: 650, y: 230, w: 150, label: "Broadcast 2", sub: " ", kind: "service" },
     ],
     edges: [["v", "a1"], ["v", "a2"], ["a1", "root"], ["a2", "root"], ["root", "b1"], ["root", "b2"]],
     width: 730, height: 310,
@@ -3596,8 +3631,8 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-hwm", {
     title: "The high-water mark: read only what's safely replicated", sub: "Box text shows each log's last offset and the high-water mark (HW).",
-    nodes: [{ id: "p", x: 85, y: 150, w: 120, label: "Producer", sub: " " }, { id: "ld", x: 320, y: 150, w: 210, label: "Leader", sub: "log 0–100 · HW 100" },
-      { id: "f1", x: 600, y: 60, w: 190, label: "Follower 1", sub: "log 0–100" }, { id: "f2", x: 600, y: 240, w: 190, label: "Follower 2", sub: "log 0–100" }, { id: "c", x: 320, y: 270, w: 150, label: "Consumer", sub: "read up to 100" }],
+    nodes: [{ id: "p", x: 85, y: 150, w: 120, label: "Producer", sub: " ", kind: "service" }, { id: "ld", x: 320, y: 150, w: 210, label: "Leader", sub: "log 0–100 · HW 100", kind: "queue" },
+      { id: "f1", x: 600, y: 60, w: 190, label: "Follower 1", sub: "log 0–100", kind: "queue" }, { id: "f2", x: 600, y: 240, w: 190, label: "Follower 2", sub: "log 0–100", kind: "queue" }, { id: "c", x: 320, y: 270, w: 150, label: "Consumer", sub: "read up to 100", kind: "service" }],
     edges: [["p", "ld"], ["ld", "f1"], ["ld", "f2"], ["c", "ld"]],
     width: 720, height: 310,
     steps: [
@@ -3634,8 +3669,8 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-u18-vis", {
     title: "SQS: visibility timeout, redelivery, dead-letter queue", sub: "Box text shows message 42's state and receive count. maxReceiveCount = 3.",
-    nodes: [{ id: "q", x: 120, y: 150, w: 210, label: "Orders queue", sub: "msg 42 visible · receives 0" }, { id: "w1", x: 450, y: 60, w: 190, label: "Worker 1", sub: "idle" },
-      { id: "w2", x: 450, y: 240, w: 190, label: "Worker 2", sub: "idle" }, { id: "dlq", x: 120, y: 290, w: 210, label: "Dead-letter queue", sub: "empty" }],
+    nodes: [{ id: "q", x: 120, y: 150, w: 210, label: "Orders queue", sub: "msg 42 visible · receives 0", kind: "queue" }, { id: "w1", x: 450, y: 60, w: 190, label: "Worker 1", sub: "idle", kind: "service" },
+      { id: "w2", x: 450, y: 240, w: 190, label: "Worker 2", sub: "idle", kind: "service" }, { id: "dlq", x: 120, y: 290, w: 210, label: "Dead-letter queue", sub: "empty", kind: "queue" }],
     edges: [["q", "w1"], ["q", "w2"], ["q", "dlq"]],
     width: 600, height: 340,
     steps: [

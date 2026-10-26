@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3627,7 +3627,7 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-main", {
     title: "One lost packet: TCP vs QUIC", sub: "Three files, A, B and C, share one connection. Each box shows what it holds. <b>Red</b> = lost or held back; <b>green</b> = handed to the page.",
     nodes: [
-      { id: "srv", x: 80, y: 155, w: 120, label: "Server", sub: "sends A, B, C" },
+      { id: "srv", x: 80, y: 155, w: 120, label: "Server", sub: "sends A, B, C", kind: "service" },
       { id: "tb", x: 330, y: 60, w: 230, label: "TCP receive buffer", sub: "one byte stream, in order" },
       { id: "ta", x: 610, y: 60, w: 200, label: "Page (HTTP/2)", sub: "nothing yet" },
       { id: "qb", x: 330, y: 250, w: 230, label: "QUIC receive buffers", sub: "one per stream: A | B | C" },
@@ -3662,8 +3662,8 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-quic", {
     title: "Setting up a connection, then changing networks", sub: "The server's connection table decides which connection a packet belongs to. <b>Blue</b> = handshake; <b>red</b> = dropped or reset; <b>green</b> = accepted.",
     nodes: [
-      { id: "ph", x: 95, y: 150, w: 170, label: "Phone", sub: "IP 10.0.0.5 (Wi-Fi)" },
-      { id: "srv", x: 420, y: 150, w: 140, label: "Server", sub: " " },
+      { id: "ph", x: 95, y: 150, w: 170, label: "Phone", sub: "IP 10.0.0.5 (Wi-Fi)", kind: "client" },
+      { id: "srv", x: 420, y: 150, w: 140, label: "Server", sub: " ", kind: "service" },
       { id: "tbl", x: 420, y: 275, w: 330, label: "Server's connection table", sub: "empty" },
       { id: "rtt", x: 420, y: 40, w: 330, label: "Round trips before the first request", sub: "–" },
     ],
@@ -3692,8 +3692,8 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-dns", {
     title: "Resolving a name, the first time and the next", sub: "The resolver's box shows its cache. <b>Teal</b> = referrals; <b>green</b> = the answer.",
-    nodes: [{ id: "dev", x: 85, y: 150, w: 130, label: "Phone", sub: "stub resolver" }, { id: "rec", x: 320, y: 150, w: 220, label: "Recursive resolver", sub: "cache: empty" },
-      { id: "root", x: 600, y: 50, w: 160, label: "Root server", sub: " " }, { id: "tld", x: 600, y: 150, w: 160, label: ".com TLD servers", sub: " " }, { id: "auth", x: 600, y: 250, w: 160, label: "example.com's servers", sub: "authoritative" }],
+    nodes: [{ id: "dev", x: 85, y: 150, w: 130, label: "Phone", sub: "stub resolver", kind: "client" }, { id: "rec", x: 320, y: 150, w: 220, label: "Recursive resolver", sub: "cache: empty", kind: "ext" },
+      { id: "root", x: 600, y: 50, w: 160, label: "Root server", sub: " ", kind: "ext" }, { id: "tld", x: 600, y: 150, w: 160, label: ".com TLD servers", sub: " ", kind: "ext" }, { id: "auth", x: 600, y: 250, w: 160, label: "example.com's servers", sub: "authoritative", kind: "ext" }],
     edges: [["dev", "rec"], ["rec", "root"], ["rec", "tld"], ["rec", "auth"]],
     width: 720, height: 300,
     steps: [

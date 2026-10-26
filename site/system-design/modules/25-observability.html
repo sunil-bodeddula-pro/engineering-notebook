@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3087,6 +3087,7 @@ html.iks-open { overflow: hidden; }
     <div id="viz-trace"></div>
     <h3>How traces stay connected</h3>
     <p>The first service creates a <strong>trace ID</strong> and passes it, with its own span ID, to every service it calls, in the standard <code>traceparent</code> HTTP header defined by <a href="https://www.w3.org/TR/trace-context/" target="_blank" rel="noopener">W3C Trace Context</a> (and through message headers for queues). Each service records its spans with that trace ID and its parent. A tracing backend then assembles the tree. Put the same trace ID in every log line, and you can jump from a slow span straight to its logs.</p>
+    <div id="fig-trace"></div>
     <h3>Alerting on what matters: SLO burn rates</h3>
     <p>"CPU above 80%" alerts wake people for things users never notice, and miss things they do. Better: alert when the system is spending its <strong>error budget</strong> (Module 04) too fast. The <strong>burn rate</strong> is how many times faster than "exactly on budget" you're failing: with a 99.9% SLO, a 1% error rate is a burn rate of 10 (1% ÷ 0.1%), which would use a 30-day budget in 3 days.</p>
     <p>Google's SRE workbook recommends <strong>multi-window, multi-burn-rate</strong> alerts, for example: page if the burn rate is above <strong>14.4 over the last hour</strong> (2% of the monthly budget gone in an hour) or above <strong>6 over the last 6 hours</strong> (5% gone), each confirmed by a short window so the alert also stops quickly; open a ticket for a burn rate of 1 over 3 days. Try it in section 3.</p>
@@ -3491,8 +3492,8 @@ html.iks-open { overflow: hidden; }
   card();
   Viz.scene("#sc-main", {
     title: "A trace finds the slow call", sub: "Box text shows each span's duration as the trace fills in.",
-    nodes: [{ id: "u", x: 85, y: 160, w: 110, label: "User", sub: " " }, { id: "co", x: 280, y: 160, w: 200, label: "Checkout (root span)", sub: "3.1 s" },
-      { id: "auth", x: 560, y: 40, w: 180, label: "Auth", sub: " " }, { id: "cart", x: 560, y: 120, w: 180, label: "Cart (Redis)", sub: " " }, { id: "price", x: 560, y: 200, w: 180, label: "Pricing (Postgres)", sub: " " }, { id: "fraud", x: 560, y: 280, w: 180, label: "Fraud check (3rd party)", sub: " " }],
+    nodes: [{ id: "u", x: 85, y: 160, w: 110, label: "User", sub: " ", kind: "client" }, { id: "co", x: 280, y: 160, w: 200, label: "Checkout (root span)", sub: "3.1 s", kind: "service" },
+      { id: "auth", x: 560, y: 40, w: 180, label: "Auth", sub: " ", kind: "service" }, { id: "cart", x: 560, y: 120, w: 180, label: "Cart (Redis)", sub: " ", kind: "cache" }, { id: "price", x: 560, y: 200, w: 180, label: "Pricing (Postgres)", sub: " ", kind: "db" }, { id: "fraud", x: 560, y: 280, w: 180, label: "Fraud check (3rd party)", sub: " ", kind: "ext" }],
     edges: [["u", "co"], ["co", "auth"], ["co", "cart"], ["co", "price"], ["co", "fraud"]],
     width: 700, height: 320,
     steps: [
@@ -3503,6 +3504,19 @@ html.iks-open { overflow: hidden; }
       { hl: { fraud: "bad" }, set: { fraud: "2.6 s (timeout 5 s, no retries)" }, moves: [{ e: "co>fraud", t: "traceparent", k: "bad" }], hold: 4,
         note: "The fraud check, a third-party call, took 2.6 of the 3.1 seconds. Found in one trace, without reading a single log line. Next: a tighter timeout and a fallback for that call (Module 24)." },
     ],
+  });
+  Viz.figure("#fig-trace", {
+    title: "One trace ID across three services and a queue", sub: "A checkout calls two services directly and one through a queue. Box text shows each span's parent.",
+    nodes: [{ id: "co", x: 95, y: 160, w: 150, label: "Checkout", sub: "starts trace 4bf9…", kind: "service" }, { id: "pr", x: 345, y: 50, w: 150, label: "Pricing", sub: "parent: checkout", kind: "service" },
+      { id: "k", x: 345, y: 290, w: 150, label: "Kafka topic", sub: "orders", kind: "queue" }, { id: "em", x: 630, y: 290, w: 150, label: "Email worker", sub: "parent: checkout", kind: "service" },
+      { id: "be", x: 630, y: 160, w: 150, label: "Tracing backend", sub: "builds the tree", kind: "store" }],
+    edges: [["co", "pr", "traceparent", { n: 2 }], ["co", "k", "header on message", { n: 3 }], ["k", "em", "", { n: 3 }], ["pr", "be", "spans", { n: 4 }], ["em", "be", "spans", { n: 4 }], ["co", "be", "spans", { n: 4 }]],
+    width: 730, height: 345,
+    steps: [{ text: "Checkout receives a request with no trace yet, so it creates a trace ID (<code>4bf9…</code>) and a span for its own work.", hl: { co: "found" } },
+      "Calling Pricing, it adds the header <code>traceparent: 00-4bf9…-a1c2…-01</code> (version, trace ID, the ID of checkout's span, flags). Pricing's span keeps the trace ID and records checkout's span as its parent.",
+      "For the queue, the same context rides in the message's headers. The email worker reads it minutes later and joins the same trace (or links to it).",
+      "Every service sends its spans to the backend on its own. The backend groups them by trace ID and uses the parent IDs to rebuild the tree, with times on each branch."],
+    after: "<b>Write the trace ID into every log line too</b>, and you can go from a slow span straight to the logs of that one request. A service that drops the header breaks the tree in two.",
   });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Logs, metrics and traces: what the system tells you about itself." },
@@ -3516,9 +3530,9 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-logs", {
     title: "A logging pipeline that survives spikes and stays affordable", sub: "Box text shows volumes and each consumer's lag behind the stream.",
-    nodes: [{ id: "h", x: 105, y: 160, w: 190, label: "500 hosts (agents)", sub: "200 MB/s raw" }, { id: "k", x: 380, y: 160, w: 230, label: "Kafka topic: logs", sub: "keeps 3 days" },
-      { id: "idx", x: 680, y: 50, w: 230, label: "Search index (hot 7 days)", sub: "lag 0" }, { id: "arc", x: 680, y: 160, w: 230, label: "Archive (1 year)", sub: "lag 0" },
-      { id: "sec", x: 680, y: 270, w: 230, label: "Security detection", sub: "lag 0" }],
+    nodes: [{ id: "h", x: 105, y: 160, w: 190, label: "500 hosts (agents)", sub: "200 MB/s raw", kind: "service" }, { id: "k", x: 380, y: 160, w: 230, label: "Kafka topic: logs", sub: "keeps 3 days", kind: "queue" },
+      { id: "idx", x: 680, y: 50, w: 230, label: "Search index (hot 7 days)", sub: "lag 0", kind: "db" }, { id: "arc", x: 680, y: 160, w: 230, label: "Archive (1 year)", sub: "lag 0", kind: "store" },
+      { id: "sec", x: 680, y: 270, w: 230, label: "Security detection", sub: "lag 0", kind: "service" }],
     edges: [["h", "k"], ["k", "idx"], ["k", "arc"], ["k", "sec"]],
     width: 810, height: 320,
     steps: [

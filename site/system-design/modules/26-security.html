@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3077,6 +3077,7 @@ html.iks-open { overflow: hidden; }
       <li><strong>Server-side session:</strong> after login, the server stores a session record and gives the browser a random session ID in a cookie (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>). Easy to revoke (delete the record); needs a shared session store when you have many servers.</li>
       <li><strong>Signed token (JWT):</strong> the server signs a small JSON document of <strong>claims</strong> (user ID, roles, expiry). Any service with the key (or the public key) can verify it without a database lookup. Hard to revoke before it expires, so keep access tokens short-lived (minutes) and pair them with a refresh token. Try tampering with one in section 3.</li>
     </ul>
+    <div id="fig-sess"></div>
     <h3>Logging in with OAuth 2.0 and OpenID Connect</h3>
     <p><strong>OAuth 2.0</strong> lets an app get limited access on a user's behalf without seeing their password. <strong>OpenID Connect (OIDC)</strong> adds identity on top ("Sign in with Google", corporate single sign-on). The recommended flow for web and mobile apps is the <strong>authorization code flow with PKCE</strong>. Press Play.</p>
     <div id="viz-oauth"></div>
@@ -3529,10 +3530,10 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   /* ---------- OAuth + PKCE player ---------- */
   const N = [
-    { id: "user", x: 70, y: 60, w: 100, label: "User", sub: "browser" },
-    { id: "app", x: 250, y: 60, w: 120, label: "Your app", sub: "web or mobile" },
-    { id: "idp", x: 470, y: 60, w: 130, label: "Identity provider", sub: "OIDC / OAuth" },
-    { id: "api", x: 250, y: 190, w: 120, label: "Your API" },
+    { id: "user", x: 70, y: 60, w: 100, label: "User", sub: "browser", kind: "client" },
+    { id: "app", x: 250, y: 60, w: 120, label: "Your app", sub: "web or mobile", kind: "service" },
+    { id: "idp", x: 470, y: 60, w: 130, label: "Identity provider", sub: "OIDC / OAuth", kind: "ext" },
+    { id: "api", x: 250, y: 190, w: 120, label: "Your API", kind: "service" },
   ];
   const E = [["user", "app"], ["app", "idp", "redirect"], ["idp", "app", "code", { bend: 30 }], ["app", "api", "access token"]];
   const fig = (hl, eh) => Viz.flow(N, E, { hl, edgeHl: eh, width: 560, height: 230, title: "OAuth authorization code flow with PKCE" });
@@ -3603,8 +3604,8 @@ html.iks-open { overflow: hidden; }
   az();
   Viz.scene("#sc-main", {
     title: "Signing in with PKCE", sub: "Box text shows the secrets each party holds.",
-    nodes: [{ id: "app", x: 130, y: 190, w: 240, label: "App", sub: " " }, { id: "idp", x: 540, y: 60, w: 280, label: "Identity provider", sub: " " },
-      { id: "api", x: 540, y: 290, w: 280, label: "API", sub: " " }, { id: "att", x: 130, y: 50, w: 200, label: "Attacker", sub: " ", hidden: true }],
+    nodes: [{ id: "app", x: 130, y: 190, w: 240, label: "App", sub: " ", kind: "service" }, { id: "idp", x: 540, y: 60, w: 280, label: "Identity provider", sub: " ", kind: "ext" },
+      { id: "api", x: 540, y: 290, w: 280, label: "API", sub: " ", kind: "service" }, { id: "att", x: 130, y: 50, w: 200, label: "Attacker", sub: " ", hidden: true, kind: "client" }],
     edges: [["app", "idp"], ["app", "api"], ["att", "idp", "", { hidden: true }]],
     width: 780, height: 340,
     steps: [
@@ -3622,6 +3623,26 @@ html.iks-open { overflow: hidden; }
         note: "API calls carry the access token. The API verifies the signature, expiry and audience, and <b>still</b> checks this user's permission on this resource, on every request." },
     ],
   });
+  Viz.figures("#fig-sess", {
+    "Server-side session": { title: "A session ID in a cookie", sub: "Priya logs in to a bank's website, then opens her statements.",
+      nodes: [{ id: "b", x: 90, y: 145, w: 130, label: "Browser", sub: "cookie: sid=k3…", kind: "client" }, { id: "lb", x: 335, y: 145, w: 130, label: "Load balancer", sub: "any server", kind: "lb" },
+        { id: "a", x: 590, y: 145, w: 140, label: "Web servers", sub: "hold no user state", kind: "service" }, { id: "ss", x: 590, y: 290, w: 150, label: "Session store", sub: "k3… → Priya, until 18:40", kind: "cache" }],
+      edges: [["b", "lb", "login", { n: 1, bend: 35 }], ["lb", "a", "", { n: 1, bend: 35 }], ["a", "ss", "save session", { n: 1, bend: -35 }], ["b", "lb", "GET /statements", { n: 2, bend: -35 }], ["lb", "a", "", { n: 2, bend: -35 }], ["a", "ss", "look up k3…", { n: 3, bend: 35 }]],
+      width: 740, height: 345,
+      steps: ["After the password check, the server stores a session record and sends back a long random ID in a cookie marked <code>HttpOnly</code>, <code>Secure</code> and <code>SameSite</code>.",
+        "Each later request carries the cookie automatically, and may land on any server.",
+        "That server looks the ID up in the shared session store to find out who it is. Logging out, or an admin revoking the session, deletes the record and the next request fails at once."],
+      after: "<b>Easy to revoke, one lookup per request.</b> The store must be fast and highly available, since every request depends on it." },
+    "Signed token (JWT)": { title: "A signed token the services verify themselves", sub: "Priya's mobile app calls three backend services.",
+      nodes: [{ id: "b", x: 90, y: 180, w: 130, label: "Mobile app", sub: "holds the token", kind: "client" }, { id: "idp", x: 370, y: 55, w: 150, label: "Login service", sub: "has the private key", kind: "service" },
+        { id: "a", x: 600, y: 180, w: 150, label: "Statements API", sub: "has the public key", kind: "service" }, { id: "p", x: 600, y: 310, w: 150, label: "Payments API", sub: "has the public key", kind: "service" }],
+      edges: [["b", "idp", "login", { n: 1, bend: 30 }], ["b", "a", "Bearer token", { n: 2 }], ["b", "p", "Bearer token", { n: 2 }], ["b", "idp", "refresh token", { n: 3, bend: -30 }]],
+      width: 700, height: 360,
+      steps: ["The login service signs a small JSON document of claims (user 1188, role <code>customer</code>, expires 14:15) and returns it with a longer-lived refresh token.",
+        "The app sends the token with each call. Each API checks the signature with the public key and reads the claims, with no database lookup.",
+        "When the token expires the app swaps the refresh token for a new one. Refresh is where revocation happens: a stolen phone's refresh token is cancelled, and its access token dies within 15 minutes."],
+      after: "<b>No lookup, hard to revoke.</b> Keep access tokens short-lived, and keep anything that must take effect instantly (a fired employee) on a check that hits a store." },
+  }, { label: "How the server knows who you are" });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Security is how the boxes are connected, not a box at the end." },
     { el: "#sc-main", title: "2 · Signing in", text: "Watch the authorization code flow with PKCE." },
@@ -3634,8 +3655,8 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-env", {
     title: "Envelope encryption", sub: "Box text shows which keys exist where. The master key never leaves KMS.",
-    nodes: [{ id: "app", x: 110, y: 150, w: 190, label: "App server (memory)", sub: "no keys" }, { id: "kms", x: 440, y: 50, w: 230, label: "KMS", sub: "master key (never exported)" },
-      { id: "s3", x: 440, y: 250, w: 230, label: "Storage", sub: "empty" }],
+    nodes: [{ id: "app", x: 110, y: 150, w: 190, label: "App server (memory)", sub: "no keys", kind: "service" }, { id: "kms", x: 440, y: 50, w: 230, label: "KMS", sub: "master key (never exported)", kind: "ext" },
+      { id: "s3", x: 440, y: 250, w: 230, label: "Storage", sub: "empty", kind: "store" }],
     edges: [["app", "kms"], ["app", "s3"]],
     width: 640, height: 300,
     steps: [
@@ -3691,11 +3712,11 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-zt", {
     title: "One request under zero trust", sub: "Box text shows what each part checks.",
-    nodes: [{ id: "u", x: 100, y: 70, w: 170, label: "Employee laptop", sub: "anywhere" },
-            { id: "pep", x: 340, y: 70, w: 200, label: "Access proxy", sub: "enforcement point" },
-            { id: "pdp", x: 340, y: 220, w: 220, label: "Policy engine", sub: "rules per app" },
-            { id: "app", x: 580, y: 70, w: 210, label: "Admin app", sub: "no public route" },
-            { id: "pod", x: 580, y: 220, w: 210, label: "Hacked pod", sub: "inside the VPC" }],
+    nodes: [{ id: "u", x: 100, y: 70, w: 170, label: "Employee laptop", sub: "anywhere", kind: "client" },
+            { id: "pep", x: 340, y: 70, w: 200, label: "Access proxy", sub: "enforcement point", kind: "lb" },
+            { id: "pdp", x: 340, y: 220, w: 220, label: "Policy engine", sub: "rules per app", kind: "service" },
+            { id: "app", x: 580, y: 70, w: 210, label: "Admin app", sub: "no public route", kind: "service" },
+            { id: "pod", x: 580, y: 220, w: 210, label: "Hacked pod", sub: "inside the VPC", kind: "client" }],
     edges: [["u", "pep"], ["pep", "app"], ["pep", "pdp"], ["pod", "app"]],
     width: 700, height: 290,
     steps: [

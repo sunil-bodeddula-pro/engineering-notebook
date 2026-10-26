@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3113,6 +3113,7 @@ Content-Type: application/problem+json
     <p>The client generates a unique <strong>idempotency key</strong> (a random UUID) per logical operation and sends it with every attempt. The server stores the key with the result; a repeat of the same key returns the stored result instead of acting again. Stripe popularised this (keys up to 255 characters, kept for at least 24 hours), and the IETF is standardising the <code>Idempotency-Key</code> header (still a draft in October 2026). Try it in section 3.</p>
     <h3>Long-running work: 202 and a job</h3>
     <p>If a request starts something slow (a video encode, a report), don't hold the connection open. Return <code>202 Accepted</code> with a job resource, <code>Location: /jobs/123</code>, and let the client poll it, or call the client back with a <strong>webhook</strong> when it's done. Sign webhooks (an HMAC of the body with a shared secret) so receivers can verify they came from you, and expect them to arrive more than once.</p>
+    <div id="fig-job"></div>
     <h3>Changing an API without breaking clients</h3>
     <ul>
       <li><strong>Safe changes:</strong> adding endpoints, adding optional fields, adding new values clients are told to ignore.</li>
@@ -3545,8 +3546,8 @@ Content-Type: application/problem+json
   });
   Viz.scene("#sc-main", {
     title: "A retry that doesn't charge twice", sub: "Box text shows the idempotency-key table and the card's charges.",
-    nodes: [{ id: "app", x: 90, y: 140, w: 140, label: "Mobile app", sub: " " }, { id: "api", x: 320, y: 140, w: 160, label: "Payments API", sub: " " },
-      { id: "keys", x: 320, y: 270, w: 270, label: "Idempotency keys", sub: "empty" }, { id: "card", x: 580, y: 140, w: 170, label: "Card network", sub: "charges: none" }],
+    nodes: [{ id: "app", x: 90, y: 140, w: 140, label: "Mobile app", sub: " ", kind: "client" }, { id: "api", x: 320, y: 140, w: 160, label: "Payments API", sub: " ", kind: "service" },
+      { id: "keys", x: 320, y: 270, w: 270, label: "Idempotency keys", sub: "empty", kind: "db" }, { id: "card", x: 580, y: 140, w: 170, label: "Card network", sub: "charges: none", kind: "ext" }],
     edges: [["app", "api"], ["api", "keys"], ["api", "card"]],
     width: 700, height: 310,
     steps: [
@@ -3562,6 +3563,34 @@ Content-Type: application/problem+json
         note: "The app gets the original answer. Without the key the retry would have charged $100. If the retry arrives while k1 is still in progress, the API answers 409 \"try again shortly\" instead of starting a second charge." },
     ],
   });
+  Viz.figures("#fig-job", {
+    "Client polls": { title: "Exporting a year of sales, polled", sub: "An admin asks for a report that takes four minutes to build.",
+      nodes: [{ id: "app", x: 85, y: 175, w: 130, label: "Admin app", sub: "\"Export 2026 sales\"", kind: "client" }, { id: "api", x: 320, y: 175, w: 140, label: "Reports API", sub: "answers in ms", kind: "service" },
+        { id: "q", x: 520, y: 80, w: 130, label: "Queue", sub: "job IDs", kind: "queue" }, { id: "jobs", x: 520, y: 270, w: 130, label: "Jobs table", sub: "status per job", kind: "db" },
+        { id: "w", x: 710, y: 175, w: 130, label: "Report worker", sub: "the slow part", kind: "service" }],
+      edges: [["app", "api", "POST /reports", { n: 1, bend: -40 }], ["api", "jobs", "pending", { n: 2 }], ["api", "q", "job 123", { n: 2 }], 
+        ["q", "w", "job 123", { n: 4 }], ["w", "jobs", "completed", { n: 5 }], ["app", "api", "GET /jobs/123", { n: 6, bend: 40 }]],
+      width: 790, height: 330,
+      steps: ["The app asks for the report with <code>POST /reports</code>, sending an idempotency key so a double click starts one job, not two.",
+        "The API checks the request, saves job 123 as <code>pending</code> and puts its ID on a queue. No report work happens here.",
+        { text: "It answers the POST at once: <code>202 Accepted</code> with <code>Location: /jobs/123</code>. The connection is free again after a few milliseconds.", hl: { app: "found", api: "found" } },
+        "A worker takes job 123 from the queue and builds the report, extending its claim on the message while it works so no other worker grabs it.",
+        "It uploads the file to object storage and marks the job <code>completed</code>, with the file's link.",
+        "Meanwhile the app asks <code>GET /jobs/123</code> every few seconds (backing off as it waits) until the status says completed, then downloads the file."],
+      after: "<b>Polling</b> suits apps and browsers, which can't receive calls from the internet. Each poll is a cheap read of one row." },
+    "Server calls back (webhook)": { title: "The same report, with a webhook", sub: "This time the caller is a partner's server, which can receive HTTP requests.",
+      nodes: [{ id: "app", x: 85, y: 175, w: 130, label: "Partner server", sub: "gave a callback URL", kind: "ext" }, { id: "api", x: 320, y: 175, w: 140, label: "Reports API", sub: "answers in ms", kind: "service" },
+        { id: "q", x: 520, y: 80, w: 130, label: "Queue", sub: "job IDs", kind: "queue" }, { id: "jobs", x: 520, y: 270, w: 130, label: "Jobs table", sub: "status per job", kind: "db" },
+        { id: "w", x: 710, y: 175, w: 130, label: "Report worker", sub: "the slow part", kind: "service" }],
+      edges: [["app", "api", "POST /reports", { n: 1, bend: -40 }], ["api", "q", "job 123", { n: 2 }], ["api", "jobs", "pending", { n: 2 }], ["api", "app", "202 Accepted", { n: 2, bend: -40 }],
+        ["q", "w", "job 123", { n: 3 }], ["w", "jobs", "completed", { n: 3 }], ["w", "app", "signed POST", { n: 4, bend: -235 }]],
+      width: 790, height: 380,
+      steps: ["The partner asks for the report and includes the URL where it wants to be told the result.",
+        "As before, the API saves a pending job, queues it and answers <code>202 Accepted</code> straight away.",
+        "A worker builds the report and marks the job completed.",
+        "The worker (or a separate sender) calls the partner's URL with the result. The body is signed with an HMAC using a secret the two sides share, so the partner can check the call really came from us. If the partner doesn't answer <code>2xx</code>, we retry with backoff for hours, so the partner must accept the same event twice and ignore the repeat by its job ID."],
+      after: "<b>Webhooks</b> save the partner from polling, but you now run a delivery system: retries, signing, a dead-letter list and a way to replay. Many APIs offer both." },
+  }, { label: "How the caller learns the result" });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "An API is a promise; resources, errors and retries have to be designed." },
     { el: "#sc-main", title: "2 · Safe retries", text: "Watch an idempotency key stop a retry from charging twice." },
@@ -3573,8 +3602,8 @@ Content-Type: application/problem+json
   ]);
   Viz.scene("#sc-gql", {
     title: "REST round trips, GraphQL's one query, and the N+1 trap", sub: "The counter boxes show round trips from the phone and queries to the database.",
-    nodes: [{ id: "c", x: 90, y: 150, w: 140, label: "Mobile app", sub: "needs name + 10 titles" }, { id: "rest", x: 340, y: 60, w: 170, label: "REST API", sub: " " },
-      { id: "gql", x: 340, y: 240, w: 170, label: "GraphQL server", sub: "resolvers" }, { id: "db", x: 600, y: 150, w: 170, label: "Database", sub: "queries: 0" },
+    nodes: [{ id: "c", x: 90, y: 150, w: 140, label: "Mobile app", sub: "needs name + 10 titles", kind: "client" }, { id: "rest", x: 340, y: 60, w: 170, label: "REST API", sub: " ", kind: "service" },
+      { id: "gql", x: 340, y: 240, w: 170, label: "GraphQL server", sub: "resolvers", kind: "service" }, { id: "db", x: 600, y: 150, w: 170, label: "Database", sub: "queries: 0", kind: "db" },
       { id: "cnt", x: 600, y: 40, w: 230, label: "Phone round trips", sub: "0" }],
     edges: [["c", "rest"], ["c", "gql"], ["rest", "db"], ["gql", "db"]],
     width: 760, height: 300,

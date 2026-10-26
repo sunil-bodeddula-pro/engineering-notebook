@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3078,12 +3078,7 @@ html.iks-open { overflow: hidden; }
     </ul>
     <h3>Reconnects and missed messages</h3>
     <p>Mobile connections drop constantly. Design for it:</p>
-    <ol class="steps-list">
-      <li><strong>Heartbeats</strong> (pings every 20–30 s) detect dead connections on both sides, and keep proxies from closing idle ones.</li>
-      <li><strong>Sequence numbers</strong> on every message per conversation or user. On reconnect, the client says "I have up to 1,042", and the server sends what's missing.</li>
-      <li><strong>A durable store of recent messages</strong> (the database, or a per-user stream in Redis Streams or Kafka) to replay from. Pub/sub only delivers to whoever is listening <em>now</em>.</li>
-      <li><strong>Backoff with jitter</strong> on reconnect, so a server restart doesn't cause a million clients to reconnect in the same second.</li>
-    </ol>
+    <div id="fig-reconnect"></div>
     <h3>Presence and huge fan-out</h3>
     <ul>
       <li><strong>Presence</strong> ("online", "typing…") is soft state: heartbeats refresh a key with a short TTL; expiry means offline. Batch and throttle presence updates; they can outnumber real messages.</li>
@@ -3335,14 +3330,14 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   /* ---------- step-through: chat routing ---------- */
   const N = [
-    { id: "a", x: 70, y: 60, w: 100, label: "Alice", sub: "phone" },
-    { id: "b", x: 70, y: 210, w: 100, label: "Bob", sub: "laptop" },
-    { id: "lb", x: 210, y: 135, w: 100, label: "L4 balancer" },
-    { id: "g1", x: 360, y: 60, w: 110, label: "Gateway 1", sub: "Alice connected" },
-    { id: "g7", x: 360, y: 210, w: 110, label: "Gateway 7", sub: "Bob connected" },
-    { id: "chat", x: 530, y: 60, w: 110, label: "Chat service", sub: "stateless" },
-    { id: "db", x: 530, y: 150, w: 110, h: 40, label: "Message store" },
-    { id: "ps", x: 530, y: 230, w: 110, label: "Pub/sub", sub: "channel user:bob" },
+    { id: "a", x: 70, y: 60, w: 100, label: "Alice", sub: "phone", kind: "client" },
+    { id: "b", x: 70, y: 210, w: 100, label: "Bob", sub: "laptop", kind: "client" },
+    { id: "lb", x: 210, y: 135, w: 100, label: "L4 balancer", kind: "lb" },
+    { id: "g1", x: 360, y: 60, w: 110, label: "Gateway 1", sub: "Alice connected", kind: "service" },
+    { id: "g7", x: 360, y: 210, w: 110, label: "Gateway 7", sub: "Bob connected", kind: "service" },
+    { id: "chat", x: 530, y: 60, w: 110, label: "Chat service", sub: "stateless", kind: "service" },
+    { id: "db", x: 530, y: 150, w: 110, h: 40, label: "Message store", kind: "db" },
+    { id: "ps", x: 530, y: 230, w: 110, label: "Pub/sub", sub: "channel user:bob", kind: "queue" },
   ];
   const E = [["a", "lb"], ["b", "lb"], ["lb", "g1"], ["lb", "g7"], ["g1", "chat"], ["chat", "db"], ["chat", "ps", "publish", { bend: -125 }], ["ps", "g7", "deliver"]];
   const fig = (hl, eh) => Viz.flow(N, E, { hl, edgeHl: eh, width: 650, height: 270, title: "chat routing" });
@@ -3402,9 +3397,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-main", {
     title: "Getting a message to the right server", sub: "Box text shows the pub/sub subscriptions and each user's last message.",
-    nodes: [{ id: "a", x: 80, y: 60, w: 130, label: "Sender (user 7)", sub: " " }, { id: "s1", x: 300, y: 60, w: 190, label: "Server 1", sub: "sockets: user 7" },
-      { id: "bus", x: 300, y: 180, w: 190, label: "Pub/sub", sub: "user:42 → server 2" }, { id: "s2", x: 560, y: 180, w: 190, label: "Server 2", sub: "sockets: user 42" },
-      { id: "b", x: 560, y: 60, w: 190, label: "User 42", sub: "last seen #916" }, { id: "st", x: 100, y: 290, w: 190, label: "Message store", sub: "…#916" }],
+    nodes: [{ id: "a", x: 80, y: 60, w: 130, label: "Sender (user 7)", sub: " ", kind: "client" }, { id: "s1", x: 300, y: 60, w: 190, label: "Server 1", sub: "sockets: user 7", kind: "service" },
+      { id: "bus", x: 300, y: 180, w: 190, label: "Pub/sub", sub: "user:42 → server 2", kind: "queue" }, { id: "s2", x: 560, y: 180, w: 190, label: "Server 2", sub: "sockets: user 42", kind: "service" },
+      { id: "b", x: 560, y: 60, w: 190, label: "User 42", sub: "last seen #916", kind: "client" }, { id: "st", x: 100, y: 290, w: 190, label: "Message store", sub: "…#916", kind: "db" }],
     edges: [["a", "s1"], ["s1", "bus"], ["bus", "s2"], ["s2", "b"], ["s1", "st", "", { bend: 40 }], ["s2", "st"]],
     width: 700, height: 330,
     steps: [
@@ -3419,6 +3414,19 @@ html.iks-open { overflow: hidden; }
         note: "On reconnect the client says the last message it saw (#917). The server subscribes again and fetches what was missed from storage. Pub/sub moves live messages; the store makes delivery reliable." },
     ],
   });
+  Viz.figure("#fig-reconnect", {
+    title: "A phone drops off and catches up", sub: "Maya is in a group chat on the train. The chat is at message 1,051; her phone has up to 1,042.",
+    nodes: [{ id: "ph", x: 90, y: 150, w: 140, label: "Maya's phone", sub: "has up to #1,042", kind: "client" }, { id: "g1", x: 360, y: 55, w: 150, label: "Gateway 1", sub: "her old connection", kind: "service" },
+      { id: "g4", x: 360, y: 245, w: 150, label: "Gateway 4", sub: "any gateway works", kind: "service" }, { id: "st", x: 620, y: 150, w: 160, label: "Message store", sub: "durable, per chat", kind: "db" }],
+    edges: [["ph", "g1", "ping every 25 s", { n: 1 }], ["ph", "g4", "reconnect", { n: 3, bend: -30 }], ["g4", "st", "after #1,042?", { n: 4 }], ["g4", "ph", "#1,043 … #1,051", { n: 5, bend: -30 }]],
+    width: 720, height: 300,
+    steps: ["<strong>Heartbeats.</strong> The phone and gateway exchange small pings every 20–30 seconds. They tell both sides the connection is alive, and stop proxies from closing it for being idle.",
+      { text: "The train enters a tunnel. The gateway misses two pings and closes the connection; the phone notices too. Messages sent in the meantime can't reach her through pub/sub, which only delivers to whoever is connected.", hl: { g1: "bad", ph: "warm" } },
+      "<strong>Backoff with jitter.</strong> Out of the tunnel, the phone reconnects after a short random wait (and longer ones if that fails). Random waits stop a million phones reconnecting in the same second after a server restart. The load balancer may pick a different gateway; that's fine, because the state lives in the store, not the gateway.",
+      "<strong>Sequence numbers.</strong> On reconnect the phone says \"I have up to #1,042\". The gateway asks the store for everything after that.",
+      "<strong>A durable store to replay from.</strong> The store sends the nine messages she missed, in order, and live delivery carries on from #1,052."],
+    after: "<b>The rule:</b> the live connection is a fast path that can fail at any moment; the numbered, durable history is what makes delivery correct.",
+  });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "The server must tell the client the moment something changes." },
     { el: "#sc-main", title: "2 · Routing a message", text: "Watch pub/sub find the server holding the recipient's connection." },
@@ -3430,7 +3438,7 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-push", {
     title: "Four ways to get an update to the browser", sub: "The browser's box keeps score: requests made, empty answers, and delay.",
-    nodes: [{ id: "c", x: 130, y: 120, w: 230, label: "Browser", sub: " " }, { id: "s", x: 560, y: 120, w: 230, label: "Server", sub: " " }],
+    nodes: [{ id: "c", x: 130, y: 120, w: 230, label: "Browser", sub: " ", kind: "client" }, { id: "s", x: 560, y: 120, w: 230, label: "Server", sub: " ", kind: "service" }],
     edges: [["c", "s"]],
     width: 700, height: 220,
     steps: [

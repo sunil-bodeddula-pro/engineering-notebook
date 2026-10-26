@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3359,13 +3359,13 @@ html.iks-open { overflow: hidden; }
       "<b>Wrap up</b> with the trade-offs you accepted, what you'd monitor, and what changes at 10× scale. That's a complete design in about 40 minutes."],
   ];
   const N = [
-    { id: "c", x: 60, y: 70, w: 90, label: "Client" },
-    { id: "lb", x: 175, y: 70, w: 100, label: "Load bal." },
-    { id: "app", x: 300, y: 70, w: 110, label: "App servers" },
-    { id: "cache", x: 440, y: 25, w: 100, h: 34, label: "Cache" },
-    { id: "db", x: 440, y: 80, w: 100, h: 34, label: "Metadata DB" },
-    { id: "blob", x: 440, y: 135, w: 100, h: 34, label: "Blob store" },
-    { id: "cdn", x: 175, y: 140, w: 100, h: 34, label: "CDN" },
+    { id: "c", x: 60, y: 70, w: 90, label: "Client", kind: "client" },
+    { id: "lb", x: 175, y: 70, w: 100, label: "Load bal.", kind: "lb" },
+    { id: "app", x: 300, y: 70, w: 110, label: "App servers", kind: "service" },
+    { id: "cache", x: 440, y: 25, w: 100, h: 34, label: "Cache", kind: "cache" },
+    { id: "db", x: 440, y: 80, w: 100, h: 34, label: "Metadata DB", kind: "db" },
+    { id: "blob", x: 440, y: 135, w: 100, h: 34, label: "Blob store", kind: "store" },
+    { id: "cdn", x: 175, y: 140, w: 100, h: 34, label: "CDN", kind: "cdn" },
   ];
   const E = [["c", "lb"], ["lb", "app"], ["app", "cache"], ["app", "db"], ["app", "blob"], ["c", "cdn", "hot reads"]];
   const diagram = Viz.flow(N, E, { width: 500, height: 165, title: "Pastebin high-level design" });

@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3269,9 +3269,9 @@ FROM orders o JOIN users u ON u.id = o.user_id;</code></pre>
   const $ = (id) => document.getElementById(id);
   Viz.scene("#sc-main", {
     title: "Where data goes", sub: "Box text shows what each place holds after each step.",
-    nodes: [{ id: "app", x: 90, y: 170, w: 140, label: "App", sub: " " }, { id: "db", x: 320, y: 170, w: 180, label: "Database", sub: " " },
-      { id: "wal", x: 610, y: 50, w: 250, label: "Write-ahead log", sub: "LSN 810" }, { id: "tbl", x: 610, y: 160, w: 250, label: "Table pages", sub: "5,000,000 users" },
-      { id: "idx", x: 610, y: 270, w: 250, label: "Index on email", sub: "B-tree, 3 levels" }, { id: "obj", x: 320, y: 320, w: 220, label: "Object storage", sub: "empty bucket" }],
+    nodes: [{ id: "app", x: 90, y: 170, w: 140, label: "App", sub: " ", kind: "client" }, { id: "db", x: 320, y: 170, w: 180, label: "Database", sub: " ", kind: "db" },
+      { id: "wal", x: 610, y: 50, w: 250, label: "Write-ahead log", sub: "LSN 810", kind: "store" }, { id: "tbl", x: 610, y: 160, w: 250, label: "Table pages", sub: "5,000,000 users", kind: "store" },
+      { id: "idx", x: 610, y: 270, w: 250, label: "Index on email", sub: "B-tree, 3 levels", kind: "db" }, { id: "obj", x: 320, y: 320, w: 220, label: "Object storage", sub: "empty bucket", kind: "store" }],
     edges: [["app", "db"], ["db", "wal"], ["db", "tbl"], ["db", "idx"], ["app", "obj"]],
     width: 790, height: 370,
     steps: [
@@ -3301,7 +3301,7 @@ FROM orders o JOIN users u ON u.id = o.user_id;</code></pre>
 
   Viz.scene("#sc-txn", {
     title: "Moving $50 from Ana to Ben", sub: "Box text shows the balances on disk. <b>Red</b> = money lost; <b>green</b> = safe.",
-    nodes: [{ id: "app", x: 90, y: 130, w: 130, label: "App server", sub: "running" }, { id: "a", x: 360, y: 50, w: 200, label: "Ana", sub: "$200" }, { id: "b", x: 360, y: 210, w: 200, label: "Ben", sub: "$100" },
+    nodes: [{ id: "app", x: 90, y: 130, w: 130, label: "App server", sub: "running", kind: "service" }, { id: "a", x: 360, y: 50, w: 200, label: "Ana", sub: "$200" }, { id: "b", x: 360, y: 210, w: 200, label: "Ben", sub: "$100" },
       { id: "tot", x: 600, y: 130, w: 150, label: "Total money", sub: "$300" }],
     edges: [["app", "a"], ["app", "b"]],
     width: 690, height: 260,
@@ -3320,9 +3320,9 @@ FROM orders o JOIN users u ON u.id = o.user_id;</code></pre>
   });
   Viz.scene("#sc-store", {
     title: "Three kinds of storage", sub: "Box text shows what each operation does and who can share it.",
-    nodes: [{ id: "s1", x: 120, y: 100, w: 200, label: "Server 1", sub: " " }, { id: "s2", x: 120, y: 260, w: 200, label: "Server 2", sub: " " },
-      { id: "blk", x: 480, y: 60, w: 300, label: "Block volume", sub: "attached to server 1" }, { id: "fs", x: 480, y: 180, w: 300, label: "File share (NFS)", sub: "/shared" },
-      { id: "obj", x: 480, y: 300, w: 300, label: "Object store", sub: "bucket photos" }],
+    nodes: [{ id: "s1", x: 120, y: 100, w: 200, label: "Server 1", sub: " ", kind: "service" }, { id: "s2", x: 120, y: 260, w: 200, label: "Server 2", sub: " ", kind: "service" },
+      { id: "blk", x: 480, y: 60, w: 300, label: "Block volume", sub: "attached to server 1", kind: "store" }, { id: "fs", x: 480, y: 180, w: 300, label: "File share (NFS)", sub: "/shared", kind: "store" },
+      { id: "obj", x: 480, y: 300, w: 300, label: "Object store", sub: "bucket photos", kind: "store" }],
     edges: [["s1", "blk"], ["s1", "fs"], ["s2", "fs"], ["s2", "obj"]],
     width: 700, height: 350,
     steps: [

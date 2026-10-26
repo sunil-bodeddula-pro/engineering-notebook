@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3261,9 +3261,9 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   Viz.scene("#sc-main", {
     title: "Name, address, door, conversation", sub: "Box text shows what each machine knows; arrows carry the packet's addresses.",
-    nodes: [{ id: "b", x: 95, y: 170, w: 170, label: "Your laptop", sub: "knows only the name" }, { id: "dns", x: 310, y: 50, w: 220, label: "DNS resolver", sub: " " },
-      { id: "r1", x: 310, y: 170, w: 160, label: "Router 1", sub: " " }, { id: "r2", x: 520, y: 170, w: 160, label: "Router 2", sub: " " },
-      { id: "s", x: 740, y: 170, w: 190, label: "203.0.113.10", sub: ":443 web · :22 ssh" }],
+    nodes: [{ id: "b", x: 95, y: 170, w: 170, label: "Your laptop", sub: "knows only the name", kind: "client" }, { id: "dns", x: 310, y: 50, w: 220, label: "DNS resolver", sub: " ", kind: "ext" },
+      { id: "r1", x: 310, y: 170, w: 160, label: "Router 1", sub: " ", kind: "service" }, { id: "r2", x: 520, y: 170, w: 160, label: "Router 2", sub: " ", kind: "service" },
+      { id: "s", x: 740, y: 170, w: 190, label: "203.0.113.10", sub: ":443 web · :22 ssh", kind: "service" }],
     edges: [["b", "dns"], ["b", "r1"], ["r1", "r2"], ["r2", "s"]],
     width: 850, height: 240,
     steps: [
@@ -3301,9 +3301,9 @@ html.iks-open { overflow: hidden; }
 
   Viz.scene("#sc-dns", {
     title: "Looking up shop.example.com", sub: "The resolver's box is its cache. Each server only knows who to ask next.",
-    nodes: [{ id: "pc", x: 90, y: 150, w: 150, label: "Your computer", sub: " " }, { id: "res", x: 320, y: 150, w: 230, label: "Resolver", sub: "cache: (empty)" },
-      { id: "root", x: 640, y: 50, w: 220, label: "Root server", sub: "knows: who runs .com" }, { id: "tld", x: 640, y: 150, w: 220, label: ".com servers", sub: "knows: who runs example.com" },
-      { id: "auth", x: 640, y: 250, w: 220, label: "example.com's server", sub: "knows: shop → 203.0.113.10" }],
+    nodes: [{ id: "pc", x: 90, y: 150, w: 150, label: "Your computer", sub: " ", kind: "client" }, { id: "res", x: 320, y: 150, w: 230, label: "Resolver", sub: "cache: (empty)", kind: "ext" },
+      { id: "root", x: 640, y: 50, w: 220, label: "Root server", sub: "knows: who runs .com", kind: "ext" }, { id: "tld", x: 640, y: 150, w: 220, label: ".com servers", sub: "knows: who runs example.com", kind: "ext" },
+      { id: "auth", x: 640, y: 250, w: 220, label: "example.com's server", sub: "knows: shop → 203.0.113.10", kind: "ext" }],
     edges: [["pc", "res"], ["res", "root"], ["res", "tld"], ["res", "auth"]],
     width: 770, height: 300,
     steps: [
@@ -3321,9 +3321,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-nat", {
     title: "NAT: many devices, one public address", sub: "The router's box shows its translation table. Addresses are written IP:port.",
-    nodes: [{ id: "lap", x: 95, y: 60, w: 170, label: "Laptop", sub: "192.168.1.20" }, { id: "ph", x: 95, y: 240, w: 170, label: "Phone", sub: "192.168.1.31" },
-      { id: "rt", x: 360, y: 150, w: 270, label: "Home router (198.51.100.7)", sub: "table: empty" }, { id: "srv", x: 660, y: 150, w: 170, label: "Web server", sub: "203.0.113.10:443" },
-      { id: "x", x: 660, y: 270, w: 170, label: "Stranger on the internet", sub: " ", hidden: true }],
+    nodes: [{ id: "lap", x: 95, y: 60, w: 170, label: "Laptop", sub: "192.168.1.20", kind: "client" }, { id: "ph", x: 95, y: 240, w: 170, label: "Phone", sub: "192.168.1.31", kind: "client" },
+      { id: "rt", x: 360, y: 150, w: 270, label: "Home router (198.51.100.7)", sub: "table: empty" }, { id: "srv", x: 660, y: 150, w: 170, label: "Web server", sub: "203.0.113.10:443", kind: "service" },
+      { id: "x", x: 660, y: 270, w: 170, label: "Stranger on the internet", sub: " ", hidden: true, kind: "client" }],
     edges: [["lap", "rt"], ["ph", "rt"], ["rt", "srv"], ["x", "rt", "", { hidden: true }]],
     width: 760, height: 310,
     steps: [
@@ -3341,9 +3341,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-proxy", {
     title: "Forward proxy vs reverse proxy", sub: "Box text shows what each side can see and what the proxy decides.",
-    nodes: [{ id: "emp", x: 90, y: 60, w: 150, label: "Office laptop", sub: "10.0.0.15" }, { id: "fp", x: 330, y: 60, w: 220, label: "Forward proxy", sub: "acts for the clients" }, { id: "web", x: 600, y: 60, w: 210, label: "Any website", sub: " " },
-      { id: "users", x: 90, y: 210, w: 150, label: "Internet user", sub: "203.0.113.50" }, { id: "rp", x: 330, y: 210, w: 220, label: "Reverse proxy", sub: "acts for your servers" },
-      { id: "a1", x: 600, y: 170, w: 210, label: "App server 1", sub: " " }, { id: "a2", x: 600, y: 260, w: 210, label: "App server 2", sub: " " }],
+    nodes: [{ id: "emp", x: 90, y: 60, w: 150, label: "Office laptop", sub: "10.0.0.15", kind: "client" }, { id: "fp", x: 330, y: 60, w: 220, label: "Forward proxy", sub: "acts for the clients", kind: "lb" }, { id: "web", x: 600, y: 60, w: 210, label: "Any website", sub: " ", kind: "ext" },
+      { id: "users", x: 90, y: 210, w: 150, label: "Internet user", sub: "203.0.113.50", kind: "client" }, { id: "rp", x: 330, y: 210, w: 220, label: "Reverse proxy", sub: "acts for your servers", kind: "lb" },
+      { id: "a1", x: 600, y: 170, w: 210, label: "App server 1", sub: " ", kind: "service" }, { id: "a2", x: 600, y: 260, w: 210, label: "App server 2", sub: " ", kind: "service" }],
     edges: [["emp", "fp"], ["fp", "web"], ["users", "rp"], ["rp", "a1"], ["rp", "a2"]],
     width: 740, height: 310,
     steps: [
@@ -3359,8 +3359,8 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-vpc", {
     title: "A typical cloud network", sub: "Box text shows each part's subnet and firewall rule (security group).",
-    nodes: [{ id: "net", x: 80, y: 150, w: 120, label: "Internet", sub: " " }, { id: "lb", x: 270, y: 150, w: 200, label: "Load balancer", sub: "public · :443 from anywhere" },
-      { id: "app", x: 510, y: 60, w: 220, label: "App servers", sub: "private 10.0.2.0/24" }, { id: "db", x: 510, y: 250, w: 220, label: "Database", sub: "private · allow :5432 from app only" },
+    nodes: [{ id: "net", x: 80, y: 150, w: 120, label: "Internet", sub: " " }, { id: "lb", x: 270, y: 150, w: 200, label: "Load balancer", sub: "public · :443 from anywhere", kind: "lb" },
+      { id: "app", x: 510, y: 60, w: 220, label: "App servers", sub: "private 10.0.2.0/24", kind: "service" }, { id: "db", x: 510, y: 250, w: 220, label: "Database", sub: "private · allow :5432 from app only", kind: "db" },
       { id: "nat", x: 760, y: 60, w: 200, label: "NAT gateway", sub: "public subnet" }],
     edges: [["net", "lb"], ["lb", "app", "", { bend: 0 }], ["app", "db"], ["app", "nat"], ["net", "db", "", { hidden: true }]],
     width: 870, height: 300,

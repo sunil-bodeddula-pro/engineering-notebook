@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3108,13 +3108,7 @@ LIMIT 20;</code></pre>
     <p>The database's <strong>query planner</strong> decides how: it finds the user's bookings using an index on <code>bookings(user_id)</code>, looks up each event and seat by primary key, filters and sorts. <code>EXPLAIN ANALYZE</code> shows the plan it chose and the time each step took. Indexes are Module 12.</p>
     <h3>Changing the schema without downtime</h3>
     <p>Old and new versions of your code run side by side during a deploy, so a schema change must work with both. The standard method is <strong>expand and contract</strong>:</p>
-    <ol class="steps-list">
-      <li><strong>Expand:</strong> add the new column or table, nullable, without removing anything.</li>
-      <li><strong>Dual-write:</strong> deploy code that writes both old and new.</li>
-      <li><strong>Backfill:</strong> copy existing data into the new shape, in small batches.</li>
-      <li><strong>Switch reads</strong> to the new shape, and check.</li>
-      <li><strong>Contract:</strong> stop writing the old one, then drop it in a later release.</li>
-    </ol>
+    <div id="fig-expand"></div>
     <p>Beware operations that lock a big table for minutes (some column type changes, adding an index without <code>CONCURRENTLY</code> in PostgreSQL). Tools such as gh-ost, pgroll and pg-osc exist to do large changes online.</p>
 
     <h3>Data modelling in the interview</h3>
@@ -3434,8 +3428,8 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
   });
   Viz.scene("#sc-main", {
     title: "One query, three tables", sub: "\"My upcoming bookings\" for user 7. Box text shows the rows each table returns.",
-    nodes: [{ id: "app", x: 90, y: 140, w: 150, label: "App", sub: " " }, { id: "bk", x: 340, y: 140, w: 220, label: "bookings", sub: "user_id · event_id · seat_id" },
-      { id: "ev", x: 640, y: 50, w: 230, label: "events", sub: "id · name · starts_at" }, { id: "st", x: 640, y: 230, w: 230, label: "seats", sub: "id · label" }],
+    nodes: [{ id: "app", x: 90, y: 140, w: 150, label: "App", sub: " ", kind: "client" }, { id: "bk", x: 340, y: 140, w: 220, label: "bookings", sub: "user_id · event_id · seat_id", kind: "db" },
+      { id: "ev", x: 640, y: 50, w: 230, label: "events", sub: "id · name · starts_at", kind: "db" }, { id: "st", x: 640, y: 230, w: 230, label: "seats", sub: "id · label", kind: "db" }],
     edges: [["app", "bk"], ["bk", "ev", "join"], ["bk", "st", "join"], ["app", "ev", "", { bend: -60 }]],
     width: 780, height: 290,
     steps: [
@@ -3449,6 +3443,21 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
         note: "Renaming the event changes <b>one row</b>, and all 2,000 bookings for it see the new name at once. That's what normalising buys: data that can't contradict itself. (Copying the name into each booking would make reads cheaper and this update 2,000 writes.)" },
     ],
   });
+  Viz.figure("#fig-expand", {
+    title: "Expand and contract: cleaning up phone numbers", sub: "<code>users.phone</code> holds free text (\"07700 900123\", \"+44 7700…\"). We want a clean <code>phone_e164</code> column, with no downtime.",
+    nodes: [{ id: "v1", x: 95, y: 60, w: 150, label: "App v1", sub: "knows only phone", kind: "service" }, { id: "v2", x: 95, y: 230, w: 150, label: "App v2", sub: "knows both", kind: "service" },
+      { id: "old", x: 430, y: 60, w: 170, label: "phone (old)", sub: "free text", kind: "db" }, { id: "neu", x: 430, y: 230, w: 170, label: "phone_e164 (new)", sub: "nullable at first", kind: "db" },
+      { id: "bf", x: 700, y: 145, w: 140, label: "Backfill job", sub: "1,000 rows a batch", kind: "service" }],
+    edges: [["v1", "old", "reads, writes"], ["v2", "old", "write", { n: 2 }], ["v2", "neu", "write", { n: 2 }], ["old", "bf", "read", { n: 3 }], ["bf", "neu", "fill in", { n: 3 }],
+      ["neu", "v2", "reads", { n: 4, bend: -50 }]],
+    width: 790, height: 320,
+    steps: [{ text: "<strong>Expand.</strong> Add <code>phone_e164</code> as a nullable column and remove nothing. App v1 keeps working, because nothing it uses has changed.", hl: { neu: "found" } },
+      "<strong>Dual-write.</strong> Deploy v2, which writes both columns on every change. During the rollout v1 and v2 run side by side, and both still agree on the old column.",
+      "<strong>Backfill.</strong> A job converts the existing rows in small batches (with a pause between them), so the table is never locked for long.",
+      "<strong>Switch reads.</strong> Once every row has a value, v2 reads the new column. Compare the two columns on a sample first, and keep the old one in case you need to switch back.",
+      { text: "<strong>Contract.</strong> Stop writing the old column, and in a later release drop it. Only now is the change impossible to undo cheaply.", hl: { old: "bad", v1: "bad" } }],
+    after: "<b>Why so many steps:</b> at every moment, both the code that's running and the code you might roll back to must work with the schema as it is.",
+  });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Tables, keys and relationships: store each fact once." },
     { el: "#sc-main", title: "2 · One query, three tables", text: "Watch a join assemble a booking list, and an update change one row." },
@@ -3460,9 +3469,9 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
   ]);
   Viz.scene("#sc-pg", {
     title: "A PostgreSQL write, from COMMIT to disk", sub: "Box text shows where the new value of row 7 exists.",
-    nodes: [{ id: "app", x: 80, y: 150, w: 110, label: "App", sub: " " }, { id: "pg", x: 280, y: 150, w: 190, label: "Shared buffers (memory)", sub: "row 7: balance 100" },
-      { id: "wal", x: 520, y: 60, w: 200, label: "WAL on disk", sub: "up to LSN 0/1A0" }, { id: "rep", x: 520, y: 150, w: 200, label: "Replica", sub: "row 7: balance 100" },
-      { id: "data", x: 520, y: 250, w: 200, label: "Data file on disk", sub: "row 7: balance 100" }],
+    nodes: [{ id: "app", x: 80, y: 150, w: 110, label: "App", sub: " ", kind: "client" }, { id: "pg", x: 280, y: 150, w: 190, label: "Shared buffers (memory)", sub: "row 7: balance 100", kind: "cache" },
+      { id: "wal", x: 520, y: 60, w: 200, label: "WAL on disk", sub: "up to LSN 0/1A0", kind: "store" }, { id: "rep", x: 520, y: 150, w: 200, label: "Replica", sub: "row 7: balance 100", kind: "db" },
+      { id: "data", x: 520, y: 250, w: 200, label: "Data file on disk", sub: "row 7: balance 100", kind: "store" }],
     edges: [["app", "pg"], ["pg", "wal"], ["pg", "rep"], ["pg", "data"], ["wal", "data", "", { hidden: true, bend: -90 }]],
     width: 660, height: 300,
     steps: [
@@ -3480,10 +3489,10 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
   });
   Viz.scene("#sc-shred", {
     title: "Erasing one user everywhere with crypto-shredding", sub: "Box text shows what each store holds for user 42.",
-    nodes: [{ id: "app", x: 110, y: 150, w: 180, label: "App", sub: "\"delete my account\"" },
-            { id: "kms", x: 380, y: 50, w: 220, label: "Key store (KMS)", sub: "key-42: present" },
-            { id: "db", x: 380, y: 150, w: 220, label: "Database", sub: "rows: ciphertext" },
-            { id: "bk", x: 380, y: 250, w: 220, label: "Backups and event log", sub: "copies: ciphertext" },
+    nodes: [{ id: "app", x: 110, y: 150, w: 180, label: "App", sub: "\"delete my account\"", kind: "client" },
+            { id: "kms", x: 380, y: 50, w: 220, label: "Key store (KMS)", sub: "key-42: present", kind: "ext" },
+            { id: "db", x: 380, y: 150, w: 220, label: "Database", sub: "rows: ciphertext", kind: "db" },
+            { id: "bk", x: 380, y: 250, w: 220, label: "Backups and event log", sub: "copies: ciphertext", kind: "store" },
             { id: "res", x: 640, y: 150, w: 170, label: "Result", sub: " " }],
     edges: [["app", "kms"], ["app", "db"], ["db", "bk"], ["db", "res"]],
     width: 750, height: 310,

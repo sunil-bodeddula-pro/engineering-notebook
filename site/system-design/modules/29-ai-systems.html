@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3451,13 +3451,13 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   /* ---------- RAG player ---------- */
   const N = [
-    { id: "user", x: 70, y: 60, w: 100, label: "Employee" },
-    { id: "gw", x: 220, y: 60, w: 120, label: "AI gateway", sub: "auth, token limits" },
-    { id: "ret", x: 220, y: 180, w: 120, label: "Retrieval", sub: "hybrid + rerank" },
-    { id: "idx", x: 60, y: 180, w: 110, label: "Index", sub: "vectors + keywords" },
-    { id: "pa", x: 400, y: 180, w: 120, label: "Prompt builder", sub: "cached prefix" },
-    { id: "llm", x: 570, y: 60, w: 110, label: "Model", sub: "API or GPUs" },
-    { id: "obs", x: 570, y: 180, w: 110, label: "Traces + evals" },
+    { id: "user", x: 70, y: 60, w: 100, label: "Employee", kind: "client" },
+    { id: "gw", x: 220, y: 60, w: 120, label: "AI gateway", sub: "auth, token limits", kind: "lb" },
+    { id: "ret", x: 220, y: 180, w: 120, label: "Retrieval", sub: "hybrid + rerank", kind: "service" },
+    { id: "idx", x: 60, y: 180, w: 110, label: "Index", sub: "vectors + keywords", kind: "db" },
+    { id: "pa", x: 400, y: 180, w: 120, label: "Prompt builder", sub: "cached prefix", kind: "service" },
+    { id: "llm", x: 570, y: 60, w: 110, label: "Model", sub: "API or GPUs", kind: "ext" },
+    { id: "obs", x: 570, y: 180, w: 110, label: "Traces + evals", kind: "store" },
   ];
   const E = [["user", "gw"], ["gw", "ret"], ["ret", "idx"], ["ret", "pa"], ["pa", "llm"], ["llm", "gw", "stream tokens"], ["gw", "user", "SSE", { bend: 40 }], ["llm", "obs"]];
   const fig = (hl, eh) => Viz.flow(N, E, { hl, edgeHl: eh, width: 650, height: 230, title: "RAG request path" });
@@ -3511,9 +3511,9 @@ html.iks-open { overflow: hidden; }
   gpu();
   Viz.scene("#sc-main", {
     title: "One question to a document assistant", sub: "Box text shows what each part knows about this request; the trace collects it all.",
-    nodes: [{ id: "u", x: 90, y: 150, w: 150, label: "Employee", sub: "ann · HR team" }, { id: "gw", x: 330, y: 150, w: 210, label: "AI gateway", sub: " " },
-      { id: "ret", x: 640, y: 50, w: 250, label: "Retrieval", sub: "vector + keyword" }, { id: "llm", x: 640, y: 150, w: 250, label: "Model", sub: " " },
-      { id: "ev", x: 640, y: 250, w: 250, label: "Traces + evals", sub: " " }],
+    nodes: [{ id: "u", x: 90, y: 150, w: 150, label: "Employee", sub: "ann · HR team", kind: "client" }, { id: "gw", x: 330, y: 150, w: 210, label: "AI gateway", sub: " ", kind: "lb" },
+      { id: "ret", x: 640, y: 50, w: 250, label: "Retrieval", sub: "vector + keyword", kind: "service" }, { id: "llm", x: 640, y: 150, w: 250, label: "Model", sub: " ", kind: "ext" },
+      { id: "ev", x: 640, y: 250, w: 250, label: "Traces + evals", sub: " ", kind: "store" }],
     edges: [["u", "gw"], ["gw", "ret"], ["gw", "llm"], ["gw", "ev"]],
     width: 800, height: 300,
     steps: [
@@ -3541,8 +3541,8 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-gw", {
     title: "An LLM gateway with fallback", sub: "Box text shows the tenant's budget and each provider's state.",
-    nodes: [{ id: "app", x: 90, y: 150, w: 150, label: "Your service", sub: " " }, { id: "gw", x: 330, y: 150, w: 230, label: "LLM gateway", sub: "tenant 7: 41,000 of 50,000 tokens today" },
-      { id: "p1", x: 650, y: 60, w: 200, label: "Provider A (primary)", sub: "healthy" }, { id: "p2", x: 650, y: 240, w: 200, label: "Provider B (fallback)", sub: "healthy" }],
+    nodes: [{ id: "app", x: 90, y: 150, w: 150, label: "Your service", sub: " ", kind: "service" }, { id: "gw", x: 330, y: 150, w: 230, label: "LLM gateway", sub: "tenant 7: 41,000 of 50,000 tokens today", kind: "lb" },
+      { id: "p1", x: 650, y: 60, w: 200, label: "Provider A (primary)", sub: "healthy", kind: "ext" }, { id: "p2", x: 650, y: 240, w: 200, label: "Provider B (fallback)", sub: "healthy", kind: "ext" }],
     edges: [["app", "gw"], ["gw", "p1"], ["gw", "p2"]],
     width: 780, height: 300,
     steps: [

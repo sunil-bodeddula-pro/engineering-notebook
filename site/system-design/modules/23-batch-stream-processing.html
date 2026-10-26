@@ -1013,7 +1013,7 @@ html.iks-open { overflow: hidden; }
 
   /** Flow diagram: boxes and arrows.
    *  nodes [{id, x, y, w, h, label, sub}] (x, y = centre), edges [[from, to, label, {bend, level, levelFrom}]]
-   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls}, width, height, title}
+   *  opts {hl: {id: cls}, edgeHl: {"from>to": cls, or "from>to#n" for just the arrow numbered n}, width, height, title}
    *  cls: active | found | warm | bad | dim. An "active" edge is drawn as a moving dashed line. */
   let flowSeq = 0;
   function flow(nodes, edges, opts = {}) {
@@ -1031,7 +1031,7 @@ html.iks-open { overflow: hidden; }
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
-      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = edgeHl[a + ">" + b] || "";
+      const p = o.levelFrom ? { ...by[a], y: by[b].y } : by[a], q = o.level ? { ...by[b], y: by[a].y } : by[b], cls = (o.n != null && edgeHl[a + ">" + b + "#" + o.n]) || edgeHl[a + ">" + b] || "";
       const bend = o.bend || 0;
       const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y) || 1;
       const cx = mx - ((q.y - p.y) / L) * bend, cy = my + ((q.x - p.x) / L) * bend;
@@ -1105,7 +1105,7 @@ html.iks-open { overflow: hidden; }
       const hl = {}, eh = {};
       if (k != null) {
         const s = steps[k];
-        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b + "#" + o.n] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
         Object.assign(hl, s.hl || {});
       }
       return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
@@ -3522,8 +3522,8 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-main", {
     title: "A background job, done properly", sub: "Box text shows job 55's state and where it is.",
-    nodes: [{ id: "cl", x: 85, y: 150, w: 120, label: "Client", sub: " " }, { id: "api", x: 280, y: 150, w: 140, label: "API", sub: " " }, { id: "jobs", x: 280, y: 40, w: 220, label: "Jobs table", sub: "–" },
-      { id: "q", x: 470, y: 150, w: 120, label: "Queue", sub: "–" }, { id: "w", x: 640, y: 150, w: 160, label: "Worker", sub: "idle" }, { id: "st", x: 640, y: 40, w: 160, label: "Object storage", sub: "–" }, { id: "dlq", x: 640, y: 270, w: 160, label: "Dead letters", sub: "empty" }],
+    nodes: [{ id: "cl", x: 85, y: 150, w: 120, label: "Client", sub: " ", kind: "client" }, { id: "api", x: 280, y: 150, w: 140, label: "API", sub: " ", kind: "service" }, { id: "jobs", x: 280, y: 40, w: 220, label: "Jobs table", sub: "–", kind: "db" },
+      { id: "q", x: 470, y: 150, w: 120, label: "Queue", sub: "–", kind: "queue" }, { id: "w", x: 640, y: 150, w: 160, label: "Worker", sub: "idle", kind: "service" }, { id: "st", x: 640, y: 40, w: 160, label: "Object storage", sub: "–", kind: "store" }, { id: "dlq", x: 640, y: 270, w: 160, label: "Dead letters", sub: "empty", kind: "queue" }],
     edges: [["cl", "api"], ["api", "jobs"], ["api", "q"], ["q", "w"], ["w", "st"], ["w", "jobs", "", { bend: 60 }], ["w", "dlq"]],
     width: 760, height: 320,
     steps: [
@@ -3550,10 +3550,10 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-jobs", {
     title: "Fast and slow queues", sub: "Box text shows what's waiting and how long a thumbnail waits.",
-    nodes: [{ id: "p", x: 90, y: 150, w: 140, label: "Producers", sub: " " }, { id: "q", x: 340, y: 80, w: 250, label: "Shared queue", sub: "export · export · export · thumb ×200" },
-      { id: "w", x: 640, y: 80, w: 220, label: "Workers (4)", sub: "4 of 4 on exports" },
-      { id: "q2", x: 340, y: 220, w: 250, label: "Thumbnail queue", sub: " ", hidden: true }, { id: "w2", x: 640, y: 220, w: 220, label: "Thumbnail workers (4)", sub: " ", hidden: true },
-      { id: "dlq", x: 640, y: 330, w: 220, label: "Dead-letter queue", sub: " ", hidden: true }],
+    nodes: [{ id: "p", x: 90, y: 150, w: 140, label: "Producers", sub: " ", kind: "service" }, { id: "q", x: 340, y: 80, w: 250, label: "Shared queue", sub: "export · export · export · thumb ×200", kind: "queue" },
+      { id: "w", x: 640, y: 80, w: 220, label: "Workers (4)", sub: "4 of 4 on exports", kind: "service" },
+      { id: "q2", x: 340, y: 220, w: 250, label: "Thumbnail queue", sub: " ", hidden: true, kind: "queue" }, { id: "w2", x: 640, y: 220, w: 220, label: "Thumbnail workers (4)", sub: " ", hidden: true, kind: "service" },
+      { id: "dlq", x: 640, y: 330, w: 220, label: "Dead-letter queue", sub: " ", hidden: true, kind: "queue" }],
     edges: [["p", "q"], ["q", "w"], ["p", "q2", "", { hidden: true }], ["q2", "w2", "", { hidden: true }], ["q2", "dlq", "", { hidden: true }]],
     width: 770, height: 380,
     steps: [
@@ -3604,8 +3604,8 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-u23-shuffle", {
     title: "GROUP BY country: map, shuffle, reduce", sub: "3 billion rows, counted by country. Box text shows each node's partial counts.",
-    nodes: [{ id: "m1", x: 120, y: 50, w: 200, label: "Node 1 (rows 1–1B)", sub: " " }, { id: "m2", x: 120, y: 150, w: 200, label: "Node 2 (rows 1B–2B)", sub: " " }, { id: "m3", x: 120, y: 250, w: 200, label: "Node 3 (rows 2B–3B)", sub: " " },
-      { id: "r1", x: 520, y: 90, w: 230, label: "Reducer A (countries A–M)", sub: " " }, { id: "r2", x: 520, y: 210, w: 230, label: "Reducer B (countries N–Z)", sub: " " }],
+    nodes: [{ id: "m1", x: 120, y: 50, w: 200, label: "Node 1 (rows 1–1B)", sub: " ", kind: "service" }, { id: "m2", x: 120, y: 150, w: 200, label: "Node 2 (rows 1B–2B)", sub: " ", kind: "service" }, { id: "m3", x: 120, y: 250, w: 200, label: "Node 3 (rows 2B–3B)", sub: " ", kind: "service" },
+      { id: "r1", x: 520, y: 90, w: 230, label: "Reducer A (countries A–M)", sub: " ", kind: "service" }, { id: "r2", x: 520, y: 210, w: 230, label: "Reducer B (countries N–Z)", sub: " ", kind: "service" }],
     edges: [["m1", "r1"], ["m1", "r2"], ["m2", "r1"], ["m2", "r2"], ["m3", "r1"], ["m3", "r2"]],
     width: 700, height: 300,
     steps: [
@@ -3621,9 +3621,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-u23-barrier", {
     title: "A Flink checkpoint barrier", sub: "Box text shows what each operator saves. Events keep flowing the whole time.",
-    nodes: [{ id: "co", x: 400, y: 45, w: 280, label: "Checkpoint coordinator", sub: "checkpoint 7: started" },
-      { id: "src", x: 95, y: 210, w: 170, label: "Kafka source", sub: "reading offset 1,040" }, { id: "map", x: 280, y: 210, w: 150, label: "Parse", sub: "no state" },
-      { id: "agg", x: 480, y: 210, w: 200, label: "Count per page", sub: "a: 510 · b: 300" }, { id: "snk", x: 690, y: 210, w: 180, label: "Sink", sub: " " }],
+    nodes: [{ id: "co", x: 400, y: 45, w: 280, label: "Checkpoint coordinator", sub: "checkpoint 7: started", kind: "service" },
+      { id: "src", x: 95, y: 210, w: 170, label: "Kafka source", sub: "reading offset 1,040", kind: "queue" }, { id: "map", x: 280, y: 210, w: 150, label: "Parse", sub: "no state", kind: "service" },
+      { id: "agg", x: 480, y: 210, w: 200, label: "Count per page", sub: "a: 510 · b: 300", kind: "service" }, { id: "snk", x: 690, y: 210, w: 180, label: "Sink", sub: " ", kind: "db" }],
     edges: [["src", "map"], ["map", "agg"], ["agg", "snk"], ["co", "src"], ["co", "agg"], ["co", "snk"]],
     width: 800, height: 280,
     steps: [
