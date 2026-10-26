@@ -37,7 +37,7 @@ To preview locally: `site/assemble.sh /tmp/site && python3 -m http.server -d /tm
 | Topic | Now | Next |
 | --- | --- | --- |
 | AI engineering | Phase 1 — the basics of how AI works (weeks 1–2) | Phase 2 — AI-assisted development |
-| System design | Website track: all 29 modules and 24 worked designs published, all in the long form | Add scenes and tours to the 29 modules |
+| System design | Website track: 35 modules (6 basics + 29) and 37 worked designs, all in the long form, with scenes, tours and labs | Keep designs current; re-check prices and links |
 | Algorithms | — | Arrays and strings patterns |
 | Languages | — | Kotlin coroutines |
 

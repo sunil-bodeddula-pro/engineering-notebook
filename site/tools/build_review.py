@@ -4,6 +4,7 @@
 Run from the site/ folder after adding or editing quiz questions or memory hooks:
 
     python3 tools/build_review.py          # writes review.html, ai/review.html, system-design/review.html, architecture/review.html, behavioural/review.html, lld/review.html
+    python3 tools/build_review.py --check  # exit 1 if any deck is out of date (CI runs this)
     python3 tools/inline_assets.py         # then fill in the shared CSS/JS, menus and footer
 
 Each card is one quiz question (question, options, answer, explanation) or one memory hook.
@@ -229,30 +230,22 @@ PAGE = """<!DOCTYPE html>
 
 
 def main():
+    check, stale = "--check" in sys.argv, []
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import pagegen
     for track, cfg in TRACKS.items():
         cards, topics = cards_for(track)
         if not topics:
             continue   # a track that has no pages yet gets no deck
         deck = json.dumps({"cards": cards, "topics": topics}, ensure_ascii=False).replace("</", "<\\/")
         out = PAGE.replace("__LABEL__", cfg["label"]).replace("__TRACK__", track).replace("__COUNT__", str(len(topics))).replace("__DECK__", deck).replace("__NOTE__", " " + cfg["note"] if cfg.get("note") else "")
-        path = os.path.join(ROOT, cfg["out"])
-        # Keep the generated blocks already filled in, so re-running doesn't make the page stale until inline_assets runs.
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as fh:
-                old = fh.read()
-            for a, b in [("<!-- inline-assets:start", "<!-- inline-assets:end -->"), ("<!-- site-chrome:start", "<!-- site-chrome:end -->"), ("<!-- site-footer:start", "<!-- site-footer:end -->")]:
-                i, j = old.find(a), old.find(b)
-                k, l = out.find(a), out.find(b)
-                if i >= 0 and j >= 0 and k >= 0 and l >= 0:
-                    out = out[:k] + old[i:j] + out[l:]
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(out)
-        print(f"{cfg['out']}: {len(cards)} cards from {len(topics)} pages")
-    # The decks are regenerated from a template, so restore their search/social tags (tools/seo.py).
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import seo
-    seo.main()
+        if not pagegen.write_or_check(cfg["out"], out, check):
+            stale.append(cfg["out"])
+        if not check:
+            print(f"{cfg['out']}: {len(cards)} cards from {len(topics)} pages")
+    if check:
+        print("review decks: up to date" if not stale else "review decks: stale: " + ", ".join(stale))
+        sys.exit(1 if stale else 0)
 
 
 if __name__ == "__main__":
