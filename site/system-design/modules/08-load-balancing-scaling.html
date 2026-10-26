@@ -554,7 +554,7 @@ svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.b
 .vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
 .vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
-.fig-tabs + .viz { margin-top: 10px; }
+.fig-tabs + .viz, .fig-tabs + div > .viz { margin-top: 10px; }
 .vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
 /* Every caption of a scene as one list */
 .sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
@@ -723,6 +723,16 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
 .s-req { background: hsl(172 50% 45%); } .s-srv { background: hsl(40 85% 58%); } .s-db { background: hsl(20 80% 62%); } .s-dl { background: hsl(330 55% 68%); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.dr-line svg { display: block; height: auto; max-width: 100%; margin: 0 auto; font-size: 11px; }
+.dr-line .ax, .dr-line line { stroke: var(--ink-3); stroke-width: 1.2; }
+.dr-line text { fill: var(--ink-3); }
+.dr-line rect.rpo { fill: var(--red-soft); stroke: var(--red); } .dr-line text.rpo { fill: var(--red); font-weight: 700; }
+.dr-line rect.rto { fill: var(--gold-soft); stroke: var(--gold); } .dr-line text.rto { fill: var(--gold); font-weight: 700; }
+.dr-line line.dz { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; } .dr-line text.dz { fill: var(--ink); font-weight: 700; }
+.mt-strip svg { display: block; width: 100%; height: 26px; }
+.mt-strip .up { fill: var(--green-soft); stroke: var(--green); stroke-width: 1; }
+.mt-strip rect:not(.up) { fill: var(--red); }
+.mt-ax { display: flex; justify-content: space-between; font-size: .78rem; color: var(--ink-3); margin-top: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
 .tiles > div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; }
 .tiles b { display: block; font: 700 1.05rem var(--mono); color: var(--ink); }
@@ -1114,7 +1124,9 @@ html.iks-open { overflow: hidden; }
     const sizeHint = () => { const w = wrap(); hint.hidden = !(w && w.scrollWidth > w.clientWidth + 2); };
     sizeHint(); window.addEventListener("resize", sizeHint);
     const follow = () => {
-      const w = wrap(), svg = w && w.querySelector("svg"), lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      const w = wrap(), svg = w && w.querySelector("svg");
+      let lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      if (svg && !lit.length) lit = [...svg.querySelectorAll("g.fn:is(.active, .bad, .found, .warm) rect")];
       if (!lit.length || w.scrollWidth <= w.clientWidth + 2) return;
       const xs = lit.map((p) => p.getBBox()), k = svg.getBoundingClientRect().width / (cfg.width || 560);
       const mid = (Math.min(...xs.map((b) => b.x)) + Math.max(...xs.map((b) => b.x + b.width))) / 2;
@@ -1135,6 +1147,19 @@ html.iks-open { overflow: hidden; }
     });
     root.querySelector(".fig-steps")?.addEventListener("mouseleave", () => { if (!root.contains(document.activeElement)) set(null); });
     if (typeof queueRoughen === "function") queueRoughen();
+  }
+
+  /** Several figures behind tabs, drawn one at a time in the same place (before / after, or one per option).
+   *  figs {"Tab name": figure cfg (its title defaults to the tab name)}; opts {label} names the tab group. */
+  function figures(target, figs, opts = {}) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const names = Object.keys(figs);
+    root.innerHTML = `<div class="fig-tabs" role="group" aria-label="${esc(opts.label || "Choose a diagram")}">${names.map((k) => `<button type="button" aria-pressed="false">${esc(k)}</button>`).join("")}</div><div></div>`;
+    const btns = [...root.querySelectorAll(".fig-tabs button")], box = root.lastElementChild;
+    const show = (i) => { figure(box, { title: names[i], ...figs[names[i]] }); btns.forEach((b, j) => b.setAttribute("aria-pressed", String(j === i))); };
+    btns.forEach((b, i) => (b.onclick = () => show(i)));
+    show(0);
   }
 
   /** Every step's caption as one numbered list under a scene or stepper, for reading at your own pace. */
@@ -2979,7 +3004,7 @@ html.iks-open { overflow: hidden; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -3069,9 +3094,30 @@ html.iks-open { overflow: hidden; }
     <h3>Health checks and draining</h3>
     <p><strong>Active health checks</strong>: the balancer calls <code>/healthz</code> every few seconds and removes a server after a few failures. <strong>Passive</strong> checks watch real traffic and eject servers returning errors. A good health check tests that the server can do useful work (it can reach its database), but not so deeply that one shared dependency failing marks <em>every</em> server unhealthy at once.</p>
     <p>For deploys, <strong>connection draining</strong> (AWS calls it deregistration delay, 300 seconds by default) stops new requests to a server while letting in-flight ones finish, so a rolling deploy drops nothing.</p>
+    <h3 id="gateway">API gateways</h3>
+    <p>Once a product is split into several services, every one of them needs the same chores done for each request: check who the caller is, stop callers who send too much, log the call, and send it to the right place. An <strong>API gateway</strong> is a single L7 proxy at the edge that does those chores once, for every service behind it. Clients see one address and one API; the services see only requests that have already passed the checks.</p>
+    <div id="fig-gw"></div>
+    <p>Typical gateway jobs, beyond the ones in the figure: <strong>request validation</strong> (reject a malformed body before it costs a service anything), <strong>protocol translation</strong> (public REST outside, gRPC inside), <strong>response caching</strong>, <strong>versioning</strong> (<code>/v1</code> and <code>/v2</code> to different services) and <strong>aggregation</strong> (one call from a phone fans out to three services and comes back as one response). Managed options are AWS API Gateway, Google Apigee and Azure API Management; self-run ones include Kong and Envoy-based gateways.</p>
+    <p><strong>Why bother?</strong> Compare a mobile app calling each service directly with the same app calling through a gateway:</p>
+    <div id="fig-gw-vs"></div>
+    <p>The costs are real: one more hop (usually a millisecond or two), one more system that must never go down (run several copies behind an L4 balancer, across zones), and a tempting place to put business logic, which should stay in the services. A gateway that knows what an order is has become a bottleneck that every team must change.</p>
+
+    <h3 id="proxies">Load balancer, reverse proxy, gateway: what's the difference?</h3>
+    <p>All three sit between clients and servers and forward requests, and real products blur the lines (NGINX and Envoy can be all three). The difference is the main job:</p>
+    <table class="pat">
+      <thead><tr><th></th><th>Main job</th><th>Knows about</th><th>Example question it answers</th></tr></thead>
+      <tbody>
+        <tr><td>Load balancer</td><td>Spread traffic over copies of the <em>same</em> service and route around failures</td><td>Server health and load</td><td>Which of these 12 identical servers takes this request?</td></tr>
+        <tr><td>Reverse proxy</td><td>Stand in front of servers so clients never reach them directly: TLS, compression, caching, hiding the servers</td><td>HTTP</td><td>Can I answer this from cache, or must a server see it?</td></tr>
+        <tr><td>API gateway</td><td>Be the one front door to <em>many different</em> services, with the cross-cutting rules applied</td><td>Your API: routes, callers, quotas</td><td>Is this caller allowed, under quota, and which service owns <code>/orders</code>?</td></tr>
+      </tbody>
+    </table>
+    <p>A common setup uses all three in a row: an L4 load balancer spreads connections over several gateway copies; the gateway authenticates and routes; each service has its own internal load balancing (often in a service mesh) across its copies.</p>
+    <p>A <strong>reverse</strong> proxy works for the servers. Its mirror image, the <strong>forward</strong> proxy, works for the clients. Same box in the middle, opposite loyalties:</p>
+    <div id="fig-proxy"></div>
+
     <h3>The rest of the front door</h3>
     <ul>
-      <li><strong>API gateway:</strong> an L7 proxy at the edge that adds authentication, rate limiting, request validation and routing to many backend services. Managed (AWS API Gateway, Google Apigee, Azure API Management) or self-run (Kong, Envoy-based gateways).</li>
       <li><strong>Service discovery:</strong> how callers find healthy instances of internal services as they come and go: DNS names in Kubernetes, a registry (Consul), or a service mesh sidecar that load-balances on the client side.</li>
       <li><strong>Autoscaling:</strong> add or remove servers based on a metric. Kubernetes' Horizontal Pod Autoscaler checks every 15 seconds by default; cloud autoscaling groups work similarly. New servers take time (seconds for containers, minutes for VMs), so scale on a leading signal, keep headroom, and pre-scale for known events.</li>
     </ul>
@@ -3399,8 +3445,8 @@ html.iks-open { overflow: hidden; }
   run();
   Viz.scene("#sc-main", {
     title: "Spreading the load", sub: "Each server box shows the requests it's working on. <b>Red</b> = queued behind slow work or failing; <b>green</b> = a good choice.",
-    nodes: [{ id: "c", x: 75, y: 150, w: 110, label: "Requests", sub: " " }, { id: "lb", x: 270, y: 150, w: 190, label: "Load balancer", sub: "round robin" },
-      { id: "s1", x: 530, y: 50, w: 220, label: "Server 1", sub: "idle" }, { id: "s2", x: 530, y: 150, w: 220, label: "Server 2", sub: "idle" }, { id: "s3", x: 530, y: 250, w: 220, label: "Server 3", sub: "idle" }],
+    nodes: [{ id: "c", x: 75, y: 150, w: 110, label: "Requests", sub: " ", kind: "client" }, { id: "lb", x: 270, y: 150, w: 190, label: "Load balancer", sub: "round robin", kind: "lb" },
+      { id: "s1", x: 530, y: 50, w: 220, label: "Server 1", sub: "idle", kind: "service" }, { id: "s2", x: 530, y: 150, w: 220, label: "Server 2", sub: "idle", kind: "service" }, { id: "s3", x: 530, y: 250, w: 220, label: "Server 3", sub: "idle", kind: "service" }],
     edges: [["c", "lb"], ["lb", "s1"], ["lb", "s2"], ["lb", "s3"]],
     width: 680, height: 300,
     steps: [
@@ -3416,21 +3462,83 @@ html.iks-open { overflow: hidden; }
         note: "Traffic flows round the failure. That only works because the servers are stateless: any server can handle any request." },
     ],
   });
+  /* ---------- API gateway figures ---------- */
+  Viz.figure("#fig-gw", {
+    title: "One request through a gateway", sub: "A bookshop's mobile app asks for order 81. Three services sit behind one public address.",
+    nodes: [{ id: "app", x: 75, y: 140, w: 120, label: "Mobile app", sub: "has a login token", kind: "client" },
+      { id: "gw", x: 300, y: 140, w: 160, label: "API gateway", sub: "api.bookshop.example", kind: "lb" },
+      { id: "id", x: 300, y: 255, w: 160, label: "Identity service", sub: "issues and checks tokens", kind: "service" },
+      { id: "rl", x: 300, y: 30, w: 160, label: "Rate counters", sub: "per caller, per minute", kind: "cache" },
+      { id: "cat", x: 555, y: 30, w: 150, label: "Catalogue", kind: "service" }, { id: "ord", x: 555, y: 140, w: 150, label: "Orders", kind: "service" },
+      { id: "pay", x: 555, y: 255, w: 150, label: "Payments", kind: "service" }],
+    edges: [["app", "gw", "GET /orders/81", { n: 1, bend: -22 }], ["gw", "id", "who is this?", { n: 2 }], ["gw", "rl", "count +1", { n: 3 }],
+      ["gw", "ord", "route", { n: 4, bend: -20 }], ["ord", "gw", "JSON", { n: 5, bend: -20 }], ["gw", "app", "200 OK", { n: 6, bend: -22 }],
+      ["gw", "cat"], ["gw", "pay"]],
+    width: 650, height: 290,
+    steps: ["The app sends one HTTPS request to the gateway's public address. TLS ends at the gateway, so it can read the path and headers.",
+      "The gateway checks the caller's token. With signed tokens (JWTs) it can verify the signature itself in microseconds; it asks the identity service only for keys or revocations. No valid token: a <code>401</code> goes back and no service is bothered.",
+      "It adds one to this caller's counter for the current minute. Over the limit: a <code>429 Too Many Requests</code>, again before any service does work (Module 24 and the rate limiter design show how).",
+      "It matches the path against its routing table: <code>/orders/*</code> belongs to the Orders service. It forwards the request with the caller's identity attached as a trusted header, so Orders doesn't re-check the token.",
+      "Orders does the actual work and answers. It never had to think about tokens, quotas or TLS.",
+      "The gateway logs the call (who, what, how long, which status) and returns the response."],
+    after: "<b>The rule of thumb:</b> the gateway decides <em>whether</em> a request may proceed and <em>where</em> it goes; the services decide what it means.",
+  });
+  const GV = (direct) => ({
+    nodes: [{ id: "app", x: 80, y: 130, w: 120, label: "Mobile app", sub: direct ? "knows 3 addresses" : "knows 1 address", kind: "client" },
+      ...(direct ? [] : [{ id: "gw", x: 280, y: 130, w: 140, label: "API gateway", sub: "auth · quotas · logs", kind: "lb" }]),
+      { id: "cat", x: 500, y: 40, w: 190, label: "Catalogue", sub: direct ? "own auth, own limits" : "just the work", kind: "service" },
+      { id: "ord", x: 500, y: 130, w: 190, label: "Orders", sub: direct ? "own auth, own limits" : "just the work", kind: "service" },
+      { id: "pay", x: 500, y: 220, w: 190, label: "Payments", sub: direct ? "own auth, own limits" : "just the work", kind: "service" }],
+    edges: direct ? [["app", "cat", "", { n: 1 }], ["app", "ord", "", { n: 1 }], ["app", "pay", "", { n: 1 }]]
+      : [["app", "gw", "", { n: 1 }], ["gw", "cat"], ["gw", "ord", "", { n: 3 }], ["gw", "pay"]],
+    width: 620, height: 270,
+  });
+  Viz.figures("#fig-gw-vs", {
+    "Services exposed directly": { ...GV(true), sub: "Each service has its own public address.",
+      steps: ["The app calls each service at its own address. Every address is public, so each one is something to secure, monitor and keep backwards compatible.",
+        { text: "Each service re-implements token checks, rate limits and logging, in its own language and with its own bugs. A security fix means changing every service.", hl: { cat: "warm", ord: "warm", pay: "warm" } },
+        { text: "Splitting Orders in two, or renaming it, breaks every app version already installed on people's phones.", hl: { app: "bad" } }],
+      after: "<b>Fine when</b> there are one or two services and one client. It gets painful as both grow." },
+    "Through a gateway": { ...GV(false), sub: "One public address; the services are private.",
+      steps: ["The app knows one address. The services aren't reachable from the internet at all.",
+        { text: "Token checks, quotas and logging happen once, in the gateway, the same way for every service.", hl: { gw: "found" } },
+        "Services can be split, merged or moved by changing the gateway's routing table; installed apps never notice."],
+      after: "<b>The price:</b> one more hop and one more critical system to run in several copies." },
+  }, { label: "Before and after" });
+  const PX = (forward) => ({
+    nodes: [{ id: "u1", x: 85, y: 60, w: 130, label: forward ? "Employee laptop" : "Shopper", kind: "client" }, { id: "u2", x: 85, y: 180, w: 130, label: forward ? "Employee laptop" : "Shopper", kind: "client" },
+      { id: "px", x: 300, y: 120, w: 170, label: forward ? "Forward proxy" : "Reverse proxy", sub: forward ? "acts for the clients" : "acts for the servers", kind: "lb" },
+      { id: "s1", x: 515, y: 60, w: 140, label: forward ? "news site" : "Web server 1", sub: forward ? "on the internet" : "private", kind: forward ? "ext" : "service" },
+      { id: "s2", x: 515, y: 180, w: 140, label: forward ? "video site" : "Web server 2", sub: forward ? "on the internet" : "private", kind: forward ? "ext" : "service" }],
+    edges: [["u1", "px", "", { n: 1 }], ["u2", "px", "", { n: 1 }], ["px", "s1", "", { n: 2 }], ["px", "s2", "", { n: 2 }]],
+    width: 610, height: 240,
+  });
+  Viz.figures("#fig-proxy", {
+    "Forward proxy": { ...PX(true), sub: "An office network sends all web traffic through one proxy.",
+      steps: ["Laptops are configured to send their web requests to the proxy instead of straight to the internet. The <em>clients</em> know the proxy is there.",
+        "The proxy fetches each site on their behalf. Sites see the proxy's address, not the laptop's. The office uses this to block sites, cache common downloads and keep a log."],
+      after: "<b>And a VPN?</b> A VPN moves a device's <em>whole</em> network connection into another network through an encrypted tunnel, so every app's traffic goes through it. A proxy handles only the traffic sent to it, usually web traffic, and doesn't have to encrypt it." },
+    "Reverse proxy": { ...PX(false), sub: "A website serves everyone from one public address.",
+      steps: ["Shoppers connect to one public address. They can't tell how many servers sit behind it, or that there is a proxy at all.",
+        "The proxy picks a server, ends TLS, compresses and caches responses, and hides the servers from the internet. A load balancer, a CDN edge and an API gateway are all reverse proxies with a particular focus."],
+      after: "<b>One way to remember it:</b> a forward proxy hides the clients from the servers; a reverse proxy hides the servers from the clients." },
+  }, { label: "Kind of proxy" });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Open more tills, and have someone point each shopper to an open one." },
     { el: "#sc-main", title: "2 · Choosing a server", text: "Watch round robin queue behind a slow request, and a better rule avoid it." },
     { el: "#viz-lb", title: "3 · Round robin vs varied costs", text: "Step through why equal shares aren't equal work." },
     { el: "#sim", title: "4 · Simulator", text: "Run 4,000 requests through each algorithm, with a slow server." },
-    { el: "#up-close", title: "5 · The technologies up close", text: "L7, L4, client-side balancing, API gateways: when each fits, and the red flags." },
-    { el: "#remember", title: "6 · Remember it", text: "The memory hook to carry into an interview." },
-    { el: "#quiz", title: "7 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
+    { el: "#fig-gw", title: "5 · API gateways", text: "One request through a gateway, step by step, and what it saves each service." },
+    { el: "#up-close", title: "6 · The technologies up close", text: "L7, L4, client-side balancing, API gateways: when each fits, and the red flags." },
+    { el: "#remember", title: "7 · Remember it", text: "The memory hook to carry into an interview." },
+    { el: "#quiz", title: "8 · Check yourself", text: "A short quiz; add the questions you miss to your review deck." },
   ]);
   Viz.scene("#sc-lb", {
     title: "L7 reads requests; L4 forwards connections", sub: "Box text shows what each balancer decides and how much each server holds.",
-    nodes: [{ id: "c7", x: 95, y: 90, w: 170, label: "Browser", sub: "1 HTTP/2 connection" }, { id: "l7", x: 340, y: 90, w: 220, label: "L7 balancer", sub: "TLS ends here · reads requests" },
-      { id: "api", x: 620, y: 40, w: 210, label: "API servers", sub: "0 requests" }, { id: "img", x: 620, y: 140, w: 210, label: "Image servers", sub: "0 requests" },
-      { id: "c4", x: 95, y: 300, w: 170, label: "Chat apps", sub: "long-lived sockets" }, { id: "l4", x: 340, y: 300, w: 220, label: "L4 balancer", sub: "sees only IPs and ports" },
-      { id: "w1", x: 620, y: 250, w: 210, label: "Socket server 1", sub: "980 connections" }, { id: "w2", x: 620, y: 350, w: 210, label: "Socket server 2 (new)", sub: "0 connections" }],
+    nodes: [{ id: "c7", x: 95, y: 90, w: 170, label: "Browser", sub: "1 HTTP/2 connection", kind: "client" }, { id: "l7", x: 340, y: 90, w: 220, label: "L7 balancer", sub: "TLS ends here · reads requests", kind: "lb" },
+      { id: "api", x: 620, y: 40, w: 210, label: "API servers", sub: "0 requests", kind: "service" }, { id: "img", x: 620, y: 140, w: 210, label: "Image servers", sub: "0 requests", kind: "service" },
+      { id: "c4", x: 95, y: 300, w: 170, label: "Chat apps", sub: "long-lived sockets", kind: "client" }, { id: "l4", x: 340, y: 300, w: 220, label: "L4 balancer", sub: "sees only IPs and ports", kind: "lb" },
+      { id: "w1", x: 620, y: 250, w: 210, label: "Socket server 1", sub: "980 connections", kind: "service" }, { id: "w2", x: 620, y: 350, w: 210, label: "Socket server 2 (new)", sub: "0 connections", kind: "service" }],
     edges: [["c7", "l7"], ["l7", "api"], ["l7", "img"], ["c4", "l4"], ["l4", "w1"], ["l4", "w2"]],
     width: 760, height: 400,
     steps: [

@@ -554,7 +554,7 @@ svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.b
 .vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
 .vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
-.fig-tabs + .viz { margin-top: 10px; }
+.fig-tabs + .viz, .fig-tabs + div > .viz { margin-top: 10px; }
 .vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
 /* Every caption of a scene as one list */
 .sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
@@ -723,6 +723,16 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
 .s-req { background: hsl(172 50% 45%); } .s-srv { background: hsl(40 85% 58%); } .s-db { background: hsl(20 80% 62%); } .s-dl { background: hsl(330 55% 68%); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.dr-line svg { display: block; height: auto; max-width: 100%; margin: 0 auto; font-size: 11px; }
+.dr-line .ax, .dr-line line { stroke: var(--ink-3); stroke-width: 1.2; }
+.dr-line text { fill: var(--ink-3); }
+.dr-line rect.rpo { fill: var(--red-soft); stroke: var(--red); } .dr-line text.rpo { fill: var(--red); font-weight: 700; }
+.dr-line rect.rto { fill: var(--gold-soft); stroke: var(--gold); } .dr-line text.rto { fill: var(--gold); font-weight: 700; }
+.dr-line line.dz { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; } .dr-line text.dz { fill: var(--ink); font-weight: 700; }
+.mt-strip svg { display: block; width: 100%; height: 26px; }
+.mt-strip .up { fill: var(--green-soft); stroke: var(--green); stroke-width: 1; }
+.mt-strip rect:not(.up) { fill: var(--red); }
+.mt-ax { display: flex; justify-content: space-between; font-size: .78rem; color: var(--ink-3); margin-top: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
 .tiles > div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; }
 .tiles b { display: block; font: 700 1.05rem var(--mono); color: var(--ink); }
@@ -1114,7 +1124,9 @@ html.iks-open { overflow: hidden; }
     const sizeHint = () => { const w = wrap(); hint.hidden = !(w && w.scrollWidth > w.clientWidth + 2); };
     sizeHint(); window.addEventListener("resize", sizeHint);
     const follow = () => {
-      const w = wrap(), svg = w && w.querySelector("svg"), lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      const w = wrap(), svg = w && w.querySelector("svg");
+      let lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      if (svg && !lit.length) lit = [...svg.querySelectorAll("g.fn:is(.active, .bad, .found, .warm) rect")];
       if (!lit.length || w.scrollWidth <= w.clientWidth + 2) return;
       const xs = lit.map((p) => p.getBBox()), k = svg.getBoundingClientRect().width / (cfg.width || 560);
       const mid = (Math.min(...xs.map((b) => b.x)) + Math.max(...xs.map((b) => b.x + b.width))) / 2;
@@ -1135,6 +1147,19 @@ html.iks-open { overflow: hidden; }
     });
     root.querySelector(".fig-steps")?.addEventListener("mouseleave", () => { if (!root.contains(document.activeElement)) set(null); });
     if (typeof queueRoughen === "function") queueRoughen();
+  }
+
+  /** Several figures behind tabs, drawn one at a time in the same place (before / after, or one per option).
+   *  figs {"Tab name": figure cfg (its title defaults to the tab name)}; opts {label} names the tab group. */
+  function figures(target, figs, opts = {}) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const names = Object.keys(figs);
+    root.innerHTML = `<div class="fig-tabs" role="group" aria-label="${esc(opts.label || "Choose a diagram")}">${names.map((k) => `<button type="button" aria-pressed="false">${esc(k)}</button>`).join("")}</div><div></div>`;
+    const btns = [...root.querySelectorAll(".fig-tabs button")], box = root.lastElementChild;
+    const show = (i) => { figure(box, { title: names[i], ...figs[names[i]] }); btns.forEach((b, j) => b.setAttribute("aria-pressed", String(j === i))); };
+    btns.forEach((b, i) => (b.onclick = () => show(i)));
+    show(0);
   }
 
   /** Every step's caption as one numbered list under a scene or stepper, for reading at your own pace. */
@@ -2979,7 +3004,7 @@ html.iks-open { overflow: hidden; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -3060,6 +3085,22 @@ html.iks-open { overflow: hidden; }
     <p>That word <strong>independent</strong> carries a lot of weight. Two servers in the same rack share power and a network switch; two in the same data centre share a building. Copies only add nines if they fail separately, so you spread them across <strong>failure domains</strong>: different machines, racks, <strong>availability zones</strong> (separate data centres in one region) and, for the strictest needs, regions.</p>
     <p>Press Play to raise a small web app's availability one change at a time. The component figures are the cloud providers' published SLA levels where they exist (verified October 2026), used as rough failure rates.</p>
     <div id="viz-av"></div>
+    <h3 id="mttr">MTBF and MTTR: fail less, or recover faster</h3>
+    <p>Section 1 gave the formula: availability = MTBF ÷ (MTBF + MTTR). <strong>MTBF</strong> (mean time between failures) is how long the system usually runs before something breaks; <strong>MTTR</strong> (mean time to recover) is how long it then takes to work again. MTTR itself has four parts: noticing (alerting), finding the cause (dashboards, logs), fixing it (rollback, failover) and confirming it's fixed. Move the sliders, or compare the two presets:</p>
+    <div class="card widget" id="mt-widget">
+      <div class="ctl"><span class="seg" id="mt-pre"></span></div>
+      <div class="ctl"><label for="mt-b">A failure every</label><input id="mt-b" type="range" min="0" max="100" value="60"><output id="mt-b-out"></output></div>
+      <div class="ctl"><label for="mt-r">Each one takes</label><input id="mt-r" type="range" min="0" max="100" value="60"><output id="mt-r-out"></output></div>
+      <div class="mt-strip no-gl" id="mt-strip" aria-hidden="true"></div>
+      <div class="tiles no-gl" id="mt-tiles"></div>
+      <div class="verdict no-gl" id="mt-verdict"></div>
+    </div>
+    <p>The presets make the point: a system that breaks every week but recovers in two minutes is more available than one that breaks every two months but takes an hour to fix. Rare failures are also the ones nobody has practised. That's why mature teams invest in recovery (automatic failover, one-click rollbacks, alerts that page within a minute) at least as much as in prevention.</p>
+
+    <h3 id="ft-vs-ha">High availability vs fault tolerance</h3>
+    <p>The two terms are often mixed up. A <strong>highly available</strong> system recovers from a fault <em>quickly</em>: users may see a short blip of errors while a standby takes over. A <strong>fault-tolerant</strong> system carries on through the fault with <em>no</em> visible interruption, because enough copies are already doing the work. Same database fault, two designs:</p>
+    <div id="fig-ftha"></div>
+
     <h3>SLIs, SLOs, SLAs and error budgets</h3>
     <p>"Highly available" means nothing until you measure it. Google's Site Reliability Engineering practice, now used almost everywhere, splits it into three:</p>
     <ul>
@@ -3372,16 +3413,70 @@ html.iks-open { overflow: hidden; }
   }
   ["eb-req", "eb-inc", "eb-min"].forEach((k) => $(k).addEventListener("input", budget));
   budget();
+  /* ---------- MTBF / MTTR ---------- */
+  {
+    const B = [1, 3, 6, 12, 24, 48, 72, 168, 336, 720, 1440, 2160, 4380, 8760];   // hours between failures
+    const R = [0.5, 1, 2, 5, 10, 15, 30, 45, 60, 120, 240, 480, 1440];            // minutes to recover
+    const pick = (arr, v) => arr[Math.round(v / 100 * (arr.length - 1))];
+    const hrs = (h) => h < 24 ? `${h} hour${h === 1 ? "" : "s"}` : h < 168 ? `${h / 24} days` : h < 720 ? `${h / 168} week${h === 168 ? "" : "s"}` : h < 8760 ? `${Math.round(h / 720)} month${h === 720 ? "" : "s"}` : "year";
+    const mins = (m) => m < 1 ? "30 seconds" : m < 60 ? `${m} minute${m === 1 ? "" : "s"}` : m < 1440 ? `${m / 60} hour${m === 60 ? "" : "s"}` : "1 day";
+    const down = (m) => m < 60 ? `${m.toFixed(m < 10 ? 1 : 0)} min` : m < 1440 ? `${(m / 60).toFixed(1)} h` : `${(m / 1440).toFixed(1)} days`;
+    const bIn = $("mt-b"), rIn = $("mt-r");
+    // presets as [index in B, index in R]: every 2 months for an hour, vs every week for 2 minutes
+    const presetVals = { "Rare but slow": [B.indexOf(1440), R.indexOf(60)], "Frequent but fast": [B.indexOf(168), R.indexOf(2)] };
+    $("mt-pre").innerHTML = Object.keys(presetVals).map((k) => `<button type="button" aria-pressed="false">${k}</button>`).join("");
+    const toV = (i, arr) => Math.round(i / (arr.length - 1) * 100);
+    const draw = () => {
+      const b = pick(B, +bIn.value), r = pick(R, +rIn.value), a = b * 60 / (b * 60 + r);
+      $("mt-b-out").textContent = b === 8760 ? "year" : hrs(b); $("mt-r-out").textContent = mins(r);
+      const perYear = 8760 / b, downYear = perYear * r, nines = -Math.log10(1 - a);
+      // 30-day strip: each failure is a red mark as wide as its outage (at least 1px so it shows)
+      const W = 600, span = 30 * 24 * 60, n = Math.floor(span / (b * 60));
+      let marks = ""; for (let k = 1; k <= Math.min(n, 400); k++) { const x = (k * b * 60 - b * 30) / span * W; marks += `<rect x="${Math.max(0, x).toFixed(1)}" y="2" width="${Math.max(1.2, r / span * W).toFixed(1)}" height="22" rx="1"/>`; }
+      $("mt-strip").innerHTML = `<svg viewBox="0 0 ${W} 26" preserveAspectRatio="none"><rect class="up" x="0" y="2" width="${W}" height="22" rx="4"/>${marks}</svg><div class="mt-ax"><span>day 1</span><span>${n ? n + " failure" + (n === 1 ? "" : "s") + " in 30 days" : "no failure in these 30 days"}</span><span>day 30</span></div>`;
+      $("mt-tiles").innerHTML = [[(a * 100).toFixed(a > 0.9999 ? 4 : 3) + "%", "availability"], [nines.toFixed(1), "nines"], [perYear < 1 ? "1 every " + (1 / perYear).toFixed(0) + " years" : Math.round(perYear) + " a year", "failures"], [down(downYear), "down per year"]]
+        .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+      const halfR = b * 60 / (b * 60 + r / 2), dblB = b * 120 / (b * 120 + r);
+      $("mt-verdict").innerHTML = `Halving recovery time gives <b>${(halfR * 100).toFixed(4)}%</b>; making failures half as frequent gives <b>${(dblB * 100).toFixed(4)}%</b>. Same gain, and recovery is usually the easier one to improve.`;
+      $("mt-pre").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(presetVals[x.textContent][0] === B.indexOf(b) && presetVals[x.textContent][1] === R.indexOf(r))));
+    };
+    $("mt-pre").querySelectorAll("button").forEach((x) => (x.onclick = () => { const [i, j] = presetVals[x.textContent]; bIn.value = toV(i, B); rIn.value = toV(j, R); draw(); }));
+    bIn.oninput = rIn.oninput = draw;
+    bIn.value = toV(presetVals["Rare but slow"][0], B); rIn.value = toV(presetVals["Rare but slow"][1], R); draw();
+  }
+  /* ---------- high availability vs fault tolerance ---------- */
+  Viz.figures("#fig-ftha", {
+    "High availability: fail over": {
+      sub: "One primary database and a standby that takes over.",
+      nodes: [{ id: "app", x: 80, y: 120, w: 120, label: "App servers", kind: "service" }, { id: "p", x: 330, y: 50, w: 160, label: "Primary DB", sub: "takes all writes", kind: "db" },
+        { id: "s", x: 330, y: 190, w: 160, label: "Standby DB", sub: "a copy, kept in sync", kind: "db" }, { id: "m", x: 560, y: 120, w: 140, label: "Health monitor", sub: "checks every 5 s", kind: "service" }],
+      edges: [["app", "p", "writes", { n: 1 }], ["m", "p", "alive?", { n: 2 }], ["m", "s", "promote", { n: 3 }], ["app", "s", "reconnect", { n: 4 }], ["p", "s", "", {}]],
+      width: 640, height: 250,
+      steps: ["Normally, every write goes to the primary, which copies it to the standby.",
+        { text: "The primary's machine dies. The monitor needs a few missed checks to be sure (one slow answer isn't a failure), so for 10–30 seconds writes fail and users see errors.", hl: { p: "bad" } },
+        "The monitor promotes the standby to be the new primary.",
+        "The app servers reconnect to it. Service is back: a short, visible blip. With asynchronous copying, the last few writes before the crash can be lost."],
+      after: "<b>Typical for</b> managed databases with a standby (Amazon RDS Multi-AZ, Cloud SQL high availability): fail over in under a minute or two. Cheap and good enough for most products." },
+    "Fault tolerance: carry on": {
+      sub: "Three copies that all do the work; any two are enough.",
+      nodes: [{ id: "app", x: 80, y: 120, w: 120, label: "App servers", kind: "service" }, { id: "r1", x: 360, y: 40, w: 170, label: "Replica 1", sub: "votes on each write", kind: "db" },
+        { id: "r2", x: 360, y: 120, w: 170, label: "Replica 2", sub: "votes on each write", kind: "db" }, { id: "r3", x: 360, y: 200, w: 170, label: "Replica 3", sub: "votes on each write", kind: "db" }],
+      edges: [["app", "r1", "", { n: 1 }], ["app", "r2", "", { n: 1 }], ["app", "r3", "", { n: 1 }]],
+      width: 560, height: 250,
+      steps: ["Every write goes to all three replicas and counts as done once two of them have stored it (a quorum, Module 14).",
+        { text: "Replica 3's machine dies. Writes still reach two replicas, which is enough, so nothing fails and nobody waits for a switch-over. Users notice nothing.", hl: { r3: "bad", r1: "found", r2: "found" } }],
+      after: "<b>The price:</b> three copies doing the work and a consensus protocol (Module 21) on every write, which adds latency. Used where even seconds of errors are unacceptable: Spanner, CockroachDB, etcd, and the control systems of aircraft." },
+  }, { label: "Kind of resilience" });
   Viz.scene("#sc-main", {
     title: "Chains lose nines, spares add them", sub: "Box text shows each part's availability; the total box multiplies them.",
     nodes: [
-      { id: "user", x: 70, y: 170, w: 100, label: "User", sub: " " },
-      { id: "lb", x: 220, y: 170, w: 130, label: "Load balancer", sub: "99.99%" },
-      { id: "app", x: 400, y: 100, w: 150, label: "App server, zone A", sub: "99.5%" },
-      { id: "app2", x: 400, y: 250, w: 150, label: "App server, zone B", sub: "99.5%", hidden: true },
-      { id: "db", x: 620, y: 175, w: 120, label: "Database", sub: "99.9%" },
-      { id: "email", x: 800, y: 40, w: 140, label: "Email API", sub: "99.5%" },
-      { id: "q", x: 620, y: 40, w: 120, label: "Queue", sub: "99.99%", hidden: true },
+      { id: "user", x: 70, y: 170, w: 100, label: "User", sub: " ", kind: "client" },
+      { id: "lb", x: 220, y: 170, w: 130, label: "Load balancer", sub: "99.99%", kind: "lb" },
+      { id: "app", x: 400, y: 100, w: 150, label: "App server, zone A", sub: "99.5%", kind: "service" },
+      { id: "app2", x: 400, y: 250, w: 150, label: "App server, zone B", sub: "99.5%", hidden: true, kind: "service" },
+      { id: "db", x: 620, y: 175, w: 120, label: "Database", sub: "99.9%", kind: "db" },
+      { id: "email", x: 800, y: 40, w: 140, label: "Email API", sub: "99.5%", kind: "ext" },
+      { id: "q", x: 620, y: 40, w: 120, label: "Queue", sub: "99.99%", hidden: true, kind: "queue" },
       { id: "tot", x: 220, y: 310, w: 300, label: "Sign-up availability", sub: "?" },
     ],
     edges: [["user", "lb"], ["lb", "app"], ["lb", "app2"], ["app", "db"], ["app2", "db"], ["app", "email", "", { bend: -60 }], ["app", "q", "", { hidden: true }], ["q", "email", "", { hidden: true }]],

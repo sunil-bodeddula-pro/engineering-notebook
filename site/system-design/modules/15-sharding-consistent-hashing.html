@@ -554,7 +554,7 @@ svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.b
 .vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
 .vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
-.fig-tabs + .viz { margin-top: 10px; }
+.fig-tabs + .viz, .fig-tabs + div > .viz { margin-top: 10px; }
 .vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
 /* Every caption of a scene as one list */
 .sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
@@ -723,6 +723,16 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
 .s-req { background: hsl(172 50% 45%); } .s-srv { background: hsl(40 85% 58%); } .s-db { background: hsl(20 80% 62%); } .s-dl { background: hsl(330 55% 68%); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.dr-line svg { display: block; height: auto; max-width: 100%; margin: 0 auto; font-size: 11px; }
+.dr-line .ax, .dr-line line { stroke: var(--ink-3); stroke-width: 1.2; }
+.dr-line text { fill: var(--ink-3); }
+.dr-line rect.rpo { fill: var(--red-soft); stroke: var(--red); } .dr-line text.rpo { fill: var(--red); font-weight: 700; }
+.dr-line rect.rto { fill: var(--gold-soft); stroke: var(--gold); } .dr-line text.rto { fill: var(--gold); font-weight: 700; }
+.dr-line line.dz { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; } .dr-line text.dz { fill: var(--ink); font-weight: 700; }
+.mt-strip svg { display: block; width: 100%; height: 26px; }
+.mt-strip .up { fill: var(--green-soft); stroke: var(--green); stroke-width: 1; }
+.mt-strip rect:not(.up) { fill: var(--red); }
+.mt-ax { display: flex; justify-content: space-between; font-size: .78rem; color: var(--ink-3); margin-top: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
 .tiles > div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; }
 .tiles b { display: block; font: 700 1.05rem var(--mono); color: var(--ink); }
@@ -1114,7 +1124,9 @@ html.iks-open { overflow: hidden; }
     const sizeHint = () => { const w = wrap(); hint.hidden = !(w && w.scrollWidth > w.clientWidth + 2); };
     sizeHint(); window.addEventListener("resize", sizeHint);
     const follow = () => {
-      const w = wrap(), svg = w && w.querySelector("svg"), lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      const w = wrap(), svg = w && w.querySelector("svg");
+      let lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      if (svg && !lit.length) lit = [...svg.querySelectorAll("g.fn:is(.active, .bad, .found, .warm) rect")];
       if (!lit.length || w.scrollWidth <= w.clientWidth + 2) return;
       const xs = lit.map((p) => p.getBBox()), k = svg.getBoundingClientRect().width / (cfg.width || 560);
       const mid = (Math.min(...xs.map((b) => b.x)) + Math.max(...xs.map((b) => b.x + b.width))) / 2;
@@ -1135,6 +1147,19 @@ html.iks-open { overflow: hidden; }
     });
     root.querySelector(".fig-steps")?.addEventListener("mouseleave", () => { if (!root.contains(document.activeElement)) set(null); });
     if (typeof queueRoughen === "function") queueRoughen();
+  }
+
+  /** Several figures behind tabs, drawn one at a time in the same place (before / after, or one per option).
+   *  figs {"Tab name": figure cfg (its title defaults to the tab name)}; opts {label} names the tab group. */
+  function figures(target, figs, opts = {}) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const names = Object.keys(figs);
+    root.innerHTML = `<div class="fig-tabs" role="group" aria-label="${esc(opts.label || "Choose a diagram")}">${names.map((k) => `<button type="button" aria-pressed="false">${esc(k)}</button>`).join("")}</div><div></div>`;
+    const btns = [...root.querySelectorAll(".fig-tabs button")], box = root.lastElementChild;
+    const show = (i) => { figure(box, { title: names[i], ...figs[names[i]] }); btns.forEach((b, j) => b.setAttribute("aria-pressed", String(j === i))); };
+    btns.forEach((b, i) => (b.onclick = () => show(i)));
+    show(0);
   }
 
   /** Every step's caption as one numbered list under a scene or stepper, for reading at your own pace. */
@@ -2979,7 +3004,7 @@ html.iks-open { overflow: hidden; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -3057,6 +3082,14 @@ html.iks-open { overflow: hidden; }
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
     <div id="sc-main"></div>
+    <h3 id="methods">Three ways to decide where a row lives</h3>
+    <p>Every sharded system needs a rule that turns a key into a shard. There are three basic rules, and each one makes a different kind of query cheap. Take a bookshop marketplace with three shards for its orders, and switch between the rules:</p>
+    <div id="fig-methods"></div>
+    <p>Many real systems combine them: Cassandra and DynamoDB <em>hash</em> the partition key to pick a node, then keep rows inside each partition <em>sorted</em> so "this customer's orders, newest first" is one ordered read. The table in <a href="#u15-map">Under the hood</a> lists which databases use which rule.</p>
+    <h3 id="federation">Sharding vs federation</h3>
+    <p>Sharding splits <em>one</em> kind of data by rows: all orders, spread across several databases. <strong>Federation</strong> (also called functional or vertical partitioning) splits by <em>feature</em>: customers in one database, orders in another, the catalogue in a third. It's usually the first split a growing product makes, because it's simple: each database is smaller, busy with one kind of work, and can be tuned and scaled on its own.</p>
+    <div id="fig-fed"></div>
+
     <h3>Why <code>hash(key) % N</code> is a trap</h3>
     <p>The simplest hash sharding is "hash the key, take the remainder by the number of shards". It spreads keys evenly, until you add a shard. Press Play.</p>
     <div id="viz-mod"></div>
@@ -3538,11 +3571,60 @@ html.iks-open { overflow: hidden; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ <b>${ans}</b>. `) + why;
     sc += ok; dn++; $("sk-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  /* ---------- range, hash, directory; sharding vs federation ---------- */
+  const SH = (dir, subs) => ({
+    nodes: [{ id: "app", x: 70, y: 140, w: 120, label: "Order service", sub: "has a key", kind: "service" },
+      { id: "r", x: 320, y: 140, w: 150, label: "Router", sub: subs.r, kind: "lb" },
+      ...(dir ? [{ id: "dir", x: 320, y: 260, w: 150, label: "Directory", sub: "seller → shard table", kind: "db" }] : []),
+      { id: "a", x: 550, y: 50, w: 190, label: "Shard A", sub: subs.a, kind: "db" }, { id: "b", x: 550, y: 140, w: 190, label: "Shard B", sub: subs.b, kind: "db" },
+      { id: "c", x: 550, y: 230, w: 190, label: "Shard C", sub: subs.c, kind: "db" }],
+    width: 660, height: dir ? 300 : 280,
+  });
+  Viz.figures("#fig-methods", {
+    "Range": { ...SH(false, { r: "order_id ranges", a: "orders 1 – 1,000,000", b: "orders 1,000,001 – 2,000,000", c: "orders 2,000,001 and up" }),
+      sub: "Each shard holds one continuous slice of the keys, in order.",
+      edges: [["app", "r", "order 1,400,000", { n: 1 }], ["r", "b", "", { n: 2 }], ["r", "a"], ["r", "c", "", { n: 3 }]],
+      steps: ["The order service asks for order 1,400,000. The router keeps a small table of where each range starts and ends.",
+        "1,400,000 falls in Shard B's range. A query for a whole range (\"orders 1,400,000 to 1,400,500\") also lands on Shard B alone, already sorted.",
+        { text: "The catch: order IDs only go up, so <em>every new order</em> lands in Shard C. One shard takes all the writes while the other two sit idle. Range sharding suits keys that arrive in random order, or needs a hash prefix to spread them.", hl: { c: "bad" } }],
+      after: "<b>Good for</b> range scans and sorted reads (time series, alphabetical listings). Ranges are easy to split when one grows: cut it in two. Bigtable, HBase, Spanner and CockroachDB work this way." },
+    "Hash": { ...SH(false, { r: "hash(order_id) → shard", a: "hashes 0 – 33%", b: "hashes 33 – 66%", c: "hashes 66 – 100%" }),
+      sub: "A hash of the key picks the shard, so neighbouring keys land far apart.",
+      edges: [["app", "r", "order 1,400,000", { n: 1 }], ["r", "a", "", { n: 3 }], ["r", "b", "", { n: 2 }], ["r", "c", "", { n: 3 }]],
+      steps: ["The order service asks for order 1,400,000. The router hashes the ID; the same ID always gives the same hash.",
+        "The hash falls in Shard B's slice. Order 1,400,001 hashes somewhere completely different, so new orders spread evenly over all three shards.",
+        "The catch: \"orders 1,400,000 to 1,400,500\" are now scattered everywhere, so a range query must ask every shard and merge the answers."],
+      after: "<b>Good for</b> spreading load evenly when you look rows up by key. Use consistent hashing or fixed slots (below) so adding a shard moves little data. Cassandra, DynamoDB and Redis Cluster work this way." },
+    "Directory": { ...SH(true, { r: "asks the directory", a: "sellers 1–4,000", b: "\"Riverside Books\" + others", c: "\"MegaBooks\" (alone)" }),
+      sub: "A lookup table records which shard holds each seller's orders.",
+      edges: [["app", "r", "seller: Riverside", { n: 1 }], ["r", "dir", "where?", { n: 2 }], ["r", "b", "", { n: 3 }], ["r", "a"], ["r", "c"]],
+      steps: ["The order service needs a seller's orders. Every order is stored next to its seller's other orders, so the seller is the key.",
+        "The router looks the seller up in the directory (and caches the answer, because every request needs it).",
+        "It goes to Shard B. Because the directory is just a table, the biggest seller, MegaBooks, can be given Shard C to itself by changing one row and copying its data."],
+      after: "<b>Good for</b> multi-tenant systems with very uneven tenants. <b>The cost:</b> the directory is on every request's path, so it must be fast, cached and highly available, or it becomes the single point of failure." },
+  }, { label: "Sharding rule" });
+  const FD = (fed) => ({
+    nodes: [{ id: "app", x: 80, y: 140, w: 130, label: "Bookshop app", sub: fed ? "each feature has its own DB" : "orders split by customer", kind: "service" },
+      ...(fed ? [{ id: "a", x: 450, y: 50, w: 220, label: "Customers DB", sub: "accounts, addresses", kind: "db" }, { id: "b", x: 450, y: 140, w: 220, label: "Orders DB", sub: "every order", kind: "db" }, { id: "c", x: 450, y: 230, w: 220, label: "Catalogue DB", sub: "books, prices, stock", kind: "db" }]
+        : [{ id: "a", x: 450, y: 50, w: 220, label: "Orders shard 1", sub: "customers A–H", kind: "db" }, { id: "b", x: 450, y: 140, w: 220, label: "Orders shard 2", sub: "customers I–P", kind: "db" }, { id: "c", x: 450, y: 230, w: 220, label: "Orders shard 3", sub: "customers Q–Z", kind: "db" }])],
+    edges: [["app", "a", "", { n: 1 }], ["app", "b", "", { n: 1 }], ["app", "c", "", { n: 1 }]],
+    width: 580, height: 280,
+  });
+  Viz.figures("#fig-fed", {
+    "Sharding: split one table by rows": { ...FD(false), sub: "The same orders table, in three pieces.",
+      steps: ["Each shard has the same tables and holds a third of the rows. Add shards as orders grow, almost without limit.",
+        { text: "Queries across customers (\"best-selling book this week\") must visit every shard.", hl: { a: "warm", b: "warm", c: "warm" } }],
+      after: "<b>Use it when</b> one kind of data outgrows one machine." },
+    "Federation: split by feature": { ...FD(true), sub: "Three different databases, one per feature.",
+      steps: ["Each feature's data lives in its own database. The catalogue can use read replicas and caching while orders get a database tuned for writes.",
+        { text: "Joins across features (\"customers who ordered this book\") can't be one SQL query any more; the app fetches from two databases and combines the results.", hl: { a: "warm", b: "warm" } }],
+      after: "<b>Use it</b> as the first split; it maps naturally onto services that each own their data. When one feature's database becomes too big for one machine, shard <em>that</em> one." },
+  }, { label: "Kind of split" });
   Viz.scene("#sc-main", {
     title: "Adding a shard", sub: "12 keys, k1…k12. Box text shows the keys each shard holds; <b>red</b> = data moving.",
-    nodes: [{ id: "r", x: 100, y: 160, w: 170, label: "Router", sub: "hash(key) mod 3" },
-      { id: "a", x: 420, y: 40, w: 260, label: "Shard A", sub: "k3 k6 k9 k12" }, { id: "b", x: 420, y: 120, w: 260, label: "Shard B", sub: "k1 k4 k7 k10" },
-      { id: "c", x: 420, y: 200, w: 260, label: "Shard C", sub: "k2 k5 k8 k11" }, { id: "d", x: 420, y: 280, w: 260, label: "Shard D (new)", sub: " ", hidden: true }],
+    nodes: [{ id: "r", x: 100, y: 160, w: 170, label: "Router", sub: "hash(key) mod 3", kind: "lb" },
+      { id: "a", x: 420, y: 40, w: 260, label: "Shard A", sub: "k3 k6 k9 k12", kind: "db" }, { id: "b", x: 420, y: 120, w: 260, label: "Shard B", sub: "k1 k4 k7 k10", kind: "db" },
+      { id: "c", x: 420, y: 200, w: 260, label: "Shard C", sub: "k2 k5 k8 k11", kind: "db" }, { id: "d", x: 420, y: 280, w: 260, label: "Shard D (new)", sub: " ", hidden: true, kind: "db" }],
     edges: [["r", "a"], ["r", "b"], ["r", "c"], ["r", "d"]],
     width: 640, height: 320,
     steps: [
@@ -3568,12 +3650,12 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-salt", {
     title: "A hot key, split across shards", sub: "Box text shows each shard's writes per second; each can take about 10,000.",
     nodes: [
-      { id: "w", x: 90, y: 160, w: 150, label: "Likes", sub: "post 42 goes viral: 30,000/s" },
-      { id: "s0", x: 380, y: 40, w: 230, label: "Shard 0", sub: "1,000/s" },
-      { id: "s1", x: 380, y: 120, w: 230, label: "Shard 1", sub: "1,000/s" },
-      { id: "s2", x: 380, y: 200, w: 230, label: "Shard 2 (owns post:42)", sub: "1,000/s" },
-      { id: "s3", x: 380, y: 280, w: 230, label: "Shard 3", sub: "1,000/s" },
-      { id: "r", x: 660, y: 160, w: 130, label: "Reader", sub: " " },
+      { id: "w", x: 90, y: 160, w: 150, label: "Likes", sub: "post 42 goes viral: 30,000/s", kind: "client" },
+      { id: "s0", x: 380, y: 40, w: 230, label: "Shard 0", sub: "1,000/s", kind: "db" },
+      { id: "s1", x: 380, y: 120, w: 230, label: "Shard 1", sub: "1,000/s", kind: "db" },
+      { id: "s2", x: 380, y: 200, w: 230, label: "Shard 2 (owns post:42)", sub: "1,000/s", kind: "db" },
+      { id: "s3", x: 380, y: 280, w: 230, label: "Shard 3", sub: "1,000/s", kind: "db" },
+      { id: "r", x: 660, y: 160, w: 130, label: "Reader", sub: " ", kind: "client" },
     ],
     edges: [["w", "s0"], ["w", "s1"], ["w", "s2"], ["w", "s3"], ["r", "s0"], ["r", "s1"], ["r", "s2"], ["r", "s3"]],
     width: 750, height: 320,
@@ -3624,7 +3706,7 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-u15-hot", {
     title: "A hot key, then salting it", sub: "<b>Red</b> = overloaded, <b>green</b> = spread out.",
-    nodes: [{ id: "app", x: 80, y: 140, w: 120, label: "Like service" }, { id: "s1", x: 400, y: 50, w: 150, label: "Shard 1" }, { id: "s2", x: 400, y: 140, w: 150, label: "Shard 2" }, { id: "s3", x: 400, y: 230, w: 150, label: "Shard 3" }],
+    nodes: [{ id: "app", x: 80, y: 140, w: 120, label: "Like service", kind: "service" }, { id: "s1", x: 400, y: 50, w: 150, label: "Shard 1", kind: "db" }, { id: "s2", x: 400, y: 140, w: 150, label: "Shard 2", kind: "db" }, { id: "s3", x: 400, y: 230, w: 150, label: "Shard 3", kind: "db" }],
     edges: [["app", "s1"], ["app", "s2"], ["app", "s3"]],
     width: 560, height: 280,
     steps: [
@@ -3635,7 +3717,7 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-u15-sg", {
     title: "Scatter-gather waits for the slowest shard", sub: "<b>Green</b> = fast replies, <b>red</b> = the straggler.",
-    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Coordinator" }, { id: "a", x: 400, y: 40, w: 130, label: "Shard A", sub: "4 ms" }, { id: "b", x: 400, y: 115, w: 130, label: "Shard B", sub: "5 ms" }, { id: "d", x: 400, y: 190, w: 130, label: "Shard C", sub: "4 ms" }, { id: "e", x: 400, y: 265, w: 130, label: "Shard D", sub: "GC pause: 180 ms" }],
+    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Coordinator", kind: "service" }, { id: "a", x: 400, y: 40, w: 130, label: "Shard A", sub: "4 ms", kind: "db" }, { id: "b", x: 400, y: 115, w: 130, label: "Shard B", sub: "5 ms", kind: "db" }, { id: "d", x: 400, y: 190, w: 130, label: "Shard C", sub: "4 ms", kind: "db" }, { id: "e", x: 400, y: 265, w: 130, label: "Shard D", sub: "GC pause: 180 ms", kind: "db" }],
     edges: [["c", "a"], ["c", "b"], ["c", "d"], ["c", "e"]],
     width: 560, height: 310,
     steps: [

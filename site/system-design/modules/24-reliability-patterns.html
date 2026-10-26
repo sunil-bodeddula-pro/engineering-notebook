@@ -554,7 +554,7 @@ svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.b
 .vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
 .vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
-.fig-tabs + .viz { margin-top: 10px; }
+.fig-tabs + .viz, .fig-tabs + div > .viz { margin-top: 10px; }
 .vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
 /* Every caption of a scene as one list */
 .sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
@@ -723,6 +723,16 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
 .s-req { background: hsl(172 50% 45%); } .s-srv { background: hsl(40 85% 58%); } .s-db { background: hsl(20 80% 62%); } .s-dl { background: hsl(330 55% 68%); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.dr-line svg { display: block; height: auto; max-width: 100%; margin: 0 auto; font-size: 11px; }
+.dr-line .ax, .dr-line line { stroke: var(--ink-3); stroke-width: 1.2; }
+.dr-line text { fill: var(--ink-3); }
+.dr-line rect.rpo { fill: var(--red-soft); stroke: var(--red); } .dr-line text.rpo { fill: var(--red); font-weight: 700; }
+.dr-line rect.rto { fill: var(--gold-soft); stroke: var(--gold); } .dr-line text.rto { fill: var(--gold); font-weight: 700; }
+.dr-line line.dz { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; } .dr-line text.dz { fill: var(--ink); font-weight: 700; }
+.mt-strip svg { display: block; width: 100%; height: 26px; }
+.mt-strip .up { fill: var(--green-soft); stroke: var(--green); stroke-width: 1; }
+.mt-strip rect:not(.up) { fill: var(--red); }
+.mt-ax { display: flex; justify-content: space-between; font-size: .78rem; color: var(--ink-3); margin-top: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
 .tiles > div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; }
 .tiles b { display: block; font: 700 1.05rem var(--mono); color: var(--ink); }
@@ -1114,7 +1124,9 @@ html.iks-open { overflow: hidden; }
     const sizeHint = () => { const w = wrap(); hint.hidden = !(w && w.scrollWidth > w.clientWidth + 2); };
     sizeHint(); window.addEventListener("resize", sizeHint);
     const follow = () => {
-      const w = wrap(), svg = w && w.querySelector("svg"), lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      const w = wrap(), svg = w && w.querySelector("svg");
+      let lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      if (svg && !lit.length) lit = [...svg.querySelectorAll("g.fn:is(.active, .bad, .found, .warm) rect")];
       if (!lit.length || w.scrollWidth <= w.clientWidth + 2) return;
       const xs = lit.map((p) => p.getBBox()), k = svg.getBoundingClientRect().width / (cfg.width || 560);
       const mid = (Math.min(...xs.map((b) => b.x)) + Math.max(...xs.map((b) => b.x + b.width))) / 2;
@@ -1135,6 +1147,19 @@ html.iks-open { overflow: hidden; }
     });
     root.querySelector(".fig-steps")?.addEventListener("mouseleave", () => { if (!root.contains(document.activeElement)) set(null); });
     if (typeof queueRoughen === "function") queueRoughen();
+  }
+
+  /** Several figures behind tabs, drawn one at a time in the same place (before / after, or one per option).
+   *  figs {"Tab name": figure cfg (its title defaults to the tab name)}; opts {label} names the tab group. */
+  function figures(target, figs, opts = {}) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const names = Object.keys(figs);
+    root.innerHTML = `<div class="fig-tabs" role="group" aria-label="${esc(opts.label || "Choose a diagram")}">${names.map((k) => `<button type="button" aria-pressed="false">${esc(k)}</button>`).join("")}</div><div></div>`;
+    const btns = [...root.querySelectorAll(".fig-tabs button")], box = root.lastElementChild;
+    const show = (i) => { figure(box, { title: names[i], ...figs[names[i]] }); btns.forEach((b, j) => b.setAttribute("aria-pressed", String(j === i))); };
+    btns.forEach((b, i) => (b.onclick = () => show(i)));
+    show(0);
   }
 
   /** Every step's caption as one numbered list under a scene or stepper, for reading at your own pace. */
@@ -2979,7 +3004,7 @@ html.iks-open { overflow: hidden; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -3066,6 +3091,12 @@ html.iks-open { overflow: hidden; }
     <!-- 2 -->
     <h2 id="how">2. How it works</h2>
     <div id="sc-main"></div>
+    <h3 id="cascade">How one slow database takes down a whole site</h3>
+    <p>The chain in section 1 is easier to believe once you watch it. Nothing below <em>crashes</em>: one database gets slow, and every layer above it runs out of something while waiting. Press Play.</p>
+    <div id="sc-cascade"></div>
+    <p>Two things make cascades nasty. First, the failure travels <strong>upwards</strong>, towards services that had nothing wrong with them, and the home page goes down because of a stock query. Second, it <strong>outlives its cause</strong>: once retries and queued work pile up, the system can stay down after the database has recovered, because it is now handling three times its normal load. That's why the fixes below are about letting go quickly, not about trying harder.</p>
+    <p>Now the same system with a defence on every link. Each number marks where one pattern cuts the chain:</p>
+    <div id="fig-cut"></div>
     <h3>Timeouts and retries</h3>
     <ul>
       <li><strong>Every network call gets a timeout</strong>, set from the dependency's normal latency (a little above its p99), and smaller than the caller's own deadline. Propagate deadlines down the call chain (gRPC does this, Module 07), so downstream work stops when the user has given up.</li>
@@ -3453,8 +3484,8 @@ html.iks-open { overflow: hidden; }
   reset();
   Viz.scene("#sc-main", {
     title: "A circuit breaker stops the spread", sub: "The breaker's box shows its state and recent failures. Checkout's box shows its threads.",
-    nodes: [{ id: "svc", x: 90, y: 150, w: 160, label: "Checkout", sub: "threads busy: 4 of 200" }, { id: "cb", x: 340, y: 150, w: 220, label: "Circuit breaker", sub: "CLOSED · failures 0/20" },
-      { id: "psp", x: 600, y: 60, w: 190, label: "Payment provider", sub: "200 ms" }, { id: "fb", x: 600, y: 240, w: 190, label: "Fallback", sub: "queue it, \"pay shortly\"" }],
+    nodes: [{ id: "svc", x: 90, y: 150, w: 160, label: "Checkout", sub: "threads busy: 4 of 200", kind: "service" }, { id: "cb", x: 340, y: 150, w: 220, label: "Circuit breaker", sub: "CLOSED · failures 0/20", kind: "service" },
+      { id: "psp", x: 600, y: 60, w: 190, label: "Payment provider", sub: "200 ms", kind: "ext" }, { id: "fb", x: 600, y: 240, w: 190, label: "Fallback", sub: "queue it, \"pay shortly\"", kind: "service" }],
     edges: [["svc", "cb"], ["cb", "psp"], ["cb", "fb"]],
     width: 720, height: 300,
     steps: [
@@ -3470,6 +3501,45 @@ html.iks-open { overflow: hidden; }
         note: "The breaker closes, resets its count, and traffic flows again. The queued payments are retried from the fallback queue." },
     ],
   });
+  /* ---------- a cascade, and where each defence cuts it ---------- */
+  const CN = [{ id: "u", x: 70, y: 110, w: 110, label: "Shoppers", sub: "1,000 req/s", kind: "client" },
+    { id: "web", x: 250, y: 110, w: 150, label: "Web front end", sub: "400 threads", kind: "service" },
+    { id: "co", x: 450, y: 110, w: 150, label: "Checkout", sub: "200 threads", kind: "service" },
+    { id: "inv", x: 650, y: 110, w: 150, label: "Stock service", sub: "100 threads", kind: "service" },
+    { id: "db", x: 650, y: 235, w: 150, label: "Stock database", sub: "20 ms per query", kind: "db" },
+    { id: "home", x: 250, y: 235, w: 150, label: "Home page", sub: "doesn't need stock", kind: "service" }];
+  const CE = [["u", "web"], ["web", "co"], ["co", "inv"], ["inv", "db"], ["web", "home"]];
+  Viz.scene("#sc-cascade", {
+    title: "A cascading failure, layer by layer", sub: "Box text shows how busy each part is. <b>Red</b> = out of threads or failing.",
+    nodes: CN, edges: CE, width: 760, height: 285,
+    steps: [
+      { hl: { db: "found", inv: "found", co: "found", web: "found" }, moves: [{ e: "u>web", t: "buy" }, { e: "web>co", t: "buy", delay: 0.5 }, { e: "co>inv", t: "reserve", delay: 1.0 }, { e: "inv>db", t: "query", delay: 1.5 }, { e: "inv>db", t: "20 ms", back: true, k: "ok", delay: 2.4 }], hold: 4,
+        note: "<b>1. Normal.</b> A purchase passes through three services and one stock query. Each layer uses a thread while it waits for the layer below, but only for milliseconds, so a few threads are busy at any moment." },
+      { hl: { db: "warm" }, set: { db: "2,000 ms per query" }, moves: [{ e: "inv>db", t: "query" }], pops: [{ n: "db", t: "a bad query plan", k: "bad", at: 1 }], hold: 3.6,
+        note: "<b>2. The trigger.</b> A new index is dropped by mistake, and stock queries now take 2 seconds instead of 20 ms. The database isn't down; it's just slow." },
+      { hl: { db: "warm", inv: "bad" }, set: { inv: "100 / 100 threads waiting" }, moves: [{ e: "co>inv", t: "reserve" }, { e: "co>inv", t: "reserve", delay: 0.4 }, { e: "co>inv", t: "reserve", delay: 0.8 }], hold: 4,
+        note: "<b>3. The stock service runs out of threads.</b> Each thread now waits 100 times longer, so 100 threads handle 50 requests a second instead of 5,000. New requests queue (Little's Law, Module 02)." },
+      { hl: { inv: "bad", co: "bad" }, set: { co: "200 / 200 threads waiting" }, moves: [{ e: "web>co", t: "buy" }, { e: "co>inv", t: "waiting…", k: "bad", delay: 0.6 }], hold: 4,
+        note: "<b>4. Checkout fills up next.</b> Its threads are stuck waiting for the stock service, which has no default timeout, so checkout stops answering too, even for steps that don't need stock." },
+      { hl: { inv: "bad", co: "bad", web: "bad", home: "bad" }, set: { web: "400 / 400 threads waiting", home: "can't get a thread" }, moves: [{ e: "u>web", t: "home page" }, { e: "web>home", t: "no thread free", k: "bad", delay: 0.8 }], hold: 4.4,
+        note: "<b>5. The front end goes.</b> All its threads are waiting on checkout, so the <em>home page</em>, which never touches stock, can't be served. One slow query has taken down the whole site." },
+      { hl: { u: "bad", web: "bad", co: "bad", inv: "bad" }, set: { u: "3,000 req/s (retries)", db: "20 ms again" }, moves: [{ e: "u>web", t: "retry", k: "bad" }, { e: "u>web", t: "retry", k: "bad", delay: 0.3 }, { e: "u>web", t: "refresh", k: "bad", delay: 0.6 }], hold: 4.6,
+        note: "<b>6. It outlives the cause.</b> Shoppers refresh and apps retry, tripling the load. Someone fixes the index and the database is fast again, but every layer is buried under queued and retried work, and stays down until traffic is shed." },
+    ],
+  });
+  Viz.figure("#fig-cut", {
+    title: "Where each defence cuts the chain", sub: "The same system. Each number is one pattern from this module.",
+    nodes: CN.map((n) => ({ ...n, sub: { u: "retry with backoff", web: "sheds load first", co: "pool per dependency", inv: "timeout + breaker", db: "query time limit", home: "own pool, unaffected" }[n.id] })),
+    edges: [["u", "web", "", { n: 1 }], ["web", "co", "", { n: 2 }], ["co", "inv", "", { n: 3 }], ["inv", "db", "", { n: 4 }], ["web", "home", "", { n: 2 }]],
+    width: 760, height: 285,
+    steps: [
+      "<b>Load shedding and rate limits at the front door.</b> When the front end is near capacity, it turns away the least valuable requests at once (with a 503), so the ones it accepts still finish. Clients retry with backoff and jitter, within a retry budget, instead of refreshing in a storm.",
+      "<b>Bulkheads.</b> The front end gives checkout its own pool of, say, 100 threads. When checkout hangs, it can only tie up those 100; the home page has its own pool and keeps working.",
+      "<b>Timeouts and a circuit breaker.</b> Checkout waits at most 300 ms for the stock service. After enough failures the breaker opens and checkout fails fast, or falls back to \"we'll confirm stock by email\", without waiting at all.",
+      "<b>A time limit on the query</b> (for example PostgreSQL's <code>statement_timeout</code>) frees the stock service's threads and the database itself from queries that will never be useful.",
+    ],
+    after: "<b>The result:</b> the slow database still makes stock checks fail, but only stock checks fail. Shoppers can still browse, and checkout degrades instead of disappearing.",
+  });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Stop one failure from becoming a chain reaction." },
     { el: "#sc-main", title: "2 · Circuit breaker", text: "Watch it close, open under timeouts, and test its way back." },
@@ -3483,11 +3553,11 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-jitter", {
     title: "Why retries need jitter", sub: "Each client box stands for 1,000 clients. The service can take 2,500 requests a second. Box text shows the load it sees.",
     nodes: [
-      { id: "c1", x: 90, y: 40, w: 150, label: "Clients 1–1,000", sub: " " },
-      { id: "c2", x: 90, y: 120, w: 150, label: "Clients 1,001–2,000", sub: " " },
-      { id: "c3", x: 90, y: 200, w: 150, label: "Clients 2,001–3,000", sub: " " },
-      { id: "c4", x: 90, y: 280, w: 150, label: "Clients 3,001–4,000", sub: " " },
-      { id: "svc", x: 470, y: 160, w: 260, label: "Recovering service", sub: "capacity 2,500/s" },
+      { id: "c1", x: 90, y: 40, w: 150, label: "Clients 1–1,000", sub: " ", kind: "client" },
+      { id: "c2", x: 90, y: 120, w: 150, label: "Clients 1,001–2,000", sub: " ", kind: "client" },
+      { id: "c3", x: 90, y: 200, w: 150, label: "Clients 2,001–3,000", sub: " ", kind: "client" },
+      { id: "c4", x: 90, y: 280, w: 150, label: "Clients 3,001–4,000", sub: " ", kind: "client" },
+      { id: "svc", x: 470, y: 160, w: 260, label: "Recovering service", sub: "capacity 2,500/s", kind: "service" },
     ],
     edges: [["c1", "svc"], ["c2", "svc"], ["c3", "svc"], ["c4", "svc"]],
     width: 640, height: 320,

@@ -554,7 +554,7 @@ svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.b
 .vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
 .vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
-.fig-tabs + .viz { margin-top: 10px; }
+.fig-tabs + .viz, .fig-tabs + div > .viz { margin-top: 10px; }
 .vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
 /* Every caption of a scene as one list */
 .sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
@@ -723,6 +723,16 @@ details.uth > .uth-body { padding: 4px 20px 16px; }
 .s-req { background: hsl(172 50% 45%); } .s-srv { background: hsl(40 85% 58%); } .s-db { background: hsl(20 80% 62%); } .s-dl { background: hsl(330 55% 68%); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.dr-line svg { display: block; height: auto; max-width: 100%; margin: 0 auto; font-size: 11px; }
+.dr-line .ax, .dr-line line { stroke: var(--ink-3); stroke-width: 1.2; }
+.dr-line text { fill: var(--ink-3); }
+.dr-line rect.rpo { fill: var(--red-soft); stroke: var(--red); } .dr-line text.rpo { fill: var(--red); font-weight: 700; }
+.dr-line rect.rto { fill: var(--gold-soft); stroke: var(--gold); } .dr-line text.rto { fill: var(--gold); font-weight: 700; }
+.dr-line line.dz { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; } .dr-line text.dz { fill: var(--ink); font-weight: 700; }
+.mt-strip svg { display: block; width: 100%; height: 26px; }
+.mt-strip .up { fill: var(--green-soft); stroke: var(--green); stroke-width: 1; }
+.mt-strip rect:not(.up) { fill: var(--red); }
+.mt-ax { display: flex; justify-content: space-between; font-size: .78rem; color: var(--ink-3); margin-top: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
 .tiles > div { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; }
 .tiles b { display: block; font: 700 1.05rem var(--mono); color: var(--ink); }
@@ -1114,7 +1124,9 @@ html.iks-open { overflow: hidden; }
     const sizeHint = () => { const w = wrap(); hint.hidden = !(w && w.scrollWidth > w.clientWidth + 2); };
     sizeHint(); window.addEventListener("resize", sizeHint);
     const follow = () => {
-      const w = wrap(), svg = w && w.querySelector("svg"), lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      const w = wrap(), svg = w && w.querySelector("svg");
+      let lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      if (svg && !lit.length) lit = [...svg.querySelectorAll("g.fn:is(.active, .bad, .found, .warm) rect")];
       if (!lit.length || w.scrollWidth <= w.clientWidth + 2) return;
       const xs = lit.map((p) => p.getBBox()), k = svg.getBoundingClientRect().width / (cfg.width || 560);
       const mid = (Math.min(...xs.map((b) => b.x)) + Math.max(...xs.map((b) => b.x + b.width))) / 2;
@@ -1135,6 +1147,19 @@ html.iks-open { overflow: hidden; }
     });
     root.querySelector(".fig-steps")?.addEventListener("mouseleave", () => { if (!root.contains(document.activeElement)) set(null); });
     if (typeof queueRoughen === "function") queueRoughen();
+  }
+
+  /** Several figures behind tabs, drawn one at a time in the same place (before / after, or one per option).
+   *  figs {"Tab name": figure cfg (its title defaults to the tab name)}; opts {label} names the tab group. */
+  function figures(target, figs, opts = {}) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const names = Object.keys(figs);
+    root.innerHTML = `<div class="fig-tabs" role="group" aria-label="${esc(opts.label || "Choose a diagram")}">${names.map((k) => `<button type="button" aria-pressed="false">${esc(k)}</button>`).join("")}</div><div></div>`;
+    const btns = [...root.querySelectorAll(".fig-tabs button")], box = root.lastElementChild;
+    const show = (i) => { figure(box, { title: names[i], ...figs[names[i]] }); btns.forEach((b, j) => b.setAttribute("aria-pressed", String(j === i))); };
+    btns.forEach((b, i) => (b.onclick = () => show(i)));
+    show(0);
   }
 
   /** Every step's caption as one numbered list under a scene or stepper, for reading at your own pace. */
@@ -2979,7 +3004,7 @@ html.iks-open { overflow: hidden; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -3090,6 +3115,23 @@ html.iks-open { overflow: hidden; }
       <li>Follow the <strong>3-2-1</strong> habit: three copies, on two kinds of storage, one off-site (another region or account). Make at least one copy immutable, so ransomware or a compromised admin can't delete it.</li>
       <li><strong>Test restores regularly.</strong> An untested backup is a hope, not a plan. Measure how long a full restore takes: that's your real RTO.</li>
     </ul>
+    <h3 id="backup-vs-dr">Backup vs disaster recovery</h3>
+    <p>The two get treated as one thing, but they answer different questions. A <strong>backup</strong> answers "can we get the data back as it was?" <strong>Disaster recovery</strong> answers "can we keep the service running when a whole site is gone?" You need both: a perfect standby region happily replicates a <code>DROP TABLE</code>, and a perfect backup still leaves you down for a day while you rebuild servers to restore it onto.</p>
+    <table class="pat">
+      <thead><tr><th></th><th>Backup</th><th>Disaster recovery</th></tr></thead>
+      <tbody>
+        <tr><td>Protects against</td><td>Mistakes, bugs that corrupt data, ransomware, a bad migration</td><td>Losing a data centre or region: fire, power, a cloud outage</td></tr>
+        <tr><td>What it is</td><td>Copies of the data from the past, kept somewhere separate</td><td>A plan plus infrastructure: where traffic goes, who decides, in what order things start</td></tr>
+        <tr><td>Measured by</td><td>How far back you can go, and how long a restore takes</td><td>RPO and RTO for the whole service</td></tr>
+        <tr><td>Proved by</td><td>Restoring it, regularly</td><td>Failing over for real, in a scheduled exercise</td></tr>
+      </tbody>
+    </table>
+    <p>RPO and RTO are easiest to see on a timeline. The disaster happens in the middle. Everything written in the red stretch <em>before</em> it is lost; the amber stretch <em>after</em> it is downtime. Pick a strategy:</p>
+    <div class="card widget" id="dr-widget">
+      <div class="ctl"><span class="seg" id="dr-pick"></span></div>
+      <div class="dr-line no-gl" id="dr-line"></div>
+      <div class="verdict no-gl" id="dr-say"></div>
+    </div>
 
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
@@ -3445,10 +3487,43 @@ html.iks-open { overflow: hidden; }
   }
   ["dr-rpo", "dr-rto"].forEach((id) => $(id).addEventListener("input", dr));
   dr();
+  /* ---------- RPO / RTO timeline ---------- */
+  {
+    const S = {
+      "Backup and restore": [1440, 480, "Nightly backups copied to another region. A disaster just before the next backup loses almost a day of orders, and rebuilding servers and restoring takes a working day."],
+      "Pilot light": [5, 60, "Data replicates continuously, so only the last few minutes are lost. The servers exist only as templates, so starting and scaling them takes about an hour."],
+      "Warm standby": [0.5, 10, "A small copy of everything is already running. Fail over, scale it up, and you're back in minutes, losing only the replication lag."],
+      "Active-active": [0.02, 0.5, "Both regions already serve users. The failed region's traffic shifts to the other within seconds; at most a moment of in-flight writes is at risk (none, with synchronous replication)."],
+    };
+    // a log-like axis: 0 at the centre, then 1 min, 10 min, 1 h, 8 h, 24 h outwards on each side
+    const T = [0, 1, 10, 60, 480, 1440], X = [0, 0.18, 0.38, 0.6, 0.82, 1];
+    const pos = (m) => { for (let i = 1; i < T.length; i++) if (m <= T[i]) return X[i - 1] + (X[i] - X[i - 1]) * (m - T[i - 1]) / (T[i] - T[i - 1]); return 1; };
+    const lab = (m) => m < 1 ? `${Math.round(m * 60)} s` : m < 60 ? `${m} min` : `${m / 60} h`;
+    let cur = "Backup and restore";
+    const draw = (name) => {
+      cur = name;
+      // drawn at the box's real width, so the text stays readable on phones (with fewer ticks there)
+      const W = Math.round(Math.max(300, Math.min(640, $("dr-line").clientWidth || 640))), C = W / 2, half = W / 2 - 20;
+      const [rpo, rto, say] = S[name], a = C - pos(rpo) * half, b = C + pos(rto) * half;
+      const ticks = (W < 520 ? [1, 60, 1440] : T.slice(1)).flatMap((t) => [C - pos(t) * half, C + pos(t) * half].map((x) => `<line x1="${x}" y1="58" x2="${x}" y2="64"/><text x="${x}" y="78" text-anchor="middle">${lab(t)}</text>`)).join("");
+      $("dr-line").innerHTML = `<svg viewBox="0 0 ${W} 112" width="${W}" role="img" aria-label="RPO ${lab(rpo)}, RTO ${lab(rto)}">
+        <line class="ax" x1="20" y1="58" x2="${W - 20}" y2="58"/>${ticks}
+        <rect class="rpo" x="${a}" y="34" width="${Math.max(2, C - a)}" height="22" rx="3"/><rect class="rto" x="${C}" y="34" width="${Math.max(2, b - C)}" height="22" rx="3"/>
+        <line class="dz" x1="${C}" y1="16" x2="${C}" y2="64"/><text class="dz" x="${C}" y="12" text-anchor="middle">⚡ region lost</text>
+        <text class="rpo" x="${Math.min(a, C - 6)}" y="98" text-anchor="${a < C - 70 ? "start" : "end"}">RPO ${lab(rpo)}: data lost</text>
+        <text class="rto" x="${Math.max(b, C + 6)}" y="98" text-anchor="${b > C + 70 ? "end" : "start"}">RTO ${lab(rto)}: down</text></svg>`;
+      $("dr-say").innerHTML = say;
+      $("dr-pick").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x.textContent === name)));
+    };
+    $("dr-pick").innerHTML = Object.keys(S).map((k) => `<button type="button">${k}</button>`).join("");
+    $("dr-pick").querySelectorAll("button").forEach((x) => (x.onclick = () => draw(x.textContent)));
+    draw(cur);
+    let rt = null; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => draw(cur), 150); });
+  }
   Viz.scene("#sc-main", {
     title: "A canary catches a bad release", sub: "Box text shows traffic share and error rate.",
-    nodes: [{ id: "lb", x: 110, y: 150, w: 170, label: "Router", sub: "v1 100% · v2 0%" }, { id: "v1", x: 420, y: 60, w: 210, label: "v1 (stable)", sub: "errors 0.1%" },
-      { id: "v2", x: 420, y: 240, w: 210, label: "v2 (canary)", sub: "not deployed", hidden: true }, { id: "mon", x: 640, y: 150, w: 170, label: "Canary analysis", sub: "watching" }],
+    nodes: [{ id: "lb", x: 110, y: 150, w: 170, label: "Router", sub: "v1 100% · v2 0%", kind: "lb" }, { id: "v1", x: 420, y: 60, w: 210, label: "v1 (stable)", sub: "errors 0.1%", kind: "service" },
+      { id: "v2", x: 420, y: 240, w: 210, label: "v2 (canary)", sub: "not deployed", hidden: true, kind: "service" }, { id: "mon", x: 640, y: 150, w: 170, label: "Canary analysis", sub: "watching", kind: "service" }],
     edges: [["lb", "v1"], ["lb", "v2"], ["v1", "mon"], ["v2", "mon"], ["mon", "lb", "", { hidden: true, bend: 60 }]],
     width: 750, height: 310,
     steps: [
@@ -3473,9 +3548,9 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-pitr", {
     title: "Point-in-time recovery", sub: "Box text shows what each copy contains. Times are on one day.",
-    nodes: [{ id: "db", x: 100, y: 70, w: 190, label: "Production DB", sub: "orders: 1,200,000 rows" }, { id: "rep", x: 100, y: 220, w: 190, label: "Replica", sub: "orders: 1,200,000 rows" },
-      { id: "snap", x: 380, y: 70, w: 200, label: "Nightly snapshot", sub: "02:00" }, { id: "wal", x: 380, y: 220, w: 200, label: "WAL archive", sub: "every change since 02:00" },
-      { id: "new", x: 640, y: 145, w: 210, label: "Restored DB", sub: " ", hidden: true }],
+    nodes: [{ id: "db", x: 100, y: 70, w: 190, label: "Production DB", sub: "orders: 1,200,000 rows", kind: "db" }, { id: "rep", x: 100, y: 220, w: 190, label: "Replica", sub: "orders: 1,200,000 rows", kind: "db" },
+      { id: "snap", x: 380, y: 70, w: 200, label: "Nightly snapshot", sub: "02:00", kind: "store" }, { id: "wal", x: 380, y: 220, w: 200, label: "WAL archive", sub: "every change since 02:00", kind: "store" },
+      { id: "new", x: 640, y: 145, w: 210, label: "Restored DB", sub: " ", hidden: true, kind: "db" }],
     edges: [["db", "rep"], ["db", "snap"], ["db", "wal"], ["snap", "new"], ["wal", "new"]],
     width: 760, height: 290,
     steps: [
