@@ -3131,6 +3131,20 @@ html.iks-open { overflow: hidden; }
       <li><strong>CRDTs</strong> (conflict-free replicated data types): counters, sets, maps and text designed so concurrent updates always merge to the same result, without coordination. Used in collaborative editing and offline-first apps (Design D19).</li>
       <li><strong>Avoid conflicts:</strong> route all writes for a given record to one leader (per user, per region), so concurrent writes to it can't happen.</li>
     </ul>
+    <h3 id="acid-base">ACID vs BASE</h3>
+    <p>Two acronyms describe the two ends of this trade-off. <strong>ACID</strong> is what a traditional relational database promises for each transaction. <strong>BASE</strong> was coined, half as a joke, for systems that give some of that up to stay available and spread out over many machines.</p>
+    <table class="pat">
+      <thead><tr><th>ACID</th><th>BASE</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Atomic:</strong> all of a transaction's changes happen, or none do</td><td><strong>Basically available:</strong> the system answers, even when some parts are failing or cut off</td></tr>
+        <tr><td><strong>Consistent:</strong> the data's rules (constraints) hold before and after</td><td><strong>Soft state:</strong> copies may differ for a while, even with no new writes arriving</td></tr>
+        <tr><td><strong>Isolated:</strong> concurrent transactions don't see each other's half-done work (Module 17)</td><td><strong>Eventually consistent:</strong> once writes stop, all copies converge to the same value</td></tr>
+        <tr><td><strong>Durable:</strong> once committed, it survives crashes</td><td></td></tr>
+      </tbody>
+    </table>
+    <p>The same moment in each style:</p>
+    <div id="fig-acid"></div>
+    <p>It's a spectrum, not a binary choice, and most real systems mix the two: ACID for money, stock and anything with an invariant; BASE for counters, feeds, carts and analytics. Many databases offer both, per operation: DynamoDB and Cassandra are eventually consistent by default but offer transactions or conditional writes for the operations that need them, while Spanner and CockroachDB give ACID across regions at the cost of a coordination round-trip on each write.</p>
 
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
@@ -3393,11 +3407,11 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   /* ---------- step-through: CAP ---------- */
   const N = [
-    { id: "u1", x: 70, y: 60, w: 100, label: "User 1" },
-    { id: "a", x: 230, y: 60, w: 100, label: "Node A", sub: "x = 1" },
-    { id: "b", x: 230, y: 160, w: 100, label: "Node B", sub: "x = 1" },
-    { id: "c", x: 450, y: 110, w: 100, label: "Node C", sub: "x = 1" },
-    { id: "u2", x: 600, y: 110, w: 100, label: "User 2" },
+    { id: "u1", x: 70, y: 60, w: 100, label: "User 1", kind: "client" },
+    { id: "a", x: 230, y: 60, w: 100, label: "Node A", sub: "x = 1", kind: "db" },
+    { id: "b", x: 230, y: 160, w: 100, label: "Node B", sub: "x = 1", kind: "db" },
+    { id: "c", x: 450, y: 110, w: 100, label: "Node C", sub: "x = 1", kind: "db" },
+    { id: "u2", x: 600, y: 110, w: 100, label: "User 2", kind: "client" },
   ];
   const fig = (subs, hl, eh, edges) => Viz.flow(N.map((n) => ({ ...n, sub: subs[n.id] || n.sub })), edges, { hl, edgeHl: eh, width: 670, height: 210, title: "partition" });
   const E0 = [["u1", "a"], ["a", "b"], ["a", "c"], ["b", "c"], ["u2", "c"]];
@@ -3478,10 +3492,31 @@ html.iks-open { overflow: hidden; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ Usually <b>${ans.toLowerCase()}</b>. `) + why;
     sc += ok; dn++; $("feat-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  /* ---------- ACID vs BASE ---------- */
+  Viz.figures("#fig-acid", {
+    "ACID: a bank transfer": { sub: "Ann sends Bo £50. Both balances change together, or neither does.",
+      nodes: [{ id: "app", x: 75, y: 115, w: 130, label: "Payments app", kind: "service" }, { id: "db", x: 345, y: 115, w: 170, label: "Primary DB", sub: "Ann £100 → £50 · Bo £0 → £50", kind: "db" },
+        { id: "rep", x: 600, y: 115, w: 150, label: "Sync replica", sub: "confirms before commit", kind: "db" }, { id: "rd", x: 345, y: 225, w: 170, label: "Any reader", sub: "sees both or neither", kind: "client" }],
+      edges: [["app", "db", "transaction", { n: 1 }], ["db", "rep", "same changes", { n: 2 }], ["rd", "db", "read", { n: 3 }]],
+      width: 690, height: 265,
+      steps: ["The app runs one transaction: take £50 from Ann, give £50 to Bo, commit. If anything fails halfway (a crash, a broken rule such as a negative balance), the database rolls back both changes.",
+        "Before saying \"committed\", the primary makes sure the change is on disk and on a synchronous replica, so it survives a crash.",
+        "Any reader sees either the old balances or the new ones, never £50 missing from Ann but not yet with Bo. During a network partition, the side without the primary refuses writes rather than risk breaking that."],
+      after: "<b>The cost:</b> coordination on every write (latency) and refusing some requests during failures (availability)." },
+    "BASE: a like counter": { sub: "A post's like count, kept on three replicas in three regions.",
+      nodes: [{ id: "app", x: 85, y: 125, w: 130, label: "Phone in Tokyo", sub: "likes the post", kind: "client" }, { id: "r1", x: 330, y: 45, w: 170, label: "Replica: Tokyo", sub: "likes = 1,001", kind: "db" },
+        { id: "r2", x: 330, y: 205, w: 170, label: "Replica: London", sub: "likes = 1,000 (for now)", kind: "db" }, { id: "r3", x: 570, y: 125, w: 170, label: "Replica: Ohio", sub: "likes = 1,000 (for now)", kind: "db" }],
+      edges: [["app", "r1", "+1", { n: 1 }], ["r1", "r2", "later", { n: 2 }], ["r1", "r3", "later", { n: 2 }]],
+      width: 680, height: 260,
+      steps: ["The like goes to the nearest replica, which accepts it straight away. No other region is asked, so it's fast and works even if the ocean cables are cut.",
+        "The change spreads to the other replicas in the background, usually within a second. Until then the regions show different counts: soft state.",
+        { text: "Once the like has spread, every replica shows 1,001. Counters built as CRDTs merge concurrent likes from different regions without losing any.", hl: { r1: "found", r2: "found", r3: "found" } }],
+      after: "<b>Fine here</b> because nobody is harmed by seeing 1,000 for a second. It would not be fine for the bank transfer." },
+  }, { label: "Style" });
   Viz.scene("#sc-main", {
     title: "A partition forces a choice", sub: "Box text shows each node's value of x. <b>Red</b> = refused or diverged.",
-    nodes: [{ id: "c1", x: 85, y: 60, w: 120, label: "Client 1", sub: " " }, { id: "c2", x: 85, y: 240, w: 120, label: "Client 2", sub: " " },
-      { id: "a", x: 330, y: 60, w: 160, label: "Node A", sub: "x = 0" }, { id: "b", x: 330, y: 160, w: 160, label: "Node B", sub: "x = 0" }, { id: "c", x: 560, y: 240, w: 180, label: "Node C", sub: "x = 0" }],
+    nodes: [{ id: "c1", x: 85, y: 60, w: 120, label: "Client 1", sub: " ", kind: "client" }, { id: "c2", x: 85, y: 240, w: 120, label: "Client 2", sub: " ", kind: "client" },
+      { id: "a", x: 330, y: 60, w: 160, label: "Node A", sub: "x = 0", kind: "db" }, { id: "b", x: 330, y: 160, w: 160, label: "Node B", sub: "x = 0", kind: "db" }, { id: "c", x: 560, y: 240, w: 180, label: "Node C", sub: "x = 0", kind: "db" }],
     edges: [["c1", "a"], ["a", "b"], ["a", "c"], ["b", "c"], ["c2", "c", "", { bend: 20 }]],
     width: 690, height: 300,
     steps: [
@@ -3509,8 +3544,8 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-mix", {
     title: "One product, two choices: browse vs book", sub: "Box text shows each copy of the seat map and how far behind it is.",
-    nodes: [{ id: "u", x: 95, y: 160, w: 160, label: "Shoppers", sub: " " }, { id: "rep", x: 400, y: 60, w: 250, label: "Read replica", sub: "lag 0.4 s · 32 seats free" },
-      { id: "bk", x: 400, y: 260, w: 250, label: "Booking service", sub: " " }, { id: "pri", x: 700, y: 160, w: 210, label: "Primary", sub: "seat 14C: free" }],
+    nodes: [{ id: "u", x: 95, y: 160, w: 160, label: "Shoppers", sub: " ", kind: "client" }, { id: "rep", x: 400, y: 60, w: 250, label: "Read replica", sub: "lag 0.4 s · 32 seats free", kind: "db" },
+      { id: "bk", x: 400, y: 260, w: 250, label: "Booking service", sub: " ", kind: "service" }, { id: "pri", x: 700, y: 160, w: 210, label: "Primary", sub: "seat 14C: free", kind: "db" }],
     edges: [["u", "rep"], ["u", "bk"], ["bk", "pri"], ["pri", "rep"]],
     width: 820, height: 310,
     steps: [
@@ -3528,7 +3563,7 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-hard", {
     title: "Did my request succeed?", sub: "The service's box shows what really happened; the caller's box shows what it can tell.",
-    nodes: [{ id: "c", x: 130, y: 120, w: 230, label: "Caller", sub: " " }, { id: "svc", x: 560, y: 120, w: 240, label: "Payment service", sub: "charges: none" }],
+    nodes: [{ id: "c", x: 130, y: 120, w: 230, label: "Caller", sub: " ", kind: "service" }, { id: "svc", x: 560, y: 120, w: 240, label: "Payment service", sub: "charges: none", kind: "service" }],
     edges: [["c", "svc"]],
     width: 720, height: 220,
     steps: [
@@ -3548,9 +3583,9 @@ html.iks-open { overflow: hidden; }
   });
   Viz.scene("#sc-session", {
     title: "Read your writes with a session token", sub: "Box text shows each replica's log position and the client's token.",
-    nodes: [{ id: "c", x: 110, y: 150, w: 180, label: "Client", sub: "token: none" },
-            { id: "a", x: 470, y: 60, w: 250, label: "Replica A (leader)", sub: "at position 41" },
-            { id: "b", x: 470, y: 240, w: 250, label: "Replica B (follower)", sub: "at position 41" }],
+    nodes: [{ id: "c", x: 110, y: 150, w: 180, label: "Client", sub: "token: none", kind: "client" },
+            { id: "a", x: 470, y: 60, w: 250, label: "Replica A (leader)", sub: "at position 41", kind: "db" },
+            { id: "b", x: 470, y: 240, w: 250, label: "Replica B (follower)", sub: "at position 41", kind: "db" }],
     edges: [["c", "a"], ["c", "b"], ["a", "b"]],
     width: 660, height: 300,
     steps: [

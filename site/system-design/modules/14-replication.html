@@ -3114,6 +3114,15 @@ html.iks-open { overflow: hidden; }
     <h3>Quorums in leaderless replication</h3>
     <p>With <strong>N</strong> copies, a write succeeds when <strong>W</strong> replicas confirm it, and a read asks <strong>R</strong> replicas and takes the newest answer. If <strong>W + R &gt; N</strong>, every read set overlaps every write set in at least one replica, so a read always includes the latest successful write. A common setting is N = 3, W = 2, R = 2 (Cassandra's QUORUM: a majority, n/2 + 1). Replicas that missed writes catch up through <strong>read repair</strong> (fix stale copies seen during a read), <strong>hinted handoff</strong> (another node holds writes for a down replica) and background <strong>anti-entropy</strong> comparisons.</p>
 
+    <h3 id="mirroring">Replication vs mirroring</h3>
+    <p>Both keep a second copy, at different levels. <strong>Mirroring</strong> copies <em>storage blocks</em>: every block written to one disk or volume is written to another, below the database, which doesn't even know. <strong>Replication</strong> copies <em>database changes</em>: the database ships its log of changes, and the copy is a live database that can answer queries.</p>
+    <div id="fig-mirror"></div>
+
+    <h3 id="checksums">Checksums: catching silent corruption</h3>
+    <p>Disks, memory and networks occasionally return different bytes from the ones written, without any error: a flipped bit, a misdirected write, a firmware bug. At the scale of billions of blocks, "occasionally" means "every day". Copies don't help on their own: you need to know <em>which</em> copy is wrong. That's what a <strong>checksum</strong> is for: a short fingerprint (CRC32C, or a hash such as SHA-256) computed from the data and stored with it.</p>
+    <div id="fig-checksum"></div>
+    <p>Where you meet this: HDFS, Ceph and object stores checksum every block; ZFS and Btrfs checksum every block on a single machine; S3 lets clients send a checksum with each upload and verifies it; TCP and Ethernet carry checksums too, but weak ones, which is why storage systems add their own end to end.</p>
+
     <h3>Scaling reads: the progression</h3>
     <p>Reads usually grow far faster than writes (10:1, up to 100:1 or more for content apps). The goal is to take load off the database, in this order, without skipping steps:</p>
     <ol class="steps-list">
@@ -3571,10 +3580,44 @@ html.iks-open { overflow: hidden; }
   }
   ["l-w", "l-lag", "l-rtt"].forEach((id) => $(id).addEventListener("input", loss));
   loss();
+  /* ---------- mirroring, checksums ---------- */
+  Viz.figures("#fig-mirror", {
+    "Mirroring (block level)": { sub: "A database on a mirrored volume: RAID 1, DRBD, or a cloud disk copied inside its zone.",
+      nodes: [{ id: "db", x: 90, y: 120, w: 140, label: "Database", sub: "writes block 7,201", kind: "db" }, { id: "ctl", x: 300, y: 120, w: 150, label: "Mirroring layer", sub: "controller or driver", kind: "service" },
+        { id: "a", x: 520, y: 55, w: 150, label: "Disk A", sub: "every block", kind: "store" }, { id: "b", x: 520, y: 185, w: 150, label: "Disk B", sub: "every block", kind: "store" }],
+      edges: [["db", "ctl", "block", { n: 1 }], ["ctl", "a", "", { n: 2 }], ["ctl", "b", "", { n: 2 }]],
+      width: 640, height: 245,
+      steps: ["The database writes an 8 KB block, as it always does. It has no idea the storage is mirrored.",
+        "The mirroring layer writes the same block to both disks, usually before confirming the write. If disk A dies, disk B has every block, and the database carries on."],
+      after: "<b>Good for</b> surviving a dead disk with no data loss. <b>Not for:</b> serving reads from the copy (Disk B isn't a running database), distance (it needs very low latency, so same building or zone), or mistakes: a corrupted block or a <code>DROP TABLE</code> is mirrored too." },
+    "Replication (database level)": { sub: "A primary database ships its change log to replicas.",
+      nodes: [{ id: "db", x: 90, y: 120, w: 140, label: "Primary DB", sub: "UPDATE price …", kind: "db" }, { id: "log", x: 300, y: 120, w: 150, label: "Change log", sub: "WAL / binlog records", kind: "queue" },
+        { id: "a", x: 520, y: 55, w: 150, label: "Replica (same region)", sub: "serving reads", kind: "db" }, { id: "b", x: 520, y: 185, w: 150, label: "Replica (other region)", sub: "serving reads", kind: "db" }],
+      edges: [["db", "log", "change", { n: 1 }], ["log", "a", "", { n: 2 }], ["log", "b", "", { n: 2 }]],
+      width: 640, height: 245,
+      steps: ["The primary records each change (\"row 42's price is now £7\") in its log as part of the commit.",
+        "Replicas receive the log and apply the same changes. Each replica is a complete, running database that can answer queries, in another zone or another region."],
+      after: "<b>Good for</b> read scaling, failover and geography. Like mirroring, it copies mistakes; only backups let you go back in time (Module 27)." },
+  }, { label: "Kind of copy" });
+  Viz.figure("#fig-checksum", {
+    title: "How a checksum catches a flipped bit", sub: "A block is stored on two storage nodes, each with its checksum next to it.",
+    nodes: [{ id: "w", x: 85, y: 55, w: 150, label: "Writer", sub: "computes the checksum", kind: "service" }, { id: "r", x: 85, y: 205, w: 150, label: "Reader", sub: "checks it again", kind: "service" },
+      { id: "n1", x: 340, y: 55, w: 170, label: "Storage node 1", sub: "block + checksum", kind: "store" }, { id: "n2", x: 340, y: 205, w: 170, label: "Storage node 2", sub: "block + checksum", kind: "store" },
+      { id: "sc", x: 580, y: 130, w: 130, label: "Scrubber", sub: "background job", kind: "service" }],
+    edges: [["w", "n1", "block + crc", { n: 1 }], ["r", "n1", "read", { n: 3 }], ["r", "n2", "read", { n: 4 }], ["n2", "n1", "repair", { n: 5 }], ["sc", "n1", "", { n: 6 }], ["sc", "n2", "", { n: 6 }]],
+    width: 660, height: 260,
+    steps: ["The writer computes a checksum of the block and sends both. Each storage node checks the checksum on arrival (catching network corruption) and stores the block with it.",
+      { text: "Months later, one bit of the block flips on node 1's disk. The disk reports no error; the bytes are simply wrong.", hl: { n1: "bad" } },
+      "A reader fetches the block from node 1 and recomputes the checksum. It doesn't match the stored one, so the reader rejects the data instead of using it.",
+      "It reads the copy on node 2, whose checksum matches.",
+      "Node 1's bad copy is replaced from node 2. Without the checksum, nobody could have said which of the two copies was right.",
+      "A scrubber reads every block on every node in the background, every week or two, so corruption in data nobody reads is found while a good copy still exists."],
+    after: "<b>End to end:</b> compute the checksum where the data is created and check it where it's used, so corruption anywhere in between (network, memory, disk) is caught.",
+  });
   Viz.scene("#sc-main", {
     title: "Where did my comment go?", sub: "Box text shows the newest log entry each copy has. <b>Red</b> = behind or lost.",
-    nodes: [{ id: "u", x: 85, y: 150, w: 120, label: "User", sub: " " }, { id: "ld", x: 330, y: 150, w: 200, label: "Leader", sub: "log up to #40" },
-      { id: "f1", x: 590, y: 60, w: 200, label: "Follower 1", sub: "log up to #40" }, { id: "f2", x: 590, y: 240, w: 200, label: "Follower 2", sub: "log up to #40" }],
+    nodes: [{ id: "u", x: 85, y: 150, w: 120, label: "User", sub: " ", kind: "client" }, { id: "ld", x: 330, y: 150, w: 200, label: "Leader", sub: "log up to #40", kind: "db" },
+      { id: "f1", x: 590, y: 60, w: 200, label: "Follower 1", sub: "log up to #40", kind: "db" }, { id: "f2", x: 590, y: 240, w: 200, label: "Follower 2", sub: "log up to #40", kind: "db" }],
     edges: [["u", "ld"], ["ld", "f1"], ["ld", "f2"], ["u", "f1", "", { bend: -60 }]],
     width: 720, height: 300,
     steps: [
@@ -3602,8 +3645,8 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-reads", {
     title: "Scaling reads in order", sub: "Box text shows each node's load. The primary can take about 10,000 reads a second.",
-    nodes: [{ id: "app", x: 85, y: 150, w: 140, label: "App servers", sub: "30,000 reads/s" }, { id: "cache", x: 330, y: 50, w: 190, label: "Redis cache", sub: " ", hidden: true },
-      { id: "pri", x: 330, y: 150, w: 190, label: "Primary DB", sub: " " }, { id: "r1", x: 600, y: 90, w: 190, label: "Replica 1", sub: " ", hidden: true }, { id: "r2", x: 600, y: 230, w: 190, label: "Replica 2", sub: " ", hidden: true }],
+    nodes: [{ id: "app", x: 85, y: 150, w: 140, label: "App servers", sub: "30,000 reads/s", kind: "service" }, { id: "cache", x: 330, y: 50, w: 190, label: "Redis cache", sub: " ", hidden: true, kind: "cache" },
+      { id: "pri", x: 330, y: 150, w: 190, label: "Primary DB", sub: " ", kind: "db" }, { id: "r1", x: 600, y: 90, w: 190, label: "Replica 1", sub: " ", hidden: true, kind: "db" }, { id: "r2", x: 600, y: 230, w: 190, label: "Replica 2", sub: " ", hidden: true, kind: "db" }],
     edges: [["app", "cache"], ["app", "pri"], ["app", "r1", "", { bend: -50 }], ["app", "r2", "", { bend: 40 }], ["pri", "r1"], ["pri", "r2"]],
     width: 720, height: 300,
     steps: [
@@ -3640,8 +3683,8 @@ html.iks-open { overflow: hidden; }
   /* ---------- Under the hood: replication ---------- */
   Viz.scene("#sc-u14-commit", {
     title: "Where the commit point sits", sub: "Box text shows each copy's value of x and when the client hears OK.",
-    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Client", sub: " " }, { id: "p", x: 300, y: 150, w: 170, label: "Primary", sub: "x = 4" },
-      { id: "r1", x: 560, y: 70, w: 200, label: "Replica 1", sub: "x = 4" }, { id: "r2", x: 560, y: 230, w: 200, label: "Replica 2", sub: "x = 4" }],
+    nodes: [{ id: "c", x: 80, y: 150, w: 120, label: "Client", sub: " ", kind: "client" }, { id: "p", x: 300, y: 150, w: 170, label: "Primary", sub: "x = 4", kind: "db" },
+      { id: "r1", x: 560, y: 70, w: 200, label: "Replica 1", sub: "x = 4", kind: "db" }, { id: "r2", x: 560, y: 230, w: 200, label: "Replica 2", sub: "x = 4", kind: "db" }],
     edges: [["c", "p"], ["p", "r1"], ["p", "r2"]],
     width: 690, height: 300,
     steps: [

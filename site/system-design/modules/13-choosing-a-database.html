@@ -3553,9 +3553,9 @@ html.iks-open { overflow: hidden; }
   choose();
   Viz.scene("#sc-main", {
     title: "One source of truth, several stores", sub: "Box text shows each store's copy of product 12's price.",
-    nodes: [{ id: "app", x: 85, y: 150, w: 120, label: "App", sub: " " }, { id: "pg", x: 280, y: 150, w: 180, label: "PostgreSQL (truth)", sub: "price $20" },
-      { id: "k", x: 480, y: 150, w: 170, label: "Change stream", sub: "CDC → Kafka" }, { id: "search", x: 690, y: 50, w: 160, label: "Search index", sub: "$20" },
-      { id: "cache", x: 690, y: 150, w: 160, label: "Cache", sub: "$20" }, { id: "wh", x: 690, y: 250, w: 160, label: "Warehouse", sub: "$20" }],
+    nodes: [{ id: "app", x: 85, y: 150, w: 120, label: "App", sub: " ", kind: "service" }, { id: "pg", x: 280, y: 150, w: 180, label: "PostgreSQL (truth)", sub: "price $20", kind: "db" },
+      { id: "k", x: 480, y: 150, w: 170, label: "Change stream", sub: "CDC → Kafka", kind: "queue" }, { id: "search", x: 690, y: 50, w: 160, label: "Search index", sub: "$20", kind: "db" },
+      { id: "cache", x: 690, y: 150, w: 160, label: "Cache", sub: "$20", kind: "cache" }, { id: "wh", x: 690, y: 250, w: 160, label: "Warehouse", sub: "$20", kind: "db" }],
     edges: [["app", "pg"], ["pg", "k"], ["k", "search"], ["k", "cache"], ["k", "wh"], ["app", "search", "", { hidden: true, bend: -80 }]],
     width: 780, height: 300,
     steps: [
@@ -3579,8 +3579,8 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-cass", {
     title: "A Cassandra write and read at QUORUM", sub: "Box text shows each replica's copy of cart:42. Replication factor 3; QUORUM = 2.",
-    nodes: [{ id: "c", x: 80, y: 150, w: 110, label: "Client", sub: " " }, { id: "co", x: 290, y: 150, w: 190, label: "Coordinator (any node)", sub: " " },
-      { id: "r1", x: 560, y: 50, w: 210, label: "Replica 1", sub: "cart:42 = [] @t1" }, { id: "r2", x: 560, y: 150, w: 210, label: "Replica 2", sub: "cart:42 = [] @t1" }, { id: "r3", x: 560, y: 250, w: 210, label: "Replica 3", sub: "cart:42 = [] @t1" }],
+    nodes: [{ id: "c", x: 80, y: 150, w: 110, label: "Client", sub: " ", kind: "client" }, { id: "co", x: 290, y: 150, w: 190, label: "Coordinator (any node)", sub: " ", kind: "service" },
+      { id: "r1", x: 560, y: 50, w: 210, label: "Replica 1", sub: "cart:42 = [] @t1", kind: "db" }, { id: "r2", x: 560, y: 150, w: 210, label: "Replica 2", sub: "cart:42 = [] @t1", kind: "db" }, { id: "r3", x: 560, y: 250, w: 210, label: "Replica 3", sub: "cart:42 = [] @t1", kind: "db" }],
     edges: [["c", "co"], ["co", "r1"], ["co", "r2"], ["co", "r3"]],
     width: 700, height: 300,
     steps: [
@@ -3660,9 +3660,9 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-u13-refresh", {
     title: "From write to searchable", sub: "Inside one Elasticsearch shard. Box text shows where document 77 is.",
-    nodes: [{ id: "c", x: 90, y: 150, w: 140, label: "Client", sub: " " }, { id: "buf", x: 340, y: 70, w: 220, label: "In-memory buffer", sub: "empty" },
+    nodes: [{ id: "c", x: 90, y: 150, w: 140, label: "Client", sub: " ", kind: "client" }, { id: "buf", x: 340, y: 70, w: 220, label: "In-memory buffer", sub: "empty" },
       { id: "tl", x: 340, y: 240, w: 220, label: "Translog (on disk)", sub: "empty" }, { id: "seg", x: 640, y: 70, w: 230, label: "Segments (searchable)", sub: "seg 1–11" },
-      { id: "q", x: 640, y: 240, w: 230, label: "Search", sub: " " }],
+      { id: "q", x: 640, y: 240, w: 230, label: "Search", sub: " ", kind: "client" }],
     edges: [["c", "buf"], ["c", "tl"], ["buf", "seg"], ["q", "seg"]],
     width: 790, height: 300,
     steps: [

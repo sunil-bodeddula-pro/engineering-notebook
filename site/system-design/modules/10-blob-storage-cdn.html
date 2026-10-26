@@ -3080,15 +3080,16 @@ html.iks-open { overflow: hidden; }
       <li><strong>Events:</strong> storage announces new objects (S3 can notify SNS, SQS, Lambda or EventBridge). That event, not the client saying "done", marks the upload complete and triggers processing. A periodic reconciliation job catches anything an event missed.</li>
       <li><strong>Consistency:</strong> S3 gives strong read-after-write consistency for PUTs and DELETEs: once a write succeeds, every read sees it.</li>
     </ul>
-    <h3>How a CDN serves a file</h3>
-    <ol class="steps-list">
-      <li>The user requests <code>https://cdn.example.com/v/7f3a/720p/seg42.ts</code>. DNS or anycast routes them to the nearest edge.</li>
-      <li><strong>Edge hit:</strong> the file is cached there; it's returned in a few milliseconds.</li>
-      <li><strong>Edge miss:</strong> the edge asks a regional cache or an <strong>origin shield</strong> (one designated cache layer in front of your origin), and only if that misses, the <strong>origin</strong> (your bucket or servers).</li>
-      <li>How long it may be cached is set by the <code>Cache-Control</code> header from the origin (try the builder in section 3).</li>
-      <li>To change a cached file: give the new version a new URL (<code>app.3f9c2.js</code>, best), or <strong>purge</strong> it through the CDN's API (slower, sometimes limited).</li>
-      <li>Private content: the CDN checks a <strong>signed URL or signed cookie</strong> at the edge, so you can protect paid videos without every request reaching your servers.</li>
-    </ol>
+    <h3 id="cdn-serve">How a CDN serves a file</h3>
+    <p>A CDN is a set of caches in hundreds of cities. Here is one video segment's journey, from the first viewer in a city to every viewer after:</p>
+    <div id="fig-cdn"></div>
+    <h3 id="push-pull">Pull CDNs and push CDNs</h3>
+    <p>The figure above is a <strong>pull</strong> CDN: an edge fetches a file the first time someone near it asks. The alternative is a <strong>push</strong> CDN (or "pre-warming" a pull CDN): you upload files to the edges <em>before</em> anyone asks. Same files, two timings:</p>
+    <div id="fig-pushpull"></div>
+    <h3 id="dfs">Distributed file systems</h3>
+    <p>Object storage isn't the only way to keep huge amounts of data. Analytics clusters grew up on <strong>distributed file systems</strong>: Google's GFS (2003), its open-source copy HDFS, and their successors. They split each file into large <strong>chunks</strong> (64–128 MB), keep each chunk on three different machines, and separate the question "where is it?" from the bytes themselves:</p>
+    <div id="fig-dfs"></div>
+    <p>Today, most new systems use object storage instead, which offers the same scale as a managed service and without one master's memory as a limit; Spark and similar engines read from S3 directly. You still meet HDFS in existing Hadoop clusters, and the same idea of a metadata path separate from the data path runs through object stores too (see <a href="#u10-meta">Under the hood</a>).</p>
     <p><strong>Video streaming</strong> works this way too: the video is cut into short segments in several qualities, listed in a playlist (HLS or DASH). The player downloads segments over plain HTTP and switches quality as bandwidth changes, so CDNs cache video like any other file.</p>
 
     <!-- 3 -->
@@ -3597,14 +3598,14 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   /* ---------- step-through: upload to delivery ---------- */
   const N = [
-    { id: "phone", x: 70, y: 60, w: 100, label: "Phone" },
-    { id: "api", x: 230, y: 60, w: 110, label: "API server" },
-    { id: "db", x: 400, y: 60, w: 110, label: "Database", sub: "metadata" },
-    { id: "s3", x: 230, y: 170, w: 110, label: "Object storage", sub: "raw/" },
-    { id: "q", x: 400, y: 170, w: 110, label: "Event queue" },
-    { id: "work", x: 560, y: 170, w: 110, label: "Transcoders" },
-    { id: "cdn", x: 230, y: 275, w: 110, label: "CDN edges" },
-    { id: "viewer", x: 70, y: 275, w: 100, label: "Viewers" },
+    { id: "phone", x: 70, y: 60, w: 100, label: "Phone", kind: "client" },
+    { id: "api", x: 230, y: 60, w: 110, label: "API server", kind: "service" },
+    { id: "db", x: 400, y: 60, w: 110, label: "Database", sub: "metadata", kind: "db" },
+    { id: "s3", x: 230, y: 170, w: 110, label: "Object storage", sub: "raw/", kind: "store" },
+    { id: "q", x: 400, y: 170, w: 110, label: "Event queue", kind: "queue" },
+    { id: "work", x: 560, y: 170, w: 110, label: "Transcoders", kind: "service" },
+    { id: "cdn", x: 230, y: 275, w: 110, label: "CDN edges", kind: "cdn" },
+    { id: "viewer", x: 70, y: 275, w: 100, label: "Viewers", kind: "client" },
   ];
   const E = [["phone", "api"], ["api", "db"], ["phone", "s3", "PUT parts"], ["s3", "q", "created"], ["q", "work"], ["work", "s3", "segments", { bend: -75 }], ["work", "db", "ready"], ["viewer", "cdn"], ["cdn", "s3", "miss"]];
   const fig = (hl, eh) => Viz.flow(N, E, { hl, edgeHl: eh, width: 640, height: 305, title: "upload pipeline" });
@@ -3675,11 +3676,58 @@ html.iks-open { overflow: hidden; }
   }
   OPTS.forEach(([k]) => $("cc-" + k).addEventListener("input", cc));
   set("Versioned JS/CSS"); cc();
+  /* ---------- CDN figures ---------- */
+  Viz.figure("#fig-cdn", {
+    title: "A request for a video segment", sub: "A viewer in Paris asks for <code>/v/7f3a/720p/seg42.ts</code>.",
+    nodes: [{ id: "u", x: 70, y: 120, w: 110, label: "Viewer", sub: "Paris", kind: "client" }, { id: "e", x: 250, y: 120, w: 140, label: "Edge cache", sub: "Paris", kind: "cdn" },
+      { id: "sh", x: 440, y: 120, w: 140, label: "Origin shield", sub: "Frankfurt", kind: "cdn" }, { id: "o", x: 620, y: 120, w: 130, label: "Origin", sub: "your bucket", kind: "store" }],
+    edges: [["u", "e", "GET", { n: 1, bend: -24 }], ["e", "u", "5 ms", { n: 2, bend: -24 }], ["e", "sh", "miss", { n: 3, bend: -24 }], ["sh", "o", "miss", { n: 3, bend: -24 }], ["o", "sh", "file + Cache-Control", { n: 4, bend: -24 }], ["sh", "e", "", { n: 4, bend: -24 }]],
+    width: 700, height: 240,
+    steps: ["DNS (or anycast) sends the viewer to the nearest edge, a few milliseconds away.",
+      "<b>Hit:</b> if the edge already holds this file, it answers straight away. On a popular video, well over 90% of requests end here.",
+      "<b>Miss:</b> the edge asks the origin shield, one designated cache layer in front of your origin, so a miss at 300 edges becomes one request to you, not 300. Only if the shield misses too does the request reach the origin.",
+      "The origin returns the file with a <code>Cache-Control</code> header saying how long it may be kept. The shield and the edge both store a copy, so the next viewer in Paris gets step 2.",
+      { text: "<b>Changing a file:</b> publish the new version under a new URL (<code>app.3f9c2.js</code>), so caches never serve an old copy by mistake. Purging through the CDN's API works too, but slowly and sometimes with limits.", hl: { o: "warm" } },
+      { text: "<b>Private files:</b> the edge checks a signed URL or signed cookie itself, so paid videos stay protected without every request reaching your servers.", hl: { e: "found" } }],
+    after: "<b>Video streaming</b> rides on exactly this path: the video is cut into short segments, and each segment is an ordinary cached file.",
+  });
+  const PP = (push) => ({
+    nodes: [{ id: "d", x: 565, y: 50, w: 140, label: push ? "Release job" : "Your origin", sub: push ? "uploads ahead of time" : "the bucket", kind: push ? "service" : "store" },
+      { id: "e1", x: 320, y: 50, w: 150, label: "Edge: Paris", sub: push ? "has the file" : "empty until asked", kind: "cdn" }, { id: "e2", x: 320, y: 190, w: 150, label: "Edge: Mumbai", sub: push ? "has the file" : "empty until asked", kind: "cdn" },
+      { id: "u1", x: 85, y: 50, w: 140, label: "Players in Paris", kind: "client" }, { id: "u2", x: 85, y: 190, w: 140, label: "Players in Mumbai", kind: "client" }],
+    width: 650, height: 240,
+  });
+  Viz.figures("#fig-pushpull", {
+    "Pull (fetch on first request)": { ...PP(false), sub: "Nothing is copied until someone asks.",
+      edges: [["u1", "e1", "first request", { n: 1 }], ["e1", "d", "miss: fetch", { n: 2, bend: -20 }], ["d", "e1", "", { n: 2, bend: -20 }], ["u2", "e2", "", { n: 3 }]],
+      steps: ["The first player in Paris asks the Paris edge for the file. It isn't there.", "The edge fetches it from the origin, serves it and keeps a copy. Everyone in Paris after that gets a hit.",
+        "Mumbai's edge is still empty: its first player pays for a miss too. Every edge warms up separately, and only with files people actually want."],
+      after: "<b>The default</b> for websites, images and video: no work for you, and edges only store what's popular. The cost is a slow first request per file per edge." },
+    "Push (upload ahead of time)": { ...PP(true), sub: "A game's 40 GB update, released at 18:00 worldwide.",
+      edges: [["d", "e1", "upload", { n: 1 }], ["d", "e2", "upload", { n: 1 }], ["u1", "e1", "hit", { n: 2 }], ["u2", "e2", "hit", { n: 2 }]],
+      steps: ["Hours before the release, a job uploads the update to every edge (or asks the CDN to pre-fetch it).",
+        "At 18:00, millions of players start downloading at once, and every one of them is a hit. The origin never sees the rush."],
+      after: "<b>Use it for</b> large files with a known release moment. <b>The cost:</b> you pay to store the file at every edge, and you must remove or replace it yourself." },
+  }, { label: "Kind of CDN" });
+  Viz.figure("#fig-dfs", {
+    title: "Reading and writing a file in HDFS", sub: "A nightly job reads yesterday's 10 GB log file, stored as 80 chunks of 128 MB.",
+    nodes: [{ id: "c", x: 80, y: 130, w: 130, label: "Analytics job", sub: "the client", kind: "service" },
+      { id: "m", x: 300, y: 40, w: 190, label: "Master (NameNode)", sub: "file → chunks → machines", kind: "service" },
+      { id: "d1", x: 300, y: 220, w: 150, label: "Data node 1", sub: "chunk 3, chunk 9 …", kind: "store" }, { id: "d2", x: 500, y: 220, w: 150, label: "Data node 2", sub: "chunk 3 …", kind: "store" },
+      { id: "d3", x: 560, y: 110, w: 150, label: "Data node 3", sub: "chunk 3 …", kind: "store" }],
+    edges: [["c", "m", "chunk 3?", { n: 1, bend: -22 }], ["m", "c", "3 machines", { n: 1, bend: -22 }], ["c", "d1", "read bytes", { n: 2 }], ["d1", "d2", "copy", { n: 3 }], ["d2", "d3", "copy", { n: 3 }], ["d3", "m", "heartbeat", { n: 4 }]],
+    width: 660, height: 270,
+    steps: ["The job asks the master where chunk 3 of the file lives. The master keeps the whole map, file to chunks to machines, in memory, so it answers in microseconds. It never touches the data itself.",
+      "The job reads the 128 MB straight from the nearest machine holding chunk 3. Hundreds of tasks do this in parallel, each reading a different chunk, which is how a cluster reads terabytes quickly.",
+      "Writes go down a pipeline: the client sends a chunk to the first data node, which passes it to the second, which passes it to the third. The write is done when all three have it.",
+      "Every data node reports to the master regularly. If one goes quiet, the master tells the others to copy its chunks elsewhere until each has three copies again."],
+    after: "<b>The limit:</b> one master holds every file's map in memory, so a cluster struggles with hundreds of millions of small files. Google's successor, Colossus, spread the metadata over many machines for that reason.",
+  });
   Viz.scene("#sc-main", {
     title: "A big file never touches your servers", sub: "Box text shows the video's state and what each part has handled.",
-    nodes: [{ id: "ph", x: 115, y: 70, w: 200, label: "Phone", sub: "video 1.2 GB" }, { id: "api", x: 115, y: 240, w: 210, label: "Your API", sub: " " },
-      { id: "st", x: 390, y: 70, w: 210, label: "Object storage", sub: " " }, { id: "ev", x: 390, y: 240, w: 210, label: "Processing", sub: " " },
-      { id: "edge", x: 650, y: 70, w: 200, label: "CDN edge (Paris)", sub: "empty" }, { id: "v", x: 650, y: 240, w: 200, label: "Viewers in Paris", sub: " " }],
+    nodes: [{ id: "ph", x: 115, y: 70, w: 200, label: "Phone", sub: "video 1.2 GB", kind: "client" }, { id: "api", x: 115, y: 240, w: 210, label: "Your API", sub: " ", kind: "service" },
+      { id: "st", x: 390, y: 70, w: 210, label: "Object storage", sub: " ", kind: "store" }, { id: "ev", x: 390, y: 240, w: 210, label: "Processing", sub: " ", kind: "service" },
+      { id: "edge", x: 650, y: 70, w: 200, label: "CDN edge (Paris)", sub: "empty", kind: "cdn" }, { id: "v", x: 650, y: 240, w: 200, label: "Viewers in Paris", sub: " ", kind: "client" }],
     edges: [["ph", "api"], ["ph", "st"], ["st", "ev"], ["ev", "api"], ["v", "edge"], ["edge", "st"]],
     width: 760, height: 290,
     steps: [
@@ -3707,8 +3755,8 @@ html.iks-open { overflow: hidden; }
   ]);
   Viz.scene("#sc-mpu", {
     title: "A resumable upload that survives a dropped connection", sub: "Box text shows the upload's parts and the database row.",
-    nodes: [{ id: "ph", x: 85, y: 150, w: 140, label: "Phone", sub: "video.mp4, 2 GB" }, { id: "api", x: 320, y: 60, w: 170, label: "Your API", sub: " " },
-      { id: "s3", x: 560, y: 150, w: 240, label: "Object storage", sub: "no upload yet" }, { id: "db", x: 320, y: 260, w: 170, label: "Videos table", sub: "–" }],
+    nodes: [{ id: "ph", x: 85, y: 150, w: 140, label: "Phone", sub: "video.mp4, 2 GB", kind: "client" }, { id: "api", x: 320, y: 60, w: 170, label: "Your API", sub: " ", kind: "service" },
+      { id: "s3", x: 560, y: 150, w: 240, label: "Object storage", sub: "no upload yet", kind: "store" }, { id: "db", x: 320, y: 260, w: 170, label: "Videos table", sub: "–", kind: "db" }],
     edges: [["ph", "api"], ["api", "db"], ["ph", "s3"], ["s3", "db"]],
     width: 720, height: 310,
     steps: [
@@ -3727,9 +3775,9 @@ html.iks-open { overflow: hidden; }
     title: "Erasure coding: lose a zone, keep the object", sub: "Box text shows what each zone holds. <b>Red</b> = lost; <b>green</b> = rebuilt.",
     nodes: [
       { id: "obj", x: 100, y: 150, w: 160, label: "Object (60 MB)", sub: "split into 6 × 10 MB" },
-      { id: "z1", x: 400, y: 50, w: 250, label: "Zone A", sub: "empty" },
-      { id: "z2", x: 400, y: 150, w: 250, label: "Zone B", sub: "empty" },
-      { id: "z3", x: 400, y: 250, w: 250, label: "Zone C", sub: "empty" },
+      { id: "z1", x: 400, y: 50, w: 250, label: "Zone A", sub: "empty", kind: "store" },
+      { id: "z2", x: 400, y: 150, w: 250, label: "Zone B", sub: "empty", kind: "store" },
+      { id: "z3", x: 400, y: 250, w: 250, label: "Zone C", sub: "empty", kind: "store" },
     ],
     edges: [["obj", "z1"], ["obj", "z2"], ["obj", "z3"]],
     width: 600, height: 300,

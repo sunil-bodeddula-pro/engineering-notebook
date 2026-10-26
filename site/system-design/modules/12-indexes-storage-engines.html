@@ -3110,6 +3110,19 @@ html.iks-open { overflow: hidden; }
     <h3>LSM trees: built for writes</h3>
     <p>A B-tree updates pages in place, which means random writes all over the disk. A <strong>log-structured merge tree</strong> (LSM) never updates in place: it collects writes in memory and writes them out sequentially in big sorted batches. Press Play to watch writes, a read, and compaction.</p>
     <div id="viz-lsm"></div>
+    <h3 id="in-memory">In-memory vs on-disk databases</h3>
+    <p>Everything above assumes the data lives on disk and memory is a cache in front of it. An <strong>in-memory database</strong> flips that: all the data lives in RAM, and the disk is only there so it survives a restart. "In-memory" doesn't mean "lost when the power goes": most keep a log or snapshot on disk. The difference is where reads are served from and how big the data can get.</p>
+    <div id="fig-mem"></div>
+    <table class="pat">
+      <thead><tr><th></th><th>On-disk (PostgreSQL, MySQL, Cassandra)</th><th>In-memory (Redis, Memcached, Valkey)</th></tr></thead>
+      <tbody>
+        <tr><td>Typical read</td><td>Under 1 ms when the page is cached; a disk read when it isn't</td><td>Microseconds, every time</td></tr>
+        <tr><td>Data size</td><td>Far bigger than RAM (terabytes)</td><td>Must fit in RAM, which costs many times more per GB than SSD</td></tr>
+        <tr><td>Durability</td><td>Every committed write is on disk (write-ahead log)</td><td>Ranges from none (Memcached) to "the last second may be lost" (Redis with the append-only file)</td></tr>
+        <tr><td>Restart</td><td>Ready quickly; the cache warms up as it runs</td><td>Must reload everything from disk first, which takes minutes for large datasets</td></tr>
+        <tr><td>Use it as</td><td>The source of truth</td><td>A cache, session store, counters, leaderboards, rate limits: data you can rebuild or afford to lose a little of</td></tr>
+      </tbody>
+    </table>
 
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
@@ -3599,6 +3612,27 @@ html.iks-open { overflow: hidden; }
     el.querySelector(".why").innerHTML = (ok ? "✓ " : `✗ <b>${ans}</b>. `) + why;
     sc += ok; dn++; $("ix-score").innerHTML = `<span>${sc} / ${dn} right</span>`;
   });
+  /* ---------- in-memory vs on-disk ---------- */
+  Viz.figures("#fig-mem", {
+    "On-disk (PostgreSQL)": { sub: "Data lives on disk; memory keeps the hottest pages.",
+      nodes: [{ id: "app", x: 80, y: 120, w: 120, label: "App", kind: "service" }, { id: "bp", x: 300, y: 120, w: 170, label: "Buffer pool (RAM)", sub: "hot pages, e.g. 16 GB", kind: "cache" },
+        { id: "data", x: 540, y: 60, w: 170, label: "Data files (SSD)", sub: "all pages, e.g. 2 TB", kind: "db" }, { id: "wal", x: 540, y: 190, w: 170, label: "Write-ahead log", sub: "appended on commit", kind: "store" }],
+      edges: [["app", "bp", "read / write", { n: 1 }], ["bp", "data", "page miss", { n: 2 }], ["bp", "wal", "commit", { n: 3 }], ["bp", "data", "", {}]],
+      width: 660, height: 250,
+      steps: ["The app reads a row. If its page is already in the buffer pool, the answer comes from memory.",
+        "If not, the database reads the 8 KB page from the SSD (around a tenth of a millisecond) and keeps it in the pool, pushing out a page nobody has used lately.",
+        "A write changes the page in memory and appends a record to the write-ahead log, which is flushed to disk before the commit returns. The changed page itself is written back later, in the background."],
+      after: "<b>Why it scales:</b> only the working set needs to fit in RAM. The other 99% of a 2 TB database sits on cheap disk." },
+    "In-memory (Redis)": { sub: "All data lives in RAM; disk is only for surviving a restart.",
+      nodes: [{ id: "app", x: 80, y: 120, w: 120, label: "App", kind: "service" }, { id: "r", x: 300, y: 120, w: 170, label: "Redis (RAM)", sub: "every key, e.g. 30 GB", kind: "db" },
+        { id: "aof", x: 540, y: 60, w: 170, label: "Append-only file", sub: "every write, fsync each second", kind: "store" }, { id: "rdb", x: 540, y: 190, w: 170, label: "Snapshot", sub: "whole dataset, now and then", kind: "store" }],
+      edges: [["app", "r", "GET / INCR", { n: 1 }], ["r", "aof", "append", { n: 2 }], ["r", "rdb", "fork + dump", { n: 3 }]],
+      width: 660, height: 250,
+      steps: ["Every read and write is served from memory, in microseconds. There are no pages and no disk reads on the request path.",
+        "With the append-only file switched on, each write is also appended to a log, and the log is flushed to disk once a second by default. A crash loses at most about the last second of writes.",
+        "Every so often Redis forks and writes a full snapshot in the background. On restart it loads the snapshot and replays the log, so a large dataset takes a while to come back."],
+      after: "<b>The limit</b> is RAM: the whole dataset must fit in memory, on every replica. Past a few hundred gigabytes, that gets expensive fast." },
+  }, { label: "Storage model" });
   Viz.scene("#sc-main", {
     title: "Index lookup vs full scan", sub: "Table of 1 billion rows. The counter box shows pages read from disk.",
     nodes: [{ id: "q", x: 85, y: 150, w: 140, label: "WHERE id = 42", sub: " " }, { id: "root", x: 300, y: 60, w: 180, label: "Root page", sub: "in memory" },
@@ -3630,7 +3664,7 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-geo", {
     title: "Geohash search: your cell, its 8 neighbours, then filter", sub: "The rider stands near the east edge of cell 9q8yy. Cell text shows drivers found and their distance.",
     nodes: [
-      { id: "q", x: 85, y: 160, w: 140, label: "Rider", sub: "nearest drivers?" },
+      { id: "q", x: 85, y: 160, w: 140, label: "Rider", sub: "nearest drivers?", kind: "client" },
       { id: "nw", x: 300, y: 60, w: 130, label: "cell NW", sub: " " }, { id: "n", x: 450, y: 60, w: 130, label: "cell N", sub: " " }, { id: "ne", x: 600, y: 60, w: 130, label: "cell NE", sub: " " },
       { id: "w", x: 300, y: 160, w: 130, label: "cell W", sub: " " }, { id: "c", x: 450, y: 160, w: 130, label: "9q8yy", sub: "rider's cell" }, { id: "e", x: 600, y: 160, w: 130, label: "cell E", sub: " " },
       { id: "sw", x: 300, y: 260, w: 130, label: "cell SW", sub: " " }, { id: "s", x: 450, y: 260, w: 130, label: "cell S", sub: " " }, { id: "se", x: 600, y: 260, w: 130, label: "cell SE", sub: " " },
@@ -3652,12 +3686,12 @@ html.iks-open { overflow: hidden; }
   Viz.scene("#sc-search", {
     title: "Scatter, gather, re-rank", sub: "\"hiking boots\" across four shards. Box text shows what each step keeps.",
     nodes: [
-      { id: "u", x: 80, y: 160, w: 110, label: "User", sub: " " },
-      { id: "co", x: 280, y: 160, w: 190, label: "Coordinator", sub: " " },
-      { id: "s1", x: 560, y: 40, w: 220, label: "Shard 1 (docs A–F)", sub: " " },
-      { id: "s2", x: 560, y: 120, w: 220, label: "Shard 2 (docs G–M)", sub: " " },
-      { id: "s3", x: 560, y: 200, w: 220, label: "Shard 3 (docs N–S)", sub: " " },
-      { id: "s4", x: 560, y: 280, w: 220, label: "Shard 4 (docs T–Z)", sub: " " },
+      { id: "u", x: 80, y: 160, w: 110, label: "User", sub: " ", kind: "client" },
+      { id: "co", x: 280, y: 160, w: 190, label: "Coordinator", sub: " ", kind: "service" },
+      { id: "s1", x: 560, y: 40, w: 220, label: "Shard 1 (docs A–F)", sub: " ", kind: "db" },
+      { id: "s2", x: 560, y: 120, w: 220, label: "Shard 2 (docs G–M)", sub: " ", kind: "db" },
+      { id: "s3", x: 560, y: 200, w: 220, label: "Shard 3 (docs N–S)", sub: " ", kind: "db" },
+      { id: "s4", x: 560, y: 280, w: 220, label: "Shard 4 (docs T–Z)", sub: " ", kind: "db" },
     ],
     edges: [["u", "co"], ["co", "s1"], ["co", "s2"], ["co", "s3"], ["co", "s4"]],
     width: 700, height: 320,
@@ -3709,7 +3743,7 @@ html.iks-open { overflow: hidden; }
   })();
   Viz.scene("#sc-u12-lsm", {
     title: "An LSM tree: write, flush, read, compact", sub: "Box text shows the keys each part holds.",
-    nodes: [{ id: "c", x: 80, y: 150, w: 110, label: "Client", sub: " " }, { id: "wal", x: 300, y: 50, w: 220, label: "Write-ahead log", sub: "k1 k5" },
+    nodes: [{ id: "c", x: 80, y: 150, w: 110, label: "Client", sub: " ", kind: "client" }, { id: "wal", x: 300, y: 50, w: 220, label: "Write-ahead log", sub: "k1 k5" },
       { id: "mem", x: 300, y: 150, w: 220, label: "Memtable (memory, sorted)", sub: "k1 k5" }, { id: "l0", x: 580, y: 150, w: 230, label: "Level 0 files", sub: "F1: k2 k3 · F2: k3 k8" },
       { id: "l1", x: 580, y: 270, w: 230, label: "Level 1 (one sorted run)", sub: "k1…k9 (older)" }],
     edges: [["c", "wal"], ["c", "mem"], ["mem", "l0"], ["l0", "l1"]],
