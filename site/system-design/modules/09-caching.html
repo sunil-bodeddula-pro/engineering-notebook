@@ -174,6 +174,8 @@ a:hover { text-decoration-thickness: 2px; }
   /* Without JavaScript the drawer can't open, so show the menu as a plain block instead. */
   html:not(.js) .sidenav { position: static; transform: none; visibility: visible; width: auto; padding: 16px; box-shadow: none; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+/* Very small phones: the brand, search and menu buttons only just fit */
+@media (max-width: 380px) { .topbar { gap: 8px; } .nav-toggle { padding: 8px 10px !important; gap: 7px !important; } }
 /* Six track tabs: tighten them on mid-size screens, and move them into the menu drawer below 1000px */
 @media (max-width: 1260px) { .tracks { margin-left: 6px; gap: 2px; } .tracks a, .tracks .track-soon { padding: 7px 9px; font-size: .88rem; } .topbar .search-btn kbd { display: none; } }
 @media (max-width: 1160px) { .tracks a, .tracks .track-soon { padding: 7px 7px; font-size: .84rem; } .topbar .search-btn-label { display: none; } }
@@ -409,13 +411,13 @@ details.problem ul.edges { margin-top: 4px; }
 .quiz-q button.right, .tl-opts button.right { background: var(--green-soft); border-color: var(--green); }
 .quiz-q button.wrong, .tl-opts button.wrong { background: var(--red-soft); border-color: var(--red); }
 /* pills: on/off toggles, and accent pills that start something (tour, next step) */
-.widget .seg button, .sketch-toggle, .tour-btn, .tl-ask button.tl-go {
+.widget .seg button, .fig-tabs button, .sketch-toggle, .tour-btn, .tl-ask button.tl-go {
   display: inline-flex; align-items: center; gap: 6px; font: 600 .82rem var(--sans); padding: 6px 12px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); cursor: pointer;
   transition: background-color .15s, border-color .15s, color .15s;
 }
-.widget .seg button:hover, .sketch-toggle:hover { color: var(--ink); background: var(--surface-2); }
-.widget .seg button[aria-pressed="true"], .sketch-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.widget .seg button:hover, .fig-tabs button:hover, .sketch-toggle:hover { color: var(--ink); background: var(--surface-2); }
+.widget .seg button[aria-pressed="true"], .fig-tabs button[aria-pressed="true"], .sketch-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tour-btn, .tl-ask button.tl-go { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .tour-btn:hover, .tl-ask button.tl-go:hover { background: var(--surface); }
 .tour-btn { font-size: .88rem; padding: 7px 14px; margin: 4px 0 8px; }
@@ -531,6 +533,35 @@ svg.flow .pk { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; p
 svg.flow .fn rect, svg.flow .fe { transition: fill .35s ease, stroke .35s ease, opacity .35s ease; }
 svg.flow .fn { transition: opacity .35s ease; }
 @media (prefers-reduced-motion: reduce) { svg.flow .fe.active { animation: none; } svg.flow .pk { display: none; } }
+/* Component kinds (Viz.flow node.kind): the shape says what a box is; the outline marks follow the box's state */
+svg.flow .fn .fd, .flow-legend .fd { fill: none; stroke: var(--ink-3); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+svg.flow .fn.active .fd { stroke: var(--blue); } svg.flow .fn.found .fd { stroke: var(--green); }
+svg.flow .fn.warm .fd { stroke: var(--gold); } svg.flow .fn.bad .fd { stroke: var(--red); }
+svg.flow .fn[data-kind="client"] rect { fill: var(--surface-2); }
+svg.flow .fn[data-kind="db"] rect, svg.flow .fn[data-kind="store"] rect { stroke-width: 1.8; }
+.flow-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 6px; font-size: .74rem; color: var(--ink-3); }
+.flow-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.flow-legend rect { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.4; }
+/* Step numbers on arrows (edge option n) */
+svg.flow .fb circle { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.4; transition: fill .3s, stroke .3s; }
+svg.flow .fb text { font: 700 10.5px var(--sans); fill: var(--ink-2); }
+svg.flow .fb.active circle { fill: var(--accent); stroke: var(--accent); } svg.flow .fb.active text { fill: var(--surface); }
+svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.bad text { fill: var(--surface); }
+/* Viz.figure: the numbered walkthrough under a still diagram */
+.vfig .fig-steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; text-align: left; }
+.vfig .fig-steps li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: .92rem; line-height: 1.45; }
+.vfig .fig-steps li:hover, .vfig .fig-steps li.on, .vfig .fig-steps li:focus-visible { background: var(--surface-2); outline: none; box-shadow: inset 3px 0 0 var(--accent); }
+.vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
+.vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
+.fig-tabs + .viz { margin-top: 10px; }
+.vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
+/* Every caption of a scene as one list */
+.sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
+.sc-all summary { cursor: pointer; color: var(--ink-2); font-weight: 600; }
+.sc-all ol { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 4px; }
+.sc-all li { cursor: pointer; padding: 2px 6px; border-radius: 6px; line-height: 1.45; }
+.sc-all li.on { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
 .figure { margin: var(--flow) 0; padding: 16px; background: var(--surface-2); border-radius: 12px; text-align: center; overflow-x: auto; }
 .figure figcaption { margin-top: 8px; font-size: .88rem; color: var(--ink-2); text-align: left; }
 
@@ -986,7 +1017,7 @@ html.iks-open { overflow: hidden; }
       const s = Math.min(Math.abs((n.w / 2 + 3) / (dx || 1e-9)), Math.abs((n.h / 2 + 3) / (dy || 1e-9)));
       return [n.x + dx * s, n.y + dy * s];
     };
-    let e = "";
+    let e = "", badges = "";
     edges.forEach(([a, b, label, o = {}]) => {
       // o.level: enter the target at the source's height (straight across into a tall box)
       // o.levelFrom: leave the source at the target's height (straight out of a tall box)
@@ -1000,20 +1031,117 @@ html.iks-open { overflow: hidden; }
       e += `<path class="fe ${cls}" data-e="${esc(a + ">" + b)}" d="${d}" marker-end="url(#${uid}-${mk})"/>`;
       // A "packet" travels along every active edge, so the eye follows the request (hidden for reduced motion).
       if (cls === "active") e += `<circle class="pk" r="4.5"><animateMotion dur="${Math.min(2.2, Math.max(0.8, L / 140)).toFixed(2)}s" repeatCount="indefinite" path="${d}"/></circle>`;
-      if (label) {
-        const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
+      const lx = 0.25 * x1 + 0.5 * cx + 0.25 * x2, ly = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
+      // o.n: a step number in a circle on the arrow, matching a numbered line in the text (Viz.figure lists them)
+      const num = o.n != null ? String(o.n) : "", bw = num ? 9 + 3.5 * num.length : 0;
+      if (num) badges += `<g class="fb ${cls}" data-e="${esc(a + ">" + b)}"><circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="${bw}"/><text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="middle">${esc(num)}</text></g>`;
+      if (label && num) {
+        // next to its badge, drawn above the boxes: beside it on an up-down arrow, over it on a sideways one
+        const side = Math.abs(x2 - x1) < Math.abs(y2 - y1);
+        // on a curved arrow, the label goes on the outside of the curve, away from its partner arrow
+        const left = side && cx < mx - 1, below = !side && cy > my + 1;
+        const tx = side ? lx + (left ? -1 : 1) * (bw + 4) : lx, ty = side ? ly + 4 : below ? ly + bw + 13 : ly - bw - 5;
+        badges += `<text class="fl ${cls}" data-e="${esc(a + ">" + b)}" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${side ? (left ? "end" : "start") : "middle"}">${esc(label)}</text>`;
+      } else if (label) {
         e += `<text class="fl ${cls}" data-e="${esc(a + ">" + b)}" x="${lx.toFixed(1)}" y="${(ly - 5).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
       }
     });
     const ns = nodes.map((n0) => {
-      const n = by[n0.id], cls = hl[n.id] || "";
-      return `<g class="fn ${cls}" data-n="${esc(n.id)}"><rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}" rx="10"/>` +
-        `<text x="${n.x}" y="${n.y + (n.sub ? -3 : 5)}" text-anchor="middle" class="fn-l">${esc(n.label ?? n.id)}</text>` +
-        (n.sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
+      const n = by[n0.id], cls = hl[n.id] || "", k = KINDS[n.kind] ? n.kind : "";
+      const x = n.x - n.w / 2, y = n.y - n.h / 2;
+      return `<g class="fn ${cls}" data-n="${esc(n.id)}"${k ? ` data-kind="${k}"` : ""}><rect x="${x}" y="${y}" width="${n.w}" height="${n.h}" ${k ? KINDS[k].rect(n.w, n.h) : 'rx="10"'}/>` +
+        (k && KINDS[k].deco ? `<path class="fd" d="${KINDS[k].deco(x, y, n.w, n.h)}"/>` : "") +
+        `<text x="${n.x}" y="${n.y + (n.sub ? -3 : 5) + (k === "db" ? ry(n.h) * 0.8 : 0)}" text-anchor="middle" class="fn-l">${esc(n.label ?? n.id)}</text>` +
+        (n.sub ? `<text x="${n.x}" y="${n.y + 14 + (k === "db" ? ry(n.h) * 0.8 : 0)}" text-anchor="middle" class="fn-s">${esc(n.sub)}</text>` : "") + `</g>`;
     }).join("");
     const marker = (k) => `<marker id="${uid}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="fm-${k}" d="M0,0 L10,5 L0,10 z"/></marker>`;
     // Wrapped so that on narrow screens only the diagram scrolls sideways, not the text around it.
-    return `<div class="flow-wrap"><svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" style="--w:${W}px" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}</svg></div>`;
+    return `<div class="flow-wrap"><svg class="flow" viewBox="0 0 ${W} ${H}" width="${W}" style="--w:${W}px" role="img" aria-label="${esc(opts.title || "flow diagram")}"><defs>${marker("n")}${marker("a")}${marker("b")}</defs>${e}${ns}${badges}</svg></div>` +
+      (opts.legend === false ? "" : legend(nodes));
+  }
+
+  /* One shape per kind of component, the same on every page (node.kind). A node without a kind is a plain box.
+   * rect(n): extra attributes for the box; deco(x, y, w, h): an extra outline drawn on top (path d). */
+  const ry = (h) => Math.min(7, h / 5);
+  const KINDS = {
+    client: { name: "Client / user", rect: (w, h) => `rx="${Math.min(h / 2, 22)}"` },
+    service: { name: "Service", rect: () => 'rx="10"' },
+    lb: { name: "Load balancer / gateway", rect: () => 'rx="3"', deco: (x, y, w, h) => { const d = Math.min(6, h / 4); return `M${x + 3 + d},${y + 4} L${x + 3},${y + h / 2} L${x + 3 + d},${y + h - 4} M${x + w - 3 - d},${y + 4} L${x + w - 3},${y + h / 2} L${x + w - 3 - d},${y + h - 4}`; } },
+    cache: { name: "Cache", rect: () => 'rx="10"', deco: (x, y, w, h) => { const s = Math.min(1, h / 40); return `M${x + w - 10 - 5 * s},${y + 3} L${x + w - 10 - 9 * s},${y + 3 + 8 * s} L${x + w - 10 - 4 * s},${y + 3 + 8 * s} L${x + w - 10 - 8 * s},${y + 3 + 16 * s}`; } },
+    db: { name: "Database", rect: (w, h) => `rx="${w / 2}" ry="${ry(h)}"`, deco: (x, y, w, h) => `M${x},${y + ry(h)} A${w / 2},${ry(h)} 0 0 0 ${x + w},${y + ry(h)}` },
+    queue: { name: "Queue / log", rect: () => 'rx="4"', deco: (x, y, w, h) => [1, 2, 3].map((i) => `M${x + w - Math.min(8, w / 8) * i},${y + 4} L${x + w - Math.min(8, w / 8) * i},${y + h - 4}`).join(" ") },
+    store: { name: "Object / file store", rect: () => 'rx="4"', deco: (x, y, w, h) => { const c = Math.min(14, h / 2); return `M${x + w - c},${y} L${x + w},${y + c}`; } },
+    cdn: { name: "CDN / edge", rect: (w, h) => `rx="${Math.min(h / 2, 18)}"`, deco: (x, y, w, h) => `M${x + h / 3},${y + h - Math.min(6, h / 4)} L${x + w - h / 3},${y + h - Math.min(6, h / 4)}` },
+    ext: { name: "Outside system", rect: () => 'rx="10" stroke-dasharray="5 4"' },
+  };
+  function legend(nodes) {
+    const used = [...new Set(nodes.map((n) => n.kind).filter((k) => KINDS[k]))];
+    if (used.length < 2) return "";
+    return `<div class="flow-legend" aria-hidden="true">` + used.map((k) =>
+      `<span><svg viewBox="-2 -2 36 24" width="30" height="20"><g class="fn" data-kind="${k}"><rect x="0" y="0" width="32" height="20" ${KINDS[k].rect(32, 20)}/>` +
+      (KINDS[k].deco ? `<path class="fd" d="${KINDS[k].deco(0, 0, 32, 20)}"/>` : "") + `</g></svg>${esc(KINDS[k].name)}</span>`).join("") + `</div>`;
+  }
+
+  /** Figure: a still diagram with numbered arrows and the matching numbered explanation underneath.
+   *  cfg {title, sub, nodes, edges, width, height, steps: [text | {n, text, hl}], after}
+   *  Edges carry their number as {n: 1} (4th item). Step k (numbered k + 1 unless it sets n) explains the arrows
+   *  with that number; pointing at, focusing or tapping a step lights those arrows and the boxes at their ends.
+   *  after: optional HTML under the steps (a "why it matters" line). */
+  function figure(target, cfg) {
+    const root = typeof target === "string" ? document.querySelector(target) : target;
+    if (!root) return;
+    const steps = (cfg.steps || []).map((s, k) => (typeof s === "string" ? { text: s } : s)).map((s, k) => ({ ...s, n: String(s.n ?? k + 1) }));
+    const view = (k) => {
+      const hl = {}, eh = {};
+      if (k != null) {
+        const s = steps[k];
+        cfg.edges.forEach(([a, b, , o]) => { if (o && String(o.n) === s.n) { eh[a + ">" + b] = "active"; hl[a] = hl[a] || "active"; hl[b] = "active"; } });
+        Object.assign(hl, s.hl || {});
+      }
+      return flow(cfg.nodes, cfg.edges, { hl, edgeHl: eh, width: cfg.width, height: cfg.height, title: cfg.title });
+    };
+    root.classList.add("viz", "vfig");
+    root.innerHTML = (cfg.title ? `<div class="viz-title">${esc(cfg.title)}</div>` : "") + (cfg.sub ? `<div class="viz-sub">${cfg.sub}</div>` : "") +
+      `<div class="stage">${view(null)}</div>` +
+      (steps.length ? `<ol class="fig-steps">${steps.map((s, k) => `<li tabindex="0" data-k="${k}"><b class="fig-n">${esc(s.n)}</b><span>${s.text}</span></li>`).join("")}</ol>` : "") +
+      (cfg.after ? `<p class="fig-after">${cfg.after}</p>` : "");
+    const stage = root.querySelector(".stage");
+    // Phones: the diagram scrolls sideways; say so, and bring a chosen step's arrows into view.
+    const hint = document.createElement("div");
+    hint.className = "sc-swipe"; hint.textContent = "⇆ Swipe to see the whole diagram; tap a step to jump to it";
+    stage.after(hint);
+    const wrap = () => stage.querySelector(".flow-wrap");
+    const sizeHint = () => { const w = wrap(); hint.hidden = !(w && w.scrollWidth > w.clientWidth + 2); };
+    sizeHint(); window.addEventListener("resize", sizeHint);
+    const follow = () => {
+      const w = wrap(), svg = w && w.querySelector("svg"), lit = svg ? [...svg.querySelectorAll("path.fe.active")] : [];
+      if (!lit.length || w.scrollWidth <= w.clientWidth + 2) return;
+      const xs = lit.map((p) => p.getBBox()), k = svg.getBoundingClientRect().width / (cfg.width || 560);
+      const mid = (Math.min(...xs.map((b) => b.x)) + Math.max(...xs.map((b) => b.x + b.width))) / 2;
+      w.scrollTo({ left: Math.max(0, mid * k - w.clientWidth / 2), behavior: reduceMotion() ? "auto" : "smooth" });
+    };
+    let cur = null;
+    const set = (k) => {
+      if (k === cur) return;
+      cur = k; const left = wrap() ? wrap().scrollLeft : 0;
+      morph(stage, view(k)); if (wrap()) wrap().scrollLeft = left;
+      root.querySelectorAll(".fig-steps li").forEach((li) => li.classList.toggle("on", +li.dataset.k === k));
+      follow();
+    };
+    root.querySelectorAll(".fig-steps li").forEach((li) => {
+      const k = +li.dataset.k;
+      li.addEventListener("mouseenter", () => set(k)); li.addEventListener("focus", () => set(k));
+      li.addEventListener("click", () => set(cur === k ? null : k));
+    });
+    root.querySelector(".fig-steps")?.addEventListener("mouseleave", () => { if (!root.contains(document.activeElement)) set(null); });
+    if (typeof queueRoughen === "function") queueRoughen();
+  }
+
+  /** Every step's caption as one numbered list under a scene or stepper, for reading at your own pace. */
+  function allSteps(notes) {
+    const items = notes.filter(Boolean);
+    if (items.length < 2) return "";
+    return `<details class="sc-all"><summary>Read all ${items.length} steps</summary><ol>${notes.map((t, k) => `<li data-k="${k}">${t || ""}</li>`).join("")}</ol></details>`;
   }
 
   /** Horizontal interval bars. items [{s,e,label,cls}], range [lo,hi] */
@@ -1370,6 +1498,7 @@ html.iks-open { overflow: hidden; }
     const edgesAt = (k) => cfg.edges.filter(([a, b]) => edgeOn(states[k], a, b));
     const fig = (s, k) => flow(nodesAt(k), edgesAt(k), { hl: s.hl, edgeHl: edgeCls(s), width: cfg.width, height: cfg.height, title: cfg.title });
     stepper(root, { title: cfg.title, sub: cfg.sub, frames: steps.map((s, k) => ({ view: fig(s, k), note: s.note })), speed: cfg.speed || 3200 });
+    root.insertAdjacentHTML("beforeend", allSteps(steps.map((s) => s.note)));
     if (reduceMotion()) return;
     lib("gsap").then(() => upgrade()).catch(() => {});
 
@@ -1390,7 +1519,7 @@ html.iks-open { overflow: hidden; }
            <button id="${id}-next" title="Next step (→)">Next ▶</button>
            <input id="${id}-range" type="range" min="0" max="${Math.max(0, n - 1)}" step="0.01" value="0" aria-label="timeline">
            <button id="${id}-speed" class="sc-speed" title="Speed">1×</button>
-         </div>`;
+         </div>` + allSteps(steps.map((s) => s.note));
       const svg = root.querySelector("svg.flow"), note = root.querySelector(".note"), range = root.querySelector(`#${id}-range`);
       const playBtn = root.querySelector(`#${id}-play`), speedBtn = root.querySelector(`#${id}-speed`), dots = [...root.querySelectorAll(".sc-dots button")];
       const uid = (svg.querySelector("marker") || { id: "" }).id.replace(/-n$/, "");
@@ -1484,6 +1613,7 @@ html.iks-open { overflow: hidden; }
         note.innerHTML = s.note || "";
         if (note.animate) note.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
         dots.forEach((d, j) => d.setAttribute("aria-current", String(j === k)));
+        root.querySelectorAll(".sc-all li").forEach((li) => li.classList.toggle("on", +li.dataset.k === k));
         follow(s);
       }
       function sync() {
@@ -1500,6 +1630,7 @@ html.iks-open { overflow: hidden; }
       playBtn.onclick = () => { if (tl.isActive()) { tl.pause(); sync(); } else if (tl.time() >= total - 0.02) tl.restart(); else tl.play(); sync(); };
       range.oninput = () => { const v = +range.value, k = Math.min(n - 1, Math.floor(v)); tl.pause(starts[k] + (v - k) * (starts[k + 1] - starts[k])); sync(); };
       dots.forEach((d) => (d.onclick = () => go(+d.dataset.k)));
+      root.querySelectorAll(".sc-all li").forEach((li) => (li.onclick = () => go(+li.dataset.k)));
       const SPEEDS = [1, 1.5, 0.6];
       speedBtn.onclick = () => { const i = (SPEEDS.indexOf(tl.timeScale()) + 1) % SPEEDS.length; tl.timeScale(SPEEDS[i]); speedBtn.textContent = SPEEDS[i] + "×"; };
       root.tabIndex = 0;
@@ -2848,7 +2979,7 @@ html.iks-open { overflow: hidden; }
     });
   });
 
-  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
+  window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
 <!-- inline-assets:end -->
@@ -2939,6 +3070,9 @@ html.iks-open { overflow: hidden; }
     <p>Cache-aside (also called lazy loading) is the default: the application checks the cache, and on a miss reads the database and fills the cache. On a write, it updates the database and <strong>deletes</strong> the cached key. Press Play, including the race at the end.</p>
     <div id="viz-cache"></div>
     <h3>The other patterns</h3>
+    <p>Cache-aside isn't the only way to wire a cache to a database. The four alternatives differ in two questions: <strong>who loads the cache on a miss</strong> (the application or the cache itself), and <strong>when a write reaches the database</strong> (before the caller gets an answer, or later). Pick a pattern below; each numbered arrow matches a numbered line, and pointing at a line lights up its arrow.</p>
+    <div class="fig-tabs" id="pat-tabs" role="group" aria-label="Caching pattern"></div>
+    <div id="fig-pat"></div>
     <table class="pat">
       <thead><tr><th>Pattern</th><th>How</th><th>Use when</th><th>Watch out</th></tr></thead>
       <tbody>
@@ -2966,6 +3100,29 @@ html.iks-open { overflow: hidden; }
         <tr><td>Penetration</td><td>Requests for keys that don't exist miss every time</td><td>Cache "not found" briefly; a Bloom filter of existing keys</td></tr>
       </tbody>
     </table>
+    <h3 id="invalidation">Cache invalidation: keeping the copy honest</h3>
+    <p>A cache holds a copy, and a copy goes out of date the moment the original changes. <em>Invalidation</em> is how you decide that a cached entry can no longer be trusted. There are three ways to do it, and real systems usually combine them.</p>
+    <table class="pat">
+      <thead><tr><th>Approach</th><th>How it works</th><th>How stale can a read be?</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>Expire on a timer (TTL)</td><td>Every entry carries a time-to-live; after it, the next read misses and reloads</td><td>Up to the whole TTL</td><td>None to build; you trade freshness against hit ratio when picking the TTL</td></tr>
+        <tr><td>Delete on write</td><td>The code that writes the database also deletes the cached key</td><td>Usually milliseconds; longer if the delete fails or races a slow reader</td><td>Every write path must remember to do it, including scripts and admin tools</td></tr>
+        <tr><td>Invalidate from the change log</td><td>A separate worker reads the database's change stream and deletes the affected keys</td><td>The lag of the change stream, typically under a second</td><td>One more moving part to run; but no write path can forget</td></tr>
+      </tbody>
+    </table>
+    <p>The third approach is the most robust, because it watches the database itself rather than trusting every piece of code that writes to it. Here it is for a bookshop changing a book's price:</p>
+    <div id="fig-inval"></div>
+    <p>Whatever you choose, <strong>keep a TTL on every key as a safety net</strong>: if a delete is lost, the stale entry still dies on its own. And prefer <strong>deleting</strong> a key to <strong>overwriting</strong> it on a write; two writers overwriting in the wrong order leave the older value cached, while two deletes can't conflict.</p>
+
+    <h3 id="coherence">Many caches, one truth</h3>
+    <p>Large services often keep a small cache <em>inside each application server</em> (a few seconds of the hottest keys, read in microseconds) in front of the shared cache. That creates a new problem: when one server changes a value, the copies held by all the <em>other</em> servers are now wrong, and the database doesn't know they exist. Keeping these copies in agreement is called <strong>cache coherence</strong>.</p>
+    <div id="fig-coherence"></div>
+    <ul>
+      <li><strong>Short local TTLs</strong> (1–5 seconds) are the simplest fix: a local copy can only be wrong for that long. Good enough for prices on a listing page; not for a bank balance.</li>
+      <li><strong>Broadcast invalidations</strong> over a pub/sub channel, as above. Messages can be lost (pub/sub usually doesn't store them), so keep the short TTL as well.</li>
+      <li><strong>Versioned keys:</strong> store a version number in the shared cache and include it in the local key (<code>book:42:v7</code>). A server that sees a newer version knows its copy is old.</li>
+      <li><strong>Don't cache locally</strong> what must always be correct. Many teams only cache data locally that is read far more than it changes and where a few seconds of staleness is acceptable.</li>
+    </ul>
 
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
@@ -3339,11 +3496,11 @@ html.iks-open { overflow: hidden; }
   const $ = (id) => document.getElementById(id);
   /* ---------- step-through: cache-aside and the race ---------- */
   const N = [
-    { id: "a", x: 90, y: 60, w: 110, label: "Request A" },
-    { id: "b", x: 90, y: 160, w: 110, label: "Request B" },
-    { id: "app", x: 260, y: 110, w: 110, label: "App server" },
-    { id: "cache", x: 440, y: 55, w: 120, label: "Cache", sub: "Redis" },
-    { id: "db", x: 440, y: 165, w: 120, label: "Database", sub: "source of truth" },
+    { id: "a", x: 90, y: 60, w: 110, label: "Request A", kind: "client" },
+    { id: "b", x: 90, y: 160, w: 110, label: "Request B", kind: "client" },
+    { id: "app", x: 260, y: 110, w: 110, label: "App server", kind: "service" },
+    { id: "cache", x: 440, y: 55, w: 120, label: "Cache", sub: "Redis", kind: "cache" },
+    { id: "db", x: 440, y: 165, w: 120, label: "Database", sub: "source of truth", kind: "db" },
   ];
   const E = [["a", "app"], ["b", "app"], ["app", "cache"], ["app", "db"]];
   const fig = (hl, eh, cacheTxt, dbTxt) => `<div style="display:grid;gap:8px;justify-items:center">${Viz.flow(N, E, { hl, edgeHl: eh, width: 540, height: 215, title: "cache-aside" })}<div class="cstat no-gl"><span>cache: ${cacheTxt}</span><span>db: ${dbTxt}</span></div></div>`;
@@ -3415,8 +3572,8 @@ html.iks-open { overflow: hidden; }
   $("ev-in").value = PRE["Popular + one-offs"]; ev();
   Viz.scene("#sc-main", {
     title: "Cache-aside, and its race", sub: "Box text shows the value each store holds for user:7. <b>Red</b> = stale.",
-    nodes: [{ id: "r", x: 85, y: 55, w: 140, label: "Reader", sub: " " }, { id: "w", x: 85, y: 205, w: 140, label: "Writer", sub: " " },
-      { id: "cache", x: 330, y: 130, w: 170, label: "Cache", sub: "user:7 = (empty)" }, { id: "db", x: 560, y: 130, w: 170, label: "Database", sub: "user:7 = v1" }],
+    nodes: [{ id: "r", x: 85, y: 55, w: 140, label: "Reader", sub: " ", kind: "service" }, { id: "w", x: 85, y: 205, w: 140, label: "Writer", sub: " ", kind: "service" },
+      { id: "cache", x: 330, y: 130, w: 170, label: "Cache", sub: "user:7 = (empty)", kind: "cache" }, { id: "db", x: 560, y: 130, w: 170, label: "Database", sub: "user:7 = v1", kind: "db" }],
     edges: [["r", "cache"], ["r", "db", "", { bend: -40 }], ["w", "db", "", { bend: 40 }], ["w", "cache"]],
     width: 650, height: 260,
     steps: [
@@ -3433,6 +3590,70 @@ html.iks-open { overflow: hidden; }
       { hl: { cache: "bad", r: "bad" }, set: { cache: "user:7 = v1 (stale, for 300 s)", r: "wakes, sets v1" }, moves: [{ e: "r>cache", t: "set v1", k: "bad" }], pops: [{ n: "cache", t: "database says v2", k: "bad", at: 1.2 }], hold: 4.4,
         note: "The reader wakes and caches its old v1. Database: v2; cache: v1, until the TTL expires. That's why every cached key gets a TTL, and why some systems use versioned sets or a short delayed second delete." },
     ],
+  });
+  /* ---------- the caching patterns, one numbered figure each ---------- */
+  const PN = (cacheSub, dbSub) => [{ id: "app", x: 100, y: 115, w: 130, label: "App server", sub: "your code", kind: "service" },
+    { id: "cache", x: 440, y: 45, w: 170, label: "Cache", sub: cacheSub, kind: "cache" }, { id: "db", x: 440, y: 190, w: 170, label: "Database", sub: dbSub, kind: "db" }];
+  const PATS = {
+    "Read-through": { sub: "The cache loads missing data itself; the app only ever talks to the cache.", nodes: PN("has a loader", "source of truth"),
+      edges: [["app", "cache", "get book:42", { n: 1, bend: -30 }], ["cache", "db", "load on miss", { n: 2, bend: -28 }], ["db", "cache", "row", { n: 3, bend: -28 }], ["cache", "app", "value", { n: 4, bend: -30 }]],
+      steps: ["The app asks the cache for <code>book:42</code>. It has no database code for this read at all.",
+        "On a miss, the <em>cache</em> runs its loader: a function you registered that knows how to read a book from the database.",
+        "The database returns the row, and the cache stores it with a TTL.",
+        "The cache answers the app. The next request for <code>book:42</code> stops at step 1 and is answered from memory."],
+      after: "<b>Compared with cache-aside:</b> the same behaviour, but the loading logic lives in one place instead of in every caller. CDNs and caching libraries (Caffeine, Guava) work this way." },
+    "Write-through": { sub: "A write isn't finished until both the cache and the database have it.", nodes: PN("always current", "source of truth"),
+      edges: [["app", "cache", "save price", { n: 1, bend: -30 }], ["cache", "db", "same write", { n: 2, bend: -28 }], ["db", "cache", "stored", { n: 3, bend: -28 }], ["cache", "app", "done", { n: 4, bend: -30 }]],
+      steps: ["The app sends the new price to the cache.", "The cache writes it to the database straight away, inside the same request.",
+        "The database confirms the write is durable.", "Only now does the app hear \"done\". The cache and the database agree, so the next read is a fresh hit."],
+      after: "<b>Cost:</b> every write waits for two systems, and you cache things that may never be read. Use it when reads must see writes immediately." },
+    "Write-behind": { sub: "Also called write-back: the cache says \"done\" first and saves to the database later, in batches.", nodes: PN("holds unsaved writes", "updated every few seconds"),
+      edges: [["app", "cache", "views +1", { n: 1, bend: -30 }], ["cache", "app", "done", { n: 2, bend: -30 }], ["cache", "db", "batch of 5,000", { n: 3 }]],
+      steps: ["The app records a page view: it adds 1 to a counter in the cache.", "The cache answers at once. The write took well under a millisecond and never touched the database.",
+        "Every few seconds, the cache flushes all pending changes to the database as one batch: one write instead of 5,000."],
+      after: "<b>Cost:</b> if the cache crashes between steps 2 and 3, those writes are lost. Use it only for data where losing a few seconds is acceptable: view counts, analytics, likes." },
+    "Write-around": { sub: "Writes go straight to the database; the cache only fills when someone reads.", nodes: PN("filled on reads only", "source of truth"),
+      edges: [["app", "db", "save upload", { n: 1, bend: 26 }], ["app", "cache", "get: miss, then set", { n: 2 }], ["db", "app", "read row", { n: 3, bend: 26 }]],
+      steps: ["The app writes the new data (a just-uploaded file's details) directly to the database. The cache isn't touched.",
+        "Later, the first reader asks the cache and misses, because nothing put the data there.",
+        "The app reads it from the database and then stores it in the cache (along arrow 2), so later readers hit."],
+      after: "<b>Use it for</b> data that is written once and often never read again, such as logs and uploads, so it doesn't push useful entries out of the cache." },
+  };
+  const patTabs = document.getElementById("pat-tabs");
+  const showPat = (name) => {
+    const p = PATS[name];
+    Viz.figure("#fig-pat", { title: name, sub: p.sub, nodes: p.nodes, edges: p.edges, steps: p.steps, after: p.after, width: 560, height: 240 });
+    patTabs.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.textContent === name)));
+  };
+  patTabs.innerHTML = Object.keys(PATS).map((k) => `<button type="button" aria-pressed="false">${k}</button>`).join("");
+  patTabs.querySelectorAll("button").forEach((b) => (b.onclick = () => showPat(b.textContent)));
+  showPat("Read-through");
+
+  Viz.figure("#fig-inval", {
+    title: "Invalidating from the change log", sub: "The writer never touches the cache; a worker that follows the database's changes does it instead.",
+    nodes: [{ id: "admin", x: 70, y: 60, w: 120, label: "Price tool", sub: "staff update", kind: "client" }, { id: "db", x: 290, y: 60, w: 140, label: "Database", sub: "book 42: £9 → £7", kind: "db" },
+      { id: "log", x: 520, y: 60, w: 150, label: "Change stream", sub: "row-level changes", kind: "queue" }, { id: "inv", x: 520, y: 185, w: 150, label: "Invalidator", sub: "maps rows to keys", kind: "service" },
+      { id: "cache", x: 290, y: 185, w: 140, label: "Cache", sub: "book:42", kind: "cache" }, { id: "shop", x: 70, y: 185, w: 120, label: "Shop page", sub: "next reader", kind: "client" }],
+    edges: [["admin", "db", "UPDATE", { n: 1 }], ["db", "log", "change", { n: 2 }], ["log", "inv", "", { n: 3 }], ["inv", "cache", "DEL", { n: 4 }], ["shop", "cache", "miss, reload", { n: 5 }]],
+    width: 610, height: 240,
+    steps: ["A member of staff lowers the price of book 42. The tool only writes to the database; it knows nothing about caches.",
+      "The database records the change in its log (in PostgreSQL the write-ahead log, in MySQL the binlog). A connector such as Debezium publishes it as an event.",
+      "An invalidator service reads the event and works out which cache keys depend on that row: <code>book:42</code>, and perhaps a category page too.",
+      "It deletes those keys. If the delete fails it retries, because the event is still in the stream.",
+      "The next shopper misses the cache and loads the new £7 price, then refills the cache."],
+    after: "<b>Why it's robust:</b> every write, from any tool or script, reaches the database, so every write gets invalidated. The price is a short delay (the stream's lag) and one more service to run.",
+  });
+  Viz.figure("#fig-coherence", {
+    title: "Broadcasting an invalidation to every server", sub: "Each app server keeps its own local copy of <code>book:42</code>.",
+    nodes: [{ id: "a", x: 90, y: 50, w: 140, label: "Server A", sub: "changes the price", kind: "service" }, { id: "db", x: 370, y: 50, w: 140, label: "Database", sub: "and shared cache", kind: "db" },
+      { id: "bus", x: 100, y: 185, w: 170, label: "Pub/sub channel", sub: "\"invalidate\"", kind: "queue" },
+      { id: "b", x: 370, y: 150, w: 140, label: "Server B", sub: "local copy dropped", kind: "service" }, { id: "c", x: 370, y: 225, w: 140, label: "Server C", sub: "local copy dropped", kind: "service" }],
+    edges: [["a", "db", "write £7", { n: 1 }], ["a", "bus", "book:42", { n: 2 }], ["bus", "b", "", { n: 3 }], ["bus", "c", "", { n: 3 }]],
+    width: 500, height: 260,
+    steps: ["Server A saves the new price and deletes the key in the shared cache, as with any write.",
+      "It also publishes a short message, \"invalidate book:42\", on a channel every server subscribes to (Redis pub/sub is a common choice).",
+      "Every other server receives it and drops its local copy. Their next read goes to the shared cache and gets £7."],
+    after: "<b>The gap:</b> a server that was restarting or briefly disconnected misses the message. That's why the local copies also keep a short TTL.",
   });
   Viz.tour("#tour", [
     { el: "#idea", title: "1 · The idea", text: "Keep a copy of the popular few close by; skewed access makes it work." },

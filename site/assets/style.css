@@ -144,6 +144,8 @@ a:hover { text-decoration-thickness: 2px; }
   /* Without JavaScript the drawer can't open, so show the menu as a plain block instead. */
   html:not(.js) .sidenav { position: static; transform: none; visibility: visible; width: auto; padding: 16px; box-shadow: none; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+/* Very small phones: the brand, search and menu buttons only just fit */
+@media (max-width: 380px) { .topbar { gap: 8px; } .nav-toggle { padding: 8px 10px !important; gap: 7px !important; } }
 /* Six track tabs: tighten them on mid-size screens, and move them into the menu drawer below 1000px */
 @media (max-width: 1260px) { .tracks { margin-left: 6px; gap: 2px; } .tracks a, .tracks .track-soon { padding: 7px 9px; font-size: .88rem; } .topbar .search-btn kbd { display: none; } }
 @media (max-width: 1160px) { .tracks a, .tracks .track-soon { padding: 7px 7px; font-size: .84rem; } .topbar .search-btn-label { display: none; } }
@@ -379,13 +381,13 @@ details.problem ul.edges { margin-top: 4px; }
 .quiz-q button.right, .tl-opts button.right { background: var(--green-soft); border-color: var(--green); }
 .quiz-q button.wrong, .tl-opts button.wrong { background: var(--red-soft); border-color: var(--red); }
 /* pills: on/off toggles, and accent pills that start something (tour, next step) */
-.widget .seg button, .sketch-toggle, .tour-btn, .tl-ask button.tl-go {
+.widget .seg button, .fig-tabs button, .sketch-toggle, .tour-btn, .tl-ask button.tl-go {
   display: inline-flex; align-items: center; gap: 6px; font: 600 .82rem var(--sans); padding: 6px 12px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); cursor: pointer;
   transition: background-color .15s, border-color .15s, color .15s;
 }
-.widget .seg button:hover, .sketch-toggle:hover { color: var(--ink); background: var(--surface-2); }
-.widget .seg button[aria-pressed="true"], .sketch-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.widget .seg button:hover, .fig-tabs button:hover, .sketch-toggle:hover { color: var(--ink); background: var(--surface-2); }
+.widget .seg button[aria-pressed="true"], .fig-tabs button[aria-pressed="true"], .sketch-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tour-btn, .tl-ask button.tl-go { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .tour-btn:hover, .tl-ask button.tl-go:hover { background: var(--surface); }
 .tour-btn { font-size: .88rem; padding: 7px 14px; margin: 4px 0 8px; }
@@ -501,6 +503,35 @@ svg.flow .pk { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; p
 svg.flow .fn rect, svg.flow .fe { transition: fill .35s ease, stroke .35s ease, opacity .35s ease; }
 svg.flow .fn { transition: opacity .35s ease; }
 @media (prefers-reduced-motion: reduce) { svg.flow .fe.active { animation: none; } svg.flow .pk { display: none; } }
+/* Component kinds (Viz.flow node.kind): the shape says what a box is; the outline marks follow the box's state */
+svg.flow .fn .fd, .flow-legend .fd { fill: none; stroke: var(--ink-3); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+svg.flow .fn.active .fd { stroke: var(--blue); } svg.flow .fn.found .fd { stroke: var(--green); }
+svg.flow .fn.warm .fd { stroke: var(--gold); } svg.flow .fn.bad .fd { stroke: var(--red); }
+svg.flow .fn[data-kind="client"] rect { fill: var(--surface-2); }
+svg.flow .fn[data-kind="db"] rect, svg.flow .fn[data-kind="store"] rect { stroke-width: 1.8; }
+.flow-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 6px; font-size: .74rem; color: var(--ink-3); }
+.flow-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.flow-legend rect { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.4; }
+/* Step numbers on arrows (edge option n) */
+svg.flow .fb circle { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.4; transition: fill .3s, stroke .3s; }
+svg.flow .fb text { font: 700 10.5px var(--sans); fill: var(--ink-2); }
+svg.flow .fb.active circle { fill: var(--accent); stroke: var(--accent); } svg.flow .fb.active text { fill: var(--surface); }
+svg.flow .fb.bad circle { fill: var(--red); stroke: var(--red); } svg.flow .fb.bad text { fill: var(--surface); }
+/* Viz.figure: the numbered walkthrough under a still diagram */
+.vfig .fig-steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; text-align: left; }
+.vfig .fig-steps li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: .92rem; line-height: 1.45; }
+.vfig .fig-steps li:hover, .vfig .fig-steps li.on, .vfig .fig-steps li:focus-visible { background: var(--surface-2); outline: none; box-shadow: inset 3px 0 0 var(--accent); }
+.vfig .fig-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid var(--ink-3); font: 700 .74rem var(--sans); color: var(--ink-2); }
+.vfig .fig-steps li.on .fig-n { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.fig-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--flow) 0 0; }
+.fig-tabs + .viz { margin-top: 10px; }
+.vfig .fig-after { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); text-align: left; }
+/* Every caption of a scene as one list */
+.sc-all { margin-top: 10px; text-align: left; font-size: .9rem; }
+.sc-all summary { cursor: pointer; color: var(--ink-2); font-weight: 600; }
+.sc-all ol { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 4px; }
+.sc-all li { cursor: pointer; padding: 2px 6px; border-radius: 6px; line-height: 1.45; }
+.sc-all li.on { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
 .figure { margin: var(--flow) 0; padding: 16px; background: var(--surface-2); border-radius: 12px; text-align: center; overflow-x: auto; }
 .figure figcaption { margin-top: 8px; font-size: .88rem; color: var(--ink-2); text-align: left; }
 
