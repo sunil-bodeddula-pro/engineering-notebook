@@ -3217,8 +3217,21 @@ WS  /v1/docs/{id}/session
       <details><summary>Search across documents.</summary><p class="ans">Index snapshots asynchronously into a search engine, with the document's ACL, a few seconds behind.</p></details>
       <details><summary>Comments anchored to text.</summary><p class="ans">Anchors are positions too, so they're transformed like ops (or anchored to CRDT character ids).</p></details>
       <details><summary>Multi-region.</summary><p class="ans">Each document has a home region where its owner runs; users far away have higher latency for others' edits, but their own typing is still instant locally.</p></details>
-    </div>
-
+    </div><!-- fu:board -->
+    <h3 id="fu-board">Variation: a shared whiteboard</h3>
+    <p>"Design a collaborative whiteboard" (sticky notes, shapes, arrows on an endless canvas) reuses the one-server-per-document design above, but the document is a different shape, and that makes merging much simpler.</p>
+    <ul>
+      <li><strong>A set of objects, not a sequence of characters.</strong> Each shape has an ID and properties (x, y, colour, text). Almost every edit is "set property P of object X". Two people changing <em>different</em> properties never conflict; two changing the <em>same</em> property just need everyone to agree on one winner.</li>
+      <li><strong>The server's order decides.</strong> The board's server applies changes in the order they arrive and broadcasts that order, so the last value it received wins everywhere. Timestamps or peer IDs are only needed if replicas merge without a server (offline or peer-to-peer).</li>
+      <li><strong>Text inside a note</strong> is still a sequence, so it uses the text-merging method from 9.1. Only there.</li>
+      <li><strong>Stacking order</strong> uses a sortable key between neighbours (between "a" and "b" is "an"), so "bring to front" changes one object, not every object's position number.</li>
+      <li><strong>Dragging and cursors are not saved.</strong> A drag sends dozens of positions a second; send them over the live channel, throttled, and save only where the shape ends up. Cursors are never saved.</li>
+      <li><strong>Big boards load by area.</strong> A board with 50,000 objects keeps a spatial index (Design D14), and the client loads what's on screen first.</li>
+      <li><strong>Undo is per person:</strong> it undoes your own last change, as a new change, so it never removes someone else's work.</li>
+    </ul>
+    <div id="fig-board"></div>
+    <p class="hint">Read more: Figma's posts on <a href="https://www.figma.com/blog/how-figmas-multiplayer-technology-works/">how its multiplayer editing works</a> and <a href="https://www.figma.com/blog/realtime-editing-of-ordered-sequences/">ordering objects with sortable keys</a>.</p>
+<!-- /fu:board -->
     <!-- 11 -->
     <h2 id="breaks">11. When things break</h2>
     <table>
@@ -3528,6 +3541,30 @@ WS  /v1/docs/{id}/session
     const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && gs) { io.disconnect(); play(); } }, { threshold: 0.5 });
     io.observe($("co"));
   }
+})();
+</script>
+<script data-fu="board">
+(function () {
+  const boardNodes = (srv) => [{ id: "ana", x: 80, y: 70, w: 120, label: "Ana", sub: "browser", kind: "client" },
+    { id: "ben", x: 80, y: 250, w: 120, label: "Ben", sub: "browser", kind: "client" },
+    { id: "srv", x: 330, y: 160, w: 160, label: "Board server", sub: srv, kind: "service" },
+    { id: "log", x: 570, y: 160, w: 140, label: "Change log", sub: "board 912", kind: "db" }];
+  const boardEdges = [["ana", "srv", "", { n: 1, bend: 20 }], ["ben", "srv", "", { n: 2, bend: -20 }], ["srv", "log", "append", { n: 3 }],
+    ["srv", "ana", "", { n: 4, bend: 20 }], ["srv", "ben", "", { n: 4, bend: -20 }]];
+  Viz.figures("#fig-board", {
+    "Different properties": { title: "Ana recolours note 17 while Ben moves it", sub: "Point at a step to light its arrows.",
+      nodes: boardNodes("orders changes"), edges: boardEdges, width: 660, height: 310,
+      steps: ["Ana sets note 17's colour to yellow.", "At the same moment, Ben drags note 17 to (420, 300); his client sends only the final position.",
+        "The server applies both in arrival order and appends them to the board's log. They touch different properties, so both stay.",
+        { text: "It broadcasts both changes. Every screen shows a yellow note at (420, 300).", hl: { ana: "found", ben: "found" } }],
+      after: "<b>No conflict at all:</b> most whiteboard edits are like this, which is why a property map is so much easier than merging text." },
+    "The same property": { title: "Ana and Ben both move note 17", sub: "Ana drops it at (100, 80); Ben drops it at (420, 300), a few milliseconds later.",
+      nodes: boardNodes("last received wins"), edges: boardEdges, width: 660, height: 310,
+      steps: ["Ana's change arrives first: x, y = 100, 80.", "Ben's change arrives second: x, y = 420, 300.",
+        "The server appends both in that order. For the same property, the later one wins.",
+        { text: "Both clients receive both changes in the server's order and end with the note at (420, 300). Ana sees her note jump; that's acceptable on a whiteboard, and her undo can move it back.", hl: { ana: "active", ben: "found" } }],
+      after: "<b>Everyone agrees, someone loses:</b> fine for a position or a colour. Text inside the note can't lose a whole sentence this way, so it uses the text-merging method instead." },
+  }, { label: "Concurrent edits" });
 })();
 </script>
 </body>

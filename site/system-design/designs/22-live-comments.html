@@ -3260,6 +3260,9 @@ DELETE /v1/comments/{comment_id}                (author or moderator)</code></pr
       <details><summary>A legal request: remove every comment by a user, everywhere.</summary><p class="ans">Mark the user banned, emit <code>removed</code> events for their comments on live streams, and run a background job that sets <code>status = removed</code> in storage and purges cached history pages. Log the action for audit.</p></details>
       <details><summary>Costs must drop by half.</summary><p class="ans">Lower the per-viewer cap during calm periods (5 a second is still plenty), batch every 2 s on TV clients, compress batches, move ended streams' comments to cheaper storage, and keep small streams on shared servers. Bandwidth to clients is usually the biggest bill, so the cap is the biggest lever.</p></details>
       <details><summary>Bots flood a stream with near-identical spam.</summary><p class="ans">Per-user and per-IP rate limits (Design D02), near-duplicate detection on text (hash after normalising), account-age and reputation checks, and automatic slow mode when the spam rate spikes. The classifier's score also pushes spam out of the sample.</p></details>
+                        <!-- fu:community -->
+      <details><summary>Make it persistent community chat instead.</summary><p class="ans">Then history matters as much as live delivery: messages are stored by channel and time window, members have read markers, and big servers push full messages only to members viewing the channel. Design D07's <a href="07-chat.html#fu-community">community servers variation</a> walks through it.</p></details>
+<!-- /fu:community -->
     </div>
 
     <!-- 11 -->

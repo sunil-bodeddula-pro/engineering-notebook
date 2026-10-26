@@ -3202,8 +3202,17 @@ POST /v1/places            → create   ·   PATCH /v1/places/{id} → edit (own
       <details><summary>Personalised ranking.</summary><p class="ans">Geo and filters produce candidates; a ranking model reorders them using the user's history, within a time budget, with distance-and-rating as the fallback.</p></details>
       <details><summary>Why not shard by region?</summary><p class="ans">Popular cities would become hot shards while rural ones sit idle. With a 6 GB index, copying it everywhere is simpler and balances naturally.</p></details>
       <details><summary>Spam listings.</summary><p class="ans">Verification for owners, duplicate detection by name and location, and review-based trust signals before a listing ranks well.</p></details>
-    </div>
-
+    </div><!-- fu:stays -->
+    <h3 id="fu-stays">Variation: searching places to stay by date</h3>
+    <p>"Design the search for a holiday-rental site, like Airbnb" adds dates and guests to the map search. A listing matches only if it's in the area, fits the group, <em>and is free every night of the stay</em>, and the price depends on those nights.</p>
+    <ul>
+      <li><strong>Availability as a calendar per listing.</strong> One bit per night for the next year is 46 bytes a listing; 10 million listings fit in under half a gigabyte, so the whole calendar can sit in memory next to the search.</li>
+      <li><strong>Search in stages.</strong> The location index finds candidates in the map area; the calendar check removes listings that aren't free; pricing totals the stay; then rank and page. Each stage shrinks the list for the next.</li>
+      <li><strong>Search may be slightly stale.</strong> A booking updates the calendar within seconds, so a listing booked a moment ago can still appear. The booking step re-checks (Design D15), and the page says the dates just went.</li>
+      <li><strong>Cache the stable part.</strong> Dates multiply the possible queries, so caching whole results rarely hits. Cache the area's candidate list instead, and run the calendar and price stages on every search.</li>
+    </ul>
+    <div id="fig-stay"></div>
+<!-- /fu:stays -->
     <!-- 11 -->
     <h2 id="breaks">11. When things break</h2>
     <table>
@@ -3433,6 +3442,27 @@ POST /v1/places            → create   ·   PATCH /v1/places/{id} → edit (own
       : `Efficient here: ${hitCells.length} cells, ${waste} extra places examined. Try the same search downtown and in the countryside.`;
   }
   run();
+})();
+</script>
+<script data-fu="stays">
+(function () {
+  Viz.figure("#fig-stay", {
+    title: "Two guests, Lisbon, 12–15 March", sub: "Point at a step to light its arrows. Each step says how many listings are left.",
+    nodes: [{ id: "g", x: 80, y: 170, w: 120, label: "Guest", sub: "map + dates", kind: "client" },
+      { id: "s", x: 300, y: 170, w: 150, label: "Search service", sub: "runs the stages", kind: "service" },
+      { id: "geo", x: 550, y: 60, w: 160, label: "Location index", sub: "cells → listings", kind: "db" },
+      { id: "cal", x: 550, y: 170, w: 160, label: "Calendars", sub: "a bit per night", kind: "cache" },
+      { id: "p", x: 300, y: 300, w: 150, label: "Pricing", sub: "nightly + fees", kind: "service" },
+      { id: "b", x: 550, y: 300, w: 160, label: "Booking", sub: "Design D15", kind: "service" }],
+    edges: [["g", "s", "search", { n: 1 }], ["s", "geo", "", { n: 2 }], ["s", "cal", "", { n: 3 }], ["s", "p", "", { n: 4 }], ["b", "cal", "booked", { n: 5 }]],
+    width: 670, height: 350,
+    steps: ["The guest's map shows central Lisbon. The request carries the map's corners, the nights (12, 13 and 14 March) and 2 guests.",
+      "<strong>Where.</strong> The location index returns listings in the cells covering the map that sleep 2 or more: about 4,000.",
+      "<strong>When.</strong> For each one, check the three bits for those nights in its calendar. All three must be free: about 1,100 remain. This is a few thousand memory reads.",
+      "<strong>How much.</strong> Pricing totals each stay: three nightly prices (weekends cost more), cleaning fee, any weekly discount. Then rank and return the first page of 20.",
+      "<strong>Keeping it fresh.</strong> When someone books, the booking service sends an event that marks those nights as taken within seconds."],
+    after: "<b>Order the stages by cost:</b> the cheap filters run first so the expensive pricing step sees 1,100 listings, not 4,000.",
+  });
 })();
 </script>
 </body>

@@ -3222,8 +3222,20 @@ GET /v1/conversations/{id}/messages?after_seq=1040&amp;limit=100   (sync after r
       <details><summary>Multi-region.</summary><p class="ans">Users connect to their nearest region. Each conversation is homed in one region, which assigns its sequence numbers; members elsewhere receive through cross-region replication with a little extra latency. Home a conversation near most of its members.</p></details>
       <details><summary>How do you fight spam without reading messages?</summary><p class="ans">Metadata and behaviour: account age, sending rate, how many recipients block or report, links shared (where users report them). Rate limits on new accounts and on messages to non-contacts.</p></details>
       <details><summary>Why not long polling?</summary><p class="ans">Long polling works but costs a request per message batch and more battery. WebSockets keep one connection open for both directions. Push notifications cover the app being closed.</p></details>
-    </div>
-
+    </div><!-- fu:community -->
+    <h3 id="fu-community">Variation: community servers with channels</h3>
+    <p>Another common form: "Design chat for communities, like Discord: servers with many channels, some with hundreds of thousands of members." One-to-one delivery still works, but the unit changes from a conversation to a <em>channel inside a server</em>, and most members of a big server are offline or looking at another channel.</p>
+    <ul>
+      <li><strong>Fan-out by who is looking.</strong> One process per server (sharded by server ID) keeps the server's online sessions in memory. A new message is pushed in full only to sessions that have that channel open or are mentioned. Everyone else gets, at most, a batched "unread" marker.</li>
+      <li><strong>Unread without a row per member.</strong> Store, per member, the last message ID they read in each channel. A channel is unread when its latest ID is higher. Nothing is written for the 800,000 members who didn't open it.</li>
+      <li><strong>Messages by channel and time window.</strong> Partition by (channel, time window) with time-ordered IDs (Module 20), so a busy channel never grows one huge partition and history is one range read. A very busy channel needs smaller windows.</li>
+      <li><strong>Permissions as roles.</strong> A member's rights in a channel come from their roles plus the channel's overrides. The server process caches the result, so each message is checked in memory.</li>
+      <li><strong>Member list on demand.</strong> The sidebar loads only the part of the member list on screen, grouped by role and online status.</li>
+      <li><strong>Voice is a separate system.</strong> The chat connection carries the signalling; the audio goes over UDP to media servers that forward each speaker's stream to the listeners. Say so and keep it out of scope unless asked.</li>
+    </ul>
+    <div id="fig-guild"></div>
+    <p class="hint">Read more: Discord's engineering blog on <a href="https://discord.com/blog/how-discord-stores-trillions-of-messages">storing messages by channel and time bucket</a> and on <a href="https://discord.com/blog/how-discord-scaled-elixir-to-5-000-000-concurrent-users">one process per server</a>.</p>
+<!-- /fu:community -->
     <!-- 11 -->
     <h2 id="breaks">11. When things break</h2>
     <table>
@@ -3446,6 +3458,27 @@ GET /v1/conversations/{id}/messages?after_seq=1040&amp;limit=100   (sync after r
   });
   log("Press Send on Asha's phone.");
   draw();
+})();
+</script>
+<script data-fu="community">
+(function () {
+  Viz.figure("#fig-guild", {
+    title: "A message in a server with 800,000 members", sub: "Point at a step to light its arrows. 60,000 members are online; 9,000 have #general open.",
+    nodes: [{ id: "s", x: 80, y: 80, w: 120, label: "Sender", sub: "posts in #general", kind: "client" },
+      { id: "api", x: 300, y: 80, w: 150, label: "Messages API", sub: "checks roles", kind: "service" },
+      { id: "db", x: 540, y: 80, w: 160, label: "Message store", sub: "channel + week", kind: "db" },
+      { id: "g", x: 300, y: 230, w: 150, label: "Server process", sub: "sessions in memory", kind: "service" },
+      { id: "gw", x: 540, y: 230, w: 160, label: "Gateway nodes", sub: "hold connections", kind: "lb" },
+      { id: "r", x: 760, y: 230, w: 120, label: "Readers", sub: "#general open", kind: "client" }],
+    edges: [["s", "api", "POST", { n: 1 }], ["api", "db", "write", { n: 2 }], ["api", "g", "new message", { n: 3 }], ["g", "gw", "9,000 sessions", { n: 4 }], ["gw", "r", "push", { n: 5 }]],
+    width: 840, height: 290,
+    steps: ["The sender posts to channel 55 (#general). The user comes from the token.",
+      "The API checks the sender's roles allow posting in #general, gives the message a time-ordered ID, and writes it under (channel 55, this week).",
+      "It hands the message to the process that owns this server. That process knows every online session and which channel each one is looking at.",
+      "The process sends the full message to the 9,000 sessions viewing #general (and anyone mentioned). The other 51,000 online sessions get a batched unread marker a moment later; offline members get nothing.",
+      "Each gateway node pushes the message down the connections it holds."],
+    after: "<b>The saving:</b> 9,000 full pushes instead of 800,000, and no per-member writes. Unread state is computed from one stored ID per member per channel.",
+  });
 })();
 </script>
 </body>

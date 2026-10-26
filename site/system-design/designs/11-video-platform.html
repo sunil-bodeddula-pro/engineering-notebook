@@ -3219,8 +3219,20 @@ POST /v1/videos/{id}/views {seconds_watched}          (batched by the player)</c
       <details><summary>Copyrighted content.</summary><p class="ans">Fingerprint audio and video during processing and compare against reference fingerprints from rights holders. Matches can block, mute or route revenue, per the rights holder's policy.</p></details>
       <details><summary>Resume watching on another device.</summary><p class="ans">Players report position periodically; a small per-user store keeps the last position per video, read when playback starts.</p></details>
       <details><summary>Multi-region failure of origin storage.</summary><p class="ans">Edges keep serving cached segments. Originals and popular renditions are replicated across regions, so origin fetches fail over.</p></details>
-    </div>
-
+    </div><!-- fu:catalogue -->
+    <h3 id="fu-catalogue">Variation: a subscription service with a fixed catalogue</h3>
+    <p>A common twist: "Now design it for a paid streaming service like Netflix: no uploads, a catalogue of films and series." The pipeline above still works, but three of its assumptions flip, and the design moves with them.</p>
+    <ul>
+      <li><strong>Few titles, watched a lot.</strong> Tens of thousands of titles instead of billions of videos, each watched millions of times. Encoding can be slow and thorough: a bitrate ladder tuned per title (even per scene) and several codecs, because every byte saved is saved millions of times.</li>
+      <li><strong>Demand you can predict.</strong> Tonight's popular titles are known this afternoon: new episodes, what's trending in each country. So the caches are <em>filled ahead of time</em>, during the quiet hours, instead of filling on a miss at peak time. The caches sit inside internet providers' networks, so most bytes never cross the wider internet.</li>
+      <li><strong>Pressing play is the hard path.</strong> One call has to check the subscription and the licence for this country, pick caches that hold the files and are close and healthy, and hand back a manifest and a decryption licence, all in a few hundred milliseconds.</li>
+      <li><strong>Licences by country and date.</strong> Each title has availability windows per country, so the catalogue, search and home rows are filtered per country, and a title can disappear at midnight on a fixed date.</li>
+      <li><strong>The home screen is personal.</strong> The rows ("because you watched…") are computed offline per user and served from a cache; only the ordering is adjusted live.</li>
+    </ul>
+    <div id="fig-play"></div>
+    <div id="fig-fill"></div>
+    <p class="hint">Read more: <a href="https://openconnect.netflix.com/en/">Open Connect</a>, Netflix's own delivery network, describes appliances placed inside providers' networks and filled nightly.</p>
+<!-- /fu:catalogue -->
     <!-- 11 -->
     <h2 id="breaks">11. When things break</h2>
     <table>
@@ -3477,6 +3489,52 @@ POST /v1/videos/{id}/views {seconds_watched}          (batched by the player)</c
     v.innerHTML = alg === "Fixed 1080p" ? (stall > 0 ? `A fixed 1080p stream stalls for ${stall.toFixed(1)} s whenever bandwidth dips below 6 Mbit/s. Viewers leave over stalls far more than over lower quality.` : "With plenty of bandwidth, fixed 1080p plays smoothly, but it would waste data on a phone and fail on worse networks.") : (stall > 0 ? `Adaptive playback reduced stalls to ${stall.toFixed(1)} s by stepping down quality. A segment requested at high quality just before a sudden drop can still drain the buffer; real players abandon such a download and re-request it at a lower quality.` : `No stalls: the player stepped down when bandwidth fell and back up when it recovered (${switches} switches).`);
   }
   run();
+})();
+</script>
+<script data-fu="catalogue">
+(function () {
+  Viz.figure("#fig-play", {
+    title: "Pressing play on a TV", sub: "Point at a step to light its arrows. Steps 1–4 happen before the first frame is fetched.",
+    nodes: [{ id: "tv", x: 90, y: 180, w: 120, label: "TV app", sub: "4K, HDR, AV1", kind: "client" },
+      { id: "api", x: 330, y: 180, w: 150, label: "Playback API", sub: "one call per play", kind: "service" },
+      { id: "ent", x: 570, y: 80, w: 150, label: "Entitlements", sub: "plan, licences", kind: "db" },
+      { id: "st", x: 570, y: 180, w: 150, label: "Steering", sub: "which cache has it", kind: "service" },
+      { id: "lic", x: 90, y: 50, w: 150, label: "Licence server", sub: "decryption keys", kind: "service" },
+      { id: "isp", x: 90, y: 310, w: 170, label: "Cache in the ISP", sub: "filled last night", kind: "cdn" }],
+    edges: [["tv", "api", "play 7741", { n: 1, bend: -25 }], ["api", "ent", "allowed?", { n: 2 }], ["api", "st", "", { n: 3 }],
+      ["api", "tv", "manifest", { n: 4, bend: -25 }], ["tv", "lic", "licence", { n: 5 }], ["tv", "isp", "segments", { n: 6 }]],
+    width: 680, height: 360,
+    steps: ["The app sends one request: title 7741, episode 3, and what the device can play (resolution, HDR, codecs). The user comes from the auth token.",
+      "<strong>Allowed?</strong> The plan is active, the plan includes 4K, and the title is licensed in the country the request comes from today.",
+      "<strong>Where from?</strong> Steering knows which files each cache holds (caches report it) and how loaded and healthy they are. It returns three caches for this user's network, best first.",
+      "The API returns a manifest: the streams this device can play, each with the three cache addresses, plus a short-lived token for the licence server.",
+      "The app fetches the decryption licence. Files on the caches are encrypted, so a cache never needs to know who is watching.",
+      "The app streams segments from the first cache and switches to the next one on errors or slow segments, choosing the bitrate as it goes."],
+    after: "<b>Why one call:</b> every round trip before the first frame adds to the start delay, so the play call bundles the checks and the cache choice, and the app does the rest.",
+  });
+
+  Viz.figures("#fig-fill", {
+    "Fill on a miss": { title: "Filling caches when someone asks", sub: "A new season goes live at 08:00. First viewers in each area start at 20:00.",
+      nodes: [{ id: "v", x: 80, y: 120, w: 120, label: "Viewers", sub: "20:00, peak", kind: "client" }, { id: "c", x: 300, y: 120, w: 160, label: "Cache in the ISP", sub: "empty for this title", kind: "cdn" },
+        { id: "o", x: 540, y: 120, w: 150, label: "Origin storage", sub: "all titles", kind: "store" }],
+      edges: [["v", "c", "episode 1", { n: 1 }], ["c", "o", "miss", { n: 2, bend: -30 }], ["o", "c", "", { n: 3, bend: -30 }]],
+      width: 640, height: 220,
+      steps: [{ text: "Thousands of viewers in one area press play within minutes. The cache doesn't have the files yet.", hl: { c: "bad" } },
+        "Every cache asks origin for the same files at the busiest hour of the day, across links that are already full.",
+        { text: "Viewers wait for the first segments; some start at low quality. The links that carry the misses are the most expensive ones.", hl: { v: "bad" } }],
+      after: "<b>Pull on a miss</b> is right when you can't guess demand (user uploads). Here you can." },
+    "Fill overnight": { title: "Filling caches before anyone asks", sub: "The same season, with a nightly fill from 02:00 to 06:00 local time.",
+      nodes: [{ id: "f", x: 90, y: 60, w: 150, label: "Popularity forecast", sub: "per country, per day", kind: "service" }, { id: "fc", x: 330, y: 60, w: 150, label: "Fill controller", sub: "what each cache holds", kind: "service" },
+        { id: "o", x: 570, y: 60, w: 140, label: "Origin storage", sub: "all titles", kind: "store" }, { id: "c", x: 450, y: 210, w: 160, label: "Cache in the ISP", sub: "ready by 06:00", kind: "cdn" },
+        { id: "v", x: 140, y: 210, w: 120, label: "Viewers", sub: "20:00, peak", kind: "client" }],
+      edges: [["f", "fc", "", { n: 1 }], ["fc", "c", "file list", { n: 2 }], ["o", "c", "02:00 copy", { n: 3 }], ["v", "c", "", { n: 4 }]],
+      width: 660, height: 270,
+      steps: ["The forecast ranks titles for each country and day: new releases, what was watched yesterday, what's trending.",
+        "The controller turns the ranking into a file list for each cache, as much as its disks can hold.",
+        "Caches copy the new files from origin in the quiet hours, when the links are nearly idle.",
+        { text: "At 20:00 almost every request is a hit inside the viewer's own provider. A miss goes to a nearby cache, not origin.", hl: { c: "found", v: "found" } }],
+      after: "<b>Fill ahead of time</b> moves the heavy copying to hours when the network is idle, and makes the busiest hour mostly hits." },
+  }, { label: "Cache fill" });
 })();
 </script>
 </body>

@@ -3206,8 +3206,21 @@ POST /v1/bookings/{id}/pay {payment_token}   Idempotency-Key: …   → confirme
       <details><summary>Show seats disappearing live.</summary><p class="ans">Push seat-status changes over Server-Sent Events from a pub/sub channel per event; batch updates every few hundred milliseconds to keep messages manageable.</p></details>
       <details><summary>Resale.</summary><p class="ans">A new booking state (listed), with transfer as another conditional update from one owner to another, and the original ticket invalidated.</p></details>
       <details><summary>What isolation level?</summary><p class="ans">The conditional update is safe at the default read committed level in PostgreSQL, because the WHERE clause is re-checked on the locked row. You don't need serializable for this pattern.</p></details>
-    </div>
-
+    </div><!-- fu:stays -->
+    <h3 id="fu-stays">Variation: booking a stay for several nights</h3>
+    <p>A hotel or holiday-rental version ("book listing 88 from 12 to 15 March") changes what can clash. A seat is one thing; a stay is a <em>range</em> of nights, and two bookings clash when their ranges overlap, even if they start on different days.</p>
+    <table class="bba">
+      <thead><tr><th>Approach</th><th>How it works</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="bad">Check, then insert</td><td>Query for an overlapping booking; if none, insert one.</td><td>Two requests can both check before either inserts, and both succeed.</td></tr>
+        <tr><td class="ok">One row per night</td><td>Insert one row per (listing, night) with that pair as the primary key, all in one transaction.</td><td>Any shared night fails the whole transaction. Simple, works on any database, and the rows double as the calendar.</td></tr>
+        <tr><td class="great">A range constraint</td><td>Store the stay as a date range and let the database forbid overlapping ranges for the same listing (PostgreSQL's exclusion constraint).</td><td>One row per booking and the rule lives in the schema. Ties you to a database that supports it.</td></tr>
+      </tbody>
+    </table>
+    <p>The rest of the seat design carries over: a short hold while the guest pays, released when it expires, and idempotent payment. Two things are new. <strong>Hosts may approve requests</strong>, so a request holds the nights for, say, 24 hours until the host answers. And <strong>hosts also list the same place on other sites</strong>; calendars imported from those sites are hours old, so a clash is still possible. Have a clear policy for it (cancel the later booking, rehouse the guest, charge the host).</p>
+    <div id="fig-range"></div>
+    <p class="hint">Read more: PostgreSQL's documentation on <a href="https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-EXCLUSION">exclusion constraints</a>.</p>
+<!-- /fu:stays -->
     <!-- 11 -->
     <h2 id="breaks">11. When things break</h2>
     <table>
@@ -3437,6 +3450,31 @@ POST /v1/bookings/{id}/pay {payment_token}   Idempotency-Key: …   → confirme
     else { v.className = "verdict no-gl"; v.textContent = `Correct and calm: no double bookings, few failed clicks, and the booking system sees a steady ${R.peak} requests a second.`; }
   }
   run();
+})();
+</script>
+<script data-fu="stays">
+(function () {
+  const rangeNodes = (svc) => [{ id: "lea", x: 80, y: 70, w: 120, label: "Lea", sub: "12–15 March", kind: "client" },
+    { id: "om", x: 80, y: 250, w: 120, label: "Omar", sub: "13–16 March", kind: "client" },
+    { id: "svc", x: 320, y: 160, w: 150, label: "Booking service", sub: svc, kind: "service" },
+    { id: "db", x: 560, y: 160, w: 150, label: "Database", sub: "listing 88", kind: "db" }];
+  Viz.figures("#fig-range", {
+    "Check, then insert": { title: "Two guests, overlapping nights", sub: "Both want listing 88; they share the nights of the 13th and 14th.",
+      nodes: rangeNodes("check, then insert"),
+      edges: [["lea", "svc", "", { n: 1 }], ["om", "svc", "", { n: 1 }], ["svc", "db", "any overlap?", { n: 2, bend: -25 }], ["svc", "db", "insert ×2", { n: 3, bend: 25 }]],
+      width: 650, height: 310,
+      steps: ["Both guests press Book within the same second.", "The service runs both checks. Neither booking exists yet, so both find no overlap.",
+        { text: "Both inserts succeed. Listing 88 is booked twice for two nights, and someone arrives to find the place taken.", hl: { db: "bad", om: "bad" } }],
+      after: "<b>The gap between the check and the insert</b> is the bug. A lock on the listing would close it, but makes every booking for it wait in line." },
+    "One row per night": { title: "Let the primary key refuse it", sub: "Table <code>nights</code>, primary key (listing, night).",
+      nodes: rangeNodes("one transaction each"),
+      edges: [["lea", "svc", "", { n: 1 }], ["om", "svc", "", { n: 1 }], ["svc", "db", "Lea: 12, 13, 14", { n: 2, bend: -25 }], ["svc", "db", "Omar: 13, 14, 15", { n: 3, bend: 25 }], ["svc", "om", "dates gone", { n: 4, bend: 45 }]],
+      width: 650, height: 310,
+      steps: ["Both guests press Book within the same second.", { text: "Lea's transaction inserts (88, 12), (88, 13) and (88, 14) and commits.", hl: { lea: "found" } },
+        { text: "Omar's transaction inserts (88, 13): that key exists, so the insert fails and the whole transaction rolls back. Not even the 15th is kept.", hl: { db: "found" } },
+        { text: "Omar is told the dates were just taken and shown nearby listings that are free.", hl: { om: "active" } }],
+      after: "<b>The database decides, in one step:</b> no gap between check and insert, and no lock held while the guest pays. A hold is the same rows with an expiry time." },
+  }, { label: "Overlapping stays" });
 })();
 </script>
 </body>

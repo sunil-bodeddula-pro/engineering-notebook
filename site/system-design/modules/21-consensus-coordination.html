@@ -3106,6 +3106,10 @@ html.iks-open { overflow: hidden; }
     <h3>Leases and fencing tokens</h3>
     <p>A lock or leadership <strong>lease</strong> expires after, say, 10 seconds unless renewed, so a crashed holder can't block everyone forever. But a holder that's merely <em>paused</em> (a long garbage-collection pause, a VM migration) may wake up after its lease expired and someone else took over, and still believe it holds the lock. Now two clients act as owner.</p>
     <p>The fix is a <strong>fencing token</strong>: every time the lock is granted, the lock service hands out a number that only increases (etcd's revision, ZooKeeper's zxid). The holder sends it with every write, and the <strong>storage rejects any token lower than the highest it has seen</strong>. The paused client's late write carries an old token and is refused. Try it in section 3.</p>
+<!-- fu:fence -->
+    <div id="fig-fence"></div>
+<!-- /fu:fence -->
+
 
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
@@ -3684,6 +3688,30 @@ html.iks-open { overflow: hidden; }
         note: "Delivery happened twice, but the effect happened once. Retries plus idempotency turn an impossible guarantee into a practical one." },
     ],
   });
+})();
+</script>
+<script data-fu="fence">
+(function () {
+  const fenceNodes = (lk, st) => [{ id: "lock", x: 90, y: 160, w: 150, label: "Lock service", sub: lk, kind: "service" },
+    { id: "a", x: 340, y: 60, w: 140, label: "Worker A", sub: "renames files", kind: "service" },
+    { id: "b", x: 340, y: 260, w: 140, label: "Worker B", sub: "renames files", kind: "service" },
+    { id: "st", x: 590, y: 160, w: 150, label: "File store", sub: st, kind: "store" }];
+  const fenceEdges = (t1, t2) => [["a", "lock", t1, { n: 1 }], ["b", "lock", t2, { n: 3 }], ["b", "st", "", { n: 4 }], ["a", "st", "", { n: 5 }]];
+  Viz.figures("#fig-fence", {
+    "A lease alone": { title: "A paused holder wakes up", sub: "Point at a step. The lease lasts 10 seconds unless renewed.",
+      nodes: fenceNodes("3 nodes, Raft", "accepts any write"), edges: fenceEdges("lease", "lease"), width: 690, height: 320,
+      steps: ["Worker A takes the lock with a 10-second lease and starts renaming the day's files.",
+        { text: "A stops for 15 seconds: a long garbage-collection pause. It can't renew, and it doesn't know time has passed.", hl: { a: "bad" } },
+        "The lease expires. Worker B asks for the lock and gets it.", "B renames the files the way the job expects.",
+        { text: "A wakes up, still believing it holds the lock, and writes its half-finished renames over B's work.", hl: { a: "bad", st: "bad" } }],
+      after: "<b>A lease limits how long a crash blocks others.</b> It can't stop a holder that doesn't know its lease ran out." },
+    "Lease + fencing token": { title: "The store refuses the old holder", sub: "Each grant comes with a number that only goes up.",
+      nodes: fenceNodes("3 nodes, Raft", "highest token seen"), edges: fenceEdges("lease, token 33", "lease, token 34"), width: 690, height: 320,
+      steps: ["A takes the lock and gets token 33 with its lease.", { text: "A pauses for 15 seconds, exactly as before.", hl: { a: "bad" } },
+        "The lease expires. B gets the lock with token 34.", { text: "B writes with token 34. The store remembers 34 as the highest token it has seen.", hl: { b: "found" } },
+        { text: "A wakes and writes with token 33. 33 is lower than 34, so the store refuses the write, and A learns it lost the lock.", hl: { st: "found" } }],
+      after: "<b>The check happens where the damage would happen:</b> in the store, not in the worker. It needs a store that can compare tokens; if yours can't, use a conditional write on a version instead." },
+  }, { label: "Fencing tokens" });
 })();
 </script>
 </body>
