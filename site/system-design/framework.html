@@ -3067,14 +3067,15 @@ html.iks-open { overflow: hidden; }
       <li><a href="#clock">5. Plan the clock</a></li>
       <li><a href="#levels">6. What each level shows</a></li>
       <li><a href="#stuck">7. When you get stuck</a></li>
-      <li><a href="#practice">8. Practise for the best results</a></li>
-      <li><a href="#sort">9. Check yourself</a></li>
+      <li><a href="#talk">8. Say it so it scores</a></li>
+      <li><a href="#practice">9. Practise for the best results</a></li>
+      <li><a href="#sort">10. Check yourself</a></li>
     </ol>
   </aside>
   <main>
     <div class="eyebrow">System design · The interview framework</div>
     <h1>The interview framework: nine phases to a working design</h1>
-    <p class="lede">Most people who fail a system design interview know enough. They run out of time halfway through a clever idea and never show a design that works end to end. A fixed sequence of phases fixes that: it tells you what to do next at every minute, keeps you on what the interviewer is scoring, and gives you somewhere to return to when nerves hit. Every worked design on this site (D01–D24) is written in exactly this order.</p>
+    <p class="lede">Most people who fail a system design interview know enough. They run out of time halfway through a clever idea and never show a design that works end to end. A fixed sequence of phases fixes that: it tells you what to do next at every minute, keeps you on what the interviewer is scoring, and gives you somewhere to return to when nerves hit. Every worked design on this site is written in exactly this order.</p>
     <button type="button" class="tour-btn" id="tour">▶ Take the 40-second tour</button>
 
     <h2 id="why">1. Why a framework</h2>
@@ -3209,7 +3210,82 @@ html.iks-open { overflow: hidden; }
       <li>Defending a choice after the interviewer has shown its flaw (change it out loud instead).</li>
     </ul>
 
-    <h2 id="practice">8. Practise for the best results</h2>
+    <h2 id="talk">8. Say it so it scores</h2>
+    <p>The interviewer writes their notes from what they heard, not from what you thought. Two people can reason identically and get different scores because only one of them said the reasoning out loud. This section is about the few things worth saying: the choices, the reasons, the limits, and the moments you change your mind. Everything else (what a load balancer is, how a hash map works) can stay unsaid.</p>
+
+    <h3 id="talk-decide">Decisions with a switch condition</h3>
+    <p>A decision people can score has four parts: the options, what each one costs, your pick, and <strong>the condition that would make you switch</strong>. Most candidates say only the pick. The switch condition is the part that turns an opinion into engineering, and it gives the interviewer something to push on other than you.</p>
+    <table>
+      <thead><tr><th></th><th>Ride hailing: where do drivers' current locations live?</th></tr></thead>
+      <tbody>
+        <tr><td class="bad">Heard as a guess</td><td>"I'll put locations in Redis."</td></tr>
+        <tr><td class="great">Heard as a decision</td><td>"Two options: a table in Postgres, or keys in Redis. Postgres keeps history but each driver rewrites a row four times a second. Redis just overwrites a key in memory and forgets the old value. I'll use Redis, because nobody needs a location from five seconds ago. <em>If</em> support needs trip replays for disputes, I'd also append the points to a log in object storage."</td></tr>
+      </tbody>
+    </table>
+    <p>Describe the option you're turning down the way someone who likes it would. Turning down a weak version of the alternative is easy to spot, and it costs more trust than it saves time.</p>
+
+    <h3 id="talk-ask">Ask, assume, or just decide</h3>
+    <p>Asking about everything reads as not wanting to commit; asking about nothing reads as not noticing the gaps. One test sorts every question: <strong>would a different answer give a different design?</strong></p>
+    <table class="stack-sm">
+      <thead><tr><th>A different answer would…</th><th>Do this</th><th>For example</th></tr></thead>
+      <tbody>
+        <tr><td data-l="If">…change the design, and the interviewer will tell you</td><td data-l="Do">Ask, and say what hangs on it</td><td data-l="Example">"Can a sent message be edited? If yes, clients need a version per message, not just an ID."</td></tr>
+        <tr><td data-l="If">…change the design, but they say "you decide"</td><td data-l="Do">Pick the side that is more expensive to get wrong, and say so</td><td data-l="Example">"I'll plan for groups of up to 5,000. Building for 50 and being wrong is the costlier mistake."</td></tr>
+        <tr><td data-l="If">…not change the design</td><td data-l="Do">Assume it out loud and keep moving</td><td data-l="Example">"I'll assume search is English-only for now; it doesn't change the architecture."</td></tr>
+      </tbody>
+    </table>
+    <p>The one thing never to do: ask, get a vague answer, then design as if you'd been given a precise one.</p>
+
+    <h3 id="talk-size">Keep the design the size of the problem</h3>
+    <p>Every box you draw is something a person has to understand well enough to fix at 3 a.m. A design for 2,000 users with six services, an event bus and three databases shows knowledge and poor judgement at the same time. Start from the smallest design that meets the targets, and add a part only when a target forces it. For anything you leave out on purpose, name the <strong>trigger</strong> that would bring it in:</p>
+    <table class="stack-sm">
+      <thead><tr><th>Part</th><th>Add it when… (something you can measure)</th></tr></thead>
+      <tbody>
+        <tr><td data-l="Part">Read replicas</td><td data-l="Trigger">The primary runs above roughly 60% CPU at peak, mostly on reads</td></tr>
+        <tr><td data-l="Part">A cache</td><td data-l="Trigger">A read path misses its latency target and the same keys are read over and over</td></tr>
+        <tr><td data-l="Part">A queue</td><td data-l="Trigger">A step is slow (over about a second), fails on its own schedule, or doesn't need the user to wait</td></tr>
+        <tr><td data-l="Part">Shards</td><td data-l="Trigger">Writes or data outgrow the largest machine you're willing to run, after tuning</td></tr>
+        <tr><td data-l="Part">A search engine</td><td data-l="Trigger">The database's own text search misses its latency target, or results need real ranking</td></tr>
+        <tr><td data-l="Part">Separate services</td><td data-l="Trigger">Different teams need to ship on their own schedules, or parts scale very differently</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Build or buy?</strong> Build what customers choose you for; rent everything else, behind an interface narrow enough that you could swap the vendor later. Count the cost of running a thing forever, not just of writing it. And say the trade out loud: "One Postgres holds this for years at these numbers. I'll spend the complexity on the matching service instead, and revisit storage at about ten times today's writes."</p>
+
+    <h3 id="talk-fix">When you spot your own mistake</h3>
+    <p>Finding a flaw in your own design and handling it calmly scores better than never showing one: it's a sample of how you'd behave in a real review. The handling takes about a minute and has four moves.</p>
+    <ol>
+      <li><strong>Flag it</strong>, plainly, as soon as you see it. No apology.</li>
+      <li><strong>Bound it.</strong> Say exactly what it breaks <em>and what still stands</em>. This is the step people skip, and it's what protects the rest of your work.</li>
+      <li><strong>Pick a response:</strong> fix it now if everything after depends on it; note it in one sentence if it's contained; or name the fix and park it if it's big and the clock is short.</li>
+      <li><strong>Carry on</strong> at the same pace. Don't keep returning to it.</li>
+    </ol>
+    <table>
+      <thead><tr><th></th><th>Food delivery: orders were split across databases by restaurant, and now the "My orders" screen needs a customer's orders from every restaurant</th></tr></thead>
+      <tbody>
+        <tr><td class="bad">Collapse</td><td>"Hmm, actually this doesn't work… sorry, let me rethink the whole thing."</td></tr>
+        <tr><td class="great">Recovery</td><td>"I need to correct something. Splitting by restaurant means a customer's history is spread over every shard, so 'My orders' would query all of them. The write path, the kitchen screens and the payment flow are unaffected. I'll keep restaurant as the split for orders and add a small per-customer index, written from the same order event. Moving on to delivery tracking."</td></tr>
+      </tbody>
+    </table>
+    <p>When the interviewer's question exposes a problem ("what if two couriers accept at once?"), work through it out loud and say the bad outcome yourself before fixing it. And when a probe turns out <em>not</em> to expose anything, say why the design holds. Don't change something that works because the question sounded doubtful.</p>
+
+    <h3 id="talk-deep">When they point at one box</h3>
+    <p>"How does the rate limiter actually work?" is not an interruption; it's where much of the score is. Zoom in one level at a time, so they can stop you where they want, and then zoom back out:</p>
+    <ol>
+      <li><strong>Its job here:</strong> "It protects the payment provider, which allows us 5 calls a second."</li>
+      <li><strong>How it works:</strong> "A token bucket per merchant: tokens drip in at a fixed rate; a call spends one or waits."</li>
+      <li><strong>The choice inside it:</strong> "Bucket rather than a fixed per-second counter, because a counter lets a double burst through at the edge of each second."</li>
+      <li><strong>The number, and why:</strong> "Capacity 20, refill 5 a second: a short burst passes, the average can't exceed the provider's limit."</li>
+      <li><strong>Back out:</strong> "So a sale spike queues briefly instead of getting us blocked, which was the availability target."</li>
+    </ol>
+    <p><strong>If you don't know the inside,</strong> say what you do know, reason from what any such component must do, and name what you'd check. "I haven't run that product, but any queue has to decide whether to acknowledge before or after the work, and that decides whether we can lose or repeat a message. I'd check which it does." Bluffing is the expensive option.</p>
+    <p><strong>Choose your own deep dives.</strong> Your "Parked for later" list from phase 7 is a menu: "The three hard parts are the hot restaurants on Friday night, keeping courier positions fresh, and paying out exactly once. Which would you like?" Interviewers usually pick one, and it's one you prepared.</p>
+
+    <h3 id="talk-10x">"What changes at 10×?"</h3>
+    <p>This is the most common closing question, and it checks whether you know where your own design gives out. Most parts just get more copies; the answer is the one or two that don't. Walk the drawing and sort every part into three groups, then say what stays the same, and give the order you'd try things in: <strong>tune, then buy bigger, then restructure</strong>.</p>
+    <div id="fig-10x"></div>
+    <p>Check <em>which</em> number grew before answering. More requests, more stored data, more users per item (fan-out) and sharper spikes are four different questions: spikes call for queues and shedding, not shards; more data with the same traffic calls for tiering and retention, not more servers. And if the honest answer at 100× is a different architecture, say that rather than stretching this one.</p>
+
+    <h2 id="practice">9. Practise for the best results</h2>
     <p>Knowing the framework is easy; using it under pressure takes repetition. This routine turns it into a habit in a few weeks.</p>
     <ol>
       <li><strong>Learn the building blocks first.</strong> Work through Levels 1–3 of the <a href="index.html#modules">modules</a>. You can't choose between options you've never seen.</li>
@@ -3222,7 +3298,7 @@ html.iks-open { overflow: hidden; }
       <li><strong>Do mock interviews with a person</strong> in the last two weeks. Ask them to interrupt and steer; that's the skill a solo run can't train.</li>
     </ol>
 
-    <h2 id="sort">9. Check yourself</h2>
+    <h2 id="sort">10. Check yourself</h2>
     <p>Which phase does each of these belong in? Your choice locks in and the explanation appears.</p>
     <div class="card widget"><div class="sorter" id="ph-sort"></div><div class="stats no-gl" id="ph-score"></div></div>
     <div class="card">
@@ -3240,6 +3316,21 @@ html.iks-open { overflow: hidden; }
         <p>What should choose your deep dives?</p>
         <div class="opts"><button>The technologies you know best</button><button>Your targets from phase 3 and the parked list</button><button>Whatever the interviewer's company uses</button></div>
         <div class="why">Deep dives exist to make the design meet its targets.</div>
+      </div>
+      <div class="quiz-q" data-answer="The condition that would make you choose differently">
+        <p>You've named two options, their costs and your pick. What turns that pick into a decision an interviewer can score?</p>
+        <div class="opts"><button>Naming the product you'd use</button><button>The condition that would make you choose differently</button><button>Saying it's the industry standard</button></div>
+        <div class="why">"I'd switch if…" shows you know where your choice stops being right, and gives the interviewer something to push on.</div>
+      </div>
+      <div class="quiz-q" data-answer="Say what it breaks and what still stands, then fix, note or park it">
+        <p>Twenty minutes in, you realise your sharding key can't serve a main screen. What's the strongest move?</p>
+        <div class="opts"><button>Quietly change the drawing</button><button>Start the design again from the top</button><button>Say what it breaks and what still stands, then fix, note or park it</button></div>
+        <div class="why">Bounding the damage protects the parts that were right, and a calm correction is a sample of how you'd act in a real review.</div>
+      </div>
+      <div class="quiz-q" data-answer="The one or two parts that can't just get more copies">
+        <p>"What changes at 10×?" What is the answer the interviewer is looking for?</p>
+        <div class="opts"><button>A list of every scaling technique</button><button>The one or two parts that can't just get more copies</button><button>"Add more servers"</button></div>
+        <div class="why">Most parts scale by adding copies. Name the few that don't, why, what you'd change, and what stays the same.</div>
       </div>
     </div>
     <p>Next: see the framework in full on <a href="designs/21-job-scheduler.html">D21 · Distributed job scheduler</a>, or learn the reasoning behind it in <a href="modules/05-the-design-method.html">Module 05 · The design method</a>.</p>
@@ -3326,12 +3417,32 @@ html.iks-open { overflow: hidden; }
     $("ph-score").innerHTML = `<span>${score} / ${done} right</span>` + (done === ITEMS.length ? `<span>${score >= 8 ? "You know where everything goes." : "Re-read the phase cards for the ones you missed."}</span>` : "");
   });
 
+  /* ---------- 8. what changes at 10x (URL shortener, D01's numbers) ---------- */
+  Viz.figure("#fig-10x", {
+    title: "The URL shortener at ten times the traffic", sub: "Point at a step. Green: add more copies. Gold: tune, then go bigger, then split. Red: needs a redesign.",
+    nodes: [{ id: "u", x: 80, y: 160, w: 110, label: "Users", sub: "clicking links", kind: "client" },
+      { id: "lb", x: 250, y: 160, w: 130, label: "Load balancer", sub: "", kind: "lb" },
+      { id: "app", x: 440, y: 160, w: 150, label: "App servers", sub: "no state", kind: "service" },
+      { id: "ca", x: 660, y: 60, w: 150, label: "Cache", sub: "hot links", kind: "cache" },
+      { id: "db", x: 660, y: 290, w: 150, label: "Links database", sub: "one primary", kind: "db" }],
+    edges: [["u", "lb", "", { n: 1 }], ["lb", "app", "", { n: 1 }], ["app", "ca", "", { n: 2 }],
+      ["app", "db", "new link", { n: 3, bend: -45 }], ["app", "db", "+1 click", { n: 4, bend: 45 }]],
+    width: 760, height: 350,
+    steps: [{ text: "<strong>Redirects:</strong> 12,000 → 120,000 a second at peak. The app servers keep no state, so add more behind the balancer. Nothing in the design changes.", hl: { u: "found", lb: "found", app: "found" } },
+      { text: "<strong>Cache:</strong> the hot set grows from about 25 GB to 250 GB. More memory and more nodes, same keys, same hit rate. Still just more copies.", hl: { ca: "found" } },
+      { text: "<strong>New links:</strong> 120 → 1,200 writes a second, and 3 → 30 TB over five years. One primary still copes after tuning and a bigger machine; past that, split by short code. Tune, then buy bigger, then restructure.", hl: { db: "warm" } },
+      { text: "<strong>The click count:</strong> if every redirect adds 1 to the link's row, ten times means 120,000 updates a second, and a viral link sends thousands of them to one row's lock. This one needs a redesign: send click events to a queue and add them up in batches (Design D17), off the redirect path.", hl: { db: "bad" } },
+      { text: "<strong>What stays the same:</strong> the API, the data model, the code format and the cache keys. Saying so is half the answer: it shows you checked every box, not just the one that breaks.", hl: { u: "found", app: "found", ca: "found" } }],
+    after: "<b>The answer is the red box.</b> The green ones are how you show you looked at everything; the gold one shows you'd spend the cheap fixes first.",
+  });
+
   Viz.tour("#tour", [
     { el: "#phases", title: "1 · Nine phases", text: "From framing the problem to follow-ups. Each one feeds the next." },
     { el: "#viz-board", title: "2 · See it on a board", text: "Play the URL shortener: notes on the left, drawing and deep dives on the right." },
     { el: "#p7", title: "3 · The heart", text: "Build a working version one request at a time, and park the problems." },
     { el: "#clock", title: "4 · Plan the clock", text: "Switch between 45, 60 and 90 minutes and watch the checkpoints." },
-    { el: "#practice", title: "5 · Practise", text: "The routine that turns the framework into a habit." },
+    { el: "#talk", title: "5 · Say it so it scores", text: "Decisions with a switch condition, fixing your own mistake, and the 10× question." },
+    { el: "#practice", title: "6 · Practise", text: "The routine that turns the framework into a habit." },
   ]);
 })();
 </script>
