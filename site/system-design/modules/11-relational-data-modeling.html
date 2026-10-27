@@ -3241,6 +3241,55 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We just delete the row"</strong> while copies live in caches, search and backups.</li><li><strong>Soft deletes without a purge job</strong>: the table grows forever and personal data never really leaves.</li><li><strong>One giant DELETE</strong> on a busy production table.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-connstorm">
+      <div class="tech-h"><h3>Connection storms, and how big a pool should be</h3><span class="tech-status s-default">The default · every fleet in front of one database</span></div>
+      <p>Databases rarely fall over because the data got big; that happens slowly and you see it coming. They fall over because the number of connections doubles in a minute: during a deploy, after a cache entry expires, or when timeouts turn into retries.</p>
+      <h4>How it works</h4>
+      <p><strong>Why a connection costs so much.</strong> PostgreSQL runs one operating-system process per connection, with its own memory for sorting and caching. A few hundred mostly-idle connections already use gigabytes, and every running query competes for the same CPU cores and disks. Past a point, more connections make <em>every</em> query slower, which holds connections longer, which brings in more connections.</p>
+      <p><strong>How big the pool should be.</strong> Little's law (Module 02): queries in flight = queries a second × time per query. A checkout database doing 6,000 queries a second at 4 ms each has about <strong>24</strong> queries running at any moment. A pool of about 30 keeps it busy. A pool of 500 doesn't make it faster: the extra requests just wait inside the database, competing, instead of waiting in a short queue in front of it.</p>
+      <p><strong>The three usual storms, and the fix for each:</strong></p>
+      <table class="stack-sm"><thead><tr><th>Storm</th><th>What happens</th><th>Fix</th></tr></thead><tbody>
+        <tr><td data-l="Storm">Deploy</td><td data-l="What happens">New instances open their full pools while old ones are still draining: twice the connections for minutes</td><td data-l="Fix">A pooler in front (below), small per-instance pools, and a gradual rollout</td></tr>
+        <tr><td data-l="Storm">Cache expiry</td><td data-l="What happens">A hot key expires and every instance asks the database the same question at once</td><td data-l="Fix">One refresh per key (request coalescing), early refresh, jittered expiry (Module 09)</td></tr>
+        <tr><td data-l="Storm">Retry storm</td><td data-l="What happens">A slow database causes timeouts; clients retry, adding load to the thing that's already slow</td><td data-l="Fix">Retry budgets, backoff with jitter, and a circuit breaker (Module 24)</td></tr>
+      </tbody></table>
+      <div id="fig-storm"></div>
+      <p><strong>Transaction pooling has rules.</strong> A server connection belongs to a client only for one transaction, so anything that lives longer than a transaction breaks: session <code>SET</code> values, <code>LISTEN</code>, session-level advisory locks, cursors <code>WITH HOLD</code>, and temporary tables kept across transactions. Recent PgBouncer versions do support protocol-level prepared statements in this mode once <code>max_prepared_statements</code> is set.</p>
+      <p><strong>When it's already on fire,</strong> look in this order: how many connections exist and how many are actually running (<code>pg_stat_activity</code>); connections "idle in transaction", which hold locks and block cleanup; queries waiting on locks; then slow query plans, last.</p>
+      <h4>Status today</h4>
+      <p>Facts checked October 2026 against the PgBouncer documentation (pooling modes and the feature table).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any fleet of more than a handful of instances in front of one PostgreSQL or MySQL primary</li><li>Serverless functions or autoscaling groups, which open connections in bursts</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>A few long-running servers with small in-process pools</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>About 6,000 queries a second at 4 ms is 24 in flight, so the database needs about 30 real connections. PgBouncer in transaction mode holds those; the 60 app instances connect to it, not to Postgres.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Bigger pool, more throughput."</strong> Past the in-flight number it's the opposite.</li><li><strong>Retries without a budget</strong> in front of a struggling database.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-backfill">
+      <div class="tech-h"><h3>A backfill that can't corrupt rows</h3><span class="tech-status s-default">The default · any live data migration</span></div>
+      <p>The expand-and-contract figure above has a backfill step. On a busy table it is where most migrations go wrong, because the job and the live application change the same rows at the same time.</p>
+      <h4>How it works</h4>
+      <p><strong>The race.</strong> An online shop is replacing <code>orders.placed_at_text</code> (local time as text) with <code>placed_at</code> (a proper UTC timestamp). App v2 already writes both columns; a job fills in the old rows:</p>
+      <div id="fig-race"></div>
+      <p><strong>Rules that keep a backfill safe:</strong></p>
+      <ul>
+        <li><strong>Compute from the row as it is now.</strong> Write the new value in the same statement that reads the old one (<code>UPDATE … SET placed_at = convert(placed_at_text) WHERE id BETWEEN …</code>), or update only <code>WHERE placed_at IS NULL</code>. Never carry a value read earlier across to a later write.</li>
+        <li><strong>Make it safe to run twice.</strong> A derived value (new = f(old)) can be re-applied; an increment (new = new + x) cannot. The job will be interrupted, so it must restart without harm.</li>
+        <li><strong>Walk the primary key in chunks, and save your place.</strong> Store the last id done after each chunk, so a restart resumes. Keyset chunks (<code>id &gt; last ORDER BY id LIMIT 1,000</code>) cost the same at row 90 million as at row 1; <code>OFFSET</code> gets slower every chunk.</li>
+        <li><strong>Slow down on a signal, not a timer.</strong> Pause while replica lag or primary CPU is high, so the job yields at peak and runs fast at night.</li>
+        <li><strong>Prove it, by category.</strong> Compare old and new columns on every row (or a large sample). Mismatches on old rows shrinking: the backfill is still running. Mismatches on rows written since v2 shipped: a bug in the dual write, and the backfill won't fix it. Mismatches reappearing after reaching zero: something writes the old column by another route, like a nightly admin script.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Online schema-change tools (gh-ost and pt-online-schema-change for MySQL, pg-osc and pgroll for PostgreSQL) automate copy-and-switch for whole tables; the same rules apply to a backfill you write yourself.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any column or table change on data that's being written while you migrate</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small tables you can lock for a second, during a quiet window</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The backfill computes the new column inside the UPDATE from the current row, in keyset chunks with a saved cursor, paused on replica lag. Then a comparison job must show zero mismatches before reads switch over.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Read a batch, transform in the app, write it back</strong> on a live table.</li><li><strong>Switching reads</strong> without a comparison that reached zero.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "One fact, one place; connect with keys"</strong>Store each fact once, point between tables with keys, and let joins and transactions do the connecting. Copy data only for a measured read problem.</div>
@@ -3338,6 +3387,16 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
         <p>With soft deletes, how do you keep usernames unique among live accounts but allow a deleted one to be reused?</p>
         <div class="opts"><button>A normal unique index on username</button><button>A partial unique index on username WHERE deleted_at IS NULL</button><button>Check in application code only</button></div>
         <div class="why">A normal unique index would block reuse; app-only checks race. A partial index covers only live rows.</div>
+      </div>
+      <div class="quiz-q" data-answer="About 30–40">
+        <p>A database runs 3,000 queries a second, each taking about 10 ms. Roughly how many connections does it need?</p>
+        <div class="opts"><button>About 30–40</button><button>About 300</button><button>One per app instance thread</button></div>
+        <div class="why">Little's law: 3,000 × 0.01 s = 30 in flight. A much bigger pool only moves the waiting inside the database.</div>
+      </div>
+      <div class="quiz-q" data-answer="It writes a value computed from a read made before the app's newer write">
+        <p>Why can a backfill corrupt rows even when the app's dual write is correct?</p>
+        <div class="opts"><button>Because dual writes are never atomic</button><button>It writes a value computed from a read made before the app's newer write</button><button>Because backfills skip indexes</button></div>
+        <div class="why">Compute the new value in the same statement that reads the old one, so there's no gap.</div>
       </div>
     </div>
 
@@ -3505,6 +3564,41 @@ Comments: comment_id (pk), post_id (fk, index), user_id (fk, index), content, cr
       { hl: { db: "found", bk: "found", res: "found" }, set: { db: "rows: unreadable, then purged", bk: "copies: unreadable", res: "user 42 erased" }, moves: [{ e: "db>res", t: "decrypt fails" }], hold: 4,
         note: "Every copy of user 42's data, live or in a backup, is now unreadable noise. The live rows are deleted too, and old backups age out on their normal schedule." },
     ],
+  });
+
+  Viz.figures("#fig-storm", {
+    "Straight to the database": { title: "A deploy, with every instance holding its own pool", sub: "20 instances × 25 connections each. The database allows 600.",
+      nodes: [{ id: "old", x: 100, y: 70, w: 160, label: "Old instances", sub: "20 × 25, draining", kind: "service" }, { id: "neu", x: 100, y: 240, w: 160, label: "New instances", sub: "20 × 25, starting", kind: "service" },
+        { id: "db", x: 470, y: 155, w: 170, label: "PostgreSQL", sub: "max 600 connections", kind: "db" }],
+      edges: [["old", "db", "500", { n: 1 }], ["neu", "db", "+500", { n: 2 }], ["neu", "db", "retries", { n: 4, bend: 40 }]],
+      width: 640, height: 310,
+      steps: ["Normal day: 500 connections, about 30 of them running a query at any moment.",
+        "The deploy starts the new instances before the old ones finish draining. They all open their pools at once: 1,000 connections wanted.",
+        { text: "Past 600, new connections are refused; below that, hundreds of processes compete for memory and CPU, and every query slows down.", hl: { db: "bad" } },
+        { text: "Slow queries cause timeouts, and the timeouts cause retries, each opening yet another connection.", hl: { neu: "bad", db: "bad" } }],
+      after: "<b>Nothing in the code changed.</b> The outage came from how many connections existed, not from what they did." },
+    "Through a pooler": { title: "The same deploy, through PgBouncer", sub: "Instances connect to the pooler; the pooler holds 30 real connections.",
+      nodes: [{ id: "old", x: 100, y: 70, w: 160, label: "Old instances", sub: "20 × 25, draining", kind: "service" }, { id: "neu", x: 100, y: 240, w: 160, label: "New instances", sub: "20 × 25, starting", kind: "service" },
+        { id: "pb", x: 360, y: 155, w: 150, label: "PgBouncer", sub: "transaction mode", kind: "lb" }, { id: "db", x: 590, y: 155, w: 150, label: "PostgreSQL", sub: "30 connections", kind: "db" }],
+      edges: [["old", "pb", "", { n: 1 }], ["neu", "pb", "", { n: 1 }], ["pb", "db", "30", { n: 2 }]],
+      width: 700, height: 310,
+      steps: ["Both fleets connect to the pooler. A client connection to PgBouncer is cheap, so 1,000 of them is fine.",
+        "The pooler lends one of its 30 real connections to each transaction and takes it back at commit.",
+        { text: "When all 30 are busy, the next transaction waits a few milliseconds in the pooler's queue, outside the database. The database never sees more than 30.", hl: { pb: "found", db: "found" } }],
+      after: "<b>The queue still exists; it just moved</b> to a place where waiting costs almost nothing." },
+  }, { label: "Connection storms" });
+
+  Viz.figure("#fig-race", {
+    title: "How a correct dual write still ends with a wrong row", sub: "Point at a step. Row 77 was placed at 10:00 Lisbon time; support corrects it to 11:00.",
+    nodes: [{ id: "bf", x: 100, y: 70, w: 150, label: "Backfill job", sub: "batch of 1,000", kind: "service" }, { id: "app", x: 100, y: 240, w: 150, label: "App v2", sub: "writes both columns", kind: "service" },
+      { id: "db", x: 470, y: 155, w: 190, label: "orders, row 77", sub: "text: 11:00 · new: 10:00", kind: "db" }],
+    edges: [["db", "bf", "read 10:00", { n: 1, bend: 30 }], ["app", "db", "both: 11:00", { n: 2 }], ["bf", "db", "write 10:00", { n: 3, bend: 30 }]],
+    width: 660, height: 310,
+    steps: ["The backfill reads a batch, including row 77: text column says 10:00.",
+      "Support corrects the order. App v2 writes 11:00 to both columns: right so far.",
+      { text: "The backfill finishes its batch and writes the value it worked out from its earlier read: 10:00. The two columns now disagree, and nothing will fix it.", hl: { db: "bad" } },
+      { text: "<strong>The fix:</strong> do the conversion inside one <code>UPDATE</code> that reads and writes the row together, or only fill rows <code>WHERE placed_at IS NULL</code>. The database then sees the newest text every time.", hl: { bf: "found" } }],
+    after: "<b>Every step was correct on its own.</b> The bug is the gap between the backfill's read and its write.",
   });
 })();
 </script>

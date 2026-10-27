@@ -3249,6 +3249,38 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Running heavy reports on the database that serves users.</strong></li></ul></div>
     </section>
 
+        <section class="tech" id="t-second">
+      <div class="tech-h"><h3>Before you add a second database</h3><span class="tech-status s-default">The default · "should we add X?"</span></div>
+      <p>The most senior database answer is often "not yet". A new store solves one workload and adds a permanent bill that never appears in its benchmark: someone must back it up, upgrade it, monitor it and fix it at night, for as long as it exists.</p>
+      <h4>How it works</h4>
+      <p><strong>Price it first.</strong> Each line is a real cost, paid every month:</p>
+      <ul>
+        <li>Backups, and a restore that someone actually runs on a schedule.</li>
+        <li>Dashboards and alerts someone knows how to read at 3 a.m.</li>
+        <li>Version upgrades without downtime, written down and rehearsed.</li>
+        <li>On-call engineers who can <em>diagnose</em> it, not just restart it.</li>
+        <li>Every new hire learning two systems, and keeping the copies in step (section 2 above).</li>
+      </ul>
+      <p><strong>Then see how far the database you already run stretches.</strong> PostgreSQL covers more than its reputation:</p>
+      <table class="stack-sm"><thead><tr><th>Need</th><th>Inside PostgreSQL</th><th>You've outgrown it when…</th></tr></thead><tbody>
+        <tr><td data-l="Need">Semantic search</td><td data-l="Inside PostgreSQL">pgvector, with HNSW indexes</td><td data-l="Outgrown when">Tens of millions of vectors with tight latency and heavy filtering, or the index no longer fits in memory</td></tr>
+        <tr><td data-l="Need">Text search</td><td data-l="Inside PostgreSQL">Built-in full-text search (<code>tsvector</code>, GIN indexes)</td><td data-l="Outgrown when">You need typo tolerance, facets, relevance tuning or search across many languages</td></tr>
+        <tr><td data-l="Need">Time-ordered data</td><td data-l="Inside PostgreSQL">Partitioning by time, BRIN indexes, the TimescaleDB extension; drop old partitions instead of deleting rows</td><td data-l="Outgrown when">Ingest or retention jobs, not queries, become the daily pain</td></tr>
+        <tr><td data-l="Need">Reports on live data</td><td data-l="Inside PostgreSQL">A replica just for reports; materialised views refreshed every few minutes</td><td data-l="Outgrown when">Scans of months of data, joined across many tables: that's a warehouse (Module 23)</td></tr>
+        <tr><td data-l="Need">Relationships</td><td data-l="Inside PostgreSQL">Recursive queries (<code>WITH RECURSIVE</code>)</td><td data-l="Outgrown when">Many-hop traversal is the product itself (fraud rings, recommendations)</td></tr>
+        <tr><td data-l="Need">Throwaway fast data</td><td data-l="Inside PostgreSQL"><code>UNLOGGED</code> tables (no write-ahead log: emptied after a crash, not replicated)</td><td data-l="Outgrown when">You need it shared across services at very high rates: use Redis</td></tr>
+      </tbody></table>
+      <p><strong>If you still add it, put a seam in front of it.</strong> Reach the new store through one small module with a narrow interface (<code>search(query, filters)</code>, not raw query language spread through the code). Then replacing it later is a contained migration, not a rewrite.</p>
+      <h4>Status today</h4>
+      <p>pgvector, TimescaleDB and the built-in features above are all in active use in 2026. Thresholds are rough; measure your own workload before deciding.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Someone proposes a new store for one feature</li><li>"Should we use a vector database?"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>The workload is the product's core and clearly beyond one relational database (a search engine company, a metrics vendor)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>I'd start with pgvector in the Postgres we already run, behind a small search module. If we pass tens of millions of vectors with tight latency, we move that module to a dedicated vector store, and nothing else changes.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Five databases for five features</strong> on a team of six.</li><li><strong>No exit plan</strong>: the new store's query language spread through every service.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Postgres until proven otherwise"</strong>Start relational. Move a workload to another family only when its access pattern, scale or consistency needs prove it, and keep one source of truth.</div>
@@ -3335,6 +3367,11 @@ html.iks-open { overflow: hidden; }
         <p>With replication factor 3, which consistency levels guarantee a read sees the latest acknowledged write?</p>
         <div class="opts"><button>ONE writes and ONE reads</button><button>QUORUM writes and QUORUM reads</button><button>ONE writes and QUORUM reads</button></div>
         <div class="why">2 + 2 > 3, so the read and write sets overlap on at least one replica.</div>
+      </div>
+      <div class="quiz-q" data-answer="pgvector in the existing Postgres, behind a small search interface">
+        <p>A team of five wants a dedicated vector database for a new search feature with 2 million documents. What's the strongest first answer?</p>
+        <div class="opts"><button>A managed vector database, to be safe</button><button>pgvector in the existing Postgres, behind a small search interface</button><button>Elasticsearch, since it's search</button></div>
+        <div class="why">2 million vectors fits easily; the new store's running cost outweighs its benefit until scale proves otherwise, and the interface keeps the move cheap later.</div>
       </div>
     </div>
 

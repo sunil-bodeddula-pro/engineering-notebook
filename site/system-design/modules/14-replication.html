@@ -3279,6 +3279,44 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Expecting gossip to be instant or ordered</strong>: it's eventually consistent by design.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-logical">
+      <div class="tech-h"><h3>Physical vs logical replication</h3><span class="tech-status s-situational">Situational · upgrades, partial copies, change streams</span></div>
+      <p>Read replicas usually copy the database's write-ahead log byte for byte (physical replication). Logical replication instead sends the row changes themselves: "insert this row into orders", "update row 77". That makes different things possible, and different things break.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th></th><th>Physical (log shipping)</th><th>Logical (row changes)</th></tr></thead><tbody>
+        <tr><td>What it copies</td><td>The whole server, every database and table</td><td>Chosen tables, even chosen rows and columns</td></tr>
+        <tr><td>Versions</td><td>Same major version on both sides</td><td>Can go between major versions: the usual way to upgrade with seconds of downtime</td></tr>
+        <tr><td>Schema changes</td><td>Copied automatically</td><td><strong>Not copied</strong>: apply them on both sides, in the right order, or replication stops</td></tr>
+        <tr><td>Other gaps</td><td>None: it's an exact copy</td><td>Sequences aren't copied; tables that get updates or deletes need a primary key (or a declared replica identity)</td></tr>
+        <tr><td>Used for</td><td>Read replicas, failover standbys</td><td>Upgrades and moves, feeding other systems (change data capture into Kafka with Debezium), merging data from several databases</td></tr>
+      </tbody></table>
+      <p><strong>Example:</strong> moving an orders database from PostgreSQL 15 to 17. Create the empty schema on the new server, subscribe it to the old one, let it copy and catch up, check row counts, set the sequences, then point the application at the new server during a short pause. Downtime is the pause, not the copy.</p>
+      <h4>Status today</h4>
+      <p>Checked October 2026 against the PostgreSQL documentation (logical replication restrictions: schema and sequences are not replicated). MySQL's row-based binary log plays the same role for MySQL.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Major-version upgrades and moves between machines or clouds</li><li>Streaming changes into a search index, cache or warehouse</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Read replicas and failover: physical replication is simpler and exact</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>For the version upgrade I'd use logical replication into the new cluster, keep it in sync for a few days, then cut over in a pause of a few seconds.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Changing the schema on the source</strong> during logical replication without applying it on the target first.</li><li><strong>Forgetting sequences</strong> at cut-over, so new rows collide with old ids.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-delayed">
+      <div class="tech-h"><h3>A delayed replica: protection against your own mistakes</h3><span class="tech-status s-situational">Situational · cheap insurance for important data</span></div>
+      <p>Replicas copy mistakes as faithfully as good writes: a bad DELETE reaches every replica within a second. A delayed replica deliberately applies changes an hour (or several) late, so after an accident there's a recent, complete copy that hasn't seen it yet.</p>
+      <h4>How it works</h4>
+      <div id="fig-delay"></div>
+      <p><strong>How it fits with backups.</strong> Two targets describe recovery: how much recent data you can afford to lose (the <em>recovery point</em>) and how long you can be down (the <em>recovery time</em>, Module 27). A normal replica gives a recovery point of seconds after a crash, but none at all after a bad write. Restoring a nightly backup and replaying the log up to just before the mistake works too, but on a large database that takes hours. The delayed replica turns that into minutes for any mistake noticed within its delay.</p>
+      <h4>Status today</h4>
+      <p>PostgreSQL's <code>recovery_min_apply_delay</code> and MySQL's delayed replication (<code>SOURCE_DELAY</code>) both do this. Checked October 2026 against the PostgreSQL documentation.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Data where a bad migration or script would be very costly (payments, customer records)</li><li>Large databases where restoring a backup takes hours</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Small databases that restore from a backup in minutes</li><li>As a failover target: it's an hour behind</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Besides the synchronous standby for failover, I'd keep one replica an hour behind. If a migration deletes the wrong rows, we pause it and copy them back in minutes instead of restoring a backup.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We have replicas, so we're safe from data loss"</strong>: replicas copy the mistake.</li><li><strong>Promoting the delayed replica</strong> in a normal failover.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "One writes, many copy, someone lags"</strong>One leader takes writes, followers copy its log, and some copy is always behind. Decide what readers see while it catches up, and what's lost if the leader dies.</div>
@@ -3371,6 +3409,16 @@ html.iks-open { overflow: hidden; }
         <p>Two replicas' Merkle roots are equal. What do you know?</p>
         <div class="opts"><button>Their data is identical; nothing to sync</button><button>Only the first half matches</button><button>Nothing until you compare every key</button></div>
         <div class="why">The root summarises every key below it; equal roots mean equal data (barring a hash collision).</div>
+      </div>
+      <div class="quiz-q" data-answer="They apply the delete within seconds, so they have the mistake too">
+        <p>A migration wrongly deletes 40,000 rows. Why don't ordinary read replicas help?</p>
+        <div class="opts"><button>They're read-only</button><button>They apply the delete within seconds, so they have the mistake too</button><button>They don't replicate deletes</button></div>
+        <div class="why">Replication copies every committed change, good or bad. A delayed replica or a point-in-time restore is what helps.</div>
+      </div>
+      <div class="quiz-q" data-answer="Schema changes and sequence values">
+        <p>What does logical replication NOT copy in PostgreSQL?</p>
+        <div class="opts"><button>Row inserts</button><button>Schema changes and sequence values</button><button>Updates to rows with a primary key</button></div>
+        <div class="why">You apply schema changes on both sides yourself, and set sequences at cut-over.</div>
       </div>
     </div>
 
@@ -3742,6 +3790,19 @@ html.iks-open { overflow: hidden; }
     };
     ["uq-n", "uq-w", "uq-r"].forEach((id) => (g(id).oninput = run)); run();
   })();
+
+  Viz.figure("#fig-delay", {
+    title: "A bad migration, and the replica that hadn't seen it yet", sub: "Point at a step. The delayed replica applies each change one hour after it was committed.",
+    nodes: [{ id: "op", x: 90, y: 160, w: 130, label: "Engineer", sub: "runs migrations", kind: "client" }, { id: "p", x: 320, y: 160, w: 150, label: "Primary", sub: "customers table", kind: "db" },
+      { id: "r", x: 580, y: 60, w: 160, label: "Normal replica", sub: "seconds behind", kind: "db" }, { id: "d", x: 580, y: 260, w: 160, label: "Delayed replica", sub: "1 hour behind", kind: "db" }],
+    edges: [["op", "p", "10:02 migration", { n: 1 }], ["p", "r", "", { n: 2 }], ["op", "d", "pause replay", { n: 3, bend: 40 }], ["d", "p", "copy rows back", { n: 4 }]],
+    width: 700, height: 330,
+    steps: [{ text: "At 10:02 a migration with a missing <code>WHERE</code> clause deletes 40,000 customer rows on the primary.", hl: { p: "bad" } },
+      { text: "The normal replica applies the delete within a second. It is now an exact copy of the mistake.", hl: { r: "bad" } },
+      { text: "At 10:15 someone notices. The delayed replica won't apply the 10:02 change until 11:02, so the engineer pauses its replay (<code>pg_wal_replay_pause()</code>).", hl: { d: "found" } },
+      { text: "The 40,000 rows are copied from the delayed replica back to the primary. Recovered in minutes, with nothing written after 10:02 lost.", hl: { p: "found", d: "found" } }],
+    after: "<b>The delay is the window for noticing.</b> One hour suits mistakes people notice quickly; some teams keep a second replica a day behind.",
+  });
 })();
 </script>
 </body>
