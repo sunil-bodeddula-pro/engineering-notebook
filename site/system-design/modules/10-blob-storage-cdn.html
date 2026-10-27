@@ -3272,6 +3272,29 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Storing three full copies of petabytes</strong> without considering erasure coding's cost savings.</li><li><strong>Forgetting scrubbing:</strong> disks corrupt data silently; checksums catch it.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-cachekey">
+      <div class="tech-h"><h3>CDN cache keys, Vary, and purging by tag</h3><span class="tech-status s-situational">Situational · when the CDN hit rate matters</span></div>
+      <p>A CDN can only reuse a response for requests that produce the same <strong>cache key</strong>. By default the key is roughly the host plus the full URL. Every needless difference in the key splits one popular object into many copies, each fetched from your origin.</p>
+      <h4>How it works</h4>
+      <div id="fig-key"></div>
+      <p><strong>Keep the key small:</strong></p>
+      <ul>
+        <li><strong>Drop what doesn't change the response</strong>: tracking parameters (<code>utm_*</code>, click IDs), and parameters your origin ignores. Sort the ones you keep, so <code>?a=1&amp;b=2</code> and <code>?b=2&amp;a=1</code> match.</li>
+        <li><strong>Be careful with <code>Vary</code>.</strong> It tells caches to keep a separate copy per value of a request header. <code>Vary: Accept-Encoding</code> is fine (a few values). <code>Vary: User-Agent</code> or <code>Vary: Cookie</code> creates thousands of variants and the hit rate collapses. Normalise at the edge instead: map user agents to "mobile" or "desktop", or pick an image format from <code>Accept</code>, and key on that.</li>
+        <li><strong>Never put personal data under a shared key.</strong> A response that depends on who's logged in is either marked <code>private</code> or keyed per user (which usually means: don't cache it at the CDN).</li>
+      </ul>
+      <p><strong>Purging many pages at once.</strong> A price change for one book affects its page, three category pages, the search results and the homepage carousel. Purging by URL means knowing every one of them. Instead, the origin <em>tags</em> each response with the things it contains (<code>Surrogate-Key: book-42 cat-crime home</code> on Fastly, <code>Cache-Tag</code> on Cloudflare), and one purge of the tag <code>book-42</code> clears every page that shows that book.</p>
+      <p><strong>Better than purging, where you can:</strong> static assets get versioned URLs (<code>app.3f9c2.js</code>) and a year-long TTL, so a deploy changes the URL and nothing needs purging; changing content gets a short TTL with <code>stale-while-revalidate</code>; tag purges are for edits that must show now.</p>
+      <h4>Status today</h4>
+      <p>Fastly (Surrogate-Key) and Cloudflare (Cache-Tag) both purge by tag; other CDNs offer similar features. Checked October 2026 on their documentation.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Public pages and media served through a CDN</li><li>Catalogues where one item appears on many pages</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>APIs whose responses are per user</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>The cache key drops tracking parameters and we never vary on cookies. Each page is tagged with the books it shows, so a price change purges tag book-42 and every page with that book refreshes within seconds.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong><code>Vary: Cookie</code> on a public page</strong>: the CDN keeps a copy per visitor.</li><li><strong>Purging by URL list</strong> and missing the pages nobody remembered.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Servers sign, storage carries, edges deliver"</strong>Your servers only sign permissions and record metadata; the bytes go straight to object storage; downloads come from the CDN edge nearest the user.</div>
@@ -3364,6 +3387,16 @@ html.iks-open { overflow: hidden; }
         <p>Why do large blob stores use erasure coding rather than three full copies for cold data?</p>
         <div class="opts"><button>It's faster to read</button><button>Similar durability for about half the extra space</button><button>It avoids the metadata service</button></div>
         <div class="why">6 + 3 coding stores 1.5× the data and survives any 3 lost pieces; three replicas store 3×. Reads and repairs cost more CPU and network.</div>
+      </div>
+      <div class="quiz-q" data-answer="The CDN keeps a separate copy for every visitor's cookies">
+        <p>A public page sends <code>Vary: Cookie</code>, and the CDN hit rate is 2%. Why?</p>
+        <div class="opts"><button>The TTL is too short</button><button>The CDN keeps a separate copy for every visitor's cookies</button><button>Cookies can't be cached</button></div>
+        <div class="why">Vary splits the cache by that header's value; cookies differ per visitor, so almost every request misses.</div>
+      </div>
+      <div class="quiz-q" data-answer="Tag every page with the books it shows, then purge the tag">
+        <p>One book's price changes, and it appears on 30 different pages. What purges them all most reliably?</p>
+        <div class="opts"><button>Purge each URL from a list</button><button>Tag every page with the books it shows, then purge the tag</button><button>Lower every page's TTL to 5 seconds</button></div>
+        <div class="why">Surrogate keys or cache tags let one purge reach every response containing that item.</div>
       </div>
     </div>
 
@@ -3892,6 +3925,27 @@ html.iks-open { overflow: hidden; }
     }
     run();
   })();
+
+  Viz.figures("#fig-key", {
+    "The full URL as the key": { title: "One popular page, 400 cache entries", sub: "A book page shared on social media and in a newsletter.",
+      nodes: [{ id: "a", x: 90, y: 60, w: 170, label: "From a newsletter", sub: "?utm_source=mail&id=42", kind: "client" }, { id: "b", x: 90, y: 160, w: 170, label: "From social media", sub: "?id=42&fbclid=Iw…", kind: "client" },
+        { id: "c", x: 90, y: 260, w: 170, label: "Typed in", sub: "?id=42", kind: "client" }, { id: "e", x: 380, y: 160, w: 150, label: "CDN edge", sub: "every URL is new", kind: "cdn" },
+        { id: "o", x: 610, y: 160, w: 140, label: "Origin", sub: "renders the page", kind: "service" }],
+      edges: [["a", "e", "", { n: 1 }], ["b", "e", "", { n: 1 }], ["c", "e", "", { n: 1 }], ["e", "o", "miss, miss, miss", { n: 2 }]],
+      width: 700, height: 320,
+      steps: ["The same page arrives under hundreds of URLs: every click ID and campaign tag is different.",
+        { text: "Each one is a new cache key, so each is a miss that goes to the origin. The CDN stores hundreds of identical copies and the hit rate for this page is near zero.", hl: { e: "bad", o: "bad" } }],
+      after: "<b>The key decides the hit rate,</b> not the TTL." },
+    "A normalised key": { title: "The same traffic, one cache entry", sub: "The edge drops tracking parameters and sorts the rest before looking up.",
+      nodes: [{ id: "a", x: 90, y: 60, w: 170, label: "From a newsletter", sub: "?utm_source=mail&id=42", kind: "client" }, { id: "b", x: 90, y: 160, w: 170, label: "From social media", sub: "?id=42&fbclid=Iw…", kind: "client" },
+        { id: "c", x: 90, y: 260, w: 170, label: "Typed in", sub: "?id=42", kind: "client" }, { id: "e", x: 380, y: 160, w: 150, label: "CDN edge", sub: "key: /book?id=42", kind: "cdn" },
+        { id: "o", x: 610, y: 160, w: 140, label: "Origin", sub: "renders the page", kind: "service" }],
+      edges: [["a", "e", "", { n: 1 }], ["b", "e", "", { n: 1 }], ["c", "e", "", { n: 1 }], ["e", "o", "one miss", { n: 2 }]],
+      width: 700, height: 320,
+      steps: ["The edge rewrites each request's key: tracking parameters removed, the rest sorted. All three become <code>/book?id=42</code>.",
+        { text: "The first request fills the cache; everyone after that is a hit. The origin renders the page once per TTL.", hl: { e: "found" } }],
+      after: "<b>Analytics still work:</b> the edge can log the full URL, or pass the campaign tags to the browser, without putting them in the key." },
+  }, { label: "Cache keys" });
 })();
 </script>
 </body>

@@ -3267,6 +3267,34 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Caching personal data at the CDN</strong> under a shared key: users see each other's data.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-stalebudget">
+      <div class="tech-h"><h3>Staleness as a budget, per kind of data</h3><span class="tech-status s-default">The default · every cached value</span></div>
+      <p>"Is a stale cache OK?" has no single answer. Each kind of data has its own budget: how old a value may be before showing it is wrong. Write the budget down as a number, and the TTL, the invalidation method and where you cache all follow from it.</p>
+      <h4>How it works</h4>
+      <table class="stack-sm"><thead><tr><th>Data (an online bookshop)</th><th>Stale budget</th><th>What a stale value costs</th><th>So we…</th></tr></thead><tbody>
+        <tr><td data-l="Data">Book descriptions, cover images</td><td data-l="Budget">Hours</td><td data-l="Cost">A typo fix shows late</td><td data-l="So">Cache at the CDN with long TTLs; versioned image URLs</td></tr>
+        <tr><td data-l="Data">Bestseller list</td><td data-l="Budget">10 minutes</td><td data-l="Cost">A slightly old ranking; nobody can tell</td><td data-l="So">Recompute on a timer; serve from cache only</td></tr>
+        <tr><td data-l="Data">Price on the product page</td><td data-l="Budget">About a minute</td><td data-l="Cost">A shopper sees £9 and pays £7 (or the reverse: a complaint)</td><td data-l="So">Short TTL plus delete-on-change; <strong>checkout re-reads the price from the database</strong></td></tr>
+        <tr><td data-l="Data">Stock count shown</td><td data-l="Budget">Seconds, shown as "few left"</td><td data-l="Cost">"In stock" on an item that just sold out</td><td data-l="So">Cache a rounded band, not the number; the order step checks the real count</td></tr>
+        <tr><td data-l="Data">Your own basket and orders</td><td data-l="Budget">Zero for you, after you change it</td><td data-l="Cost">"I added it and it vanished": a lost sale and a support ticket</td><td data-l="So">Read your own recent writes from the primary, or from the client's local state</td></tr>
+        <tr><td data-l="Data">Account balance, permissions</td><td data-l="Budget">Zero</td><td data-l="Cost">Money or access granted wrongly</td><td data-l="So">Don't cache, or cache only with a version that the write checks</td></tr>
+      </tbody></table>
+      <p><strong>Three patterns keep staleness safe:</strong></p>
+      <ul>
+        <li><strong>Cache for display, check at the decision.</strong> Pages may show a cached price or stock level; the step that takes money or commits stock reads the source of truth.</li>
+        <li><strong>Cache where the requirement changes.</strong> A whole product page tolerates minutes; the price inside it doesn't. Cache the page shell long and fetch the price separately, rather than giving the whole page the strictest budget.</li>
+        <li><strong>Make the age visible and bounded.</strong> Every cached entry has a TTL even when it is also invalidated on change, so a lost invalidation heals within the budget. Where it helps users, show it: "prices as of 10:42".</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>This is how large shops and booking sites work in practice: browsing paths tolerate seconds or minutes, and payment, stock reservation and permissions always go to the source of truth.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Choosing TTLs</li><li>Deciding which data the CDN may hold</li><li>Answering "what if the cache is stale?"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Nothing: every cached value has a budget, even if it's "zero, so don't cache"</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Prices can be a minute stale on the product page, so a 60-second TTL plus delete-on-change; but checkout always reads the price from the database, so a stale cache never charges the wrong amount.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>One TTL for everything.</strong></li><li><strong>Charging, reserving or authorising</strong> from a cached value.</li><li><strong>Invalidation with no TTL behind it</strong>, so a single lost delete is stale forever.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Check the counter, then the cupboard; clear the counter when you restock"</strong>Read from the cache first and fall back to the source; on every write, delete the cached copy rather than trying to update it.</div>
@@ -3354,6 +3382,11 @@ html.iks-open { overflow: hidden; }
         <p>Is a Redis SET NX lock enough to guarantee a seat is never double-booked?</p>
         <div class="opts"><button>Yes, NX makes it atomic</button><button>No: use it to reduce contention, and enforce correctness in the database</button><button>Yes, if the TTL is long</button></div>
         <div class="why">Failover or a paused holder can let two clients hold the "lock". A conditional write or row lock on the seat is the real guarantee.</div>
+      </div>
+      <div class="quiz-q" data-answer="Checkout reads the price from the database">
+        <p>A product page shows a cached price (60-second TTL). How do you make sure nobody is charged a stale price?</p>
+        <div class="opts"><button>Lower the TTL to 1 second</button><button>Checkout reads the price from the database</button><button>Disable caching for product pages</button></div>
+        <div class="why">Cache for display, check at the decision: the step that takes money reads the source of truth.</div>
       </div>
     </div>
 
