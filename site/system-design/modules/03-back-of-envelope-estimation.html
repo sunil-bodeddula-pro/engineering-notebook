@@ -3212,6 +3212,118 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Ignoring data transfer out</strong>, often the largest line for media.</li><li><strong>Millions of tiny objects</strong> where request fees exceed storage fees.</li><li><strong>Cross-region replication of everything</strong> without asking what really needs it.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-range">
+      <div class="tech-h"><h3>Estimate against a threshold, in ranges</h3><span class="tech-status s-default">The default · every estimate</span></div>
+      <p>An estimate only matters next to the number that would change your design: the memory of one cache node, the writes one primary can take, the budget per user. Inputs in an interview are guesses, so give each one a low and a high value and see where the whole range lands against that threshold.</p>
+      <h4>How it works</h4>
+      <ol>
+        <li><strong>Name the decision and its threshold.</strong> "Does the hot set fit in one 256 GB cache node?"</li>
+        <li><strong>Give each input a range</strong> you'd defend: 2–6 million daily users, 30–80 items each, 300–800 bytes per item.</li>
+        <li><strong>Multiply the lows and the highs.</strong> 18 GB to 384 GB.</li>
+        <li><strong>Read the answer off the threshold.</strong> Entirely below: decided, move on, and say the uncertainty didn't matter. Entirely above: decided the other way. Straddling: the estimate's real output is <em>which input to measure</em>, the one with the widest spread.</li>
+      </ol>
+      <p>Try it: change the ranges and the threshold, and watch the verdict.</p>
+      <div class="card widget" id="rng-widget">
+        <div class="no-gl" id="rng-inputs"></div>
+        <div class="ctl"><span>Threshold: one cache node of</span><span class="seg" id="rng-th"></span></div>
+        <div class="no-gl" id="rng-bar"></div>
+        <div class="verdict no-gl" id="rng-verdict"></div>
+      </div>
+      <h4>Status today</h4>
+      <p>Ranges are what planners do at work too: a forecast with a low and a high case, compared against what the current design can carry.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any estimate that decides one machine or many, cache or not, affordable or not</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Numbers that don't change the design: if more servers fix it, skip the arithmetic</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Between 18 and 384 GB, against a 256 GB node, so it depends almost entirely on daily users. I'll design for the high case and confirm that one number first.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A single number to four digits</strong> from inputs that are guesses.</li><li><strong>An estimate with no threshold</strong>: arithmetic that decides nothing.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-sanity">
+      <div class="tech-h"><h3>Catching the factor-of-1,000 mistake</h3><span class="tech-status s-default">The default · ten seconds per estimate</span></div>
+      <p>Estimation errors are rarely 20%. They are a lost "per second" or a megabyte read as a kilobyte, which makes the answer 1,000 times wrong. Four quick checks catch nearly all of them.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Check</th><th>What you do</th><th>What it catches</th></tr></thead><tbody>
+        <tr><td>Carry the units</td><td>Write units next to every number and cancel them: requests/s × KB/request = KB/s</td><td>Answers in the wrong unit; a day silently treated as a second</td></tr>
+        <tr><td>Picture it</td><td>Turn the result into something physical: one laptop's memory, one disk, a rack, a warehouse</td><td>Results that "look fine" until you see they need 4,000 disks</td></tr>
+        <tr><td>Run it backwards</td><td>From the result, recompute one input and see if it matches what you assumed</td><td>Dropped or doubled powers of ten</td></tr>
+        <tr><td>Compare with something known</td><td>Hold it against a public figure: Wikipedia's size, a known service's traffic</td><td>A chat app for one school needing more storage than YouTube</td></tr>
+      </tbody></table>
+      <p><strong>Worked slip:</strong> "A fitness app stores 2 KB per workout, 5 million workouts a day, so 10 GB a second." Carry the units: 5M workouts a <em>day</em> × 2 KB = 10 GB a <em>day</em>, about 115 KB a second. The slip changed the answer from "a big cluster" to "one modest database".</p>
+      <h4>Status today</h4>
+      <p>The same checks are taught in physics as dimensional analysis and order-of-magnitude reasoning; they work just as well on servers.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Every estimate you say out loud</li><li>Reviewing someone else's capacity plan</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Nothing: it takes seconds</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>10 GB a day, so about 120 KB a second: one database handles that easily, even at five times the peak.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>No units on the board</strong>.</li><li><strong>Not noticing a result</strong> that implies more hardware than the whole company could own.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-capplan">
+      <div class="tech-h"><h3>A capacity plan in five lines</h3><span class="tech-status s-default">The default · when the interviewer asks "how many servers?"</span></div>
+      <p>How many machines is not traffic ÷ capacity. You plan for the busiest window you expect, keep room for a failure, add the growth until the next review, check which resource runs out first, and round up to whole machines.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Line</th><th>Question</th><th>Ticket-resale API, worked</th></tr></thead><tbody>
+        <tr><td>1. The peak</td><td>Which window? The busiest few minutes of the busiest day this quarter, not the daily average</td><td>900 requests a second, during a big on-sale (the average is 150)</td></tr>
+        <tr><td>2. Growth</td><td>How far ahead, at what monthly growth? Compounding: 8% a month is 1.6× in six months</td><td>6 months × 8% → 1.59 × 900 ≈ 1,430 a second</td></tr>
+        <tr><td>3. Per machine</td><td>What one machine does at a safe load (measured, about 70% of its limit, since latency climbs fast above that: Module 02)</td><td>250 a second each</td></tr>
+        <tr><td>4. Losing a zone</td><td>Spread over N zones; if one fails, the rest carry everything: plan for N ÷ (N − 1)</td><td>3 zones → × 1.5 → 1,430 ÷ 250 × 1.5 = 8.6</td></tr>
+        <tr><td>5. Round up, per resource</td><td>Whole machines, split evenly across zones; check memory, connections and disk too</td><td>9 machines, 3 per zone. Memory is at 40%, so CPU is the limit</td></tr>
+      </tbody></table>
+      <p><strong>What autoscaling won't do for you:</strong> new machines take from tens of seconds to minutes to start and warm up. The first minutes of a sudden spike land on the machines already running, so the floor still needs the plan above. And scaling the app tier when the database is the limit adds connections to the thing that's already full.</p>
+      <h4>Status today</h4>
+      <p>Cloud providers spread regions across three or more zones, which is why N ÷ (N − 1) with N = 3 (that is, 1.5×) is the usual failure headroom.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>"How many servers?" in an interview</li><li>Before a launch, sale or season with a known date</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Serverless or fully managed parts priced per request; plan their limits and quotas instead</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>About 1,400 a second at the busiest moment six months out; at 250 per machine and surviving a zone loss, that's 9 machines, 3 per zone, with CPU as the limit.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Sizing for the average</strong>.</li><li><strong>Running at 95% "to save money"</strong>, where every request waits in line.</li><li><strong>"Autoscaling handles it"</strong> for a spike that arrives in seconds.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-unitcost">
+      <div class="tech-h"><h3>Cost per request, per user, and the line that dominates</h3><span class="tech-status s-situational">Situational · when cost decides</span></div>
+      <p>The prices in the block above become useful once you turn them into a cost per request or per user and compare it with what a request or user earns. Usually one line is far bigger than the rest, and that's the only one worth designing around.</p>
+      <h4>How it works</h4>
+      <p><strong>A photo app's feed:</strong> each feed load returns about 1.2 MB of images and needs some compute and a few database reads.</p>
+      <table><thead><tr><th>Line</th><th>Working</th><th>Per million feed loads</th></tr></thead><tbody>
+        <tr><td>Compute</td><td>A $0.08-an-hour machine serves 300 loads a second, about 1.1 million an hour</td><td>≈ $0.07</td></tr>
+        <tr><td>Database</td><td>Say five times the compute bill</td><td>≈ $0.40</td></tr>
+        <tr><td>Data out</td><td>1.2 MB × 1M = 1,200 GB × $0.09</td><td><strong>≈ $108</strong></td></tr>
+      </tbody></table>
+      <p>Data out is over 200 times everything else together. Per user: 40 feed loads a day is 1,200 a month, 1.4 GB, so about $0.13 a month at list price. If an average user brings in $0.10 a month, the design loses money on every user before anyone is paid. The fixes are in the data-out line, and each has a different owner: <strong>fewer bytes</strong> (images sized to the screen, modern formats), <strong>a lower price per byte</strong> (a CDN contract at volume), and <strong>fewer loads</strong> (cache on the device: a product decision as much as a technical one).</p>
+      <p>Two other lines grow quietly: <strong>storage after copies</strong> (replicas, backups and logs multiply the logical size), and <strong>monitoring</strong>, whose metric cost grows with the number of distinct label values, not with traffic.</p>
+      <h4>Status today</h4>
+      <p>Prices are AWS US East list prices, checked October 2026; data out to the internet is $0.09 per GB for the first 10 TB a month and falls to $0.05 above 150 TB. Treat them as orders of magnitude.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Media, downloads, AI inference, logging: anything where bytes or tokens dominate</li><li>Comparing two designs that both work</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Typical CRUD APIs where the bill is small next to salaries; say so in one line</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Data out is the whole bill: about 11 cents per thousand loads against well under a cent for compute. So images go through a CDN and are sized to the screen, and I'd ask the product team about caching the feed on the phone.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Optimising compute</strong> when data out is 100× larger.</li><li><strong>Cost never compared with revenue</strong> per user or per request.</li></ul></div>
+    </section>
+
+    <section class="tech" id="t-flip">
+      <div class="tech-h"><h3>Four estimates that change a design</h3><span class="tech-status s-default">The default · the ones worth doing</span></div>
+      <p>Most interview estimates confirm what you'd build anyway. These four kinds regularly overturn a design in under a minute, so they're worth doing whenever they apply.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Question</th><th>Quick number (our examples)</th><th>What it changed</th></tr></thead><tbody>
+        <tr><td><strong>Does it fit where you're putting it?</strong></td><td>A music app precomputes daily mixes for 80M users. 50 track IDs × 16 bytes = 64 GB in total: fits in memory. Storing each track's full details (2 KB) in every mix: 8 TB</td><td>Store IDs only and look details up from a shared cache</td></tr>
+        <tr><td><strong>Does the fan-out finish in time?</strong></td><td>A school-closure alert to 3M parents within 2 minutes needs 25,000 sends a second; the SMS provider allows 5,000, so it takes 10 minutes</td><td>Send to app users by push first, buy more SMS throughput, or agree on a 10-minute target</td></tr>
+        <tr><td><strong>Does the cost fit the revenue?</strong></td><td>$0.13 of data out per user per month against $0.10 of revenue (the block above)</td><td>CDN, smaller images, caching on the device</td></tr>
+        <tr><td><strong>Does the build finish before the growth arrives?</strong></td><td>Writes grow 12% a month, so they double in about 6 months; the primary is at half its limit; splitting the database takes about 9 months</td><td>The project starts now, or the cheaper stopgaps (tuning, a bigger machine) are scheduled to cover the gap</td></tr>
+      </tbody></table>
+      <h4>Status today</h4>
+      <p>All four come up in real design reviews as much as in interviews: memory fit, fan-out time, unit economics and lead time.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>When a proposed design sounds plausible but rests on one big quantity</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Quantities that only change the number of identical machines</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Before we go further: 3 million texts at 5,000 a second is 10 minutes, so either the target changes or the sending path does.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Estimating everything up front</strong> and then designing as if you hadn't.</li><li><strong>Treating today's load as the planning load</strong> when growth is fast.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "A day is a hundred thousand seconds"</strong>Per day ÷ 10⁵ = per second. Then × peak, × bytes, and finish every number with "so we need…".</div>
@@ -3299,6 +3411,21 @@ html.iks-open { overflow: hidden; }
         <p>Serving 1 PB a month directly from object storage to users costs roughly what in data transfer at list price?</p>
         <div class="opts"><button>About $900</button><button>About $90,000</button><button>About $9 million</button></div>
         <div class="why">About $0.09 per GB × 1,000,000 GB. That's why media goes through a CDN.</div>
+      </div>
+      <div class="quiz-q" data-answer="Find out the input with the widest range">
+        <p>Your estimate of a cache's size runs from 40 GB to 600 GB, and one node holds 256 GB. What's the most useful next step?</p>
+        <div class="opts"><button>Average it to 320 GB and shard</button><button>Find out the input with the widest range</button><button>Report 40 GB, the optimistic case</button></div>
+        <div class="why">When a range straddles the threshold, the estimate's job is to point at the one input worth measuring.</div>
+      </div>
+      <div class="quiz-q" data-answer="9">
+        <p>Peak is 1,200 requests a second, one machine safely does 200, and you run in 3 zones. How many machines?</p>
+        <div class="opts"><button>6</button><button>9</button><button>18</button></div>
+        <div class="why">1,200 ÷ 200 = 6 for the load; surviving the loss of one of 3 zones needs × 1.5 = 9, three per zone.</div>
+      </div>
+      <div class="quiz-q" data-answer="Fewer and cheaper bytes: sizing, formats, a CDN, device caching">
+        <p>A media feed's data out costs 200× its compute. Where should the design effort go?</p>
+        <div class="opts"><button>Faster servers</button><button>Fewer and cheaper bytes: sizing, formats, a CDN, device caching</button><button>A cheaper database</button></div>
+        <div class="why">Design around the line that dominates; shaving the small lines changes nothing.</div>
       </div>
     </div>
 
@@ -3471,6 +3598,40 @@ html.iks-open { overflow: hidden; }
       g("sm-why").className = "verdict no-gl" + (r === 0 && tot >= 3e13 ? " warn" : "");
     }
     ["sm-n", "sm-s", "sm-y"].forEach((id) => (g(id).oninput = run)); run();
+  })();
+
+  /* ---------- range vs threshold lab ---------- */
+  (function () {
+    const F = [["Daily users (millions)", 2, 6, 1e6], ["Items cached per user", 30, 80, 1], ["Bytes per item", 300, 800, 1]];
+    const TH = [["64 GB", 64e9], ["256 GB", 256e9], ["1 TB", 1e12]];
+    let th = 1;
+    const fmt = (b) => b >= 1e12 ? (b / 1e12).toFixed(b >= 1e13 ? 0 : 1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB" : (b / 1e6).toFixed(0) + " MB";
+    $("rng-inputs").innerHTML = F.map((f, i) => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0"><span style="min-width:200px">${f[0]}</span><span style="white-space:nowrap"><input type="number" min="1" step="any" id="rng-lo${i}" value="${f[1]}" aria-label="${f[0]} low" style="width:90px"> to <input type="number" min="1" step="any" id="rng-hi${i}" value="${f[2]}" aria-label="${f[0]} high" style="width:90px"></span></div>`).join("");
+    $("rng-th").innerHTML = TH.map((t, i) => `<button type="button" aria-pressed="${i === th}" data-i="${i}">${t[0]}</button>`).join("");
+    $("rng-th").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; th = +b.dataset.i; [...$("rng-th").children].forEach((c, k) => c.setAttribute("aria-pressed", String(k === th))); draw(); };
+    $("rng-inputs").oninput = draw;
+    function draw() {
+      let lo = 1, hi = 1, wide = 0, wideI = 0;
+      F.forEach((f, i) => {
+        let a = Math.max(+$("rng-lo" + i).value || 1, 1e-9), b = Math.max(+$("rng-hi" + i).value || 1, 1e-9);
+        if (a > b) [a, b] = [b, a];
+        lo *= a * f[3]; hi *= b * f[3];
+        if (b / a > wide) { wide = b / a; wideI = i; }
+      });
+      const T = TH[th][1], L = Math.log10;
+      const min = Math.min(L(lo), L(T)) - 0.5, max = Math.max(L(hi), L(T)) + 0.5, x = (v) => ((L(v) - min) / (max - min) * 100).toFixed(1);
+      $("rng-bar").innerHTML = `<div style="position:relative;height:56px;margin:14px 0 6px;border-radius:8px;background:var(--surface-2)">
+        <div style="position:absolute;top:14px;height:20px;left:${x(lo)}%;width:${Math.max(0.8, x(hi) - x(lo))}%;background:var(--blue-soft);border:2px solid var(--blue);border-radius:6px"></div>
+        <div style="position:absolute;top:4px;bottom:4px;left:${x(T)}%;border-left:3px dashed var(--red)"></div>
+        <span style="position:absolute;bottom:-2px;left:${x(lo)}%;font-size:.78rem;transform:translateX(-10%)">${fmt(lo)}</span>
+        <span style="position:absolute;bottom:-2px;left:${x(hi)}%;font-size:.78rem;transform:translateX(-90%)">${fmt(hi)}</span></div>
+        <p class="hint" style="margin:0">Blue: your range (log scale). Red dashes: one ${TH[th][0]} node.</p>`;
+      const v = $("rng-verdict");
+      if (hi <= T) { v.className = "verdict no-gl"; v.innerHTML = `<b>Decided: it fits.</b> Even the high case (${fmt(hi)}) is under ${TH[th][0]}. The uncertainty doesn't matter, so say so and move on.`; }
+      else if (lo > T) { v.className = "verdict bad no-gl"; v.innerHTML = `<b>Decided: it doesn't fit.</b> Even the low case (${fmt(lo)}) is over ${TH[th][0]}. Spread the cache over ${Math.ceil(hi / T)} or more nodes, or keep fewer items per user.`; }
+      else { v.className = "verdict warn no-gl"; v.innerHTML = `<b>Not decided yet.</b> The range straddles ${TH[th][0]}. The input with the widest spread is <b>${F[wideI][0].toLowerCase()}</b> (×${wide.toFixed(1)} between low and high): that's the one number to find out before choosing.`; }
+    }
+    draw();
   })();
 })();
 </script>
