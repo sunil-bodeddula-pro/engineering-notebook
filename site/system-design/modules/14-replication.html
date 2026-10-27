@@ -3317,6 +3317,30 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We have replicas, so we're safe from data loss"</strong>: replicas copy the mistake.</li><li><strong>Promoting the delayed replica</strong> in a normal failover.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-dynamopaper">
+      <div class="tech-h"><h3>Dynamo, end to end (the 2007 paper)</h3><span class="tech-status s-rare">Classic design · SOSP 2007</span></div>
+      <p>Amazon's Dynamo paper put the pieces of this module together into one store whose first rule was <em>always accept the write</em>: a customer adding to a shopping cart must succeed even while servers, disks or links fail. Each technique above appears in it, chosen for that rule.</p>
+      <h4>How it works</h4>
+      <div id="fig-dynamo"></div>
+      <table><thead><tr><th>Problem</th><th>Dynamo's answer</th><th>Where on this site</th></tr></thead><tbody>
+        <tr><td>Spreading keys</td><td>Consistent hashing with virtual nodes; each key has a preference list of nodes</td><td>Module 15</td></tr>
+        <tr><td>Tunable consistency</td><td>N replicas, W acks to write, R replies to read; (3, 2, 2) was common</td><td>Leaderless quorums, above</td></tr>
+        <tr><td>A replica is down</td><td>Sloppy quorum: write to the next healthy node with a hint, handed back later</td><td>Hinted handoff, above</td></tr>
+        <tr><td>Concurrent writes</td><td>Vector clocks keep both versions; the application merges them (the cart takes the union)</td><td>Module 20</td></tr>
+        <tr><td>Replicas drifting apart</td><td>Anti-entropy with Merkle trees</td><td>Read repair and Merkle trees, above</td></tr>
+        <tr><td>Who's in the cluster</td><td>Gossip-based membership and failure detection</td><td>Gossip, above</td></tr>
+      </tbody></table>
+      <p><strong>The catch the paper is honest about:</strong> merging is the application's job. A cart can take the union of items, which can bring a deleted item back. Many later systems chose simpler rules (last write wins) or, like DynamoDB, a leader per partition.</p>
+      <h4>Status today</h4>
+      <p>The paper's design lives on in Cassandra and Riak. Amazon DynamoDB shares the name and goals but not the mechanism: its 2022 paper describes a replication group per partition using Multi-Paxos for leader election and consensus. Facts checked October 2026 in the <a href="https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf" target="_blank" rel="noopener">Dynamo paper</a> and the <a href="https://www.usenix.org/conference/atc22/presentation/elhemali" target="_blank" rel="noopener">DynamoDB paper</a>.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Explaining why a design favours availability over consistency</li><li>"Design a key-value store" (Design D03)</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Data that must never have two versions (balances, bookings)</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Like Dynamo, writes go to the first three healthy nodes on the ring with W = 2, a hint if a home node is down, and vector clocks so concurrent cart updates are merged rather than lost.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We use DynamoDB, so we have vector clocks"</strong>: the product and the paper differ.</li><li><strong>Leaderless with last-write-wins</strong> on data where a lost update matters.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "One writes, many copy, someone lags"</strong>One leader takes writes, followers copy its log, and some copy is always behind. Decide what readers see while it catches up, and what's lost if the leader dies.</div>
@@ -3419,6 +3443,11 @@ html.iks-open { overflow: hidden; }
         <p>What does logical replication NOT copy in PostgreSQL?</p>
         <div class="opts"><button>Row inserts</button><button>Schema changes and sequence values</button><button>Updates to rows with a primary key</button></div>
         <div class="why">You apply schema changes on both sides yourself, and set sequences at cut-over.</div>
+      </div>
+      <div class="quiz-q" data-answer="It goes to the next healthy node with a hint, and is handed back later">
+        <p>In Dynamo, what happens to a write when one of the key's home replicas is down?</p>
+        <div class="opts"><button>The write is rejected</button><button>It goes to the next healthy node with a hint, and is handed back later</button><button>It waits until the replica returns</button></div>
+        <div class="why">A sloppy quorum with hinted handoff keeps writes available through failures.</div>
       </div>
     </div>
 
@@ -3802,6 +3831,21 @@ html.iks-open { overflow: hidden; }
       { text: "At 10:15 someone notices. The delayed replica won't apply the 10:02 change until 11:02, so the engineer pauses its replay (<code>pg_wal_replay_pause()</code>).", hl: { d: "found" } },
       { text: "The 40,000 rows are copied from the delayed replica back to the primary. Recovered in minutes, with nothing written after 10:02 lost.", hl: { p: "found", d: "found" } }],
     after: "<b>The delay is the window for noticing.</b> One hour suits mistakes people notice quickly; some teams keep a second replica a day behind.",
+  });
+
+  Viz.figure("#fig-dynamo", {
+    title: "Adding a book to a cart while one replica is down", sub: "Point at a step. N = 3, W = 2. Key cart:5521's preference list is A, B, C, then D.",
+    nodes: [{ id: "cl", x: 80, y: 170, w: 120, label: "Cart service", sub: "put(cart:5521)", kind: "client" }, { id: "a", x: 300, y: 170, w: 150, label: "Node A", sub: "coordinator", kind: "db" },
+      { id: "b", x: 540, y: 60, w: 150, label: "Node B", sub: "down", kind: "db" }, { id: "c", x: 540, y: 290, w: 150, label: "Node C", sub: "", kind: "db" },
+      { id: "d", x: 770, y: 170, w: 150, label: "Node D", sub: "hint for B", kind: "db" }],
+    edges: [["cl", "a", "", { n: 1 }], ["a", "c", "", { n: 2 }], ["a", "d", "hinted write", { n: 3 }], ["a", "cl", "ok (W = 2)", { n: 4, bend: 40 }], ["d", "b", "hand off", { n: 5 }]],
+    width: 860, height: 350,
+    steps: [{ text: "The cart service sends the write to A, the first healthy node in the key's preference list. A stores it with a new vector-clock entry.", hl: { a: "found" } },
+      "A forwards it to C, the next replica.",
+      { text: "B is down, so A sends B's copy to D, the next node on the ring, marked \"this belongs to B\".", hl: { b: "bad", d: "warm" } },
+      "Two replicas (A and C, or A and D) have acknowledged: W = 2 is met and the customer's click succeeds.",
+      { text: "When B comes back, D hands the copy over and deletes its own. Merkle-tree comparisons catch anything a hint missed.", hl: { b: "found" } }],
+    after: "<b>Always writeable, sometimes divergent.</b> If two writes to the same cart race, both versions are kept and the next read gets both to merge.",
   });
 })();
 </script>

@@ -3291,6 +3291,28 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A single index on one machine</strong> for billions of documents.</li><li><strong>Forgetting the tail:</strong> a query is as slow as its slowest shard, so replicas and hedged requests matter (Module 02).</li></ul></div>
     </section>
 
+        <section class="tech" id="t-bigtable">
+      <div class="tech-h"><h3>A wide-column store end to end: Bigtable</h3><span class="tech-status s-rare">Classic design · OSDI 2006</span></div>
+      <p>Bigtable is where the LSM tree in this module met sharding and a lock service. Its data model is a sorted map: (row key, column, timestamp) → value, sparse (most cells empty) and sorted by row key, split into ranges called <em>tablets</em> of about 100–200 MB that move between servers.</p>
+      <h4>How it works</h4>
+      <div id="fig-bigtable"></div>
+      <ul>
+        <li><strong>Rows sorted by key</strong>, so a key design like <code>com.example.www/page</code> (reversed domain) keeps a site's pages together and range scans are cheap.</li>
+        <li><strong>Column families</strong> group columns that are stored and tuned together (compression, versions to keep, Bloom filters per locality group).</li>
+        <li><strong>Built on two other systems:</strong> the commit log and the immutable SSTable files live in GFS (so a tablet server holds no data that would be lost if it died), and Chubby elects the single master and stores where the root of the tablet index is.</li>
+        <li><strong>Finding a tablet</strong> takes three hops (a Chubby file, the root tablet, a metadata tablet), all cached by clients, so most requests go straight to the right tablet server.</li>
+        <li><strong>Moving load is cheap:</strong> a tablet's data is already in shared storage, so reassigning it to another server is a metadata change, not a copy.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Cloud Bigtable is the managed descendant; Apache HBase reimplemented the design on HDFS and ZooKeeper; Cassandra combined Bigtable's storage model with Dynamo's distribution (Module 13). Facts checked October 2026 in the <a href="https://research.google/pubs/bigtable-a-distributed-storage-system-for-structured-data/" target="_blank" rel="noopener">Bigtable paper</a>.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Huge sparse tables with range scans by key: web pages, time series, user events</li><li>"Design a wide-column store"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Joins, secondary indexes and multi-row transactions as everyday needs</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Rows sorted by a key we design for our scans, split into tablets that servers own; writes go to a shared log and a memtable, flushed into immutable files, so moving a tablet is just reassigning it.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Monotonic row keys</strong> (timestamps first), sending every write to the last tablet.</li><li><strong>Treating a wide-column store like SQL</strong>: expecting joins and ad-hoc filters to be fast.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "B-trees edit the book, LSMs write a diary"</strong>A B-tree finds the right page and edits it in place: great for reading. An LSM only appends new entries and tidies up later: great for writing.</div>
@@ -3383,6 +3405,11 @@ html.iks-open { overflow: hidden; }
         <p>In a document-partitioned search index, which shards does a query touch?</p>
         <div class="opts"><button>Only the shard holding the query's first term</button><button>Every shard, then the results are merged</button><button>A random replica of one shard</button></div>
         <div class="why">Each shard indexes a subset of documents, so any of them may hold matches: scatter to all, gather the top K from each.</div>
+      </div>
+      <div class="quiz-q" data-answer="Its log and files are already in shared storage (GFS), so only the assignment changes">
+        <p>Why is moving a Bigtable tablet to another server fast?</p>
+        <div class="opts"><button>Tablets are tiny</button><button>Its log and files are already in shared storage (GFS), so only the assignment changes</button><button>Clients copy the data</button></div>
+        <div class="why">Separating serving from storage makes rebalancing a metadata operation.</div>
       </div>
     </div>
 
@@ -3811,6 +3838,20 @@ html.iks-open { overflow: hidden; }
     g("bp-reset").onclick = reset;
     reset();
   })();
+
+  Viz.figure("#fig-bigtable", {
+    title: "One tablet: a write and a read", sub: "Point at a step. Tablet \"com.example – com.ezz\" on tablet server 14.",
+    nodes: [{ id: "c", x: 90, y: 160, w: 120, label: "Client", sub: "cached location", kind: "client" }, { id: "ts", x: 320, y: 160, w: 160, label: "Tablet server 14", sub: "memtable in memory", kind: "service" },
+      { id: "log", x: 590, y: 50, w: 160, label: "Commit log", sub: "in GFS", kind: "store" }, { id: "ss", x: 590, y: 270, w: 160, label: "SSTables", sub: "immutable, in GFS", kind: "store" }],
+    edges: [["c", "ts", "write row", { n: 1, bend: -25 }], ["ts", "log", "append", { n: 2 }], ["ts", "ss", "flush", { n: 3 }], ["c", "ts", "read row", { n: 4, bend: 25 }], ["ts", "ss", "skip by Bloom filter", { n: 5, bend: 50 }]],
+    width: 700, height: 340,
+    steps: ["The client already knows (from its cache) that this row range lives on server 14 and sends the write there.",
+      "The server appends it to the commit log in GFS, then puts it in the sorted in-memory memtable. Now it is durable.",
+      "When the memtable fills, it is written out as a new immutable SSTable in GFS (a minor compaction). Background merges combine SSTables later.",
+      "A read for the same row arrives.",
+      { text: "The server merges the memtable with the row's versions in SSTables, using each SSTable's Bloom filter to skip files that can't contain the row.", hl: { ts: "found" } }],
+    after: "<b>Durability lives in GFS, not on the server.</b> If server 14 dies, another server replays the log and serves the tablet within seconds.",
+  });
 })();
 </script>
 </body>

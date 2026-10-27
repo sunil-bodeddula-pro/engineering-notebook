@@ -3295,6 +3295,34 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong><code>Vary: Cookie</code> on a public page</strong>: the CDN keeps a copy per visitor.</li><li><strong>Purging by URL list</strong> and missing the pages nobody remembered.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-gfs">
+      <div class="tech-h"><h3>A file system across thousands of machines: GFS and HDFS</h3><span class="tech-status s-rare">Classic design · SOSP 2003</span></div>
+      <p>The Google File System stored huge files (crawls, logs, indexes) on thousands of cheap machines that failed every day. Its central trick still shapes big-data storage: one master holds <em>all metadata in memory</em>, and the bytes flow directly between clients and storage servers, never through the master.</p>
+      <h4>How it works</h4>
+      <div id="fig-gfs"></div>
+      <ul>
+        <li><strong>Big chunks.</strong> Files are split into 64 MB chunks (HDFS: 128 MB blocks by default), each stored on three servers. Big chunks keep the master's metadata small enough for memory.</li>
+        <li><strong>The master stays out of the data path.</strong> Clients ask it once where a chunk lives, cache the answer, then talk to the storage servers.</li>
+        <li><strong>Leases order the writes.</strong> For each chunk, the master gives one replica a lease to act as primary; the primary picks the order of all changes and the others follow it.</li>
+        <li><strong>Data and control travel separately.</strong> The bytes are pushed along a chain of replicas, nearest first, to use every link's bandwidth; the small "apply it" request goes to the primary.</li>
+        <li><strong>Record append, at least once.</strong> Many producers can append to one file; each record lands atomically at least once, at an offset the system chooses, so readers must skip duplicates and padding.</li>
+        <li><strong>Surviving the master.</strong> Metadata changes go to an operation log replicated to other machines, with checkpoints; read-only shadow masters keep reads going during a failover.</li>
+      </ul>
+      <table><thead><tr><th>GFS (paper)</th><th>HDFS (open source)</th></tr></thead><tbody>
+        <tr><td>Master, chunkservers, 64 MB chunks</td><td>NameNode, DataNodes, 128 MB blocks</td></tr>
+        <tr><td>Operation log on several machines, shadow masters</td><td>High availability: an active and a standby NameNode sharing edits through JournalNodes</td></tr>
+        <tr><td>Record append for many writers</td><td>Single writer per file, append supported</td></tr>
+      </tbody></table>
+      <h4>Status today</h4>
+      <p>GFS was replaced inside Google by Colossus, which spreads the metadata over many servers instead of one master. HDFS still runs many data lakes, though object storage (Module 10 above, Design D35) has taken most new workloads. Facts checked October 2026 in the <a href="https://research.google/pubs/the-google-file-system/" target="_blank" rel="noopener">GFS paper</a> and the <a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html" target="_blank" rel="noopener">HDFS architecture guide</a>.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Explaining metadata vs data paths in any storage design</li><li>"Design a distributed file system"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Many small files: one master holding every name in memory is the known limit</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>A single metadata service holds the namespace in memory and hands out leases per chunk; the bytes go client to storage servers along a replication chain, so the metadata service never sees data.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Routing file bytes through the metadata server.</strong></li><li><strong>Billions of tiny files</strong> on a single-master design.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Servers sign, storage carries, edges deliver"</strong>Your servers only sign permissions and record metadata; the bytes go straight to object storage; downloads come from the CDN edge nearest the user.</div>
@@ -3397,6 +3425,11 @@ html.iks-open { overflow: hidden; }
         <p>One book's price changes, and it appears on 30 different pages. What purges them all most reliably?</p>
         <div class="opts"><button>Purge each URL from a list</button><button>Tag every page with the books it shows, then purge the tag</button><button>Lower every page's TTL to 5 seconds</button></div>
         <div class="why">Surrogate keys or cache tags let one purge reach every response containing that item.</div>
+      </div>
+      <div class="quiz-q" data-answer="It held only metadata, in memory, and file bytes never passed through it">
+        <p>Why could GFS run with a single master for thousands of servers?</p>
+        <div class="opts"><button>It used very fast hardware</button><button>It held only metadata, in memory, and file bytes never passed through it</button><button>Clients wrote directly to its disk</button></div>
+        <div class="why">Clients ask the master where chunks are, then exchange data directly with storage servers.</div>
       </div>
     </div>
 
@@ -3946,6 +3979,20 @@ html.iks-open { overflow: hidden; }
         { text: "The first request fills the cache; everyone after that is a hit. The origin renders the page once per TTL.", hl: { e: "found" } }],
       after: "<b>Analytics still work:</b> the edge can log the full URL, or pass the campaign tags to the browser, without putting them in the key." },
   }, { label: "Cache keys" });
+
+  Viz.figure("#fig-gfs", {
+    title: "Writing to a chunk", sub: "Point at a step. Three replicas; the master granted replica 2 the lease for this chunk.",
+    nodes: [{ id: "c", x: 90, y: 170, w: 120, label: "Client", sub: "writes 4 MB", kind: "client" }, { id: "m", x: 330, y: 55, w: 160, label: "Master", sub: "metadata in memory", kind: "service" },
+      { id: "r1", x: 330, y: 280, w: 150, label: "Replica 1", sub: "nearest", kind: "store" }, { id: "r2", x: 600, y: 170, w: 150, label: "Replica 2", sub: "primary (lease)", kind: "store" },
+      { id: "r3", x: 600, y: 300, w: 150, label: "Replica 3", sub: "", kind: "store" }],
+    edges: [["c", "m", "where is chunk 9?", { n: 1 }], ["c", "r1", "data", { n: 2 }], ["r1", "r3", "data", { n: 2 }], ["r3", "r2", "data", { n: 2 }], ["c", "r2", "apply", { n: 3 }], ["r2", "r3", "order #12", { n: 4, bend: 40 }], ["r2", "r1", "", { n: 4 }]],
+    width: 700, height: 360,
+    steps: ["The client asks the master which servers hold chunk 9 and which one has the lease. It caches the answer for later writes.",
+      "It pushes the 4 MB to the nearest replica, which forwards it down the chain while still receiving. The data sits in each server's buffer; nothing is applied yet.",
+      "Once all three have the data, the client sends a small \"apply\" request to the primary.",
+      { text: "The primary gives the change serial number 12, applies it, and tells the others to apply it in the same order. When they confirm, the primary replies to the client.", hl: { r2: "found" } }],
+    after: "<b>The master saw one small question.</b> Control and data take different paths, which is why one master could serve thousands of storage servers.",
+  });
 })();
 </script>
 </body>

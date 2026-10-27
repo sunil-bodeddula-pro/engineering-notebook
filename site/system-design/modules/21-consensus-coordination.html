@@ -3227,6 +3227,28 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Promising exactly-once delivery</strong> over a network.</li><li><strong>Adding another acknowledgement round</strong> to remove the doubt: it never does.</li><li><strong>Treating a timeout as "it failed"</strong>: it means "unknown".</li></ul></div>
     </section>
 
+        <section class="tech" id="t-chubby">
+      <div class="tech-h"><h3>A lock service end to end: Chubby</h3><span class="tech-status s-rare">Classic design · OSDI 2006</span></div>
+      <p>Google's Chubby is the lock service the rest of this module builds towards: a small, highly available store of files and locks that other systems use to elect a leader and to publish who it is. It was built for <em>coarse</em> locks held for hours (who is the master), not for locking individual requests.</p>
+      <h4>How it works</h4>
+      <div id="fig-chubby"></div>
+      <ul>
+        <li><strong>A cell of five replicas</strong> running Paxos; one is the master and serves all reads and writes. Three of five must be up.</li>
+        <li><strong>Files are locks.</strong> Any small file or directory can be locked; the leader writes its own address into the file it locked, so finding the leader is just reading that file.</li>
+        <li><strong>Sessions and KeepAlives.</strong> A client keeps a session alive with periodic KeepAlive calls; if the session's lease runs out, its locks are released.</li>
+        <li><strong>Client caching with invalidation.</strong> Clients cache file contents; before a change, the master sends invalidations to everyone caching that file and waits, so caches are never silently stale.</li>
+        <li><strong>Sequencers and lock-delay.</strong> A holder can get a sequencer (lock name, mode and generation number) to attach to its requests, so servers can reject an old holder: the fencing token from section 2. For servers that don't check, a lock lost without a clean release can't be taken again until a lock-delay passes (clients choose it, up to a minute).</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Not available outside Google, but its ideas are everywhere: Apache ZooKeeper and etcd play the same role for Kafka (before KRaft), Kubernetes and many databases. Facts checked October 2026 in the <a href="https://research.google/pubs/the-chubby-lock-service-for-loosely-coupled-distributed-systems/" target="_blank" rel="noopener">Chubby paper</a>.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Leader election, "who owns shard 12", small configuration that many servers must agree on</li><li>"Design a distributed lock manager"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>High-rate, short locks (per request or per row): use the database's own locking or a design without locks</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Leader election goes through etcd, as Chubby did for GFS: candidates race for one lock key with a lease, the winner writes its address there, and every request it sends carries the lock's revision so storage can fence an old leader.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>A lock service on the hot path</strong> of every request.</li><li><strong>Locks without a lease or a fencing token.</strong></li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Any two majorities share a member"</strong>That one fact makes consensus safe: two conflicting decisions can't both win a majority. Odd cluster sizes, at most one leader per term, and fencing tokens all follow from taking it seriously.</div>
@@ -3324,6 +3346,11 @@ html.iks-open { overflow: hidden; }
         <p>Why can't adding an acknowledgement of the acknowledgement fix the Two Generals problem?</p>
         <div class="opts"><button>It can, with three rounds</button><button>Every protocol has a last message, and its sender can't know it arrived</button><button>Because messages can be forged</button></div>
         <div class="why">Remove the last message and the protocol must still work; repeat and nothing is left. Forgery is the Byzantine problem, a different one.</div>
+      </div>
+      <div class="quiz-q" data-answer="They read the locked file, where the winner wrote its address">
+        <p>In Chubby, how do clients find out who the elected master is?</p>
+        <div class="opts"><button>They ask every candidate</button><button>They read the locked file, where the winner wrote its address</button><button>A broadcast from the old master</button></div>
+        <div class="why">Locking and naming in one place: the lock holder publishes itself in the file it locked, and caches are invalidated on change.</div>
       </div>
     </div>
 
@@ -3687,6 +3714,21 @@ html.iks-open { overflow: hidden; }
       { hl: { a: "found", b: "found" }, set: { a: "charged exactly once" }, moves: [{ e: "net>b", t: "ok (from r-7)", back: true, k: "ok" }, { e: "a>net", t: "ok", back: true, k: "ok" }], hold: 3.8,
         note: "Delivery happened twice, but the effect happened once. Retries plus idempotency turn an impossible guarantee into a practical one." },
     ],
+  });
+
+  Viz.figure("#fig-chubby", {
+    title: "Electing a file-system master through a lock service", sub: "Point at a step. Two master candidates; storage servers that check sequencers.",
+    nodes: [{ id: "a", x: 100, y: 70, w: 150, label: "Candidate A", sub: "wants to lead", kind: "service" }, { id: "b", x: 100, y: 260, w: 150, label: "Candidate B", sub: "wants to lead", kind: "service" },
+      { id: "ch", x: 380, y: 165, w: 170, label: "Lock cell", sub: "5 replicas, Paxos", kind: "db" }, { id: "cl", x: 650, y: 260, w: 150, label: "Clients", sub: "cache the file", kind: "client" },
+      { id: "st", x: 650, y: 70, w: 150, label: "Storage servers", sub: "check sequencers", kind: "service" }],
+    edges: [["a", "ch", "lock /fs/master", { n: 1 }], ["b", "ch", "", { n: 1 }], ["ch", "cl", "\"A is master\"", { n: 2 }], ["a", "st", "requests + sequencer", { n: 3 }]],
+    width: 740, height: 330,
+    steps: ["Both candidates open the same file and try to lock it. The cell's master grants the lock to A; B keeps waiting.",
+      "A writes its address into the file. Clients read it once and cache it; the cell will invalidate their caches before the file ever changes.",
+      "A asks for a sequencer (lock name, mode, generation 7) and sends it with its requests. Storage servers accept generation 7.",
+      { text: "A's process freezes. Its KeepAlives stop, its session lease expires, and its lock is released.", hl: { a: "bad" } },
+      { text: "B gets the lock (generation 8), writes its address, and clients are invalidated and re-read it. When A wakes and sends generation 7, storage servers reject it.", hl: { b: "found", st: "found" } }],
+    after: "<b>Coarse locks, published answers, fenced requests:</b> the lock service decides, the file announces, the sequencer protects.",
   });
 })();
 </script>
