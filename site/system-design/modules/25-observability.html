@@ -3216,6 +3216,35 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Only server-side metrics</strong>: a broken JavaScript bundle or a mobile crash loop never shows up as a 500.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-incident">
+      <div class="tech-h"><h3>When the page fires: incidents, runbooks and reviews</h3><span class="tech-status s-default">The default · how teams handle outages</span></div>
+      <p>Alerts (above) decide when a person is woken. What happens next decides how long users suffer. Teams that recover fast follow the same few habits: one person in charge, stop the damage before finding the cause, and learn from it afterwards without blame.</p>
+      <h4>How it works</h4>
+      <div id="fig-incident"></div>
+      <p><strong>Severity sets the response.</strong> Agree the levels before you need them:</p>
+      <table class="stack-sm"><thead><tr><th>Level</th><th>Example (a food-delivery app)</th><th>Response</th></tr></thead><tbody>
+        <tr><td data-l="Level">SEV1</td><td data-l="Example">No one can place orders</td><td data-l="Response">Page now, incident lead named, status page within 15 minutes, all hands as needed</td></tr>
+        <tr><td data-l="Level">SEV2</td><td data-l="Example">Card payments fail for one bank; courier tracking frozen</td><td data-l="Response">Page the owning team; status page if customers notice</td></tr>
+        <tr><td data-l="Level">SEV3</td><td data-l="Example">Restaurant reports a day late</td><td data-l="Response">A ticket for working hours</td></tr>
+      </tbody></table>
+      <p><strong>A runbook turns an alert into actions.</strong> Each alert links to one page: what the alert means for users, how to confirm it (the dashboard and the query), safe first actions in order (roll back, turn off the flag, fail over, add capacity), what not to do, and who to call next. A runbook step that is always the same is a candidate for automation.</p>
+      <p><strong>Design so the 3 a.m. questions have quick answers:</strong></p>
+      <ul>
+        <li><em>What changed?</em> Deploys, flag flips and config pushes recorded as events on the same dashboards as the metrics.</li>
+        <li><em>Who is affected?</em> Metrics broken down by region, app version and customer tier, within your cardinality budget.</li>
+        <li><em>What happened to this request?</em> A request ID in every log line and trace, returned to the client so support can quote it.</li>
+        <li><em>Can we undo it?</em> Every release and every flag can be reversed in minutes, without a new build.</li>
+      </ul>
+      <h4>Status today</h4>
+      <p>Most companies run some version of this, often borrowed from emergency services' incident command and described in Google's SRE books; tools such as PagerDuty and incident.io handle paging, roles and timelines.</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Any system with an on-call rotation</li><li>The interview question "how would you operate this?"</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Formal roles for a SEV3: a ticket is enough</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Every alert links to a runbook whose first step is usually "roll back or turn off the flag". We mitigate first, find the cause after, and every SEV1 gets a blameless review with owners and dates on the actions.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Debugging live while users are still failing</strong> when a rollback was available.</li><li><strong>Reviews that end with "be more careful"</strong> instead of a change to the system.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Dashboard says something's wrong, tracker says where, records say why"</strong>Metrics detect, traces locate, logs explain, and alerts fire on what users feel, measured against the error budget.</div>
@@ -3298,6 +3327,11 @@ html.iks-open { overflow: hidden; }
         <p>Server dashboards are green, but users report the checkout button does nothing. What would have caught it?</p>
         <div class="opts"><button>More server metrics</button><button>Client-side monitoring: JavaScript errors by release, or a synthetic checkout probe</button><button>Longer log retention</button></div>
         <div class="why">A broken bundle never reaches the server, so only client-side signals see it.</div>
+      </div>
+      <div class="quiz-q" data-answer="Roll back the release, then investigate">
+        <p>Checkout errors spike 9 minutes after a release. The cause isn't clear yet. What's the first move?</p>
+        <div class="opts"><button>Read the logs until the bug is found</button><button>Roll back the release, then investigate</button><button>Add more servers</button></div>
+        <div class="why">Stopping the damage comes before understanding it; a rollback is minutes and reversible.</div>
       </div>
     </div>
 
@@ -3592,6 +3626,22 @@ html.iks-open { overflow: hidden; }
       { view: R(T, "Tail sampling waits until each trace is complete, then applies rules."), note: "Keep errors, keep slow traces, keep a small share of the rest: the traces you need, at a fraction of the cost. The price is a collector tier that buffers whole traces." },
     ] });
   })();
+
+  Viz.figure("#fig-incident", {
+    title: "Friday 19:40: checkout errors jump to 30%", sub: "Point at a step. A food-delivery app, peak dinner time.",
+    nodes: [{ id: "al", x: 90, y: 60, w: 140, label: "SLO alert", sub: "fast burn on orders", kind: "ext" }, { id: "oc", x: 90, y: 220, w: 140, label: "On-call engineer", sub: "becomes incident lead", kind: "client" },
+      { id: "ch", x: 330, y: 220, w: 150, label: "Incident channel", sub: "timeline, roles", kind: "service" }, { id: "dp", x: 570, y: 220, w: 150, label: "Deploy and flags", sub: "19:31 release", kind: "service" },
+      { id: "sp", x: 330, y: 60, w: 150, label: "Status page", sub: "customers, support", kind: "ext" }, { id: "rv", x: 570, y: 60, w: 150, label: "Review", sub: "Monday, blameless", kind: "store" }],
+    edges: [["al", "oc", "page", { n: 1 }], ["oc", "ch", "SEV1", { n: 2 }], ["ch", "sp", "update", { n: 3 }], ["ch", "dp", "roll back", { n: 4 }], ["ch", "rv", "timeline", { n: 6 }]],
+    width: 720, height: 290,
+    steps: ["19:40 The error-budget burn alert fires: checkout errors are using a month's budget in about an hour. It pages the on-call engineer.",
+      "19:42 They declare a SEV1 and take the incident-lead role: they coordinate and decide, and pull in a second engineer to do the hands-on work.",
+      "19:50 Someone else posts on the status page. The lead keeps a running timeline in the channel.",
+      { text: "19:52 The dashboard shows a release went out at 19:31. The runbook's first step is to roll it back, so they do, before anyone understands the bug.", hl: { dp: "found" } },
+      { text: "19:58 Errors are back to normal. Users were affected for 27 minutes. Finding the actual bug can wait until morning.", hl: { al: "found", oc: "found" } },
+      "Monday: a blameless review asks why the canary didn't catch it, and ends with owned, dated actions (here: the canary now checks checkout errors, not just server errors)."],
+    after: "<b>Mitigate first, diagnose later.</b> A rollback or a flag is minutes; understanding the bug can take hours.",
+  });
 })();
 </script>
 </body>

@@ -3302,6 +3302,50 @@ html.iks-open { overflow: hidden; }
       <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"We have replicas, so we don't need backups"</strong>: a DROP TABLE replicates too.</li><li><strong>Backups never restored</strong> in a test.</li></ul></div>
     </section>
 
+        <section class="tech" id="t-oneregion">
+      <div class="tech-h"><h3>One region, on purpose</h3><span class="tech-status s-default">The default for most products</span></div>
+      <p>Running in several regions is often presented as the mature choice. For most products it is the expensive one: roughly double the infrastructure, cross-region data costs, harder consistency, and failover machinery that must be tested or it won't work. One region spread over three zones, with a tested way back, is the right answer more often than not.</p>
+      <h4>How it works</h4>
+      <table><thead><tr><th>Signal</th><th>Points to one region</th><th>Points to several</th></tr></thead><tbody>
+        <tr><td>Downtime the business can accept if a whole region fails</td><td>Hours (a region-wide outage is rare)</td><td>Minutes, written into contracts</td></tr>
+        <tr><td>Where users are</td><td>Mostly one continent</td><td>Several continents, and latency matters (Module 01)</td></tr>
+        <tr><td>Data rules</td><td>One jurisdiction</td><td>Laws require data to stay in each country or region</td></tr>
+        <tr><td>Team</td><td>One team, one on-call rotation</td><td>A platform team that can run and rehearse failover</td></tr>
+      </tbody></table>
+      <p><strong>What a good single-region setup still has:</strong> every tier spread across three zones; backups copied to a second region and restored there on a schedule; infrastructure as code that can rebuild the stack in that region; and a written, timed plan saying how long that would take. That is the backup-and-restore or pilot-light strategy above, chosen deliberately.</p>
+      <p><strong>Say when you'd change it:</strong> "If a contract demands under an hour of downtime for a regional failure, or if we open in Asia, we add a second region, starting with read traffic."</p>
+      <h4>Status today</h4>
+      <p>Cloud providers design each region as several isolated zones so that a single-region, multi-zone deployment survives the common failures (a data centre, a power feed, a network link).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Most products, most of the time</li><li>Startups and new products</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Contracts or laws that demand regional failover or local data</li><li>Global products where cross-continent latency hurts</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>One region, three zones, with backups restored weekly in a second region. A regional outage would cost us a few hours, which the business accepts; a second region would double the cost for a rare event.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>Active-active across regions</strong> for a product with one country's users.</li><li><strong>A DR plan that has never been run.</strong></li></ul></div>
+    </section>
+
+    <section class="tech" id="t-gameday">
+      <div class="tech-h"><h3>Game days: rehearsing failure on purpose</h3><span class="tech-status s-situational">Situational · before you rely on a recovery plan</span></div>
+      <p>A failover or restore that has never been run is a hope, not a plan. A game day is a scheduled exercise where the team breaks something deliberately, with everyone watching, to find out whether recovery works and how long it takes.</p>
+      <h4>How it works</h4>
+      <ol>
+        <li><strong>Pick one question.</strong> "Can we restore the orders database from last night's backup in under 2 hours?" "Does traffic move when we turn off zone B?"</li>
+        <li><strong>Write down what you expect</strong>, and what will make you stop early (errors above 1%, a real incident elsewhere).</li>
+        <li><strong>Start small.</strong> Staging first; in production, a fraction of traffic or a quiet hour, with the people who'd normally respond.</li>
+        <li><strong>Run it and time every step</strong>, including the slow human ones: finding the runbook, getting access, waiting for approvals.</li>
+        <li><strong>Fix what you found and run it again.</strong> The usual findings are unglamorous: an expired credential, a missing permission, a step that only one person knew.</li>
+      </ol>
+      <p><strong>Good first exercises:</strong> restore a backup into a fresh database and check it; turn off one zone; make a dependency slow (add 2 seconds) rather than down; fail over the primary database; let a certificate expire in staging.</p>
+      <h4>Status today</h4>
+      <p>Widely practised since Netflix's Chaos Monkey and Amazon's GameDay exercises; tools such as AWS Fault Injection Service, Azure Chaos Studio, Gremlin and Chaos Mesh inject failures safely (Module 24).</p>
+      <div class="tech-when">
+        <div class="use"><h4>Use it when</h4><ul><li>Before trusting any failover or restore plan</li><li>After big changes to infrastructure or the team</li></ul></div>
+        <div class="skip"><h4>Skip it when</h4><ul><li>Production experiments without a stop condition or without the responders present</li></ul></div>
+      </div>
+      <div class="tech-say"><h4>In the interview</h4><p><q>Our restore target is 2 hours; we rehearse it every quarter by restoring last night's backup into a fresh database and timing it. The last run took 3 hours, mostly waiting on access, so we fixed that first.</q></p></div>
+      <div class="callout redflag"><strong>🚩 Red flags</strong><ul><li><strong>"Backups are fine"</strong> with no restore ever timed.</li><li><strong>Breaking production</strong> without abort criteria.</li></ul></div>
+    </section>
+
     <!-- 6 -->
     <h2 id="remember">6. Remember it</h2>
     <div class="callout memory"><strong>Memory hook: "Taste in one branch; keep the recipes off-site"</strong>Release to a small slice first and roll back automatically; keep tested, off-site copies of data and decide in advance how much you can lose (RPO) and how long you can be closed (RTO).</div>
@@ -3394,6 +3438,16 @@ html.iks-open { overflow: hidden; }
         <p>What makes rollback fastest for a risky new feature?</p>
         <div class="opts"><button>Redeploying the previous image</button><button>Turning off its feature flag</button><button>Restoring a backup</button></div>
         <div class="why">No build or deploy needed: the code path is switched off at runtime.</div>
+      </div>
+      <div class="quiz-q" data-answer="One region across three zones, with backups restored regularly in a second region">
+        <p>A B2B tool's users are all in Europe and contracts allow 4 hours of downtime for a regional outage. What setup fits?</p>
+        <div class="opts"><button>Active-active in three regions</button><button>One region across three zones, with backups restored regularly in a second region</button><button>One zone, to save money</button></div>
+        <div class="why">Zones cover common failures; a tested restore in a second region meets a 4-hour target for the rare regional one at a fraction of the cost.</div>
+      </div>
+      <div class="quiz-q" data-answer="To find out whether recovery works, and how long it takes, before a real failure">
+        <p>What is the main point of a game day?</p>
+        <div class="opts"><button>To test developers under pressure</button><button>To find out whether recovery works, and how long it takes, before a real failure</button><button>To prove the system never fails</button></div>
+        <div class="why">Untested recovery plans fail on small things: expired credentials, missing access, unknown steps.</div>
       </div>
     </div>
 
