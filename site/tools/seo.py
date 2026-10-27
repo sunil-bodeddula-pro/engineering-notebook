@@ -32,13 +32,14 @@ TRACKS = {
     "architecture": ("Software architecture", "/architecture/"),
     "behavioural": ("Behavioural interviews", "/behavioural/"),
     "lld": ("Low-level design", "/lld/"),
+    "styles": ("Architecture styles", "/styles/"),
 }
 START, END = "<!-- seo:start -->", "<!-- seo:end -->"
 
 
 def pages():
     out = [p for p in glob.glob("*.html") if p != "404.html"] + glob.glob("patterns/*.html")
-    for t in ("ai", "system-design", "architecture", "behavioural", "lld"):
+    for t in ("ai", "system-design", "architecture", "behavioural", "lld", "styles"):
         out += glob.glob(f"{t}/**/*.html", recursive=True)
     return sorted(out)
 
@@ -61,7 +62,7 @@ def ld(obj):
 def block(path, title, desc):
     url, plain_t, plain_d = url_of(path), html.unescape(title), html.unescape(desc)
     track = path.split("/")[0] if "/" in path and path.split("/")[0] in TRACKS else ""
-    hub = path in ("index.html", "ai/index.html", "system-design/index.html", "architecture/index.html", "behavioural/index.html", "lld/index.html")
+    hub = path in ("index.html", "ai/index.html", "system-design/index.html", "architecture/index.html", "behavioural/index.html", "styles/index.html", "lld/index.html")
     org = {"@type": "Organization", "name": "InterviewKata", "url": SITE + "/", "logo": SITE + "/favicon.svg"}
     tags = [
         f'<link rel="canonical" href="{url}">',
@@ -88,6 +89,7 @@ def block(path, title, desc):
             {"@type": "Course", "name": "Software architecture course", "description": "From the architect's role to architecture characteristics, styles, trade-offs, integration, distributed data and governance.", "url": SITE + "/architecture/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
             {"@type": "Course", "name": "Behavioural interview course", "description": "How behavioural interviews are scored, the STAR method, a story bank, the core question types, company values and senior signals.", "url": SITE + "/behavioural/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
             {"@type": "Course", "name": "Low-level design interview course", "description": "Object-oriented design for interviews: OOP, SOLID, design patterns, diagrams, concurrency and 15 classic problems solved in Python, TypeScript and Java.", "url": SITE + "/lld/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
+            {"@type": "Course", "name": "Architecture styles course", "description": "Sixteen software architecture styles, each built for the same bike-share app with runnable code in Python, TypeScript and Java.", "url": SITE + "/styles/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
             {"@type": "Course", "name": "AI engineering course", "description": "From how LLMs work to agents, MCP, RAG, evals and AI system design.", "url": SITE + "/ai/", "provider": org, "isAccessibleForFree": True, "inLanguage": "en"},
         ]}))
     elif hub:

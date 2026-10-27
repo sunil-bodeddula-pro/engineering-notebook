@@ -11,13 +11,14 @@
 #   /architecture/     site/architecture/ (the Software architecture track)
 #   /behavioural/      site/behavioural/ (the Behavioural interviews track)
 #   /lld/              site/lld/ (the Low-level design track)
+#   /styles/           site/styles/ (the Architecture styles track)
 #   /404.html          site/404.html, plus the favicon at /favicon.svg
 set -euo pipefail
 OUT="${1:-_site}"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp site/*.html "$OUT/"
-for d in patterns assets ai system-design architecture behavioural lld; do [ -d "site/$d" ] && cp -r "site/$d" "$OUT/"; done
+for d in patterns assets ai system-design architecture behavioural lld styles; do [ -d "site/$d" ] && cp -r "site/$d" "$OUT/"; done
 cp site/assets/favicon.svg "$OUT/"
 touch "$OUT/.nojekyll"
 

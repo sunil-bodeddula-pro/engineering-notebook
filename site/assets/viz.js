@@ -1016,7 +1016,7 @@
   // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">);
   // "system-design" = the System design pages (<body data-track="system-design">);
   // "architecture" = the Software architecture pages (<body data-track="architecture">);
-  // "behavioural" = the Behavioural interviews pages; "lld" = the Low-level design pages.
+  // "behavioural" = the Behavioural interviews pages; "lld" = the Low-level design pages; "styles" = the Architecture styles pages.
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -1572,6 +1572,21 @@
     ["Thread-safe", ["thread safety"], "Correct even when many threads call it at the same time.", "lld"],
     ["Deadlock", ["deadlocks"], "Two threads each waiting for a lock the other holds, so neither can ever continue.", "lld"],
     ["Invariant", ["invariants"], "A rule that must always hold, such as \"a seat is booked at most once\"; the class's methods protect it.", "lld"],
+    ["Architecture style", ["architecture styles", "style", "styles"], "A named bundle of structural choices: how many things are deployed, how parts talk, where data lives and which way dependencies point.", "styles"],
+    ["Deployable unit", ["deployable units"], "Something built and released on its own: a monolith is one, each microservice is another.", "styles"],
+    ["Modular monolith", [], "One deployable application divided inside into modules with enforced boundaries and their own data.", "styles"],
+    ["Layer", ["layers"], "A slice of code with one technical job (screens, rules, data access); each calls only the layer below.", "styles"],
+    ["Port", ["ports"], "An interface the business core defines for talking to the outside world: \"charge a card\", \"find a dock\".", "styles"],
+    ["Adapter", ["adapters"], "Code that connects a port to a real technology: a web controller, a database repository, a payment SDK.", "styles"],
+    ["Plugin", ["plugins"], "A separately built part that a stable core loads to add or change behaviour, through a contract the core owns.", "styles"],
+    ["Tier", ["tiers"], "A part of the system that runs on its own machines, such as the web tier or the database tier.", "styles"],
+    ["Event", ["events"], "A record that something happened (\"ride ended\"), published so that any interested part can react.", "styles"],
+    ["Broker", ["brokers"], "A go-between that receives requests or messages and passes them to whoever can handle them.", "styles"],
+    ["Filter", ["filters"], "One self-contained processing step in a pipeline: it reads input, transforms it and passes it on.", "styles"],
+    ["Processing unit", ["processing units"], "In space-based architecture, a copy of the application holding its working data in replicated memory.", "styles"],
+    ["Peer", ["peers"], "A participant that both requests and supplies resources, with no central server in charge.", "styles"],
+    ["Cell", ["cells"], "One complete, independent copy of a system serving a slice of the customers, so a failure stays inside it.", "styles"],
+    ["Coupling", [], "How much one part has to change when another does. Lower is easier to change and deploy separately.", "styles"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 

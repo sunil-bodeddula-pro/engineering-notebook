@@ -32,8 +32,8 @@ GENERIC = {"the idea", "how it works", "try it yourself", "trade-offs", "in real
            "the technologies up close", "the numbers up close", "the choices up close", "the tools up close",
            "the interview up close", "how to use this course", "check yourself", "make it stick", "where to go next",
            "practice in order", "the template", "spot it", "what it is", "glossary", "under the hood (optional)"}
-TRACK = {"": "Coding", "ai": "AI engineering", "system-design": "System design", "architecture": "Software architecture", "behavioural": "Behavioural", "lld": "Low-level design"}
-GLOSS_PAGE = {"coding": "start-here.html#glossary", "ai": "ai/start-here.html#glossary", "system-design": "system-design/start-here.html#glossary", "architecture": "architecture/start-here.html#glossary", "behavioural": "behavioural/start-here.html#glossary", "lld": "lld/start-here.html#glossary"}
+TRACK = {"": "Coding", "ai": "AI engineering", "system-design": "System design", "architecture": "Software architecture", "behavioural": "Behavioural", "lld": "Low-level design", "styles": "Architecture styles"}
+GLOSS_PAGE = {"coding": "start-here.html#glossary", "ai": "ai/start-here.html#glossary", "system-design": "system-design/start-here.html#glossary", "architecture": "architecture/start-here.html#glossary", "behavioural": "behavioural/start-here.html#glossary", "lld": "lld/start-here.html#glossary", "styles": "styles/start-here.html#glossary"}
 
 
 def text(s):
@@ -93,7 +93,7 @@ def build():
     for m in re.finditer(r'^\s*\[("(?:[^"\\]|\\.)*"),\s*(\[[^\]]*\]),\s*("(?:[^"\\]|\\.)*")(?:,\s*"([^"]+)")?\],?\s*$', js[i:j], re.M):
         term, alts, defin, trk = json.loads(m.group(1)), json.loads(m.group(2)), json.loads(m.group(3)), m.group(4) or "coding"
         gid = "#g-" + re.sub(r"[^a-z0-9]+", "-", term.lower())   # glossaryList() gives each term this id
-        gloss.append([term, " ".join(alts), defin, GLOSS_PAGE[trk].split("#")[0] + gid, {"coding": "Coding", "ai": "AI engineering", "system-design": "System design", "architecture": "Software architecture", "behavioural": "Behavioural", "lld": "Low-level design"}[trk]])
+        gloss.append([term, " ".join(alts), defin, GLOSS_PAGE[trk].split("#")[0] + gid, {"coding": "Coding", "ai": "AI engineering", "system-design": "System design", "architecture": "Software architecture", "behavioural": "Behavioural", "lld": "Low-level design", "styles": "Architecture styles"}[trk]])
     return {"v": 1, "pages": pages, "entries": entries, "glossary": gloss}
 
 

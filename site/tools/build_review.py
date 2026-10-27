@@ -26,6 +26,7 @@ TRACKS = {
     "ai": {"out": "ai/review.html", "label": "AI engineering", "pages": ["ai/start-here.html", "ai/modules/*.html", "ai/cases/*.html"]},
     "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
     "behavioural": {"out": "behavioural/review.html", "label": "Behavioural interviews", "pages": ["behavioural/start-here.html", "behavioural/modules/*.html"]},
+    "styles": {"out": "styles/review.html", "label": "Architecture styles", "pages": ["styles/start-here.html", "styles/modules/*.html"]},
     "lld": {"out": "lld/review.html", "label": "Low-level design", "pages": ["lld/start-here.html", "lld/modules/*.html", "lld/problems/*.html"]},
     "architecture": {"out": "architecture/review.html", "label": "Software architecture", "pages": ["architecture/start-here.html", "architecture/modules/*.html", "architecture/cases/*.html"],
                      "note": 'Topics follow Mark Richards\' <a href="https://www.youtube.com/playlist?list=PLdsOZAx8I5umhnn5LLTNJbFgwA3xbycar" target="_blank" rel="noopener">Software Architecture Monday</a> lessons; the cards and pages are original.'},
