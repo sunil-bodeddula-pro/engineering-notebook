@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pagegen  # noqa: E402
 
 TRACKS = {"ai": "AI engineering", "system-design": "System design", "architecture": "Software architecture",
-          "lld": "Low-level design", "behavioural": "Behavioural interviews", "styles": "Architecture styles"}
+          "lld": "Low-level design", "behavioural": "Behavioural interviews", "styles": "Architecture styles", "design-patterns": "Design patterns"}
 
 text = lambda s: re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", s))).strip()
 esc = lambda s: html.escape(s, quote=False)
@@ -157,7 +157,7 @@ def build(track, nav):
             body.append(f'    <h2 id="{gid}">{esc(g["title"])}</h2>\n    <div class="sheet">\n' + "\n".join(cards) + "\n    </div>")
             n += len(cards)
     label = TRACKS[track]
-    what = {"system-design": "module and worked design", "lld": "module and problem", "architecture": "module and case study", "styles": "style"}.get(track, "module")
+    what = {"system-design": "module and worked design", "lld": "module and problem", "architecture": "module and case study", "styles": "style", "design-patterns": "pattern"}.get(track, "module")
     desc = f"Cheat sheet for the {label} track: every {what} on one printable page, with its memory hook and key points."
     out = (PAGE.replace("__STYLE__", STYLE).replace("__LABEL__", esc(label)).replace("__DESC__", esc(desc)).replace("__TRACK__", track)
            .replace("__TOC__", "".join(toc)).replace("__WHAT__", what).replace("__BODY__", "\n".join(body)))

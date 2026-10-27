@@ -1016,7 +1016,8 @@
   // track: omitted = the coding pages; "ai" = the AI engineering pages (<body data-track="ai">);
   // "system-design" = the System design pages (<body data-track="system-design">);
   // "architecture" = the Software architecture pages (<body data-track="architecture">);
-  // "behavioural" = the Behavioural interviews pages; "lld" = the Low-level design pages; "styles" = the Architecture styles pages.
+  // "behavioural" = the Behavioural interviews pages; "lld" = the Low-level design pages; "styles" = the Architecture styles pages;
+  // "design-patterns" = the Design patterns pages.
   const GLOSSARY = [
     ["Adjacency list", ["adjacency lists"], "A graph stored as a dict or list of lists: graph[u] holds u's neighbours."],
     ["Amortised", ["amortized"], "Averaged over many operations. One call can be slow, but the total over n calls is still small: list.append is amortised O(1)."],
@@ -1587,6 +1588,16 @@
     ["Peer", ["peers"], "A participant that both requests and supplies resources, with no central server in charge.", "styles"],
     ["Cell", ["cells"], "One complete, independent copy of a system serving a slice of the customers, so a failure stays inside it.", "styles"],
     ["Coupling", [], "How much one part has to change when another does. Lower is easier to change and deploy separately.", "styles"],
+    ["Design pattern", ["design patterns", "pattern", "patterns"], "A named, proven arrangement of classes and objects for a problem that keeps coming back, adapted each time it's used.", "design-patterns"],
+    ["Interface", ["interfaces"], "The methods a caller can rely on, with no code behind them. Python uses an abstract base class or protocol.", "design-patterns"],
+    ["Concrete class", ["concrete classes"], "A real class you can create, as opposed to an interface or abstract class.", "design-patterns"],
+    ["Abstract class", ["abstract classes", "abstract base class"], "A class that can't be created on its own; it declares methods its subclasses must fill in.", "design-patterns"],
+    ["Composition", [], "An object holding other objects and using them, instead of inheriting from them.", "design-patterns"],
+    ["Delegation", ["delegates", "delegate"], "Passing a call on to an object you hold, so it does the work.", "design-patterns"],
+    ["Polymorphism", [], "Calling the same method on different classes and getting each class's own behaviour.", "design-patterns"],
+    ["Simple factory", ["simple factories"], "One function that picks which class to create from data, such as a kind stored in a database row.", "design-patterns"],
+    ["Open-closed principle", ["open-closed"], "Code should be open to extension and closed to modification: add a class rather than edit a working one.", "design-patterns"],
+    ["Coupling", [], "How much one class has to change when another does. Patterns mostly exist to lower it.", "design-patterns"],
   ];
   const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
 
