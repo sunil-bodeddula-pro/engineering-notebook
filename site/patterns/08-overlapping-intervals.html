@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3392,6 +3395,17 @@ def min_rooms(intervals):
       <div class="card"><h3>Chant</h3><p><em>"Sort the starts; if it starts before I end, stretch to the max; else, a new friend."</em></p></div>
       <div class="card"><h3>Which sort?</h3><p><em>"Merge by START, choose by END."</em> Merging and rooms sort by start. Greedy keep/remove problems sort by end.</p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>A · Merge</td><td data-l='Hook'>Line the notes up by start; each one sticks to the block above it or starts a new block.</td><td data-l='Code'><code>if start &lt;= merged[-1][1]: stretch else: append</code></td></tr>
+        <tr><td>B · Meeting rooms</td><td data-l='Hook'>Each block is a room. A new note reuses the room that frees up first, or needs a new room.</td><td data-l='Code'><code>if room_ends[0] &lt;= start: heappop(...)</code></td></tr>
+        <tr><td>C · Keep the most</td><td data-l='Hook'>Line the notes up by end instead, and keep a note only if it starts after the last kept one ends.</td><td data-l='Code'><code>sorted(intervals, key=end); if start &gt;= last_kept_end</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -6553,8 +6567,8 @@ class Solution:
     <!-- gen:end 2021 -->
 
     <nav class="pager">
-      <a href="07-top-k-elements.html"><small>Previous pattern</small>← 07 · Top 'K' Elements</a>
-      <a class="next" href="09-modified-binary-search.html"><small>Next pattern</small>09 · Modified Binary Search →</a>
+      <a href="07-top-k-elements.html"><small>Previous on the path</small>← 07 · Top 'K' Elements</a>
+      <a class="next" href="06-monotonic-stack.html"><small>Next on the path</small>06 · Monotonic Stack →</a>
     </nav>
   </main>
 </div>

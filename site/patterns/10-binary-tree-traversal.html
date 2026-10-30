@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3544,6 +3547,19 @@ def level_order(root):
       <div class="card"><h3>Chant</h3><p><em>"Pre: me first. In: me between. Post: me last. Level: one row at a time."</em></p></div>
       <div class="card"><h3>Direction rule</h3><p><em>"Down = pre, up = post."</em> Passing values to children? Preorder with parameters. Children reporting to the parent? Postorder with return values.</p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>A · Three orders</td><td data-l='Hook'>The name tells you where the root goes: before, between or after its two children.</td><td data-l='Code'><code>pre.append</code> · <code>walk(left)</code> · <code>ino.append</code> · <code>walk(right)</code> · <code>post.append</code></td></tr>
+        <tr><td>B · Returns a value</td><td data-l='Hook'>Post: the root waits for both children's answers before it gives its own.</td><td data-l='Code'><code>return 1 + max(left_height, right_height)</code></td></tr>
+        <tr><td>C · Iterative inorder</td><td data-l='Hook'>In: slide all the way left stacking roots, then visit the root, then turn right.</td><td data-l='Code'><code>while current: stack.append(current); current = current.left</code></td></tr>
+        <tr><td>D · Iterative pre and post</td><td data-l='Hook'>Pre: visit the root as soon as you pop it. Post is pre done mirror-wise, then read backwards.</td><td data-l='Code'><code>out.append(node.val)</code> · <code>mirrored[::-1]</code></td></tr>
+        <tr><td>E · Level order</td><td data-l='Hook'>The odd one out: a queue, not a stack, so the tree is read row by row.</td><td data-l='Code'><code>for _ in range(len(queue)): queue.popleft()</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -12559,8 +12575,8 @@ class Solution:
     <!-- gen:end 889 -->
 
     <nav class="pager">
-      <a href="09-modified-binary-search.html"><small>Previous pattern</small>← 09 · Modified Binary Search</a>
-      <a class="next" href="11-dfs.html"><small>Next pattern</small>11 · Depth-First Search →</a>
+      <a href="06-monotonic-stack.html"><small>Previous on the path</small>← 06 · Monotonic Stack</a>
+      <a class="next" href="11-dfs.html"><small>Next on the path</small>11 · Depth-First Search (DFS) on Graphs →</a>
     </nav>
   </main>
 </div>

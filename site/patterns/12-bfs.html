@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3488,6 +3491,18 @@ def multi_source_bfs(graph, sources):
       <div class="card"><h3>Chant</h3><p><em>"Seed, pop left, stamp and push right. Freeze the size for levels. All sources go in at zero."</em></p></div>
       <div class="card"><h3>DFS vs BFS</h3><p><em>"Stack dives, queue ripples."</em> Swap the stack for a queue and a deep explorer becomes a shortest-path finder.</p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>A · Distances</td><td data-l='Hook'>Each ripple is one step further out than the one that started it.</td><td data-l='Code'><code>dist[neighbour] = dist[current] + 1</code></td></tr>
+        <tr><td>B · Level by level</td><td data-l='Hook'>Spread one whole ripple before the next one starts.</td><td data-l='Code'><code>for _ in range(len(queue)):</code></td></tr>
+        <tr><td>C · The path itself</td><td data-l='Hook'>Each node remembers which ripple reached it, so you can trace back to the pebble.</td><td data-l='Code'><code>parent[neighbour] = current</code></td></tr>
+        <tr><td>D · Many sources</td><td data-l='Hook'>Drop several pebbles at once; the ripples meet in the middle.</td><td data-l='Code'><code>queue = deque(sources)</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -8820,8 +8835,8 @@ class Solution:
     <!-- gen:end 1197 -->
 
     <nav class="pager">
-      <a href="11-dfs.html"><small>Previous pattern</small>← 11 · Depth-First Search</a>
-      <a class="next" href="13-matrix-traversal.html"><small>Next pattern</small>13 · Matrix Traversal →</a>
+      <a href="11-dfs.html"><small>Previous on the path</small>← 11 · Depth-First Search (DFS) on Graphs</a>
+      <a class="next" href="13-matrix-traversal.html"><small>Next on the path</small>13 · Matrix Traversal →</a>
     </nav>
   </main>
 </div>

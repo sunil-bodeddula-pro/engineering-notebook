@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3475,6 +3478,18 @@ def bfs_steps(grid, start, goal, open_value):
       <div class="card"><h3>Chant</h3><p><em>"Directions, bounds, mark, push."</em> Four words, in that order, for every neighbor.</p></div>
       <div class="card"><h3>Geometry tricks</h3><p><em>"Spiral: shrink the fence. Rotate: flip on the diagonal, then mirror."</em> Counter-clockwise? Mirror first, then flip.</p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>A · Flood fill</td><td data-l='Hook'>Paint a tile, then spread to touching tiles of the same colour, never off the floor.</td><td data-l='Code'><code>if is_inside(...) and grid[nr][nc] == target: paint</code></td></tr>
+        <tr><td>B · Count regions</td><td data-l='Hook'>Every unpainted tile you find from outside starts a new spill.</td><td data-l='Code'><code>if grid[row][col] == target: count += 1; flood(...)</code></td></tr>
+        <tr><td>C · Fewest steps</td><td data-l='Hook'>Count the rings of the spill: one ring per step.</td><td data-l='Code'><code>steps += 1</code> after each layer</td></tr>
+        <tr><td>D · Rotate</td><td data-l='Hook'>Not a spill: flip the floor along its diagonal, then mirror each row.</td><td data-l='Code'><code>matrix[r][c], matrix[c][r] = ...; row.reverse()</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -8735,8 +8750,8 @@ class Solution:
     <!-- gen:end 3459 -->
 
     <nav class="pager">
-      <a href="12-bfs.html"><small>Previous pattern</small>← 12 · BFS</a>
-      <a class="next" href="14-backtracking.html"><small>Next pattern</small>14 · Backtracking →</a>
+      <a href="12-bfs.html"><small>Previous on the path</small>← 12 · Breadth-First Search (BFS)</a>
+      <a class="next" href="14-backtracking.html"><small>Next on the path</small>14 · Backtracking →</a>
     </nav>
   </main>
 </div>

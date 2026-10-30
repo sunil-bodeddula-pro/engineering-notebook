@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3402,6 +3405,17 @@ function evalPostfix(tokens: string[]): number {
       <div class="card"><h3>Chant</h3><p><em>"Open: push. Close: peek, match, pop. End: empty?"</em></p></div>
       <div class="card"><h3>Order rule</h3><p><em>"Pop b, then a."</em> The top of the stack is the <strong>right</strong> operand.</p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>A · Brackets</td><td data-l='Hook'>Every closer must match the plate on top; a plate left over means something never closed.</td><td data-l='Code'><code>if stack[-1] != opener_of[ch]: return False</code></td></tr>
+        <tr><td>B · Postfix</td><td data-l='Hook'>Numbers go on the pile; an operator takes the top two plates and puts back the result.</td><td data-l='Code'><code>b = stack.pop(); a = stack.pop()</code></td></tr>
+        <tr><td>C · Min stack</td><td data-l='Hook'>Write the smallest-so-far on each plate as you put it down.</td><td data-l='Code'><code>self.stack.append((x, low))</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -6976,8 +6990,8 @@ Since x = 3 is found first, the value of x is 3.</span></div></div>
     <!-- gen:end 736 -->
 
     <nav class="pager">
-      <a href="16-hash-map-set.html"><small>Previous pattern</small>← 16 · Hash Map &amp; Set</a>
-      <a class="next" href="18-greedy.html"><small>Next pattern</small>18 · Greedy →</a>
+      <a href="16-hash-map-set.html"><small>Previous on the path</small>← 16 · Hash Map &amp; Set</a>
+      <a class="next" href="02-two-pointers.html"><small>Next on the path</small>02 · Two Pointers →</a>
     </nav>
   </main>
 </div>

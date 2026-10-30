@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3608,6 +3611,21 @@ static long fibOpt(int n) {
       <div class="card"><h3>Chant</h3><p><em>"State, choice, base, order, answer."</em> Then: <em>"Recurse, remember, tabulate, trim."</em></p></div>
       <div class="card"><h3>Knapsack rule</h3><p><em>"Once? Go backwards. Again and again? Go forwards."</em> Coin Change II (count combinations): <em>coins outside, amounts inside.</em></p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>A · Top-down</td><td data-l='Hook'>Ask the last decision, and write each answer down before you return it.</td><td data-l='Code'><code>if n in memo: return memo[n]</code></td></tr>
+        <tr><td>B · Bottom-up</td><td data-l='Hook'>Write the answers in order, so every answer you need is already on the page.</td><td data-l='Code'><code>dp[i] = dp[i - 1] + dp[i - 2]</code></td></tr>
+        <tr><td>C · 0/1 knapsack</td><td data-l='Hook'>Last decision: take this item once or skip it. Go through capacities from high to low so it can't be taken twice.</td><td data-l='Code'><code>for cap in range(capacity, weight - 1, -1)</code></td></tr>
+        <tr><td>D · Unbounded knapsack</td><td data-l='Hook'>Last decision: which item went in last, any number of times. Low to high lets it repeat.</td><td data-l='Code'><code>for cap in range(1, capacity + 1)</code></td></tr>
+        <tr><td>E · Two strings</td><td data-l='Hook'>Last decision: do the last letters match? Match: one step diagonal; no match: drop a letter from one side.</td><td data-l='Code'><code>dp[i][j] = dp[i-1][j-1] + 1</code> or <code>max(...)</code></td></tr>
+        <tr><td>F · Interval</td><td data-l='Hook'>Last decision: which balloon bursts last inside this range.</td><td data-l='Code'><code>for last in range(left + 1, right)</code></td></tr>
+        <tr><td>G · State machine</td><td data-l='Hook'>Last decision: what you did today (buy, sell, rest), written down for each state.</td><td data-l='Code'><code>hold, sold, rest = ...</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -19745,8 +19763,8 @@ The total probability the knight stays on the board is 0.0625.</span></div></div
     <!-- gen:end 688 -->
 
     <nav class="pager">
-      <a href="14-backtracking.html"><small>Previous pattern</small>← 14 · Backtracking</a>
-      <a class="next" href="16-hash-map-set.html"><small>Next pattern</small>16 · Hash Map &amp; Set →</a>
+      <a href="14-backtracking.html"><small>Previous on the path</small>← 14 · Backtracking</a>
+      <a class="next" href="18-greedy.html"><small>Next on the path</small>18 · Greedy →</a>
     </nav>
   </main>
 </div>

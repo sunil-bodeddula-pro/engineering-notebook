@@ -305,6 +305,9 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .hookx-phrases dd { margin: 2px 0 0 14px; color: var(--ink-2); }
 .hookx-why { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--gold-soft); }
 .hookx-map td:first-child { font-weight: 600; width: 42%; }
+.tplhook td:first-child { font-weight: 600; }
+@media (min-width: 641px) { .tplhook td:first-child { width: 24%; } .tplhook td:last-child { width: 34%; } }
+.tplhook code { white-space: normal; overflow-wrap: anywhere; }
 .hookx-trace { margin: 6px 0 0; padding-left: 22px; }
 .hookx-trace li { margin: 4px 0; }
 
@@ -3501,6 +3504,19 @@ static List&lt;Integer&gt; topoSort(int n, List&lt;List&lt;Integer&gt;&gt; graph
       <div class="card"><h3>Chant</h3><p><em>"Mark, loop, recurse, return. New start, new group. Gray means loop."</em></p></div>
       <div class="card"><h3>Topo trick</h3><p><em>"Finish last, list first."</em> A node finishes only after everything it points to has finished, so reversing the finish order puts prerequisites first.</p></div>
     </div>
+    <!-- tplhook:start -->
+    <h3 id="tplhook">Each template, in the hook's words</h3>
+    <table class="tplhook stack-sm">
+      <thead><tr><th>Template (section 5)</th><th>In the hook's words</th><th>The line that does it</th></tr></thead>
+      <tbody>
+        <tr><td>0 · Build the graph</td><td data-l='Hook'>Before you can explore, draw the map: every tunnel is listed at both chambers it joins.</td><td data-l='Code'><code>graph[a].append(b); graph[b].append(a)</code></td></tr>
+        <tr><td>A · Recursive DFS</td><td data-l='Hook'>Chalk the chamber first, then dive into each unchalked tunnel.</td><td data-l='Code'><code>visited.add(node)</code> then <code>dfs(neighbour, ...)</code></td></tr>
+        <tr><td>B · Iterative DFS</td><td data-l='Hook'>The same dive with your own stack of tunnels; skip a chamber that's already chalked.</td><td data-l='Code'><code>node = stack.pop(); if node in visited: continue</code></td></tr>
+        <tr><td>C · Components</td><td data-l='Hook'>Each time you find an unchalked chamber from outside, it's a new cave system.</td><td data-l='Code'><code>if node not in visited: components += 1</code></td></tr>
+        <tr><td>D · Cycles and topological order</td><td data-l='Hook'>Traffic lights: gray means still inside it, so meeting gray means you drove in a circle. Black means done.</td><td data-l='Code'><code>if color[nb] == GRAY: return False</code></td></tr>
+      </tbody>
+    </table>
+    <!-- tplhook:end -->
 
     <!-- 7 -->
     <h2 id="problems">7. LeetCode problems, solved step by step</h2>
@@ -8946,8 +8962,8 @@ class Solution:
     <!-- gen:end 1136 -->
 
     <nav class="pager">
-      <a href="10-binary-tree-traversal.html"><small>Previous pattern</small>← 10 · Binary Tree Traversal</a>
-      <a class="next" href="12-bfs.html"><small>Next pattern</small>12 · Breadth-First Search →</a>
+      <a href="10-binary-tree-traversal.html"><small>Previous on the path</small>← 10 · Binary Tree Traversal</a>
+      <a class="next" href="12-bfs.html"><small>Next on the path</small>12 · Breadth-First Search (BFS) →</a>
     </nav>
   </main>
 </div>
