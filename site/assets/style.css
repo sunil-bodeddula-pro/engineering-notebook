@@ -861,3 +861,39 @@ html.iks-open { overflow: hidden; }
 @media (hover: none) { .anchor-copy { opacity: .7; } }
 @media print { .anchor-copy { display: none !important; } }
 .anchor-hit { animation: g-hit 2.4s ease-out; border-radius: 6px; }
+
+/* Two-person audio player (section.listen, from the toolkit's audio_build.py; behaviour in viz.js listen()) */
+.listen { margin: 18px 0 8px; }
+.listen .lc { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.lc-play { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 .92rem var(--sans); cursor: pointer; }
+.lc-ico { width: 0; height: 0; border-left: 10px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.listen.playing .lc-ico { width: 10px; height: 12px; border: 0; border-left: 3px solid currentColor; border-right: 3px solid currentColor; box-sizing: border-box; }
+.lc-mid { flex: 1; min-width: 0; }
+.lc-title { font: 600 .9rem var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-bar { position: relative; height: 6px; margin: 8px 0 6px; border-radius: 3px; background: var(--surface-2); cursor: pointer; }
+.lc-bar span { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: var(--accent); }
+.lc-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lc-meta { display: flex; gap: 12px; font: .76rem var(--sans); color: var(--ink-3); }
+.lc-note { color: var(--ink-2); font-weight: 600; }
+.lc-tools { flex: none; display: flex; gap: 6px; }
+.lc-tools button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 600 .78rem var(--sans); cursor: pointer; }
+.lc-tools button[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); }
+.lc-panel { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.lc-opts { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-bottom: 1px solid var(--line); font: .82rem var(--sans); color: var(--ink-2); }
+.lc-lines { list-style: none; margin: 0; padding: 6px 0; max-height: 340px; overflow-y: auto; }
+.lc-lines li { max-width: none; padding: 7px 14px; margin: 0; cursor: pointer; line-height: 1.5; font-size: .92rem; color: var(--ink-2); border-left: 3px solid transparent; }
+.lc-lines li b { display: inline-block; min-width: 3.4em; font: 700 .74rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ln-P b { color: var(--accent); }
+.lc-lines li:hover { background: var(--surface-2); }
+.lc-lines li.on { color: var(--ink); background: var(--surface-2); border-left-color: var(--accent); }
+.listen.started.docked .lc { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(760px, calc(100% - 24px)); z-index: 30; box-shadow: var(--shadow); }
+@media (max-width: 640px) {
+  .listen .lc { flex-wrap: wrap; gap: 10px; }
+  .lc-mid { order: 3; flex-basis: 100%; }
+  .lc-tools { margin-left: auto; }
+  .lc-title { white-space: normal; }
+}
+@media print { .listen { display: none !important; } }
+.lc-lines li.ask { background: var(--gold-soft); }
+.lc-lines li.ask::after { content: "Your turn"; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: var(--surface); font: 700 .68rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ask.on { background: var(--gold-soft); }

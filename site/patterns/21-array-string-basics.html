@@ -892,6 +892,42 @@ html.iks-open { overflow: hidden; }
 @media print { .anchor-copy { display: none !important; } }
 .anchor-hit { animation: g-hit 2.4s ease-out; border-radius: 6px; }
 
+/* Two-person audio player (section.listen, from the toolkit's audio_build.py; behaviour in viz.js listen()) */
+.listen { margin: 18px 0 8px; }
+.listen .lc { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.lc-play { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 .92rem var(--sans); cursor: pointer; }
+.lc-ico { width: 0; height: 0; border-left: 10px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.listen.playing .lc-ico { width: 10px; height: 12px; border: 0; border-left: 3px solid currentColor; border-right: 3px solid currentColor; box-sizing: border-box; }
+.lc-mid { flex: 1; min-width: 0; }
+.lc-title { font: 600 .9rem var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-bar { position: relative; height: 6px; margin: 8px 0 6px; border-radius: 3px; background: var(--surface-2); cursor: pointer; }
+.lc-bar span { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: var(--accent); }
+.lc-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lc-meta { display: flex; gap: 12px; font: .76rem var(--sans); color: var(--ink-3); }
+.lc-note { color: var(--ink-2); font-weight: 600; }
+.lc-tools { flex: none; display: flex; gap: 6px; }
+.lc-tools button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 600 .78rem var(--sans); cursor: pointer; }
+.lc-tools button[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); }
+.lc-panel { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.lc-opts { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-bottom: 1px solid var(--line); font: .82rem var(--sans); color: var(--ink-2); }
+.lc-lines { list-style: none; margin: 0; padding: 6px 0; max-height: 340px; overflow-y: auto; }
+.lc-lines li { max-width: none; padding: 7px 14px; margin: 0; cursor: pointer; line-height: 1.5; font-size: .92rem; color: var(--ink-2); border-left: 3px solid transparent; }
+.lc-lines li b { display: inline-block; min-width: 3.4em; font: 700 .74rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ln-P b { color: var(--accent); }
+.lc-lines li:hover { background: var(--surface-2); }
+.lc-lines li.on { color: var(--ink); background: var(--surface-2); border-left-color: var(--accent); }
+.listen.started.docked .lc { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(760px, calc(100% - 24px)); z-index: 30; box-shadow: var(--shadow); }
+@media (max-width: 640px) {
+  .listen .lc { flex-wrap: wrap; gap: 10px; }
+  .lc-mid { order: 3; flex-basis: 100%; }
+  .lc-tools { margin-left: auto; }
+  .lc-title { white-space: normal; }
+}
+@media print { .listen { display: none !important; } }
+.lc-lines li.ask { background: var(--gold-soft); }
+.lc-lines li.ask::after { content: "Your turn"; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: var(--surface); font: 700 .68rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ask.on { background: var(--gold-soft); }
+
 </style>
 <script>
 /* InterviewKata — tiny, dependency-free visualizer engine.
@@ -2495,7 +2531,7 @@ html.iks-open { overflow: hidden; }
     ["Open-closed principle", ["open-closed"], "Code should be open to extension and closed to modification: add a class rather than edit a working one.", "design-patterns"],
     ["Coupling", [], "How much one class has to change when another does. Patterns mostly exist to lower it.", "design-patterns"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl, .listen";
 
   const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
   const inTrack = (g) => (g[3] || "coding") === pageTrack();
@@ -3034,6 +3070,135 @@ html.iks-open { overflow: hidden; }
     });
   });
 
+  /** The two-person audio player (<section class="listen">, written by the toolkit's audio_build.py).
+   * Plays the Opus file; if the browser can't (or the file fails), the browser's own voices read the same script. */
+  function listen(sec) {
+    const D = JSON.parse(sec.querySelector(".lc-data").textContent), L = D.lines;
+    const $ = (q) => sec.querySelector(q);
+    const play = $(".lc-play"), bar = $(".lc-bar"), fill = $(".lc-bar span"), time = $(".lc-time"), note = $(".lc-note");
+    const panel = $(".lc-panel"), txBtn = $(".lc-tx"), rateBtn = $(".lc-rate"), items = sec.querySelectorAll(".lc-lines li");
+    const follow = $(".lc-follow"), asks = $(".lc-asks");
+    const RATES = [1, 1.25, 1.5, 1.75, 2, 0.75];
+    const key = "listen:" + location.pathname;
+    let rate = 1, cur = -1, shownAnchor = "", asked = new Set(), playing = false, mode = "audio", audio = null, sp = { i: 0, t0: 0 };
+    const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+    const lineAt = (t) => { let lo = 0, hi = L.length - 1, a = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (L[m][2] <= t + 0.01) { a = m; lo = m + 1; } else hi = m - 1; } return a; };
+    const now = () => mode === "audio" ? (audio ? audio.currentTime : 0) : (L[sp.i] ? L[sp.i][2] + Math.min((performance.now() - sp.t0) / 1000 * rate, L[sp.i][3] - L[sp.i][2]) : D.dur);
+    function show(t) {
+      fill.style.width = `${Math.min(100, t / D.dur * 100)}%`;
+      bar.setAttribute("aria-valuenow", Math.round(t));
+      time.textContent = `${fmt(t)} / ${fmt(D.dur)}`;
+      const i = lineAt(t);
+      if (i !== cur) {
+        if (items[cur]) items[cur].classList.remove("on");
+        cur = i; items[i].classList.add("on");
+        if (!panel.hidden) { const box = panel.querySelector(".lc-lines"); box.scrollTop = items[i].offsetTop - box.offsetTop - 40; }
+        const a = L[i][4];
+        if (playing && follow.checked && a && a !== shownAnchor) {
+          shownAnchor = a;
+          const h = document.getElementById(a);
+          if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+    function setPlaying(p) {
+      playing = p; sec.classList.toggle("playing", p); if (p) sec.classList.add("started");
+      play.setAttribute("aria-label", p ? "Pause" : "Play the conversation");
+      play.querySelector(".lc-lbl").textContent = p ? "Pause" : (now() > 0.5 ? "Resume" : "Listen");
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = p ? "playing" : "paused";
+    }
+    function tick() {
+      if (!playing) return;
+      const t = now(); show(t);
+      if (mode === "audio") {
+        const i = lineAt(t);
+        for (const j of [i - 1, i]) if (j >= 0 && L[j][5] && asks.checked && !asked.has(j) && t >= L[j][3]) { asked.add(j); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; return; }
+        try { localStorage.setItem(key, String(t)); } catch (e) {}
+      }
+      requestAnimationFrame(tick);
+    }
+    // ---- browser voices (fallback)
+    const synth = window.speechSynthesis;
+    function voicesFor() {
+      const vs = (synth && synth.getVoices() || []).filter((v) => /^en/i.test(v.lang));
+      const f = vs.find((v) => /female|samantha|zira|aria|jenny|libby|sonia|google us english/i.test(v.name)) || vs[0];
+      const m = vs.find((v) => v !== f && /male|daniel|david|guy|ryan|alex|fred|google uk english male/i.test(v.name)) || vs.find((v) => v !== f) || f;
+      return { P: f, S: m };
+    }
+    function speakFrom(i) {
+      synth.cancel();
+      if (i >= L.length) { setPlaying(false); return; }
+      const V = voicesFor(), u = new SpeechSynthesisUtterance(L[i][6] || L[i][1]);
+      if (V[L[i][0]]) u.voice = V[L[i][0]];
+      u.rate = rate; u.pitch = L[i][0] === "S" ? 0.95 : 1.05;
+      u.onend = () => {
+        if (!playing || sp.i !== i) return;
+        if (L[i][5] && asks.checked && !asked.has(i)) { asked.add(i); sp.i = i + 1; sp.t0 = performance.now(); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; show(L[i + 1] ? L[i + 1][2] : D.dur); return; }
+        sp.i = i + 1; sp.t0 = performance.now(); speakFrom(i + 1);
+      };
+      sp.i = i; sp.t0 = performance.now(); synth.speak(u);
+    }
+    function toSpeech(why) {
+      if (!synth) { note.textContent = "Audio isn't available in this browser."; setPlaying(false); return; }
+      const t = audio ? audio.currentTime : 0;
+      mode = "speech"; if (audio) { audio.pause(); audio.removeAttribute("src"); audio = null; }
+      sp.i = lineAt(t);
+      setPlaying(true); note.textContent = why; speakFrom(sp.i); requestAnimationFrame(tick);
+    }
+    function start() {
+      note.textContent = "";
+      if (mode === "speech") { setPlaying(true); speakFrom(sp.i); requestAnimationFrame(tick); return; }
+      if (!audio) {
+        const a = document.createElement("audio");
+        if (!a.canPlayType('audio/ogg; codecs="opus"')) return toSpeech("Using your browser's voices (this browser can't play the recording).");
+        audio = a; audio.preload = "auto"; audio.src = D.src; audio.playbackRate = rate;
+        let resume = 0; try { resume = parseFloat(localStorage.getItem(key)) || 0; } catch (e) {}
+        if (resume > 5 && resume < D.dur - 10) audio.currentTime = resume; else resume = 0;
+        audio.addEventListener("playing", () => { if (resume) { note.textContent = `Picked up where you left off (${fmt(resume)}).`; resume = 0; } }, { once: true });
+        audio.addEventListener("error", () => toSpeech("Using your browser's voices (the recording didn't load)."));
+        audio.addEventListener("ended", () => { setPlaying(false); show(D.dur); try { localStorage.removeItem(key); } catch (e) {} });
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({ title: document.querySelector("h1").textContent, artist: "InterviewKata · Sam and Priya" });
+          navigator.mediaSession.setActionHandler("play", start); navigator.mediaSession.setActionHandler("pause", pause);
+          navigator.mediaSession.setActionHandler("seekbackward", () => seek(now() - 10));
+        }
+      }
+      audio.play().then(() => { setPlaying(true); requestAnimationFrame(tick); }).catch((e) => { if (e && e.name === "NotSupportedError") toSpeech("Using your browser's voices (the recording didn't load)."); });
+    }
+    function pause() { setPlaying(false); if (mode === "audio") { if (audio) audio.pause(); } else synth.cancel(); }
+    function seek(t) {
+      t = Math.max(0, Math.min(D.dur - 0.1, t));
+      const i = lineAt(t);
+      for (const j of [...asked]) if (j >= i) asked.delete(j);
+      if (mode === "audio") { if (!audio) { start(); } if (audio) audio.currentTime = t; }
+      else { sp.i = i; sp.t0 = performance.now(); if (playing) speakFrom(i); }
+      show(mode === "audio" ? t : L[i][2]);
+    }
+    play.addEventListener("click", () => playing ? pause() : start());
+    $(".lc-back").addEventListener("click", () => seek(now() - 10));
+    rateBtn.addEventListener("click", () => {
+      rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length]; rateBtn.textContent = rate + "×";
+      if (audio) audio.playbackRate = rate; else if (mode === "speech" && playing) speakFrom(sp.i);
+    });
+    txBtn.addEventListener("click", () => { panel.hidden = !panel.hidden; txBtn.setAttribute("aria-expanded", String(!panel.hidden)); if (cur >= 0) show(now()); });
+    items.forEach((li) => li.addEventListener("click", () => { const i = +li.dataset.i; seek(L[i][2]); if (!playing) start(); }));
+    const seekAt = (x) => { const r = bar.getBoundingClientRect(); seek((x - r.left) / r.width * D.dur); };
+    bar.addEventListener("click", (e) => seekAt(e.clientX));
+    bar.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") { seek(now() + 5); e.preventDefault(); } if (e.key === "ArrowLeft") { seek(now() - 5); e.preventDefault(); } });
+    // While playing, the controls dock to the bottom of the screen once the player scrolls out of view.
+    const lc = $(".lc"), mark = document.createElement("div");
+    mark.style.cssText = "height:1px;margin-bottom:-1px";
+    sec.insertBefore(mark, lc);
+    new IntersectionObserver(([en]) => {
+      const d = !en.isIntersecting && en.boundingClientRect.top < 60 && sec.classList.contains("started");
+      if (d === sec.classList.contains("docked")) return;
+      sec.style.paddingTop = d ? lc.offsetHeight + "px" : "";
+      sec.classList.toggle("docked", d);
+    }, { threshold: 0, rootMargin: "-60px 0px 0px 0px" }).observe(mark);
+    try { const r = parseFloat(localStorage.getItem(key)); if (r > 5 && r < D.dur - 10) { show(r); setPlaying(false); } } catch (e) {}
+  }
+  document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("section.listen").forEach(listen));
+
   window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
@@ -3077,6 +3242,73 @@ html.iks-open { overflow: hidden; }
     <div class="eyebrow">Pattern 21 of 24</div>
     <h1>Array &amp; String Basics</h1>
     <p class="lede">Not every problem hides a clever pattern. Many just ask you to follow the rules exactly: scan once, keep a little state, build the output piece by piece. Doing that cleanly, without off-by-one errors, is a skill of its own.</p>
+    <!-- listen:start -->
+    <section class="listen" aria-label="Listen to this page as a conversation">
+      <div class="lc">
+        <button type="button" class="lc-play" aria-label="Play the conversation"><span class="lc-ico" aria-hidden="true"></span><span class="lc-lbl">Listen</span></button>
+        <div class="lc-mid">
+          <div class="lc-title">A 7-minute conversation: Sam asks, Priya explains</div>
+          <div class="lc-bar" role="slider" aria-label="Position" aria-valuemin="0" aria-valuemax="398" aria-valuenow="0" tabindex="0"><span></span></div>
+          <div class="lc-meta"><span class="lc-time">0:00 / 6:38</span><span class="lc-note"></span></div>
+        </div>
+        <div class="lc-tools">
+          <button type="button" class="lc-back" aria-label="Back 10 seconds">−10s</button>
+          <button type="button" class="lc-rate" aria-label="Playback speed">1×</button>
+          <button type="button" class="lc-tx" aria-expanded="false">Transcript</button>
+        </div>
+      </div>
+      <div class="lc-panel" hidden>
+        <div class="lc-opts"><label><input type="checkbox" class="lc-follow" checked> Follow along on the page</label><label><input type="checkbox" class="lc-asks" checked> Pause on “your turn” questions</label></div>
+        <ol class="lc-lines">
+        <li data-i="0" class="ln-S"><b>Sam</b> Priya, I opened the beginner path and step one isn't a clever pattern at all. It's called array and string basics. Is that really where I should start?</li>
+        <li data-i="1" class="ln-P"><b>Priya</b> It is, and I'd argue it's the most underrated page on the site. A lot of interview questions don't hide a trick. They describe a rule, and the test is whether you can follow it exactly, in one clean pass, without falling off the end of the array.</li>
+        <li data-i="2" class="ln-S"><b>Sam</b> So it's less about being smart and more about being careful.</li>
+        <li data-i="3" class="ln-P"><b>Priya</b> Exactly. The picture on the page is a careful clerk with a rulebook. They read the form from left to right, look things up in a table, keep a running total on a sticky note, and write neat answers in boxes. No cleverness, just no mistakes.</li>
+        <li data-i="4" class="ln-S"><b>Sam</b> What kind of skills are we actually talking about?</li>
+        <li data-i="5" class="ln-P"><b>Priya</b> Five small ones. First, a single scan that carries a little bit of state: the best so far, a running total, or the previous element. Second, a lookup table, which is just a dictionary that holds the rules, like the value of each Roman numeral.</li>
+        <li data-i="6" class="ln-S"><b>Sam</b> Instead of a long chain of if statements.</li>
+        <li data-i="7" class="ln-P"><b>Priya</b> Right. Third, simulation, where you follow a described process step by step, like writing text in a zigzag. Fourth, building strings properly. And fifth, what I call index hygiene: checking bounds before you read, and choosing the direction you scan.</li>
+        <li data-i="8" class="ln-S"><b>Sam</b> Wait, why is building a string a skill? You just add to it.</li>
+        <li data-i="9" class="ln-P"><b>Priya</b> That's the trap. In Python, strings can't be changed in place. So when you write result plus-equals piece inside a loop, the language may copy the whole string every time. Do that n times and you've quietly made an O(n²) algorithm. The fix is to collect the pieces in a list and join them once at the end.</li>
+        <li data-i="10" class="ln-S"><b>Sam</b> Okay. If I get one of these problems, what do I actually do, step by step?</li>
+        <li data-i="11" class="ln-P"><b>Priya</b> Start by restating the rule precisely, including the boring cases: an empty input, a single element, ties, extra spaces. Then pick the scan direction. Left to right is the default. Right to left is better when only the end matters, like finding the length of the last word.</li>
+        <li data-i="12" class="ln-S"><b>Sam</b> Because you don't want to walk the whole sentence just to look at the last word.</li>
+        <li data-i="13" class="ln-P"><b>Priya</b> Exactly. Then decide what state you carry: a total, a best value, maybe a row and a direction. If the rules are fixed, put them in a table. And build your output in a list.</li>
+        <li data-i="14" class="ln-S"><b>Sam</b> How do I know a problem is one of these, and not secretly a sliding window or a hash map problem?</li>
+        <li data-i="15" class="ln-P"><b>Priya</b> Listen for words like convert, encode, format, zigzag, spiral, simulate, reverse the words, or trim the spaces. Then ask one question: can I do exactly what the problem says, in one pass, with a lookup table and a few variables?</li>
+        <li data-i="16" class="ln-S"><b>Sam</b> And if the answer is yes?</li>
+        <li data-i="17" class="ln-P"><b>Priya</b> Then write it plainly and spend your energy on the edge cases. Where it stops being enough is when each element has to be compared with some arbitrary earlier element. That's the moment you need a hash map, which is step two on the path.</li>
+        <li data-i="18" class="ln-P ask"><b>Priya</b> Your turn. "Find the length of the last word in a sentence that might end with spaces." Which direction would you scan, and why?</li>
+        <li data-i="19" class="ln-P"><b>Priya</b> From the end. Skip the trailing spaces, then count letters until you hit the next space. Splitting the whole sentence would build every word just to throw most of them away.</li>
+        <li data-i="20" class="ln-S"><b>Sam</b> The page has three templates. Can you walk me through them without reading code at me?</li>
+        <li data-i="21" class="ln-P"><b>Priya</b> Sure. Template A is Roman to integer. You walk the numeral one symbol at a time and look up each symbol's value. The only twist is that you peek at the next symbol. If the next one is bigger, the current one is subtracted instead of added.</li>
+        <li data-i="22" class="ln-S"><b>Sam</b> Like the I in IV, which means four.</li>
+        <li data-i="23" class="ln-P"><b>Priya</b> Yes. The page's hook for that template is "smaller before bigger means minus." Think of it like a price tag with a discount. And the one line that's easy to get wrong is the peek. You must check that there is a next symbol before you look at it.</li>
+        <li data-i="24" class="ln-S"><b>Sam</b> Otherwise I read past the end.</li>
+        <li data-i="25" class="ln-P"><b>Priya</b> In Python it's worse: an index of minus one doesn't crash, it silently wraps around to the last character. So check the bound first, every time.</li>
+        <li data-i="26" class="ln-S"><b>Sam</b> What's template B?</li>
+        <li data-i="27" class="ln-P"><b>Priya</b> The zigzag. You write the characters down the rows, then back up, then down again. The state on your sticky note is two numbers: the current row, and the direction, plus one or minus one. You flip the direction when you hit the top row or the bottom row.</li>
+        <li data-i="28" class="ln-P ask"><b>Priya</b> Here's a quick one. What should zigzag do when there's only one row?</li>
+        <li data-i="29" class="ln-P"><b>Priya</b> Return the string unchanged. With one row the direction logic would try to step onto row one, which doesn't exist, so you handle that case before the loop.</li>
+        <li data-i="30" class="ln-S"><b>Sam</b> And template C?</li>
+        <li data-i="31" class="ln-P"><b>Priya</b> Split, reverse, join, for reversing the words in a sentence. The detail that matters is how you split. Splitting on no argument skips repeated spaces. Splitting on a single space keeps empty strings for every extra space, and your output gets messy.</li>
+        <li data-i="32" class="ln-S"><b>Sam</b> How do I remember all this a month from now?</li>
+        <li data-i="33" class="ln-P"><b>Priya</b> The page's hook is "the careful clerk": read the rule, keep a sticky note of state, look things up in the table, write neat output, and check the edges before you hand it in. And there's a short chant: bounds before index, table over if-chain, list then join.</li>
+        <li data-i="34" class="ln-S"><b>Sam</b> That actually maps to the three templates.</li>
+        <li data-i="35" class="ln-P"><b>Priya</b> It does. The clerk peeks at the next symbol in template A, keeps the row and direction on the sticky note in template B, and writes neat output in template C. That's what the new table at the end of section six spells out.</li>
+        <li data-i="36" class="ln-S"><b>Sam</b> What do people get wrong most often?</li>
+        <li data-i="37" class="ln-P"><b>Priya</b> Reading past the end is number one. Then building strings with plus-equals in a loop. Then forgetting the degenerate case of a simulation, like the one-row zigzag. Then spaces, which we just covered. And finally tie-breaks. If a problem asks for the number closest to zero and you have minus two and two, it usually wants the positive one. Read the statement for that rule.</li>
+        <li data-i="38" class="ln-S"><b>Sam</b> So before I submit, I test five things.</li>
+        <li data-i="39" class="ln-P"><b>Priya</b> Empty, one element, all the same, ties, and spaces. That's the edge-case rule on the page.</li>
+        <li data-i="40" class="ln-S"><b>Sam</b> Where should I start practising?</li>
+        <li data-i="41" class="ln-P"><b>Priya</b> Roman to integer first, then length of last word, then longest common prefix. All three are marked "start here" on the page. Read the explanation, step through it with the player, then close the page and solve it on your own.</li>
+        <li data-i="42" class="ln-S"><b>Sam</b> And after that, step two: hash maps.</li>
+        <li data-i="43" class="ln-P"><b>Priya</b> Exactly. This page teaches you to walk an array carefully. The next one teaches you to remember what you've already seen.</li>
+        </ol>
+      </div>
+      <script type="application/json" class="lc-data">{"src": "https://sunil-bodeddula-pro.github.io/notebook-audio/patterns/21-array-string-basics.ogg?v=b04ffcd539", "dur": 398.2, "names": {"S": "Sam", "P": "Priya"}, "lines": [["S", "Priya, I opened the beginner path and step one isn't a clever pattern at all. It's called array and string basics. Is that really where I should start?", 0.0, 9.34, "", 0, "Priya, I opened the beginner path and step one isn't a clever pattern at all. It's called array and string basics. Is that really where I should start?"], ["P", "It is, and I'd argue it's the most underrated page on the site. A lot of interview questions don't hide a trick. They describe a rule, and the test is whether you can follow it exactly, in one clean pass, without falling off the end of the array.", 9.66, 24.64, "", 0, "It is, and I'd argue it's the most underrated page on the site. A lot of interview questions don't hide a trick. They describe a rule, and the test is whether you can follow it exactly, in one clean pass, without falling off the end of the array."], ["S", "So it's less about being smart and more about being careful.", 24.96, 28.57, "", 0, "So it's less about being smart and more about being careful."], ["P", "Exactly. The picture on the page is a careful clerk with a rulebook. They read the form from left to right, look things up in a table, keep a running total on a sticky note, and write neat answers in boxes. No cleverness, just no mistakes.", 28.89, 43.61, "", 0, "Exactly. The picture on the page is a careful clerk with a rulebook. They read the form from left to right, look things up in a table, keep a running total on a sticky note, and write neat answers in boxes. No cleverness, just no mistakes."], ["S", "What kind of skills are we actually talking about?", 44.36, 47.36, "what", 0, "What kind of skills are we actually talking about?"], ["P", "Five small ones. First, a single scan that carries a little bit of state: the best so far, a running total, or the previous element. Second, a lookup table, which is just a dictionary that holds the rules, like the value of each Roman numeral.", 47.68, 63.3, "what", 0, "Five small ones. First, a single scan that carries a little bit of state: the best so far, a running total, or the previous element. Second, a lookup table, which is just a dictionary that holds the rules, like the value of each Roman numeral."], ["S", "Instead of a long chain of if statements.", 63.62, 66.03, "what", 0, "Instead of a long chain of if statements."], ["P", "Right. Third, simulation, where you follow a described process step by step, like writing text in a zigzag. Fourth, building strings properly. And fifth, what I call index hygiene: checking bounds before you read, and choosing the direction you scan.", 66.35, 82.2, "what", 0, "Right. Third, simulation, where you follow a described process step by step, like writing text in a zigzag. Fourth, building strings properly. And fifth, what I call index hygiene: checking bounds before you read, and choosing the direction you scan."], ["S", "Wait, why is building a string a skill? You just add to it.", 82.52, 86.15, "what", 0, "Wait, why is building a string a skill? You just add to it."], ["P", "That's the trap. In Python, strings can't be changed in place. So when you write result plus-equals piece inside a loop, the language may copy the whole string every time. Do that n times and you've quietly made an O(n²) algorithm. The fix is to collect the pieces in a list and join them once at the end.", 86.47, 105.43, "what", 0, "That's the trap. In Python, strings can't be changed in place. So when you write result plus-equals piece inside a loop, the language may copy the whole string every time. Do that n times and you've quietly made an n squared algorithm. The fix is to collect the pieces in a list and join them once at the end."], ["S", "Okay. If I get one of these problems, what do I actually do, step by step?", 106.18, 111.26, "how", 0, "Okay. If I get one of these problems, what do I actually do, step by step?"], ["P", "Start by restating the rule precisely, including the boring cases: an empty input, a single element, ties, extra spaces. Then pick the scan direction. Left to right is the default. Right to left is better when only the end matters, like finding the length of the last word.", 111.58, 129.22, "how", 0, "Start by restating the rule precisely, including the boring cases: an empty input, a single element, ties, extra spaces. Then pick the scan direction. Left to right is the default. Right to left is better when only the end matters, like finding the length of the last word."], ["S", "Because you don't want to walk the whole sentence just to look at the last word.", 129.54, 133.94, "how", 0, "Because you don't want to walk the whole sentence just to look at the last word."], ["P", "Exactly. Then decide what state you carry: a total, a best value, maybe a row and a direction. If the rules are fixed, put them in a table. And build your output in a list.", 134.26, 145.31, "how", 0, "Exactly. Then decide what state you carry: a total, a best value, maybe a row and a direction. If the rules are fixed, put them in a table. And build your output in a list."], ["S", "How do I know a problem is one of these, and not secretly a sliding window or a hash map problem?", 146.06, 152.69, "identify", 0, "How do I know a problem is one of these, and not secretly a sliding window or a hash map problem?"], ["P", "Listen for words like convert, encode, format, zigzag, spiral, simulate, reverse the words, or trim the spaces. Then ask one question: can I do exactly what the problem says, in one pass, with a lookup table and a few variables?", 153.01, 168.42, "identify", 0, "Listen for words like convert, encode, format, zigzag, spiral, simulate, reverse the words, or trim the spaces. Then ask one question: can I do exactly what the problem says, in one pass, with a lookup table and a few variables?"], ["S", "And if the answer is yes?", 168.74, 170.46, "identify", 0, "And if the answer is yes?"], ["P", "Then write it plainly and spend your energy on the edge cases. Where it stops being enough is when each element has to be compared with some arbitrary earlier element. That's the moment you need a hash map, which is step two on the path.", 170.78, 184.52, "identify", 0, "Then write it plainly and spend your energy on the edge cases. Where it stops being enough is when each element has to be compared with some arbitrary earlier element. That's the moment you need a hash map, which is step two on the path."], ["P", "Your turn. \"Find the length of the last word in a sentence that might end with spaces.\" Which direction would you scan, and why?", 184.84, 192.24, "identify", 1, "Your turn. \"Find the length of the last word in a sentence that might end with spaces.\" Which direction would you scan, and why?"], ["P", "From the end. Skip the trailing spaces, then count letters until you hit the next space. Splitting the whole sentence would build every word just to throw most of them away.", 192.56, 202.68, "identify", 0, "From the end. Skip the trailing spaces, then count letters until you hit the next space. Splitting the whole sentence would build every word just to throw most of them away."], ["S", "The page has three templates. Can you walk me through them without reading code at me?", 203.43, 208.38, "template", 0, "The page has three templates. Can you walk me through them without reading code at me?"], ["P", "Sure. Template A is Roman to integer. You walk the numeral one symbol at a time and look up each symbol's value. The only twist is that you peek at the next symbol. If the next one is bigger, the current one is subtracted instead of added.", 208.7, 222.54, "template", 0, "Sure. Template A is Roman to integer. You walk the numeral one symbol at a time and look up each symbol's value. The only twist is that you peek at the next symbol. If the next one is bigger, the current one is subtracted instead of added."], ["S", "Like the I in IV, which means four.", 222.86, 225.81, "template", 0, "Like the I in IV, which means four."], ["P", "Yes. The page's hook for that template is \"smaller before bigger means minus.\" Think of it like a price tag with a discount. And the one line that's easy to get wrong is the peek. You must check that there is a next symbol before you look at it.", 226.13, 240.16, "template", 0, "Yes. The page's hook for that template is \"smaller before bigger means minus.\" Think of it like a price tag with a discount. And the one line that's easy to get wrong is the peek. You must check that there is a next symbol before you look at it."], ["S", "Otherwise I read past the end.", 240.48, 242.53, "template", 0, "Otherwise I read past the end."], ["P", "In Python it's worse: an index of minus one doesn't crash, it silently wraps around to the last character. So check the bound first, every time.", 242.85, 252.02, "template", 0, "In Python it's worse: an index of minus one doesn't crash, it silently wraps around to the last character. So check the bound first, every time."], ["S", "What's template B?", 252.34, 253.71, "template", 0, "What's template B?"], ["P", "The zigzag. You write the characters down the rows, then back up, then down again. The state on your sticky note is two numbers: the current row, and the direction, plus one or minus one. You flip the direction when you hit the top row or the bottom row.", 254.03, 269.11, "template", 0, "The zigzag. You write the characters down the rows, then back up, then down again. The state on your sticky note is two numbers: the current row, and the direction, plus one or minus one. You flip the direction when you hit the top row or the bottom row."], ["P", "Here's a quick one. What should zigzag do when there's only one row?", 269.43, 272.97, "template", 1, "Here's a quick one. What should zigzag do when there's only one row?"], ["P", "Return the string unchanged. With one row the direction logic would try to step onto row one, which doesn't exist, so you handle that case before the loop.", 273.29, 282.55, "template", 0, "Return the string unchanged. With one row the direction logic would try to step onto row one, which doesn't exist, so you handle that case before the loop."], ["S", "And template C?", 282.87, 284.17, "template", 0, "And template C?"], ["P", "Split, reverse, join, for reversing the words in a sentence. The detail that matters is how you split. Splitting on no argument skips repeated spaces. Splitting on a single space keeps empty strings for every extra space, and your output gets messy.", 284.49, 300.51, "template", 0, "Split, reverse, join, for reversing the words in a sentence. The detail that matters is how you split. Splitting on no argument skips repeated spaces. Splitting on a single space keeps empty strings for every extra space, and your output gets messy."], ["S", "How do I remember all this a month from now?", 301.26, 304.23, "remember", 0, "How do I remember all this a month from now?"], ["P", "The page's hook is \"the careful clerk\": read the rule, keep a sticky note of state, look things up in the table, write neat output, and check the edges before you hand it in. And there's a short chant: bounds before index, table over if-chain, list then join.", 304.55, 319.95, "remember", 0, "The page's hook is \"the careful clerk\": read the rule, keep a sticky note of state, look things up in the table, write neat output, and check the edges before you hand it in. And there's a short chant: bounds before index, table over if-chain, list then join."], ["S", "That actually maps to the three templates.", 320.27, 322.77, "remember", 0, "That actually maps to the three templates."], ["P", "It does. The clerk peeks at the next symbol in template A, keeps the row and direction on the sticky note in template B, and writes neat output in template C. That's what the new table at the end of section six spells out.", 323.09, 335.95, "remember", 0, "It does. The clerk peeks at the next symbol in template A, keeps the row and direction on the sticky note in template B, and writes neat output in template C. That's what the new table at the end of section six spells out."], ["S", "What do people get wrong most often?", 336.7, 338.94, "mistakes", 0, "What do people get wrong most often?"], ["P", "Reading past the end is number one. Then building strings with plus-equals in a loop. Then forgetting the degenerate case of a simulation, like the one-row zigzag. Then spaces, which we just covered. And finally tie-breaks. If a problem asks for the number closest to zero and you have minus two and two, it usually wants the positive one. Read the statement for that rule.", 339.26, 361.77, "mistakes", 0, "Reading past the end is number one. Then building strings with plus-equals in a loop. Then forgetting the degenerate case of a simulation, like the one-row zigzag. Then spaces, which we just covered. And finally tie-breaks. If a problem asks for the number closest to zero and you have minus two and two, it usually wants the positive one. Read the statement for that rule."], ["S", "So before I submit, I test five things.", 362.09, 364.91, "mistakes", 0, "So before I submit, I test five things."], ["P", "Empty, one element, all the same, ties, and spaces. That's the edge-case rule on the page.", 365.23, 371.01, "mistakes", 0, "Empty, one element, all the same, ties, and spaces. That's the edge-case rule on the page."], ["S", "Where should I start practising?", 371.76, 373.72, "problems", 0, "Where should I start practising?"], ["P", "Roman to integer first, then length of last word, then longest common prefix. All three are marked \"start here\" on the page. Read the explanation, step through it with the player, then close the page and solve it on your own.", 374.04, 387.42, "problems", 0, "Roman to integer first, then length of last word, then longest common prefix. All three are marked \"start here\" on the page. Read the explanation, step through it with the player, then close the page and solve it on your own."], ["S", "And after that, step two: hash maps.", 387.74, 390.4, "problems", 0, "And after that, step two: hash maps."], ["P", "Exactly. This page teaches you to walk an array carefully. The next one teaches you to remember what you've already seen.", 390.72, 397.72, "problems", 0, "Exactly. This page teaches you to walk an array carefully. The next one teaches you to remember what you've already seen."]]}</script>
+    </section>
+    <!-- listen:end -->
 
     <!-- 1 -->
     <h2 id="what">1. What is this pattern for?</h2>

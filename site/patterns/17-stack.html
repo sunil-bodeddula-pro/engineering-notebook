@@ -892,6 +892,42 @@ html.iks-open { overflow: hidden; }
 @media print { .anchor-copy { display: none !important; } }
 .anchor-hit { animation: g-hit 2.4s ease-out; border-radius: 6px; }
 
+/* Two-person audio player (section.listen, from the toolkit's audio_build.py; behaviour in viz.js listen()) */
+.listen { margin: 18px 0 8px; }
+.listen .lc { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.lc-play { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 .92rem var(--sans); cursor: pointer; }
+.lc-ico { width: 0; height: 0; border-left: 10px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.listen.playing .lc-ico { width: 10px; height: 12px; border: 0; border-left: 3px solid currentColor; border-right: 3px solid currentColor; box-sizing: border-box; }
+.lc-mid { flex: 1; min-width: 0; }
+.lc-title { font: 600 .9rem var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-bar { position: relative; height: 6px; margin: 8px 0 6px; border-radius: 3px; background: var(--surface-2); cursor: pointer; }
+.lc-bar span { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: var(--accent); }
+.lc-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lc-meta { display: flex; gap: 12px; font: .76rem var(--sans); color: var(--ink-3); }
+.lc-note { color: var(--ink-2); font-weight: 600; }
+.lc-tools { flex: none; display: flex; gap: 6px; }
+.lc-tools button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 600 .78rem var(--sans); cursor: pointer; }
+.lc-tools button[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); }
+.lc-panel { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.lc-opts { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-bottom: 1px solid var(--line); font: .82rem var(--sans); color: var(--ink-2); }
+.lc-lines { list-style: none; margin: 0; padding: 6px 0; max-height: 340px; overflow-y: auto; }
+.lc-lines li { max-width: none; padding: 7px 14px; margin: 0; cursor: pointer; line-height: 1.5; font-size: .92rem; color: var(--ink-2); border-left: 3px solid transparent; }
+.lc-lines li b { display: inline-block; min-width: 3.4em; font: 700 .74rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ln-P b { color: var(--accent); }
+.lc-lines li:hover { background: var(--surface-2); }
+.lc-lines li.on { color: var(--ink); background: var(--surface-2); border-left-color: var(--accent); }
+.listen.started.docked .lc { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(760px, calc(100% - 24px)); z-index: 30; box-shadow: var(--shadow); }
+@media (max-width: 640px) {
+  .listen .lc { flex-wrap: wrap; gap: 10px; }
+  .lc-mid { order: 3; flex-basis: 100%; }
+  .lc-tools { margin-left: auto; }
+  .lc-title { white-space: normal; }
+}
+@media print { .listen { display: none !important; } }
+.lc-lines li.ask { background: var(--gold-soft); }
+.lc-lines li.ask::after { content: "Your turn"; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: var(--surface); font: 700 .68rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ask.on { background: var(--gold-soft); }
+
 </style>
 <script>
 /* InterviewKata — tiny, dependency-free visualizer engine.
@@ -2495,7 +2531,7 @@ html.iks-open { overflow: hidden; }
     ["Open-closed principle", ["open-closed"], "Code should be open to extension and closed to modification: add a class rather than edit a working one.", "design-patterns"],
     ["Coupling", [], "How much one class has to change when another does. Patterns mostly exist to lower it.", "design-patterns"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl, .listen";
 
   const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
   const inTrack = (g) => (g[3] || "coding") === pageTrack();
@@ -3034,6 +3070,135 @@ html.iks-open { overflow: hidden; }
     });
   });
 
+  /** The two-person audio player (<section class="listen">, written by the toolkit's audio_build.py).
+   * Plays the Opus file; if the browser can't (or the file fails), the browser's own voices read the same script. */
+  function listen(sec) {
+    const D = JSON.parse(sec.querySelector(".lc-data").textContent), L = D.lines;
+    const $ = (q) => sec.querySelector(q);
+    const play = $(".lc-play"), bar = $(".lc-bar"), fill = $(".lc-bar span"), time = $(".lc-time"), note = $(".lc-note");
+    const panel = $(".lc-panel"), txBtn = $(".lc-tx"), rateBtn = $(".lc-rate"), items = sec.querySelectorAll(".lc-lines li");
+    const follow = $(".lc-follow"), asks = $(".lc-asks");
+    const RATES = [1, 1.25, 1.5, 1.75, 2, 0.75];
+    const key = "listen:" + location.pathname;
+    let rate = 1, cur = -1, shownAnchor = "", asked = new Set(), playing = false, mode = "audio", audio = null, sp = { i: 0, t0: 0 };
+    const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+    const lineAt = (t) => { let lo = 0, hi = L.length - 1, a = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (L[m][2] <= t + 0.01) { a = m; lo = m + 1; } else hi = m - 1; } return a; };
+    const now = () => mode === "audio" ? (audio ? audio.currentTime : 0) : (L[sp.i] ? L[sp.i][2] + Math.min((performance.now() - sp.t0) / 1000 * rate, L[sp.i][3] - L[sp.i][2]) : D.dur);
+    function show(t) {
+      fill.style.width = `${Math.min(100, t / D.dur * 100)}%`;
+      bar.setAttribute("aria-valuenow", Math.round(t));
+      time.textContent = `${fmt(t)} / ${fmt(D.dur)}`;
+      const i = lineAt(t);
+      if (i !== cur) {
+        if (items[cur]) items[cur].classList.remove("on");
+        cur = i; items[i].classList.add("on");
+        if (!panel.hidden) { const box = panel.querySelector(".lc-lines"); box.scrollTop = items[i].offsetTop - box.offsetTop - 40; }
+        const a = L[i][4];
+        if (playing && follow.checked && a && a !== shownAnchor) {
+          shownAnchor = a;
+          const h = document.getElementById(a);
+          if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+    function setPlaying(p) {
+      playing = p; sec.classList.toggle("playing", p); if (p) sec.classList.add("started");
+      play.setAttribute("aria-label", p ? "Pause" : "Play the conversation");
+      play.querySelector(".lc-lbl").textContent = p ? "Pause" : (now() > 0.5 ? "Resume" : "Listen");
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = p ? "playing" : "paused";
+    }
+    function tick() {
+      if (!playing) return;
+      const t = now(); show(t);
+      if (mode === "audio") {
+        const i = lineAt(t);
+        for (const j of [i - 1, i]) if (j >= 0 && L[j][5] && asks.checked && !asked.has(j) && t >= L[j][3]) { asked.add(j); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; return; }
+        try { localStorage.setItem(key, String(t)); } catch (e) {}
+      }
+      requestAnimationFrame(tick);
+    }
+    // ---- browser voices (fallback)
+    const synth = window.speechSynthesis;
+    function voicesFor() {
+      const vs = (synth && synth.getVoices() || []).filter((v) => /^en/i.test(v.lang));
+      const f = vs.find((v) => /female|samantha|zira|aria|jenny|libby|sonia|google us english/i.test(v.name)) || vs[0];
+      const m = vs.find((v) => v !== f && /male|daniel|david|guy|ryan|alex|fred|google uk english male/i.test(v.name)) || vs.find((v) => v !== f) || f;
+      return { P: f, S: m };
+    }
+    function speakFrom(i) {
+      synth.cancel();
+      if (i >= L.length) { setPlaying(false); return; }
+      const V = voicesFor(), u = new SpeechSynthesisUtterance(L[i][6] || L[i][1]);
+      if (V[L[i][0]]) u.voice = V[L[i][0]];
+      u.rate = rate; u.pitch = L[i][0] === "S" ? 0.95 : 1.05;
+      u.onend = () => {
+        if (!playing || sp.i !== i) return;
+        if (L[i][5] && asks.checked && !asked.has(i)) { asked.add(i); sp.i = i + 1; sp.t0 = performance.now(); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; show(L[i + 1] ? L[i + 1][2] : D.dur); return; }
+        sp.i = i + 1; sp.t0 = performance.now(); speakFrom(i + 1);
+      };
+      sp.i = i; sp.t0 = performance.now(); synth.speak(u);
+    }
+    function toSpeech(why) {
+      if (!synth) { note.textContent = "Audio isn't available in this browser."; setPlaying(false); return; }
+      const t = audio ? audio.currentTime : 0;
+      mode = "speech"; if (audio) { audio.pause(); audio.removeAttribute("src"); audio = null; }
+      sp.i = lineAt(t);
+      setPlaying(true); note.textContent = why; speakFrom(sp.i); requestAnimationFrame(tick);
+    }
+    function start() {
+      note.textContent = "";
+      if (mode === "speech") { setPlaying(true); speakFrom(sp.i); requestAnimationFrame(tick); return; }
+      if (!audio) {
+        const a = document.createElement("audio");
+        if (!a.canPlayType('audio/ogg; codecs="opus"')) return toSpeech("Using your browser's voices (this browser can't play the recording).");
+        audio = a; audio.preload = "auto"; audio.src = D.src; audio.playbackRate = rate;
+        let resume = 0; try { resume = parseFloat(localStorage.getItem(key)) || 0; } catch (e) {}
+        if (resume > 5 && resume < D.dur - 10) audio.currentTime = resume; else resume = 0;
+        audio.addEventListener("playing", () => { if (resume) { note.textContent = `Picked up where you left off (${fmt(resume)}).`; resume = 0; } }, { once: true });
+        audio.addEventListener("error", () => toSpeech("Using your browser's voices (the recording didn't load)."));
+        audio.addEventListener("ended", () => { setPlaying(false); show(D.dur); try { localStorage.removeItem(key); } catch (e) {} });
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({ title: document.querySelector("h1").textContent, artist: "InterviewKata · Sam and Priya" });
+          navigator.mediaSession.setActionHandler("play", start); navigator.mediaSession.setActionHandler("pause", pause);
+          navigator.mediaSession.setActionHandler("seekbackward", () => seek(now() - 10));
+        }
+      }
+      audio.play().then(() => { setPlaying(true); requestAnimationFrame(tick); }).catch((e) => { if (e && e.name === "NotSupportedError") toSpeech("Using your browser's voices (the recording didn't load)."); });
+    }
+    function pause() { setPlaying(false); if (mode === "audio") { if (audio) audio.pause(); } else synth.cancel(); }
+    function seek(t) {
+      t = Math.max(0, Math.min(D.dur - 0.1, t));
+      const i = lineAt(t);
+      for (const j of [...asked]) if (j >= i) asked.delete(j);
+      if (mode === "audio") { if (!audio) { start(); } if (audio) audio.currentTime = t; }
+      else { sp.i = i; sp.t0 = performance.now(); if (playing) speakFrom(i); }
+      show(mode === "audio" ? t : L[i][2]);
+    }
+    play.addEventListener("click", () => playing ? pause() : start());
+    $(".lc-back").addEventListener("click", () => seek(now() - 10));
+    rateBtn.addEventListener("click", () => {
+      rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length]; rateBtn.textContent = rate + "×";
+      if (audio) audio.playbackRate = rate; else if (mode === "speech" && playing) speakFrom(sp.i);
+    });
+    txBtn.addEventListener("click", () => { panel.hidden = !panel.hidden; txBtn.setAttribute("aria-expanded", String(!panel.hidden)); if (cur >= 0) show(now()); });
+    items.forEach((li) => li.addEventListener("click", () => { const i = +li.dataset.i; seek(L[i][2]); if (!playing) start(); }));
+    const seekAt = (x) => { const r = bar.getBoundingClientRect(); seek((x - r.left) / r.width * D.dur); };
+    bar.addEventListener("click", (e) => seekAt(e.clientX));
+    bar.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") { seek(now() + 5); e.preventDefault(); } if (e.key === "ArrowLeft") { seek(now() - 5); e.preventDefault(); } });
+    // While playing, the controls dock to the bottom of the screen once the player scrolls out of view.
+    const lc = $(".lc"), mark = document.createElement("div");
+    mark.style.cssText = "height:1px;margin-bottom:-1px";
+    sec.insertBefore(mark, lc);
+    new IntersectionObserver(([en]) => {
+      const d = !en.isIntersecting && en.boundingClientRect.top < 60 && sec.classList.contains("started");
+      if (d === sec.classList.contains("docked")) return;
+      sec.style.paddingTop = d ? lc.offsetHeight + "px" : "";
+      sec.classList.toggle("docked", d);
+    }, { threshold: 0, rootMargin: "-60px 0px 0px 0px" }).observe(mark);
+    try { const r = parseFloat(localStorage.getItem(key)); if (r > 5 && r < D.dur - 10) { show(r); setPlaying(false); } } catch (e) {}
+  }
+  document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("section.listen").forEach(listen));
+
   window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
@@ -3077,6 +3242,75 @@ html.iks-open { overflow: hidden; }
     <div class="eyebrow">Pattern 17 of 24</div>
     <h1>Stack</h1>
     <p class="lede">Last in, first out. When the most recent unfinished thing is always the next one to finish (an open bracket, a pending operand, a score you might cancel), keep those things on a stack and work on its top.</p>
+    <!-- listen:start -->
+    <section class="listen" aria-label="Listen to this page as a conversation">
+      <div class="lc">
+        <button type="button" class="lc-play" aria-label="Play the conversation"><span class="lc-ico" aria-hidden="true"></span><span class="lc-lbl">Listen</span></button>
+        <div class="lc-mid">
+          <div class="lc-title">A 6-minute conversation: Sam asks, Priya explains</div>
+          <div class="lc-bar" role="slider" aria-label="Position" aria-valuemin="0" aria-valuemax="372" aria-valuenow="0" tabindex="0"><span></span></div>
+          <div class="lc-meta"><span class="lc-time">0:00 / 6:12</span><span class="lc-note"></span></div>
+        </div>
+        <div class="lc-tools">
+          <button type="button" class="lc-back" aria-label="Back 10 seconds">−10s</button>
+          <button type="button" class="lc-rate" aria-label="Playback speed">1×</button>
+          <button type="button" class="lc-tx" aria-expanded="false">Transcript</button>
+        </div>
+      </div>
+      <div class="lc-panel" hidden>
+        <div class="lc-opts"><label><input type="checkbox" class="lc-follow" checked> Follow along on the page</label><label><input type="checkbox" class="lc-asks" checked> Pause on “your turn” questions</label></div>
+        <ol class="lc-lines">
+        <li data-i="0" class="ln-S"><b>Sam</b> Step three is the stack. Last in, first out. That sounds almost too simple to need a whole page.</li>
+        <li data-i="1" class="ln-P"><b>Priya</b> The structure is simple. The skill is noticing when a problem is secretly about it. The page's summary says it well: when the most recent unfinished thing is always the next one to finish, keep those things on a stack and work on the top.</li>
+        <li data-i="2" class="ln-S"><b>Sam</b> The most recent unfinished thing. Give me an example.</li>
+        <li data-i="3" class="ln-P"><b>Priya</b> An open bracket. In "open, open, close", the close belongs to the second open, the most recent one that's still waiting. That's the whole idea.</li>
+        <li data-i="4" class="ln-S"><b>Sam</b> And the picture?</li>
+        <li data-i="5" class="ln-P"><b>Priya</b> A stack of plates in a cafeteria. You can only put a plate on top, and only take the top plate off. The plate you grab next is always the one you put down most recently.</li>
+        <li data-i="6" class="ln-S"><b>Sam</b> In code that's just a list?</li>
+        <li data-i="7" class="ln-P"><b>Priya</b> A list where you only touch one end. Append to push, pop to remove, and look at the last element to peek. All three are constant time. It fits anything with nesting or undo: matching brackets or HTML tags, evaluating expressions, cancelling the previous action, and stacks that carry extra information, like the minimum so far.</li>
+        <li data-i="8" class="ln-S"><b>Sam</b> The page mentions monotonic stacks too.</li>
+        <li data-i="9" class="ln-P"><b>Priya</b> That's a special version where the stack is kept in sorted order. It has its own page later on the path, and it's much easier once this one feels natural.</li>
+        <li data-i="10" class="ln-S"><b>Sam</b> How do I build a stack solution from scratch?</li>
+        <li data-i="11" class="ln-P"><b>Priya</b> Four steps. Decide what waits: the things you can't resolve yet, like open brackets or numbers waiting for an operator. Push when something opens. When something closes, peek at the top, check it matches, then pop. And at the end, look at what's left.</li>
+        <li data-i="12" class="ln-S"><b>Sam</b> What does "what's left" tell me?</li>
+        <li data-i="13" class="ln-P"><b>Priya</b> Depends on the problem. For brackets, anything left means something was never closed, so the input is invalid. For a calculator, what's left is the answer.</li>
+        <li data-i="14" class="ln-S"><b>Sam</b> What words tell me it's a stack problem?</li>
+        <li data-i="15" class="ln-P"><b>Priya</b> "Valid parentheses", "balanced", "well-formed", "evaluate", "reverse Polish", "decode the string", "undo", "backspace", "simplify the path", and "design a stack that also returns the minimum in constant time."</li>
+        <li data-i="16" class="ln-S"><b>Sam</b> And the one question to ask?</li>
+        <li data-i="17" class="ln-P"><b>Priya</b> Is the thing I need to deal with next always the most recent thing that's still open? If yes, it belongs on a stack. The brute-force smell is scanning backwards, again and again, for the last unmatched thing.</li>
+        <li data-i="18" class="ln-S"><b>Sam</b> When should I not use one?</li>
+        <li data-i="19" class="ln-P"><b>Priya</b> If the oldest item goes first, that's a queue, not a stack. Breadth-first search, or tasks served in arrival order. If there's only one kind of bracket and you just need to know it's valid, a single counter is enough. And if you need the next greater element for every index, that's the monotonic stack.</li>
+        <li data-i="20" class="ln-P ask"><b>Priya</b> Your turn. Tasks must be processed in the order they arrived. Stack, queue, or hash set?</li>
+        <li data-i="21" class="ln-P"><b>Priya</b> A queue. Arrival order is first in, first out. A stack would always serve the newest task first, which is the opposite.</li>
+        <li data-i="22" class="ln-S"><b>Sam</b> Okay, the three templates.</li>
+        <li data-i="23" class="ln-P"><b>Priya</b> Template A is balanced brackets. The page's hook for it is "the last door you opened is the first you must close." Imagine walking into rooms inside rooms. You have to leave through the doors in reverse order.</li>
+        <li data-i="24" class="ln-S"><b>Sam</b> So an opener is walking through a door, and a closer is walking back out.</li>
+        <li data-i="25" class="ln-P"><b>Priya</b> Right. When a closer arrives, two things can go wrong. The stack might be empty, so there's no door to walk out of. Or the door on top is a different type. Either way, return false. And at the very end, the stack must be empty, or some door was left open.</li>
+        <li data-i="26" class="ln-S"><b>Sam</b> People forget that last check?</li>
+        <li data-i="27" class="ln-P"><b>Priya</b> All the time. Two open brackets never hit a bad closer, so a lazy solution returns true. The right answer is false.</li>
+        <li data-i="28" class="ln-S"><b>Sam</b> Template B?</li>
+        <li data-i="29" class="ln-P"><b>Priya</b> Evaluating postfix, also called reverse Polish notation. Numbers go on the pile. When an operator arrives, it takes the top two plates, combines them, and puts the result back.</li>
+        <li data-i="30" class="ln-S"><b>Sam</b> Does the order of those two plates matter?</li>
+        <li data-i="31" class="ln-P"><b>Priya</b> For minus and divide, very much. The first one you pop is the right-hand number. So "four, two, minus" means four minus two. The page's order rule is "pop b, then a."</li>
+        <li data-i="32" class="ln-P ask"><b>Priya</b> Try one. Evaluate: five, three, minus, two, divide.</li>
+        <li data-i="33" class="ln-P"><b>Priya</b> Five minus three is two. Then two divided by two is one. The first value popped is always the right operand.</li>
+        <li data-i="34" class="ln-S"><b>Sam</b> And template C, the min stack.</li>
+        <li data-i="35" class="ln-P"><b>Priya</b> The challenge is returning the minimum in constant time, even after you pop the current minimum. The trick is to write the smallest-so-far on each plate as you put it down. So each entry stores its value and the minimum of everything at or below it. When you pop, the plate underneath already knows the new minimum.</li>
+        <li data-i="36" class="ln-S"><b>Sam</b> How do I remember it?</li>
+        <li data-i="37" class="ln-P"><b>Priya</b> "Plates in the cafeteria": the last plate put down is the first one picked up, so whatever opened most recently closes first. The picture is Russian dolls. You can't close the outer doll until every doll inside it is closed. And the chant: open, push. Close, peek, match, pop. End, empty?</li>
+        <li data-i="38" class="ln-S"><b>Sam</b> That chant is basically template A in one breath.</li>
+        <li data-i="39" class="ln-P"><b>Priya</b> And the other two fit the same hook: an operator takes the top two plates, and the min stack writes a note on each plate.</li>
+        <li data-i="40" class="ln-S"><b>Sam</b> Common mistakes?</li>
+        <li data-i="41" class="ln-P"><b>Priya</b> Popping an empty stack, which crashes. Check first. Forgetting the final emptiness check. Getting the operand order backwards. Python's floor division, which rounds negative numbers down rather than toward zero, so problems that say "truncate" need a different division. And recomputing the minimum by scanning on every pop, which makes pop slow. Store it with each entry instead.</li>
+        <li data-i="42" class="ln-S"><b>Sam</b> Which problems first?</li>
+        <li data-i="43" class="ln-P"><b>Priya</b> Valid parentheses, then baseball game, then min stack. All three are marked "start here." Then try decode string, where you push what you've built so far plus the repeat count whenever you see an open bracket.</li>
+        <li data-i="44" class="ln-S"><b>Sam</b> So after three steps I can walk an array carefully, remember what I've seen, and track what's still open.</li>
+        <li data-i="45" class="ln-P"><b>Priya</b> That's the toolkit every other pattern is built from. Next on the path is two pointers, where you'll start replacing nested loops with two indices.</li>
+        </ol>
+      </div>
+      <script type="application/json" class="lc-data">{"src": "https://sunil-bodeddula-pro.github.io/notebook-audio/patterns/17-stack.ogg?v=91d16b4036", "dur": 372.4, "names": {"S": "Sam", "P": "Priya"}, "lines": [["S", "Step three is the stack. Last in, first out. That sounds almost too simple to need a whole page.", 0.0, 6.61, "", 0, "Step three is the stack. Last in, first out. That sounds almost too simple to need a whole page."], ["P", "The structure is simple. The skill is noticing when a problem is secretly about it. The page's summary says it well: when the most recent unfinished thing is always the next one to finish, keep those things on a stack and work on the top.", 6.93, 20.97, "", 0, "The structure is simple. The skill is noticing when a problem is secretly about it. The page's summary says it well: when the most recent unfinished thing is always the next one to finish, keep those things on a stack and work on the top."], ["S", "The most recent unfinished thing. Give me an example.", 21.29, 24.83, "", 0, "The most recent unfinished thing. Give me an example."], ["P", "An open bracket. In \"open, open, close\", the close belongs to the second open, the most recent one that's still waiting. That's the whole idea.", 25.15, 34.45, "", 0, "An open bracket. In \"open, open, close\", the close belongs to the second open, the most recent one that's still waiting. That's the whole idea."], ["S", "And the picture?", 35.2, 36.4, "what", 0, "And the picture?"], ["P", "A stack of plates in a cafeteria. You can only put a plate on top, and only take the top plate off. The plate you grab next is always the one you put down most recently.", 36.72, 46.83, "what", 0, "A stack of plates in a cafeteria. You can only put a plate on top, and only take the top plate off. The plate you grab next is always the one you put down most recently."], ["S", "In code that's just a list?", 47.15, 48.88, "what", 0, "In code that's just a list?"], ["P", "A list where you only touch one end. Append to push, pop to remove, and look at the last element to peek. All three are constant time. It fits anything with nesting or undo: matching brackets or HTML tags, evaluating expressions, cancelling the previous action, and stacks that carry extra information, like the minimum so far.", 49.2, 70.32, "what", 0, "A list where you only touch one end. Append to push, pop to remove, and look at the last element to peek. All three are constant time. It fits anything with nesting or undo: matching brackets or HTML tags, evaluating expressions, cancelling the previous action, and stacks that carry extra information, like the minimum so far."], ["S", "The page mentions monotonic stacks too.", 70.64, 73.16, "what", 0, "The page mentions monotonic stacks too."], ["P", "That's a special version where the stack is kept in sorted order. It has its own page later on the path, and it's much easier once this one feels natural.", 73.48, 82.41, "what", 0, "That's a special version where the stack is kept in sorted order. It has its own page later on the path, and it's much easier once this one feels natural."], ["S", "How do I build a stack solution from scratch?", 83.16, 85.96, "how", 0, "How do I build a stack solution from scratch?"], ["P", "Four steps. Decide what waits: the things you can't resolve yet, like open brackets or numbers waiting for an operator. Push when something opens. When something closes, peek at the top, check it matches, then pop. And at the end, look at what's left.", 86.28, 101.55, "how", 0, "Four steps. Decide what waits: the things you can't resolve yet, like open brackets or numbers waiting for an operator. Push when something opens. When something closes, peek at the top, check it matches, then pop. And at the end, look at what's left."], ["S", "What does \"what's left\" tell me?", 101.87, 103.88, "how", 0, "What does \"what's left\" tell me?"], ["P", "Depends on the problem. For brackets, anything left means something was never closed, so the input is invalid. For a calculator, what's left is the answer.", 104.2, 113.61, "how", 0, "Depends on the problem. For brackets, anything left means something was never closed, so the input is invalid. For a calculator, what's left is the answer."], ["S", "What words tell me it's a stack problem?", 114.36, 116.55, "identify", 0, "What words tell me it's a stack problem?"], ["P", "\"Valid parentheses\", \"balanced\", \"well-formed\", \"evaluate\", \"reverse Polish\", \"decode the string\", \"undo\", \"backspace\", \"simplify the path\", and \"design a stack that also returns the minimum in constant time.\"", 116.87, 130.25, "identify", 0, "\"Valid parentheses\", \"balanced\", \"well-formed\", \"evaluate\", \"reverse Polish\", \"decode the string\", \"undo\", \"backspace\", \"simplify the path\", and \"design a stack that also returns the minimum in constant time.\""], ["S", "And the one question to ask?", 130.57, 132.51, "identify", 0, "And the one question to ask?"], ["P", "Is the thing I need to deal with next always the most recent thing that's still open? If yes, it belongs on a stack. The brute-force smell is scanning backwards, again and again, for the last unmatched thing.", 132.83, 145.18, "identify", 0, "Is the thing I need to deal with next always the most recent thing that's still open? If yes, it belongs on a stack. The brute-force smell is scanning backwards, again and again, for the last unmatched thing."], ["S", "When should I not use one?", 145.93, 147.77, "when", 0, "When should I not use one?"], ["P", "If the oldest item goes first, that's a queue, not a stack. Breadth-first search, or tasks served in arrival order. If there's only one kind of bracket and you just need to know it's valid, a single counter is enough. And if you need the next greater element for every index, that's the monotonic stack.", 148.09, 165.88, "when", 0, "If the oldest item goes first, that's a queue, not a stack. Breadth-first search, or tasks served in arrival order. If there's only one kind of bracket and you just need to know it's valid, a single counter is enough. And if you need the next greater element for every index, that's the monotonic stack."], ["P", "Your turn. Tasks must be processed in the order they arrived. Stack, queue, or hash set?", 166.2, 171.47, "when", 1, "Your turn. Tasks must be processed in the order they arrived. Stack, queue, or hash set?"], ["P", "A queue. Arrival order is first in, first out. A stack would always serve the newest task first, which is the opposite.", 171.79, 178.96, "when", 0, "A queue. Arrival order is first in, first out. A stack would always serve the newest task first, which is the opposite."], ["S", "Okay, the three templates.", 179.71, 181.48, "template", 0, "Okay, the three templates."], ["P", "Template A is balanced brackets. The page's hook for it is \"the last door you opened is the first you must close.\" Imagine walking into rooms inside rooms. You have to leave through the doors in reverse order.", 181.8, 194.28, "template", 0, "Template A is balanced brackets. The page's hook for it is \"the last door you opened is the first you must close.\" Imagine walking into rooms inside rooms. You have to leave through the doors in reverse order."], ["S", "So an opener is walking through a door, and a closer is walking back out.", 194.6, 199.08, "template", 0, "So an opener is walking through a door, and a closer is walking back out."], ["P", "Right. When a closer arrives, two things can go wrong. The stack might be empty, so there's no door to walk out of. Or the door on top is a different type. Either way, return false. And at the very end, the stack must be empty, or some door was left open.", 199.4, 214.97, "template", 0, "Right. When a closer arrives, two things can go wrong. The stack might be empty, so there's no door to walk out of. Or the door on top is a different type. Either way, return false. And at the very end, the stack must be empty, or some door was left open."], ["S", "People forget that last check?", 215.29, 217.19, "template", 0, "People forget that last check?"], ["P", "All the time. Two open brackets never hit a bad closer, so a lazy solution returns true. The right answer is false.", 217.51, 225.1, "template", 0, "All the time. Two open brackets never hit a bad closer, so a lazy solution returns true. The right answer is false."], ["S", "Template B?", 225.42, 226.56, "template", 0, "Template B?"], ["P", "Evaluating postfix, also called reverse Polish notation. Numbers go on the pile. When an operator arrives, it takes the top two plates, combines them, and puts the result back.", 226.88, 238.59, "template", 0, "Evaluating postfix, also called reverse Polish notation. Numbers go on the pile. When an operator arrives, it takes the top two plates, combines them, and puts the result back."], ["S", "Does the order of those two plates matter?", 238.91, 241.1, "template", 0, "Does the order of those two plates matter?"], ["P", "For minus and divide, very much. The first one you pop is the right-hand number. So \"four, two, minus\" means four minus two. The page's order rule is \"pop b, then a.\"", 241.42, 252.2, "template", 0, "For minus and divide, very much. The first one you pop is the right-hand number. So \"four, two, minus\" means four minus two. The page's order rule is \"pop b, then a.\""], ["P", "Try one. Evaluate: five, three, minus, two, divide.", 252.52, 256.14, "template", 1, "Try one. Evaluate: five, three, minus, two, divide."], ["P", "Five minus three is two. Then two divided by two is one. The first value popped is always the right operand.", 256.46, 263.61, "template", 0, "Five minus three is two. Then two divided by two is one. The first value popped is always the right operand."], ["S", "And template C, the min stack.", 263.93, 265.85, "template", 0, "And template C, the min stack."], ["P", "The challenge is returning the minimum in constant time, even after you pop the current minimum. The trick is to write the smallest-so-far on each plate as you put it down. So each entry stores its value and the minimum of everything at or below it. When you pop, the plate underneath already knows the new minimum.", 266.17, 284.75, "template", 0, "The challenge is returning the minimum in constant time, even after you pop the current minimum. The trick is to write the smallest-so-far on each plate as you put it down. So each entry stores its value and the minimum of everything at or below it. When you pop, the plate underneath already knows the new minimum."], ["S", "How do I remember it?", 285.5, 287.17, "remember", 0, "How do I remember it?"], ["P", "\"Plates in the cafeteria\": the last plate put down is the first one picked up, so whatever opened most recently closes first. The picture is Russian dolls. You can't close the outer doll until every doll inside it is closed. And the chant: open, push. Close, peek, match, pop. End, empty?", 287.49, 305.75, "remember", 0, "\"Plates in the cafeteria\": the last plate put down is the first one picked up, so whatever opened most recently closes first. The picture is Russian dolls. You can't close the outer doll until every doll inside it is closed. And the chant: open, push. Close, peek, match, pop. End, empty?"], ["S", "That chant is basically template A in one breath.", 306.07, 309.01, "remember", 0, "That chant is basically template A in one breath."], ["P", "And the other two fit the same hook: an operator takes the top two plates, and the min stack writes a note on each plate.", 309.33, 316.16, "remember", 0, "And the other two fit the same hook: an operator takes the top two plates, and the min stack writes a note on each plate."], ["S", "Common mistakes?", 316.91, 318.23, "mistakes", 0, "Common mistakes?"], ["P", "Popping an empty stack, which crashes. Check first. Forgetting the final emptiness check. Getting the operand order backwards. Python's floor division, which rounds negative numbers down rather than toward zero, so problems that say \"truncate\" need a different division. And recomputing the minimum by scanning on every pop, which makes pop slow. Store it with each entry instead.", 318.55, 341.19, "mistakes", 0, "Popping an empty stack, which crashes. Check first. Forgetting the final emptiness check. Getting the operand order backwards. Python's floor division, which rounds negative numbers down rather than toward zero, so problems that say \"truncate\" need a different division. And recomputing the minimum by scanning on every pop, which makes pop slow. Store it with each entry instead."], ["S", "Which problems first?", 341.94, 343.49, "problems", 0, "Which problems first?"], ["P", "Valid parentheses, then baseball game, then min stack. All three are marked \"start here.\" Then try decode string, where you push what you've built so far plus the repeat count whenever you see an open bracket.", 343.81, 356.55, "problems", 0, "Valid parentheses, then baseball game, then min stack. All three are marked \"start here.\" Then try decode string, where you push what you've built so far plus the repeat count whenever you see an open bracket."], ["S", "So after three steps I can walk an array carefully, remember what I've seen, and track what's still open.", 356.87, 363.35, "problems", 0, "So after three steps I can walk an array carefully, remember what I've seen, and track what's still open."], ["P", "That's the toolkit every other pattern is built from. Next on the path is two pointers, where you'll start replacing nested loops with two indices.", 363.67, 371.93, "problems", 0, "That's the toolkit every other pattern is built from. Next on the path is two pointers, where you'll start replacing nested loops with two indices."]]}</script>
+    </section>
+    <!-- listen:end -->
 
     <!-- 1 -->
     <h2 id="what">1. What is this pattern for?</h2>

@@ -1599,7 +1599,7 @@
     ["Open-closed principle", ["open-closed"], "Code should be open to extension and closed to modification: add a class rather than edit a working one.", "design-patterns"],
     ["Coupling", [], "How much one class has to change when another does. Patterns mostly exist to lower it.", "design-patterns"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl, .listen";
 
   const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
   const inTrack = (g) => (g[3] || "coding") === pageTrack();
@@ -2137,6 +2137,135 @@
       }));
     });
   });
+
+  /** The two-person audio player (<section class="listen">, written by the toolkit's audio_build.py).
+   * Plays the Opus file; if the browser can't (or the file fails), the browser's own voices read the same script. */
+  function listen(sec) {
+    const D = JSON.parse(sec.querySelector(".lc-data").textContent), L = D.lines;
+    const $ = (q) => sec.querySelector(q);
+    const play = $(".lc-play"), bar = $(".lc-bar"), fill = $(".lc-bar span"), time = $(".lc-time"), note = $(".lc-note");
+    const panel = $(".lc-panel"), txBtn = $(".lc-tx"), rateBtn = $(".lc-rate"), items = sec.querySelectorAll(".lc-lines li");
+    const follow = $(".lc-follow"), asks = $(".lc-asks");
+    const RATES = [1, 1.25, 1.5, 1.75, 2, 0.75];
+    const key = "listen:" + location.pathname;
+    let rate = 1, cur = -1, shownAnchor = "", asked = new Set(), playing = false, mode = "audio", audio = null, sp = { i: 0, t0: 0 };
+    const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+    const lineAt = (t) => { let lo = 0, hi = L.length - 1, a = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (L[m][2] <= t + 0.01) { a = m; lo = m + 1; } else hi = m - 1; } return a; };
+    const now = () => mode === "audio" ? (audio ? audio.currentTime : 0) : (L[sp.i] ? L[sp.i][2] + Math.min((performance.now() - sp.t0) / 1000 * rate, L[sp.i][3] - L[sp.i][2]) : D.dur);
+    function show(t) {
+      fill.style.width = `${Math.min(100, t / D.dur * 100)}%`;
+      bar.setAttribute("aria-valuenow", Math.round(t));
+      time.textContent = `${fmt(t)} / ${fmt(D.dur)}`;
+      const i = lineAt(t);
+      if (i !== cur) {
+        if (items[cur]) items[cur].classList.remove("on");
+        cur = i; items[i].classList.add("on");
+        if (!panel.hidden) { const box = panel.querySelector(".lc-lines"); box.scrollTop = items[i].offsetTop - box.offsetTop - 40; }
+        const a = L[i][4];
+        if (playing && follow.checked && a && a !== shownAnchor) {
+          shownAnchor = a;
+          const h = document.getElementById(a);
+          if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+    function setPlaying(p) {
+      playing = p; sec.classList.toggle("playing", p); if (p) sec.classList.add("started");
+      play.setAttribute("aria-label", p ? "Pause" : "Play the conversation");
+      play.querySelector(".lc-lbl").textContent = p ? "Pause" : (now() > 0.5 ? "Resume" : "Listen");
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = p ? "playing" : "paused";
+    }
+    function tick() {
+      if (!playing) return;
+      const t = now(); show(t);
+      if (mode === "audio") {
+        const i = lineAt(t);
+        for (const j of [i - 1, i]) if (j >= 0 && L[j][5] && asks.checked && !asked.has(j) && t >= L[j][3]) { asked.add(j); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; return; }
+        try { localStorage.setItem(key, String(t)); } catch (e) {}
+      }
+      requestAnimationFrame(tick);
+    }
+    // ---- browser voices (fallback)
+    const synth = window.speechSynthesis;
+    function voicesFor() {
+      const vs = (synth && synth.getVoices() || []).filter((v) => /^en/i.test(v.lang));
+      const f = vs.find((v) => /female|samantha|zira|aria|jenny|libby|sonia|google us english/i.test(v.name)) || vs[0];
+      const m = vs.find((v) => v !== f && /male|daniel|david|guy|ryan|alex|fred|google uk english male/i.test(v.name)) || vs.find((v) => v !== f) || f;
+      return { P: f, S: m };
+    }
+    function speakFrom(i) {
+      synth.cancel();
+      if (i >= L.length) { setPlaying(false); return; }
+      const V = voicesFor(), u = new SpeechSynthesisUtterance(L[i][6] || L[i][1]);
+      if (V[L[i][0]]) u.voice = V[L[i][0]];
+      u.rate = rate; u.pitch = L[i][0] === "S" ? 0.95 : 1.05;
+      u.onend = () => {
+        if (!playing || sp.i !== i) return;
+        if (L[i][5] && asks.checked && !asked.has(i)) { asked.add(i); sp.i = i + 1; sp.t0 = performance.now(); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; show(L[i + 1] ? L[i + 1][2] : D.dur); return; }
+        sp.i = i + 1; sp.t0 = performance.now(); speakFrom(i + 1);
+      };
+      sp.i = i; sp.t0 = performance.now(); synth.speak(u);
+    }
+    function toSpeech(why) {
+      if (!synth) { note.textContent = "Audio isn't available in this browser."; setPlaying(false); return; }
+      const t = audio ? audio.currentTime : 0;
+      mode = "speech"; if (audio) { audio.pause(); audio.removeAttribute("src"); audio = null; }
+      sp.i = lineAt(t);
+      setPlaying(true); note.textContent = why; speakFrom(sp.i); requestAnimationFrame(tick);
+    }
+    function start() {
+      note.textContent = "";
+      if (mode === "speech") { setPlaying(true); speakFrom(sp.i); requestAnimationFrame(tick); return; }
+      if (!audio) {
+        const a = document.createElement("audio");
+        if (!a.canPlayType('audio/ogg; codecs="opus"')) return toSpeech("Using your browser's voices (this browser can't play the recording).");
+        audio = a; audio.preload = "auto"; audio.src = D.src; audio.playbackRate = rate;
+        let resume = 0; try { resume = parseFloat(localStorage.getItem(key)) || 0; } catch (e) {}
+        if (resume > 5 && resume < D.dur - 10) audio.currentTime = resume; else resume = 0;
+        audio.addEventListener("playing", () => { if (resume) { note.textContent = `Picked up where you left off (${fmt(resume)}).`; resume = 0; } }, { once: true });
+        audio.addEventListener("error", () => toSpeech("Using your browser's voices (the recording didn't load)."));
+        audio.addEventListener("ended", () => { setPlaying(false); show(D.dur); try { localStorage.removeItem(key); } catch (e) {} });
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({ title: document.querySelector("h1").textContent, artist: "InterviewKata · Sam and Priya" });
+          navigator.mediaSession.setActionHandler("play", start); navigator.mediaSession.setActionHandler("pause", pause);
+          navigator.mediaSession.setActionHandler("seekbackward", () => seek(now() - 10));
+        }
+      }
+      audio.play().then(() => { setPlaying(true); requestAnimationFrame(tick); }).catch((e) => { if (e && e.name === "NotSupportedError") toSpeech("Using your browser's voices (the recording didn't load)."); });
+    }
+    function pause() { setPlaying(false); if (mode === "audio") { if (audio) audio.pause(); } else synth.cancel(); }
+    function seek(t) {
+      t = Math.max(0, Math.min(D.dur - 0.1, t));
+      const i = lineAt(t);
+      for (const j of [...asked]) if (j >= i) asked.delete(j);
+      if (mode === "audio") { if (!audio) { start(); } if (audio) audio.currentTime = t; }
+      else { sp.i = i; sp.t0 = performance.now(); if (playing) speakFrom(i); }
+      show(mode === "audio" ? t : L[i][2]);
+    }
+    play.addEventListener("click", () => playing ? pause() : start());
+    $(".lc-back").addEventListener("click", () => seek(now() - 10));
+    rateBtn.addEventListener("click", () => {
+      rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length]; rateBtn.textContent = rate + "×";
+      if (audio) audio.playbackRate = rate; else if (mode === "speech" && playing) speakFrom(sp.i);
+    });
+    txBtn.addEventListener("click", () => { panel.hidden = !panel.hidden; txBtn.setAttribute("aria-expanded", String(!panel.hidden)); if (cur >= 0) show(now()); });
+    items.forEach((li) => li.addEventListener("click", () => { const i = +li.dataset.i; seek(L[i][2]); if (!playing) start(); }));
+    const seekAt = (x) => { const r = bar.getBoundingClientRect(); seek((x - r.left) / r.width * D.dur); };
+    bar.addEventListener("click", (e) => seekAt(e.clientX));
+    bar.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") { seek(now() + 5); e.preventDefault(); } if (e.key === "ArrowLeft") { seek(now() - 5); e.preventDefault(); } });
+    // While playing, the controls dock to the bottom of the screen once the player scrolls out of view.
+    const lc = $(".lc"), mark = document.createElement("div");
+    mark.style.cssText = "height:1px;margin-bottom:-1px";
+    sec.insertBefore(mark, lc);
+    new IntersectionObserver(([en]) => {
+      const d = !en.isIntersecting && en.boundingClientRect.top < 60 && sec.classList.contains("started");
+      if (d === sec.classList.contains("docked")) return;
+      sec.style.paddingTop = d ? lc.offsetHeight + "px" : "";
+      sec.classList.toggle("docked", d);
+    }, { threshold: 0, rootMargin: "-60px 0px 0px 0px" }).observe(mark);
+    try { const r = parseFloat(localStorage.getItem(key)); if (r > 5 && r < D.dur - 10) { show(r); setPlaying(false); } } catch (e) {}
+  }
+  document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("section.listen").forEach(listen));
 
   window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();

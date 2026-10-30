@@ -892,6 +892,42 @@ html.iks-open { overflow: hidden; }
 @media print { .anchor-copy { display: none !important; } }
 .anchor-hit { animation: g-hit 2.4s ease-out; border-radius: 6px; }
 
+/* Two-person audio player (section.listen, from the toolkit's audio_build.py; behaviour in viz.js listen()) */
+.listen { margin: 18px 0 8px; }
+.listen .lc { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.lc-play { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 .92rem var(--sans); cursor: pointer; }
+.lc-ico { width: 0; height: 0; border-left: 10px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.listen.playing .lc-ico { width: 10px; height: 12px; border: 0; border-left: 3px solid currentColor; border-right: 3px solid currentColor; box-sizing: border-box; }
+.lc-mid { flex: 1; min-width: 0; }
+.lc-title { font: 600 .9rem var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-bar { position: relative; height: 6px; margin: 8px 0 6px; border-radius: 3px; background: var(--surface-2); cursor: pointer; }
+.lc-bar span { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: var(--accent); }
+.lc-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lc-meta { display: flex; gap: 12px; font: .76rem var(--sans); color: var(--ink-3); }
+.lc-note { color: var(--ink-2); font-weight: 600; }
+.lc-tools { flex: none; display: flex; gap: 6px; }
+.lc-tools button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 600 .78rem var(--sans); cursor: pointer; }
+.lc-tools button[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); }
+.lc-panel { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.lc-opts { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-bottom: 1px solid var(--line); font: .82rem var(--sans); color: var(--ink-2); }
+.lc-lines { list-style: none; margin: 0; padding: 6px 0; max-height: 340px; overflow-y: auto; }
+.lc-lines li { max-width: none; padding: 7px 14px; margin: 0; cursor: pointer; line-height: 1.5; font-size: .92rem; color: var(--ink-2); border-left: 3px solid transparent; }
+.lc-lines li b { display: inline-block; min-width: 3.4em; font: 700 .74rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ln-P b { color: var(--accent); }
+.lc-lines li:hover { background: var(--surface-2); }
+.lc-lines li.on { color: var(--ink); background: var(--surface-2); border-left-color: var(--accent); }
+.listen.started.docked .lc { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(760px, calc(100% - 24px)); z-index: 30; box-shadow: var(--shadow); }
+@media (max-width: 640px) {
+  .listen .lc { flex-wrap: wrap; gap: 10px; }
+  .lc-mid { order: 3; flex-basis: 100%; }
+  .lc-tools { margin-left: auto; }
+  .lc-title { white-space: normal; }
+}
+@media print { .listen { display: none !important; } }
+.lc-lines li.ask { background: var(--gold-soft); }
+.lc-lines li.ask::after { content: "Your turn"; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: var(--surface); font: 700 .68rem var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lc-lines li.ask.on { background: var(--gold-soft); }
+
 </style>
 <script>
 /* InterviewKata — tiny, dependency-free visualizer engine.
@@ -2495,7 +2531,7 @@ html.iks-open { overflow: hidden; }
     ["Open-closed principle", ["open-closed"], "Code should be open to extension and closed to modification: add a class rather than edit a working one.", "design-patterns"],
     ["Coupling", [], "How much one class has to change when another does. Patterns mostly exist to lower it.", "design-patterns"],
   ];
-  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl";
+  const SKIP = "a, code, pre, kbd, button, summary, strong, b, th, h1, h2, h3, h4, script, style, svg, .viz, .gl, .gl-demo, .tag, .ds, .toc, .eyebrow, .opts, .glossary-list, .topbar, .sidenav, footer, label, .widget .ctl, .ctxlegend, .no-gl, .listen";
 
   const pageTrack = () => (document.body && document.body.dataset.track) || "coding";
   const inTrack = (g) => (g[3] || "coding") === pageTrack();
@@ -3034,6 +3070,135 @@ html.iks-open { overflow: hidden; }
     });
   });
 
+  /** The two-person audio player (<section class="listen">, written by the toolkit's audio_build.py).
+   * Plays the Opus file; if the browser can't (or the file fails), the browser's own voices read the same script. */
+  function listen(sec) {
+    const D = JSON.parse(sec.querySelector(".lc-data").textContent), L = D.lines;
+    const $ = (q) => sec.querySelector(q);
+    const play = $(".lc-play"), bar = $(".lc-bar"), fill = $(".lc-bar span"), time = $(".lc-time"), note = $(".lc-note");
+    const panel = $(".lc-panel"), txBtn = $(".lc-tx"), rateBtn = $(".lc-rate"), items = sec.querySelectorAll(".lc-lines li");
+    const follow = $(".lc-follow"), asks = $(".lc-asks");
+    const RATES = [1, 1.25, 1.5, 1.75, 2, 0.75];
+    const key = "listen:" + location.pathname;
+    let rate = 1, cur = -1, shownAnchor = "", asked = new Set(), playing = false, mode = "audio", audio = null, sp = { i: 0, t0: 0 };
+    const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+    const lineAt = (t) => { let lo = 0, hi = L.length - 1, a = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (L[m][2] <= t + 0.01) { a = m; lo = m + 1; } else hi = m - 1; } return a; };
+    const now = () => mode === "audio" ? (audio ? audio.currentTime : 0) : (L[sp.i] ? L[sp.i][2] + Math.min((performance.now() - sp.t0) / 1000 * rate, L[sp.i][3] - L[sp.i][2]) : D.dur);
+    function show(t) {
+      fill.style.width = `${Math.min(100, t / D.dur * 100)}%`;
+      bar.setAttribute("aria-valuenow", Math.round(t));
+      time.textContent = `${fmt(t)} / ${fmt(D.dur)}`;
+      const i = lineAt(t);
+      if (i !== cur) {
+        if (items[cur]) items[cur].classList.remove("on");
+        cur = i; items[i].classList.add("on");
+        if (!panel.hidden) { const box = panel.querySelector(".lc-lines"); box.scrollTop = items[i].offsetTop - box.offsetTop - 40; }
+        const a = L[i][4];
+        if (playing && follow.checked && a && a !== shownAnchor) {
+          shownAnchor = a;
+          const h = document.getElementById(a);
+          if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+    function setPlaying(p) {
+      playing = p; sec.classList.toggle("playing", p); if (p) sec.classList.add("started");
+      play.setAttribute("aria-label", p ? "Pause" : "Play the conversation");
+      play.querySelector(".lc-lbl").textContent = p ? "Pause" : (now() > 0.5 ? "Resume" : "Listen");
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = p ? "playing" : "paused";
+    }
+    function tick() {
+      if (!playing) return;
+      const t = now(); show(t);
+      if (mode === "audio") {
+        const i = lineAt(t);
+        for (const j of [i - 1, i]) if (j >= 0 && L[j][5] && asks.checked && !asked.has(j) && t >= L[j][3]) { asked.add(j); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; return; }
+        try { localStorage.setItem(key, String(t)); } catch (e) {}
+      }
+      requestAnimationFrame(tick);
+    }
+    // ---- browser voices (fallback)
+    const synth = window.speechSynthesis;
+    function voicesFor() {
+      const vs = (synth && synth.getVoices() || []).filter((v) => /^en/i.test(v.lang));
+      const f = vs.find((v) => /female|samantha|zira|aria|jenny|libby|sonia|google us english/i.test(v.name)) || vs[0];
+      const m = vs.find((v) => v !== f && /male|daniel|david|guy|ryan|alex|fred|google uk english male/i.test(v.name)) || vs.find((v) => v !== f) || f;
+      return { P: f, S: m };
+    }
+    function speakFrom(i) {
+      synth.cancel();
+      if (i >= L.length) { setPlaying(false); return; }
+      const V = voicesFor(), u = new SpeechSynthesisUtterance(L[i][6] || L[i][1]);
+      if (V[L[i][0]]) u.voice = V[L[i][0]];
+      u.rate = rate; u.pitch = L[i][0] === "S" ? 0.95 : 1.05;
+      u.onend = () => {
+        if (!playing || sp.i !== i) return;
+        if (L[i][5] && asks.checked && !asked.has(i)) { asked.add(i); sp.i = i + 1; sp.t0 = performance.now(); pause(); note.textContent = "Your turn: answer out loud, then press Resume."; show(L[i + 1] ? L[i + 1][2] : D.dur); return; }
+        sp.i = i + 1; sp.t0 = performance.now(); speakFrom(i + 1);
+      };
+      sp.i = i; sp.t0 = performance.now(); synth.speak(u);
+    }
+    function toSpeech(why) {
+      if (!synth) { note.textContent = "Audio isn't available in this browser."; setPlaying(false); return; }
+      const t = audio ? audio.currentTime : 0;
+      mode = "speech"; if (audio) { audio.pause(); audio.removeAttribute("src"); audio = null; }
+      sp.i = lineAt(t);
+      setPlaying(true); note.textContent = why; speakFrom(sp.i); requestAnimationFrame(tick);
+    }
+    function start() {
+      note.textContent = "";
+      if (mode === "speech") { setPlaying(true); speakFrom(sp.i); requestAnimationFrame(tick); return; }
+      if (!audio) {
+        const a = document.createElement("audio");
+        if (!a.canPlayType('audio/ogg; codecs="opus"')) return toSpeech("Using your browser's voices (this browser can't play the recording).");
+        audio = a; audio.preload = "auto"; audio.src = D.src; audio.playbackRate = rate;
+        let resume = 0; try { resume = parseFloat(localStorage.getItem(key)) || 0; } catch (e) {}
+        if (resume > 5 && resume < D.dur - 10) audio.currentTime = resume; else resume = 0;
+        audio.addEventListener("playing", () => { if (resume) { note.textContent = `Picked up where you left off (${fmt(resume)}).`; resume = 0; } }, { once: true });
+        audio.addEventListener("error", () => toSpeech("Using your browser's voices (the recording didn't load)."));
+        audio.addEventListener("ended", () => { setPlaying(false); show(D.dur); try { localStorage.removeItem(key); } catch (e) {} });
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({ title: document.querySelector("h1").textContent, artist: "InterviewKata · Sam and Priya" });
+          navigator.mediaSession.setActionHandler("play", start); navigator.mediaSession.setActionHandler("pause", pause);
+          navigator.mediaSession.setActionHandler("seekbackward", () => seek(now() - 10));
+        }
+      }
+      audio.play().then(() => { setPlaying(true); requestAnimationFrame(tick); }).catch((e) => { if (e && e.name === "NotSupportedError") toSpeech("Using your browser's voices (the recording didn't load)."); });
+    }
+    function pause() { setPlaying(false); if (mode === "audio") { if (audio) audio.pause(); } else synth.cancel(); }
+    function seek(t) {
+      t = Math.max(0, Math.min(D.dur - 0.1, t));
+      const i = lineAt(t);
+      for (const j of [...asked]) if (j >= i) asked.delete(j);
+      if (mode === "audio") { if (!audio) { start(); } if (audio) audio.currentTime = t; }
+      else { sp.i = i; sp.t0 = performance.now(); if (playing) speakFrom(i); }
+      show(mode === "audio" ? t : L[i][2]);
+    }
+    play.addEventListener("click", () => playing ? pause() : start());
+    $(".lc-back").addEventListener("click", () => seek(now() - 10));
+    rateBtn.addEventListener("click", () => {
+      rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length]; rateBtn.textContent = rate + "×";
+      if (audio) audio.playbackRate = rate; else if (mode === "speech" && playing) speakFrom(sp.i);
+    });
+    txBtn.addEventListener("click", () => { panel.hidden = !panel.hidden; txBtn.setAttribute("aria-expanded", String(!panel.hidden)); if (cur >= 0) show(now()); });
+    items.forEach((li) => li.addEventListener("click", () => { const i = +li.dataset.i; seek(L[i][2]); if (!playing) start(); }));
+    const seekAt = (x) => { const r = bar.getBoundingClientRect(); seek((x - r.left) / r.width * D.dur); };
+    bar.addEventListener("click", (e) => seekAt(e.clientX));
+    bar.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") { seek(now() + 5); e.preventDefault(); } if (e.key === "ArrowLeft") { seek(now() - 5); e.preventDefault(); } });
+    // While playing, the controls dock to the bottom of the screen once the player scrolls out of view.
+    const lc = $(".lc"), mark = document.createElement("div");
+    mark.style.cssText = "height:1px;margin-bottom:-1px";
+    sec.insertBefore(mark, lc);
+    new IntersectionObserver(([en]) => {
+      const d = !en.isIntersecting && en.boundingClientRect.top < 60 && sec.classList.contains("started");
+      if (d === sec.classList.contains("docked")) return;
+      sec.style.paddingTop = d ? lc.offsetHeight + "px" : "";
+      sec.classList.toggle("docked", d);
+    }, { threshold: 0, rootMargin: "-60px 0px 0px 0px" }).observe(mark);
+    try { const r = parseFloat(localStorage.getItem(key)); if (r > 5 && r < D.dur - 10) { show(r); setPlaying(false); } } catch (e) {}
+  }
+  document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("section.listen").forEach(listen));
+
   window.Viz = { array, grid, stack, chips, list, tree, graph, flow, figure, figures, intervals, stepper, scene, tour, lib, trace, esc, glossaryList, tlab, highlight };
 })();
 </script>
@@ -3077,6 +3242,75 @@ html.iks-open { overflow: hidden; }
     <div class="eyebrow">Pattern 16 of 24</div>
     <h1>Hash Map &amp; Set</h1>
     <p class="lede">Trade memory for time. A hash map remembers what you have already seen, so "is it here?", "how many?" and "where was it?" are answered in <code>O(1)</code> instead of rescanning the input.</p>
+    <!-- listen:start -->
+    <section class="listen" aria-label="Listen to this page as a conversation">
+      <div class="lc">
+        <button type="button" class="lc-play" aria-label="Play the conversation"><span class="lc-ico" aria-hidden="true"></span><span class="lc-lbl">Listen</span></button>
+        <div class="lc-mid">
+          <div class="lc-title">A 6-minute conversation: Sam asks, Priya explains</div>
+          <div class="lc-bar" role="slider" aria-label="Position" aria-valuemin="0" aria-valuemax="378" aria-valuenow="0" tabindex="0"><span></span></div>
+          <div class="lc-meta"><span class="lc-time">0:00 / 6:17</span><span class="lc-note"></span></div>
+        </div>
+        <div class="lc-tools">
+          <button type="button" class="lc-back" aria-label="Back 10 seconds">−10s</button>
+          <button type="button" class="lc-rate" aria-label="Playback speed">1×</button>
+          <button type="button" class="lc-tx" aria-expanded="false">Transcript</button>
+        </div>
+      </div>
+      <div class="lc-panel" hidden>
+        <div class="lc-opts"><label><input type="checkbox" class="lc-follow" checked> Follow along on the page</label><label><input type="checkbox" class="lc-asks" checked> Pause on “your turn” questions</label></div>
+        <ol class="lc-lines">
+        <li data-i="0" class="ln-S"><b>Sam</b> Step two on the path is hash maps and sets. I've used dictionaries before, so what's left to learn?</li>
+        <li data-i="1" class="ln-P"><b>Priya</b> Mostly how to see them. Almost every array or string problem has a slow version that rescans the input inside a loop. A hash map is usually what deletes that inner loop. The page's one-line summary is "trade memory for time."</li>
+        <li data-i="2" class="ln-S"><b>Sam</b> Remember things so you don't have to look for them again.</li>
+        <li data-i="3" class="ln-P"><b>Priya</b> Exactly. And the picture for the whole page is a coat check.</li>
+        <li data-i="4" class="ln-S"><b>Sam</b> Go on, explain the coat check.</li>
+        <li data-i="5" class="ln-P"><b>Priya</b> You hand over your coat and get a ticket with a number. Later the attendant walks straight to hook forty-two. They don't search every hook. A hash function does the same thing: it turns any key, a number or a word, into a hook number. So storing and finding take about the same tiny time whether there are ten coats or ten million.</li>
+        <li data-i="6" class="ln-S"><b>Sam</b> And set versus dict?</li>
+        <li data-i="7" class="ln-P"><b>Priya</b> A set holds just keys. It answers "have I seen this?" A dict holds keys with values. It answers "what do I know about this?": where it was, how many times, which group it belongs to.</li>
+        <li data-i="8" class="ln-S"><b>Sam</b> So what jobs does it actually do in interview problems?</li>
+        <li data-i="9" class="ln-P"><b>Priya</b> Four. Membership: have I seen this before? Lookup by complement: is the partner I need already here, like in two sum. Counting: how many of each? And grouping: which bucket does this item belong to, like grouping anagrams.</li>
+        <li data-i="10" class="ln-S"><b>Sam</b> When I meet a problem, how do I build the solution?</li>
+        <li data-i="11" class="ln-P"><b>Priya</b> Two decisions, then one rule. First, what's the key? It might be the value itself, its complement, a letter, or a canonical form like the sorted letters of a word. Second, what do you store with it? Nothing, an index, a count, or a list.</li>
+        <li data-i="12" class="ln-S"><b>Sam</b> And the rule?</li>
+        <li data-i="13" class="ln-P"><b>Priya</b> Look before you store. For each element, first ask the map about it, then update the map. That order is the line that goes wrong most often on this whole page.</li>
+        <li data-i="14" class="ln-S"><b>Sam</b> Why does the order matter so much?</li>
+        <li data-i="15" class="ln-P"><b>Priya</b> Take two sum with a target of six, and the array has a single three. If you store the three first and then look for its partner, which is also three, you'll find it. The element pairs with itself, and you report an answer that doesn't exist.</li>
+        <li data-i="16" class="ln-S"><b>Sam</b> How do I spot a hash map problem?</li>
+        <li data-i="17" class="ln-P"><b>Priya</b> Listen for "contains duplicate", "first repeated", "two numbers that add up to" in an unsorted array, "anagram", "frequency", "group the strings that", or "do it in O(n)" when the obvious answer sorts or uses nested loops.</li>
+        <li data-i="18" class="ln-S"><b>Sam</b> And the smell in my own code?</li>
+        <li data-i="19" class="ln-P"><b>Priya</b> A loop inside a loop comparing every pair. Or "x in some list" inside a loop, which is secretly another loop. The page's one question is: if I remembered everything I've seen so far, would each step become a single lookup? If yes, reach for a set or a dict.</li>
+        <li data-i="20" class="ln-P ask"><b>Priya</b> Your turn. You need two indices in an unsorted array whose values add up to a target, in linear time. What do you keep in your map?</li>
+        <li data-i="21" class="ln-P"><b>Priya</b> A map from value to index. For each number, look up the target minus that number. If it's there, you're done. If not, store the number with its index. Sorting would lose the original positions.</li>
+        <li data-i="22" class="ln-S"><b>Sam</b> When is a hash map the wrong tool?</li>
+        <li data-i="23" class="ln-P"><b>Priya</b> If the input is already sorted and you need a pair, two pointers does it without the extra memory. If the alphabet is tiny, like twenty-six lowercase letters, a plain list of twenty-six counts is just as fast and easier to compare. And if you need things in order, the smallest or the k-th, you want a heap or sorting instead.</li>
+        <li data-i="24" class="ln-S"><b>Sam</b> And when does it team up with other patterns?</li>
+        <li data-i="25" class="ln-P"><b>Priya</b> Two big ones. With prefix sums, a map of running totals counts subarrays that sum to k. And with a sliding window, the map tracks what's inside the window. You'll meet both soon.</li>
+        <li data-i="26" class="ln-S"><b>Sam</b> Walk me through the four templates.</li>
+        <li data-i="27" class="ln-P"><b>Priya</b> Template A is a set of seen values. Before you check a coat in, see if its ticket is already on the rail. If it is, that's a duplicate. If not, add it.</li>
+        <li data-i="28" class="ln-S"><b>Sam</b> Check, then add.</li>
+        <li data-i="29" class="ln-P"><b>Priya</b> Template B is value to index, for two sum. Look for your partner's coat first, then hang your own. Template C is counting: one hook per kind of item, and a tick each time one comes in. Use get with a default of zero, so the very first tick doesn't crash on a missing key.</li>
+        <li data-i="30" class="ln-S"><b>Sam</b> And D?</li>
+        <li data-i="31" class="ln-P"><b>Priya</b> Group by a computed key. The ticket is computed from the item. For anagrams, the key is the word's letters sorted, so "listen" and "silent" both become the same key and land on the same hook.</li>
+        <li data-i="32" class="ln-S"><b>Sam</b> Can the key be a list of sorted letters?</li>
+        <li data-i="33" class="ln-P"><b>Priya</b> No, and that's a classic error. Lists can't be keys because they can change. Join the letters into a string, or use a tuple.</li>
+        <li data-i="34" class="ln-P ask"><b>Priya</b> Quick check. To group anagrams, which key is right: the word's length, its first letter, or its sorted letters?</li>
+        <li data-i="35" class="ln-P"><b>Priya</b> Sorted letters. All anagrams, and only anagrams, sort to the same string. Length or first letter would mix unrelated words together.</li>
+        <li data-i="36" class="ln-S"><b>Sam</b> How do I hold onto this?</li>
+        <li data-i="37" class="ln-P"><b>Priya</b> The hook is "coat check": hand in the item, get a ticket, walk straight to the hook. Anything you'd otherwise search for again, put in the cloakroom the first time you see it. And the chant is: ask, then store. Count with get. Group by key.</li>
+        <li data-i="38" class="ln-S"><b>Sam</b> There's also a key rule on the page.</li>
+        <li data-i="39" class="ln-P"><b>Priya</b> "Same answer, same key." Choose a key that's equal exactly when two items should be treated as the same. That one sentence solves most grouping problems.</li>
+        <li data-i="40" class="ln-S"><b>Sam</b> Besides storing before checking, what else trips people up?</li>
+        <li data-i="41" class="ln-P"><b>Priya</b> Using a list as a key, which we covered. Reading a key that isn't there yet. Checking a mapping in only one direction: for isomorphic strings you need two maps, so two different letters can't both map to the same letter. And searching a list inside the loop, which turns your clean linear solution back into a quadratic one. Convert it to a set once, before the loop.</li>
+        <li data-i="42" class="ln-S"><b>Sam</b> Where should I start?</li>
+        <li data-i="43" class="ln-P"><b>Priya</b> Two sum, then valid anagram, then contains duplicate. They're marked "start here." After that, try longest consecutive sequence. The trick there is to only start counting at a number whose predecessor isn't in the set.</li>
+        <li data-i="44" class="ln-S"><b>Sam</b> And next on the path is the stack.</li>
+        <li data-i="45" class="ln-P"><b>Priya</b> Right. A hash map remembers everything you've seen. A stack remembers only the most recent thing that's still open, and that turns out to be exactly what you need for brackets.</li>
+        </ol>
+      </div>
+      <script type="application/json" class="lc-data">{"src": "https://sunil-bodeddula-pro.github.io/notebook-audio/patterns/16-hash-map-set.ogg?v=08facd671f", "dur": 377.7, "names": {"S": "Sam", "P": "Priya"}, "lines": [["S", "Step two on the path is hash maps and sets. I've used dictionaries before, so what's left to learn?", 0.0, 6.42, "", 0, "Step two on the path is hash maps and sets. I've used dictionaries before, so what's left to learn?"], ["P", "Mostly how to see them. Almost every array or string problem has a slow version that rescans the input inside a loop. A hash map is usually what deletes that inner loop. The page's one-line summary is \"trade memory for time.\"", 6.74, 21.06, "", 0, "Mostly how to see them. Almost every array or string problem has a slow version that rescans the input inside a loop. A hash map is usually what deletes that inner loop. The page's one-line summary is \"trade memory for time.\""], ["S", "Remember things so you don't have to look for them again.", 21.38, 24.53, "", 0, "Remember things so you don't have to look for them again."], ["P", "Exactly. And the picture for the whole page is a coat check.", 24.85, 28.16, "", 0, "Exactly. And the picture for the whole page is a coat check."], ["S", "Go on, explain the coat check.", 28.91, 30.94, "what", 0, "Go on, explain the coat check."], ["P", "You hand over your coat and get a ticket with a number. Later the attendant walks straight to hook forty-two. They don't search every hook. A hash function does the same thing: it turns any key, a number or a word, into a hook number. So storing and finding take about the same tiny time whether there are ten coats or ten million.", 31.26, 50.35, "what", 0, "You hand over your coat and get a ticket with a number. Later the attendant walks straight to hook forty-two. They don't search every hook. A hash function does the same thing: it turns any key, a number or a word, into a hook number. So storing and finding take about the same tiny time whether there are ten coats or ten million."], ["S", "And set versus dict?", 50.67, 52.27, "what", 0, "And set versus dict?"], ["P", "A set holds just keys. It answers \"have I seen this?\" A dict holds keys with values. It answers \"what do I know about this?\": where it was, how many times, which group it belongs to.", 52.59, 63.47, "what", 0, "A set holds just keys. It answers \"have I seen this?\" A dict holds keys with values. It answers \"what do I know about this?\": where it was, how many times, which group it belongs to."], ["S", "So what jobs does it actually do in interview problems?", 63.79, 67.37, "what", 0, "So what jobs does it actually do in interview problems?"], ["P", "Four. Membership: have I seen this before? Lookup by complement: is the partner I need already here, like in two sum. Counting: how many of each? And grouping: which bucket does this item belong to, like grouping anagrams.", 67.69, 81.67, "what", 0, "Four. Membership: have I seen this before? Lookup by complement: is the partner I need already here, like in two sum. Counting: how many of each? And grouping: which bucket does this item belong to, like grouping anagrams."], ["S", "When I meet a problem, how do I build the solution?", 82.42, 85.77, "how", 0, "When I meet a problem, how do I build the solution?"], ["P", "Two decisions, then one rule. First, what's the key? It might be the value itself, its complement, a letter, or a canonical form like the sorted letters of a word. Second, what do you store with it? Nothing, an index, a count, or a list.", 86.09, 100.53, "how", 0, "Two decisions, then one rule. First, what's the key? It might be the value itself, its complement, a letter, or a canonical form like the sorted letters of a word. Second, what do you store with it? Nothing, an index, a count, or a list."], ["S", "And the rule?", 100.85, 101.96, "how", 0, "And the rule?"], ["P", "Look before you store. For each element, first ask the map about it, then update the map. That order is the line that goes wrong most often on this whole page.", 102.28, 111.77, "how", 0, "Look before you store. For each element, first ask the map about it, then update the map. That order is the line that goes wrong most often on this whole page."], ["S", "Why does the order matter so much?", 112.09, 114.14, "how", 0, "Why does the order matter so much?"], ["P", "Take two sum with a target of six, and the array has a single three. If you store the three first and then look for its partner, which is also three, you'll find it. The element pairs with itself, and you report an answer that doesn't exist.", 114.46, 128.41, "how", 0, "Take two sum with a target of six, and the array has a single three. If you store the three first and then look for its partner, which is also three, you'll find it. The element pairs with itself, and you report an answer that doesn't exist."], ["S", "How do I spot a hash map problem?", 129.16, 131.62, "identify", 0, "How do I spot a hash map problem?"], ["P", "Listen for \"contains duplicate\", \"first repeated\", \"two numbers that add up to\" in an unsorted array, \"anagram\", \"frequency\", \"group the strings that\", or \"do it in O(n)\" when the obvious answer sorts or uses nested loops.", 131.94, 146.19, "identify", 0, "Listen for \"contains duplicate\", \"first repeated\", \"two numbers that add up to\" in an unsorted array, \"anagram\", \"frequency\", \"group the strings that\", or \"do it in linear time\" when the obvious answer sorts or uses nested loops."], ["S", "And the smell in my own code?", 146.51, 148.45, "identify", 0, "And the smell in my own code?"], ["P", "A loop inside a loop comparing every pair. Or \"x in some list\" inside a loop, which is secretly another loop. The page's one question is: if I remembered everything I've seen so far, would each step become a single lookup? If yes, reach for a set or a dict.", 148.77, 164.92, "identify", 0, "A loop inside a loop comparing every pair. Or \"x in some list\" inside a loop, which is secretly another loop. The page's one question is: if I remembered everything I've seen so far, would each step become a single lookup? If yes, reach for a set or a dict."], ["P", "Your turn. You need two indices in an unsorted array whose values add up to a target, in linear time. What do you keep in your map?", 165.24, 172.87, "identify", 1, "Your turn. You need two indices in an unsorted array whose values add up to a target, in linear time. What do you keep in your map?"], ["P", "A map from value to index. For each number, look up the target minus that number. If it's there, you're done. If not, store the number with its index. Sorting would lose the original positions.", 173.19, 185.16, "identify", 0, "A map from value to index. For each number, look up the target minus that number. If it's there, you're done. If not, store the number with its index. Sorting would lose the original positions."], ["S", "When is a hash map the wrong tool?", 185.91, 188.15, "when", 0, "When is a hash map the wrong tool?"], ["P", "If the input is already sorted and you need a pair, two pointers does it without the extra memory. If the alphabet is tiny, like twenty-six lowercase letters, a plain list of twenty-six counts is just as fast and easier to compare. And if you need things in order, the smallest or the k-th, you want a heap or sorting instead.", 188.47, 208.57, "when", 0, "If the input is already sorted and you need a pair, two pointers does it without the extra memory. If the alphabet is tiny, like twenty-six lowercase letters, a plain list of twenty-six counts is just as fast and easier to compare. And if you need things in order, the smallest or the k-th, you want a heap or sorting instead."], ["S", "And when does it team up with other patterns?", 208.89, 211.41, "when", 0, "And when does it team up with other patterns?"], ["P", "Two big ones. With prefix sums, a map of running totals counts subarrays that sum to k. And with a sliding window, the map tracks what's inside the window. You'll meet both soon.", 211.73, 222.82, "when", 0, "Two big ones. With prefix sums, a map of running totals counts subarrays that sum to k. And with a sliding window, the map tracks what's inside the window. You'll meet both soon."], ["S", "Walk me through the four templates.", 223.57, 225.51, "template", 0, "Walk me through the four templates."], ["P", "Template A is a set of seen values. Before you check a coat in, see if its ticket is already on the rail. If it is, that's a duplicate. If not, add it.", 225.83, 235.22, "template", 0, "Template A is a set of seen values. Before you check a coat in, see if its ticket is already on the rail. If it is, that's a duplicate. If not, add it."], ["S", "Check, then add.", 235.54, 236.77, "template", 0, "Check, then add."], ["P", "Template B is value to index, for two sum. Look for your partner's coat first, then hang your own. Template C is counting: one hook per kind of item, and a tick each time one comes in. Use get with a default of zero, so the very first tick doesn't crash on a missing key.", 237.09, 253.46, "template", 0, "Template B is value to index, for two sum. Look for your partner's coat first, then hang your own. Template C is counting: one hook per kind of item, and a tick each time one comes in. Use get with a default of zero, so the very first tick doesn't crash on a missing key."], ["S", "And D?", 253.78, 254.74, "template", 0, "And D?"], ["P", "Group by a computed key. The ticket is computed from the item. For anagrams, the key is the word's letters sorted, so \"listen\" and \"silent\" both become the same key and land on the same hook.", 255.06, 267.05, "template", 0, "Group by a computed key. The ticket is computed from the item. For anagrams, the key is the word's letters sorted, so \"listen\" and \"silent\" both become the same key and land on the same hook."], ["S", "Can the key be a list of sorted letters?", 267.37, 269.78, "template", 0, "Can the key be a list of sorted letters?"], ["P", "No, and that's a classic error. Lists can't be keys because they can change. Join the letters into a string, or use a tuple.", 270.1, 277.52, "template", 0, "No, and that's a classic error. Lists can't be keys because they can change. Join the letters into a string, or use a tuple."], ["P", "Quick check. To group anagrams, which key is right: the word's length, its first letter, or its sorted letters?", 277.84, 283.94, "template", 1, "Quick check. To group anagrams, which key is right: the word's length, its first letter, or its sorted letters?"], ["P", "Sorted letters. All anagrams, and only anagrams, sort to the same string. Length or first letter would mix unrelated words together.", 284.26, 292.67, "template", 0, "Sorted letters. All anagrams, and only anagrams, sort to the same string. Length or first letter would mix unrelated words together."], ["S", "How do I hold onto this?", 293.42, 295.21, "remember", 0, "How do I hold onto this?"], ["P", "The hook is \"coat check\": hand in the item, get a ticket, walk straight to the hook. Anything you'd otherwise search for again, put in the cloakroom the first time you see it. And the chant is: ask, then store. Count with get. Group by key.", 295.53, 309.82, "remember", 0, "The hook is \"coat check\": hand in the item, get a ticket, walk straight to the hook. Anything you'd otherwise search for again, put in the cloakroom the first time you see it. And the chant is: ask, then store. Count with get. Group by key."], ["S", "There's also a key rule on the page.", 310.14, 312.25, "remember", 0, "There's also a key rule on the page."], ["P", "\"Same answer, same key.\" Choose a key that's equal exactly when two items should be treated as the same. That one sentence solves most grouping problems.", 312.57, 321.94, "remember", 0, "\"Same answer, same key.\" Choose a key that's equal exactly when two items should be treated as the same. That one sentence solves most grouping problems."], ["S", "Besides storing before checking, what else trips people up?", 322.69, 326.27, "mistakes", 0, "Besides storing before checking, what else trips people up?"], ["P", "Using a list as a key, which we covered. Reading a key that isn't there yet. Checking a mapping in only one direction: for isomorphic strings you need two maps, so two different letters can't both map to the same letter. And searching a list inside the loop, which turns your clean linear solution back into a quadratic one. Convert it to a set once, before the loop.", 326.59, 347.86, "mistakes", 0, "Using a list as a key, which we covered. Reading a key that isn't there yet. Checking a mapping in only one direction: for isomorphic strings you need two maps, so two different letters can't both map to the same letter. And searching a list inside the loop, which turns your clean linear solution back into a quadratic one. Convert it to a set once, before the loop."], ["S", "Where should I start?", 348.61, 350.02, "problems", 0, "Where should I start?"], ["P", "Two sum, then valid anagram, then contains duplicate. They're marked \"start here.\" After that, try longest consecutive sequence. The trick there is to only start counting at a number whose predecessor isn't in the set.", 350.34, 363.95, "problems", 0, "Two sum, then valid anagram, then contains duplicate. They're marked \"start here.\" After that, try longest consecutive sequence. The trick there is to only start counting at a number whose predecessor isn't in the set."], ["S", "And next on the path is the stack.", 364.27, 366.47, "problems", 0, "And next on the path is the stack."], ["P", "Right. A hash map remembers everything you've seen. A stack remembers only the most recent thing that's still open, and that turns out to be exactly what you need for brackets.", 366.79, 377.22, "problems", 0, "Right. A hash map remembers everything you've seen. A stack remembers only the most recent thing that's still open, and that turns out to be exactly what you need for brackets."]]}</script>
+    </section>
+    <!-- listen:end -->
 
     <!-- 1 -->
     <h2 id="what">1. What is this pattern for?</h2>
