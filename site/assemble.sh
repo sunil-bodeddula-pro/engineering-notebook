@@ -5,7 +5,7 @@
 #
 #   site/assemble.sh [OUT_DIR]     (default: _site; run from the repo root)
 #
-#   /                  site/*.html, site/patterns/ and site/assets/
+#   /                  site/*.html, site/patterns/, site/structures/ (the data-structure lessons) and site/assets/
 #   /ai/               site/ai/ (the AI engineering track)
 #   /system-design/    site/system-design/ (the System design track)
 #   /architecture/     site/architecture/ (the Software architecture track)
@@ -19,7 +19,7 @@ OUT="${1:-_site}"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp site/*.html "$OUT/"
-for d in patterns assets ai system-design architecture behavioural lld styles design-patterns; do [ -d "site/$d" ] && cp -r "site/$d" "$OUT/"; done
+for d in patterns structures assets ai system-design architecture behavioural lld styles design-patterns; do [ -d "site/$d" ] && cp -r "site/$d" "$OUT/"; done
 cp site/assets/favicon.svg "$OUT/"
 touch "$OUT/.nojekyll"
 
