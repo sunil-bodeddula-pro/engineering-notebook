@@ -12,7 +12,7 @@ Each page keeps its copy between the markers
 and its footer between
     <!-- site-footer:start ... -->  and  <!-- site-footer:end -->
 ({root} in footer.html becomes the relative path back to the site root: "" for top-level pages,
-"../" for patterns/, ai/, system-design/, architecture/, behavioural/ and lld/, "../../" for ai/{modules,cases}/, system-design/{modules,designs}/ architecture/{modules,cases}/, behavioural/modules/ and lld/{modules,problems}/.)
+"../" for patterns/, structures/, ai/, system-design/, architecture/, behavioural/ and lld/, "../../" for ai/{modules,cases}/, system-design/{modules,designs}/ architecture/{modules,cases}/, behavioural/modules/ and lld/{modules,problems}/.)
 and its menus (top bar = the tracks, left sidebar = the current track's pages) between
     <!-- site-chrome:start ... -->  and  <!-- site-chrome:end -->
 A page's track comes from <body data-track="…"> (no attribute = "coding").
@@ -125,6 +125,7 @@ def block():
 
 def pages():
     names = ["index.html", "start-here.html", "cheatsheet.html", "review.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
+    names += sorted(glob.glob(os.path.join("structures", "*.html"), root_dir=ROOT))
     names += sorted(glob.glob(os.path.join("ai", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "modules", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "cases", "*.html"), root_dir=ROOT))
     for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), "architecture", os.path.join("architecture", "modules"), os.path.join("architecture", "cases"), "behavioural", os.path.join("behavioural", "modules"), "lld", os.path.join("lld", "modules"), os.path.join("lld", "problems"), "styles", os.path.join("styles", "modules"), "design-patterns", os.path.join("design-patterns", "modules")):
         names += sorted(glob.glob(os.path.join(d, "*.html"), root_dir=ROOT))

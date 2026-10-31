@@ -22,7 +22,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 TRACKS = {
-    "coding": {"out": "review.html", "label": "Coding patterns", "pages": ["start-here.html", "cheatsheet.html", "patterns/*.html"]},
+    "coding": {"out": "review.html", "label": "Coding patterns", "pages": ["start-here.html", "cheatsheet.html", "structures/*.html", "patterns/*.html"]},
     "ai": {"out": "ai/review.html", "label": "AI engineering", "pages": ["ai/start-here.html", "ai/modules/*.html", "ai/cases/*.html"]},
     "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
     "behavioural": {"out": "behavioural/review.html", "label": "Behavioural interviews", "pages": ["behavioural/start-here.html", "behavioural/modules/*.html"]},

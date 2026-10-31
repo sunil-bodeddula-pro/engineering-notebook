@@ -39,7 +39,7 @@ START, END = "<!-- seo:start -->", "<!-- seo:end -->"
 
 
 def pages():
-    out = [p for p in glob.glob("*.html") if p != "404.html"] + glob.glob("patterns/*.html")
+    out = [p for p in glob.glob("*.html") if p != "404.html"] + glob.glob("patterns/*.html") + glob.glob("structures/*.html")
     for t in ("ai", "system-design", "architecture", "behavioural", "lld", "styles", "design-patterns"):
         out += glob.glob(f"{t}/**/*.html", recursive=True)
     return sorted(out)
