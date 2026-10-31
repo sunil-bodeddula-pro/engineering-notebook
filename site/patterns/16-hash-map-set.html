@@ -1375,20 +1375,44 @@ html.iks-open { overflow: hidden; }
       counter.textContent = `${i + 1} / ${frames.length}`;
       if (cfg.onShow) cfg.onShow(i);
     }
-    function stop() { clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; }
+    // cfg.voice (optional): { on(), say(k, done), intro(done), ask(k), hush(), rate(x) }. With the voice on, Play
+    // reads each step's line and moves on when it ends; stepping by hand reads that one step.
+    const V = cfg.voice;
+    let talking = false, pause = null;
+    const voiced = () => V && V.on();
+    function stop() {
+      clearInterval(timer); timer = null; clearTimeout(pause); pause = null;
+      if (talking || (V && V.busy && V.busy())) V.hush();
+      talking = false; playBtn.textContent = "▶ Play";
+    }
+    function talk() {
+      if (!talking) return;
+      V.say(i, () => {
+        if (!talking) return;
+        if (i >= frames.length - 1) return stop();
+        if (cfg.holdAt && cfg.holdAt(i)) { stop(); if (V.ask) V.ask(i + 1); return; }
+        pause = setTimeout(() => { if (!talking) return; show(i + 1); talk(); }, 450 / speed);
+      });
+    }
     function play() {
-      if (timer) return stop();
+      if (timer || talking) return stop();
       if (i >= frames.length - 1) show(0);
       playBtn.textContent = "❚❚ Pause";
+      if (voiced()) {
+        talking = true; V.rate(speed);
+        if (i === 0) V.intro(talk); else talk();
+        return;
+      }
       timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, (cfg.speed || 1100) / speed);
     }
+    const byHand = (k) => { stop(); show(k); if (voiced()) { V.rate(speed); V.say(i); } };
     const speedBtn = root.querySelector(`#${id}-speed`);
-    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (timer) { stop(); play(); } };
-    root.querySelector(`#${id}-prev`).onclick = () => { stop(); show(i - 1); };
-    root.querySelector(`#${id}-next`).onclick = () => { stop(); show(i + 1); };
+    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (talking) V.rate(speed); else if (timer) { stop(); play(); } };
+    root.querySelector(`#${id}-prev`).onclick = () => byHand(i - 1);
+    root.querySelector(`#${id}-next`).onclick = () => byHand(i + 1);
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
-    range.oninput = () => { stop(); show(+range.value); };
+    range.oninput = () => byHand(+range.value);
     // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
     // Measured once it is visible (a hidden element has no size), and again when its width changes.
     let lockedWidth = 0;
@@ -1418,12 +1442,91 @@ html.iks-open { overflow: hidden; }
     }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
-      if (e.key === "ArrowLeft") { stop(); show(i - 1); e.preventDefault(); }
+      if (e.key === "ArrowRight") { byHand(i + 1); e.preventDefault(); }
+      if (e.key === "ArrowLeft") { byHand(i - 1); e.preventDefault(); }
       if (e.key === " ") { play(); e.preventDefault(); }
     });
     show(0);
-    return { show: (k) => { stop(); show(k); }, index: () => i, count: frames.length };
+    return { show: (k) => { stop(); show(k); }, stop, index: () => i, count: frames.length };
+  }
+
+  /** Narration for a template lab: the spoken lines made by build/narrate/narr_build.py, kept in the page's
+   *  <script id="ik-narr"> (file + start/end of each line). It plays one line at a time from a single recording,
+   *  and uses the browser's voices when the steps changed since the recording (fingerprint) or the file fails. */
+  let narrAll;
+  const narrFp = (s) => (s || []).length + ":" + (s || []).reduce((a, st) => a + (st.analogy || "").length + (st.note || "").length + (st.ask ? st.ask.q.length : 0), 0);
+  const plainText = (h) => { const d = document.createElement("div"); d.innerHTML = h || ""; return d.textContent.replace(/\s+/g, " ").trim(); };
+  function narrData() {
+    // Read lazily: the players are built before the parser reaches the table at the end of <body>.
+    if (!narrAll) {
+      const el = document.getElementById("ik-narr");
+      try { narrAll = el ? JSON.parse(el.textContent) : null; } catch (e) { narrAll = null; }
+    }
+    return narrAll;
+  }
+  function narrator(id, cfg, isBuggy) {
+    const tts = typeof speechSynthesis !== "undefined";
+    let N0;
+    const nOf = () => { if (N0 === undefined) { const d = narrData(); if (d || document.readyState !== "loading") N0 = (d && d.players[id]) || null; } return N0 || null; };
+    if (!tts && !document.getElementById("ik-narr") && document.readyState !== "loading") return null;
+    let audio = null, failed = false, watch = null, rate = 1, busy = false, token = 0;
+    const set = () => { const N = nOf(); return isBuggy() ? (N && N.bug) : N; };
+    const steps = () => (isBuggy() ? cfg.bug.steps : cfg.steps);
+    const fresh = () => { const n = set(); return !!(n && n.fp === narrFp(steps())); };
+    const said = (st) => [plainText(st.analogy), plainText(st.note)].filter(Boolean).join(" ");
+    let on = true;
+    try { on = localStorage.getItem("ik-narr") !== "off"; } catch (e) { /* storage unavailable */ }
+    function hush() {
+      token++; busy = false; clearInterval(watch); watch = null;
+      if (audio) audio.pause();
+      if (tts) speechSynthesis.cancel();
+    }
+    function speak(text, done) {
+      if (!tts || !text) { if (done) setTimeout(done, 600); return; }
+      document.dispatchEvent(new CustomEvent("ik-audio", { detail: id }));
+      const t = token, u = new SpeechSynthesisUtterance(text);
+      u.rate = rate; busy = true;
+      u.onend = u.onerror = () => { if (t !== token) return; busy = false; if (done) done(); };
+      speechSynthesis.speak(u);
+    }
+    function cue(c, done) {
+      // c = [start, end, text]
+      hush();
+      const t = token;
+      if (!c) { if (done) setTimeout(done, 300); return; }
+      const N = nOf();
+      if (!N || failed) return speak(c[2], done);
+      if (!audio) {
+        audio = new Audio(narrAll.base + N.f); audio.preload = "auto";
+        audio.addEventListener("error", () => { failed = true; });
+      }
+      const go = () => {
+        if (t !== token) return;
+        document.dispatchEvent(new CustomEvent("ik-audio", { detail: id }));
+        busy = true; audio.playbackRate = rate; audio.currentTime = c[0];
+        const p = audio.play();
+        if (p && p.catch) p.catch(() => { if (t !== token) return; failed = true; busy = false; speak(c[2], done); });
+        watch = setInterval(() => {
+          if (t !== token) return;
+          if (failed) { clearInterval(watch); busy = false; speak(c[2], done); return; }
+          if (audio.currentTime >= c[1] || audio.ended) { clearInterval(watch); watch = null; audio.pause(); busy = false; if (done) done(); }
+        }, 40);
+      };
+      if (audio.readyState >= 1) go(); else { audio.addEventListener("loadedmetadata", go, { once: true }); audio.load(); }
+    }
+    let onTaken = null;
+    document.addEventListener("ik-audio", (e) => { if (e.detail !== id && (busy || audio && !audio.paused)) { hush(); if (onTaken) onTaken(); } });
+    return {
+      taken: (f) => { onTaken = f; },
+      on: () => on,
+      setOn: (v) => { on = v; if (!v) hush(); try { localStorage.setItem("ik-narr", v ? "on" : "off"); } catch (e) { /* storage unavailable */ } },
+      busy: () => busy,
+      hush,
+      rate: (x) => { rate = x; if (audio) audio.playbackRate = x; },
+      intro: (done) => (fresh() ? cue(set().intro, done) : speak(cfg.title ? plainText(cfg.title) : "", done)),
+      say: (k, done) => (fresh() ? cue(set().steps[k], done) : (hush(), speak(said(steps()[k] || {}), done))),
+      ask: (k) => { const st = steps()[k]; if (!st || !st.ask) return; if (fresh() && !isBuggy() && nOf().asks[k]) cue(nOf().asks[k]); else { hush(); speak("Your turn. " + plainText(st.ask.q)); } },
+    };
   }
 
   /** Template lab: ONE execution trace drives the highlighted code line (Python, TypeScript or Java), the
@@ -1448,6 +1551,7 @@ html.iks-open { overflow: hidden; }
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
         <label class="tl-opt"><input type="checkbox" class="tl-pred"> Predict each step</label>
         <label class="tl-opt"><input type="checkbox" class="tl-expl" checked> Explanations</label>
+        <label class="tl-opt tl-voice-opt" hidden><input type="checkbox" class="tl-voice"> Narration</label>
       </div><div class="tl-player"></div><div class="tl-ask" aria-live="polite" hidden></div>`;
     const ask = root.querySelector(".tl-ask"), pred = root.querySelector(".tl-pred");
     const src = () => (buggy ? cfg.bug : cfg);
@@ -1487,7 +1591,9 @@ html.iks-open { overflow: hidden; }
     }
     function build() {
       const k = ctl ? ctl.index() : 0;
-      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk });
+      if (ctl && ctl.stop) ctl.stop();
+      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk,
+        voice: voice || undefined, holdAt: (k) => pred.checked && !!(src().steps[k + 1] || {}).ask });
       ctl.show(Math.min(k, ctl.count - 1));
       root.querySelectorAll(".tl-lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === lang)));
       root.querySelectorAll(".tl-bug button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.b === +buggy)));
@@ -1495,6 +1601,13 @@ html.iks-open { overflow: hidden; }
     root.querySelector(".tl-lang").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; lang = b.dataset.l; try { localStorage.setItem("ik-code-lang", lang); } catch (err) { /* storage unavailable */ } build(); };
     const bugBar = root.querySelector(".tl-bug");
     if (bugBar) bugBar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; buggy = b.dataset.b === "1"; ctl = null; build(); };
+    const voice = narrator(root.id, cfg, () => buggy);
+    if (voice) {
+      const vo = root.querySelector(".tl-voice-opt"), vb = root.querySelector(".tl-voice");
+      vo.hidden = false; vb.checked = voice.on();
+      vb.onchange = () => { voice.setOn(vb.checked); if (!vb.checked && ctl) ctl.stop(); };
+      voice.taken(() => { if (ctl) ctl.stop(); });   // another player or the episode started speaking
+    }
     pred.onchange = () => showAsk(ctl.index());
     root.querySelector(".tl-expl").onchange = (e) => root.classList.toggle("tl-noexpl", !e.target.checked);
     build();
@@ -3103,6 +3216,7 @@ html.iks-open { overflow: hidden; }
     }
     function setPlaying(p) {
       playing = p; sec.classList.toggle("playing", p); if (p) sec.classList.add("started");
+      if (p) document.dispatchEvent(new CustomEvent("ik-audio", { detail: "episode" }));
       play.setAttribute("aria-label", p ? "Pause" : "Play the conversation");
       play.querySelector(".lc-lbl").textContent = p ? "Pause" : (now() > 0.5 ? "Resume" : "Listen");
       if ("mediaSession" in navigator) navigator.mediaSession.playbackState = p ? "playing" : "paused";
@@ -3166,6 +3280,7 @@ html.iks-open { overflow: hidden; }
       audio.play().then(() => { setPlaying(true); requestAnimationFrame(tick); }).catch((e) => { if (e && e.name === "NotSupportedError") toSpeech("Using your browser's voices (the recording didn't load)."); });
     }
     function pause() { setPlaying(false); if (mode === "audio") { if (audio) audio.pause(); } else synth.cancel(); }
+    document.addEventListener("ik-audio", (e) => { if (e.detail !== "episode" && playing) pause(); });   // one voice at a time
     function seek(t) {
       t = Math.max(0, Math.min(D.dur - 0.1, t));
       const i = lineAt(t);
@@ -8894,5 +9009,6 @@ class Solution:
 })();
 </script>
 <!-- tlab-js:end -->
+<!-- narr:start --><script type="application/json" id="ik-narr">{"base": "https://sunil-bodeddula-pro.github.io/notebook-audio/narration/patterns/16-hash-map-set/", "players": {"tl-16a": {"f": "tl-16a.ogg?v=79e32b6bcf", "fp": "9:445", "intro": [0.0, 8.7, "Template A, Set of seen values, contains duplicate. It answers: has any value appeared before? Step through the list 4, 1, 3 and 1."], "steps": [[9.02, 11.54, "An empty guest list. Seen is an empty set."], [11.86, 14.85, "4 isn't on the list yet. 4 in seen? false."], [17.15, 19.65, "Sign 4 on the list. Add 4 to seen."], [19.97, 22.98, "1 isn't on the list yet. 1 in seen? false."], [25.26, 27.67, "Sign 1 on the list. Add 1 to seen."], [27.99, 31.06, "3 isn't on the list yet. 3 in seen? false."], [33.41, 35.88, "Sign 3 on the list. Add 3 to seen."], [36.2, 39.55, "1 is already on the list: a repeat. 1 in seen? true."], [41.83, 43.84, "Duplicate found. Return true."]], "asks": {"1": [15.17, 16.83, "Your turn. Is 4 in seen?"], "3": [23.3, 24.94, "Your turn. Is 1 in seen?"], "5": [31.38, 33.09, "Your turn. Is 3 in seen?"], "7": [39.87, 41.51, "Your turn. Is 1 in seen?"]}}, "tl-16b": {"f": "tl-16b.ogg?v=bb9a217f76", "fp": "9:470", "intro": [0.0, 11.41, "Template B, Value gives index, look up before storing, two sum. It answers: find two indices whose values add to target. Step through the list 3, 2 and 4, target is 6."], "steps": [[11.73, 14.91, "The host's book is empty. Index of is an empty map."], [15.23, 19.71, "3 needs a partner worth 3. Need is 6 minus 3, which is 3."], [22.1, 24.17, "No 3 yet. 3 not in the book."], [24.49, 27.43, "3 leaves its name. Index of at 3 is 0."], [27.75, 32.06, "2 needs a partner worth 4. Need is 6 minus 2, which is 4."], [34.39, 36.37, "No 4 yet. 4 not in the book."], [36.69, 39.49, "2 leaves its name. Index of at 2 is 1."], [39.81, 43.97, "4 needs a partner worth 2. Need is 6 minus 4, which is 2."], [46.31, 49.71, "Partner 2 is at index 1. Return the list 1 and 2."]], "asks": {"1": [20.03, 21.78, "Your turn. Is 3 in the book?"], "4": [32.38, 34.07, "Your turn. Is 4 in the book?"], "7": [44.29, 45.99, "Your turn. Is 2 in the book?"]}}, "tl-16b-bug": {"f": "tl-16b-bug.ogg?v=ea4177042a", "fp": "9:470", "intro": [0.0, 6.53, "Template B, Value gives index, look up before storing, two sum. The second player stores before looking up."], "steps": [[6.85, 10.03, "The host's book is empty. Index of is an empty map."], [10.35, 14.83, "3 needs a partner worth 3. Need is 6 minus 3, which is 3."], [17.22, 19.29, "No 3 yet. 3 not in the book."], [19.61, 22.55, "3 leaves its name. Index of at 3 is 0."], [22.87, 27.18, "2 needs a partner worth 4. Need is 6 minus 2, which is 4."], [29.5, 31.49, "No 4 yet. 4 not in the book."], [31.81, 34.6, "2 leaves its name. Index of at 2 is 1."], [34.92, 39.08, "4 needs a partner worth 2. Need is 6 minus 4, which is 2."], [41.43, 44.82, "Partner 2 is at index 1. Return the list 1 and 2."]], "asks": {"1": [15.15, 16.9, "Your turn. Is 3 in the book?"], "4": [27.5, 29.18, "Your turn. Is 4 in the book?"], "7": [39.4, 41.11, "Your turn. Is 2 in the book?"]}, "bug": {"fp": "4:270", "intro": [45.14, 47.91, "Now the version with the bug: store before lookup."], "steps": [[48.23, 51.41, "The host's book is empty. Index of is an empty map."], [51.73, 63.91, "Here's the first difference from the correct version. 3 was stored before asking, so it finds itself as its own partner. 3 leaves its name before asking. Index of at 3 is 0, too early."], [64.23, 68.71, "3 needs a partner worth 3. Need is 6 minus 3, which is 3."], [69.03, 74.05, "3 found its own name: index 0 twice. Return the list 0 and 0."]]}}, "tl-16c": {"f": "tl-16c.ogg?v=f7f4b1c566", "fp": "8:548", "intro": [0.0, 8.43, "Template C, Value gives count, frequencies. It answers: how many times does each value appear? Step through the letters of the string banana."], "steps": [[8.75, 11.56, "A blank tally sheet. Count is an empty map."], [11.88, 16.15, "First 'b': new line, 1 mark. Count at the letter b is 0 plus 1."], [19.24, 23.57, "First 'a': new line, 1 mark. Count at the letter a is 0 plus 1."], [26.58, 31.21, "First 'n': new line, 1 mark. Count at the letter n is 0 plus 1."], [34.35, 38.02, "Another 'a': 2 marks. Count at the letter a is 1 plus 1."], [41.02, 44.97, "Another 'n': 2 marks. Count at the letter n is 1 plus 1."], [48.11, 51.78, "Another 'a': 3 marks. Count at the letter a is 2 plus 1."], [54.78, 56.68, "Tally complete. Return the counts."]], "asks": {"1": [16.47, 18.92, "Your turn. count at the letter b after this?"], "2": [23.89, 26.26, "Your turn. count at the letter a after this?"], "3": [31.53, 34.03, "Your turn. count at the letter n after this?"], "4": [38.34, 40.7, "Your turn. count at the letter a after this?"], "5": [45.29, 47.79, "Your turn. count at the letter n after this?"], "6": [52.1, 54.46, "Your turn. count at the letter a after this?"]}}, "tl-16d": {"f": "tl-16d.ogg?v=aee80a7aa5", "fp": "8:498", "intro": [0.0, 12.16, "Template D, Computed key gives list, group anagrams. It answers: group items that share some property. Step through grouping the list eat, tea, tan, ate, nat and bat by sorted letters."], "steps": [[12.48, 15.0, "No bins yet. Groups is an empty map."], [15.32, 18.62, "\"eat\" gives label \"aet\": new bin. Key is the string aet."], [21.03, 24.73, "\"tea\" gives label \"aet\": joins its bin. Key is the string aet."], [27.11, 30.57, "\"tan\" gives label \"ant\": new bin. Key is the string ant."], [32.94, 36.71, "\"ate\" gives label \"aet\": joins its bin. Key is the string aet."], [39.08, 42.99, "\"nat\" gives label \"ant\": joins its bin. Key is the string ant."], [45.38, 48.85, "\"bat\" gives label \"abt\": new bin. Key is the string abt."], [51.22, 53.01, "3 bins. Return the bins."]], "asks": {"1": [18.94, 20.71, "Your turn. Label for \"eat\"?"], "2": [25.05, 26.79, "Your turn. Label for \"tea\"?"], "3": [30.89, 32.62, "Your turn. Label for \"tan\"?"], "4": [37.03, 38.76, "Your turn. Label for \"ate\"?"], "5": [43.31, 45.06, "Your turn. Label for \"nat\"?"], "6": [49.17, 50.9, "Your turn. Label for \"bat\"?"]}}}}</script><!-- narr:end -->
 </body>
 </html>

@@ -1375,20 +1375,44 @@ html.iks-open { overflow: hidden; }
       counter.textContent = `${i + 1} / ${frames.length}`;
       if (cfg.onShow) cfg.onShow(i);
     }
-    function stop() { clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; }
+    // cfg.voice (optional): { on(), say(k, done), intro(done), ask(k), hush(), rate(x) }. With the voice on, Play
+    // reads each step's line and moves on when it ends; stepping by hand reads that one step.
+    const V = cfg.voice;
+    let talking = false, pause = null;
+    const voiced = () => V && V.on();
+    function stop() {
+      clearInterval(timer); timer = null; clearTimeout(pause); pause = null;
+      if (talking || (V && V.busy && V.busy())) V.hush();
+      talking = false; playBtn.textContent = "▶ Play";
+    }
+    function talk() {
+      if (!talking) return;
+      V.say(i, () => {
+        if (!talking) return;
+        if (i >= frames.length - 1) return stop();
+        if (cfg.holdAt && cfg.holdAt(i)) { stop(); if (V.ask) V.ask(i + 1); return; }
+        pause = setTimeout(() => { if (!talking) return; show(i + 1); talk(); }, 450 / speed);
+      });
+    }
     function play() {
-      if (timer) return stop();
+      if (timer || talking) return stop();
       if (i >= frames.length - 1) show(0);
       playBtn.textContent = "❚❚ Pause";
+      if (voiced()) {
+        talking = true; V.rate(speed);
+        if (i === 0) V.intro(talk); else talk();
+        return;
+      }
       timer = setInterval(() => { if (i >= frames.length - 1) stop(); else show(i + 1); }, (cfg.speed || 1100) / speed);
     }
+    const byHand = (k) => { stop(); show(k); if (voiced()) { V.rate(speed); V.say(i); } };
     const speedBtn = root.querySelector(`#${id}-speed`);
-    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (timer) { stop(); play(); } };
-    root.querySelector(`#${id}-prev`).onclick = () => { stop(); show(i - 1); };
-    root.querySelector(`#${id}-next`).onclick = () => { stop(); show(i + 1); };
+    if (speedBtn) speedBtn.onclick = () => { const S = [1, 1.5, 0.6]; speed = S[(S.indexOf(speed) + 1) % S.length]; speedBtn.textContent = speed + "×"; if (talking) V.rate(speed); else if (timer) { stop(); play(); } };
+    root.querySelector(`#${id}-prev`).onclick = () => byHand(i - 1);
+    root.querySelector(`#${id}-next`).onclick = () => byHand(i + 1);
     root.querySelector(`#${id}-reset`).onclick = () => { stop(); show(0); };
     playBtn.onclick = play;
-    range.oninput = () => { stop(); show(+range.value); };
+    range.oninput = () => byHand(+range.value);
     // Reserve room for the tallest frame so nothing below the visualizer jumps while it plays.
     // Measured once it is visible (a hidden element has no size), and again when its width changes.
     let lockedWidth = 0;
@@ -1418,12 +1442,91 @@ html.iks-open { overflow: hidden; }
     }
     root.tabIndex = 0;
     root.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight") { stop(); show(i + 1); e.preventDefault(); }
-      if (e.key === "ArrowLeft") { stop(); show(i - 1); e.preventDefault(); }
+      if (e.key === "ArrowRight") { byHand(i + 1); e.preventDefault(); }
+      if (e.key === "ArrowLeft") { byHand(i - 1); e.preventDefault(); }
       if (e.key === " ") { play(); e.preventDefault(); }
     });
     show(0);
-    return { show: (k) => { stop(); show(k); }, index: () => i, count: frames.length };
+    return { show: (k) => { stop(); show(k); }, stop, index: () => i, count: frames.length };
+  }
+
+  /** Narration for a template lab: the spoken lines made by build/narrate/narr_build.py, kept in the page's
+   *  <script id="ik-narr"> (file + start/end of each line). It plays one line at a time from a single recording,
+   *  and uses the browser's voices when the steps changed since the recording (fingerprint) or the file fails. */
+  let narrAll;
+  const narrFp = (s) => (s || []).length + ":" + (s || []).reduce((a, st) => a + (st.analogy || "").length + (st.note || "").length + (st.ask ? st.ask.q.length : 0), 0);
+  const plainText = (h) => { const d = document.createElement("div"); d.innerHTML = h || ""; return d.textContent.replace(/\s+/g, " ").trim(); };
+  function narrData() {
+    // Read lazily: the players are built before the parser reaches the table at the end of <body>.
+    if (!narrAll) {
+      const el = document.getElementById("ik-narr");
+      try { narrAll = el ? JSON.parse(el.textContent) : null; } catch (e) { narrAll = null; }
+    }
+    return narrAll;
+  }
+  function narrator(id, cfg, isBuggy) {
+    const tts = typeof speechSynthesis !== "undefined";
+    let N0;
+    const nOf = () => { if (N0 === undefined) { const d = narrData(); if (d || document.readyState !== "loading") N0 = (d && d.players[id]) || null; } return N0 || null; };
+    if (!tts && !document.getElementById("ik-narr") && document.readyState !== "loading") return null;
+    let audio = null, failed = false, watch = null, rate = 1, busy = false, token = 0;
+    const set = () => { const N = nOf(); return isBuggy() ? (N && N.bug) : N; };
+    const steps = () => (isBuggy() ? cfg.bug.steps : cfg.steps);
+    const fresh = () => { const n = set(); return !!(n && n.fp === narrFp(steps())); };
+    const said = (st) => [plainText(st.analogy), plainText(st.note)].filter(Boolean).join(" ");
+    let on = true;
+    try { on = localStorage.getItem("ik-narr") !== "off"; } catch (e) { /* storage unavailable */ }
+    function hush() {
+      token++; busy = false; clearInterval(watch); watch = null;
+      if (audio) audio.pause();
+      if (tts) speechSynthesis.cancel();
+    }
+    function speak(text, done) {
+      if (!tts || !text) { if (done) setTimeout(done, 600); return; }
+      document.dispatchEvent(new CustomEvent("ik-audio", { detail: id }));
+      const t = token, u = new SpeechSynthesisUtterance(text);
+      u.rate = rate; busy = true;
+      u.onend = u.onerror = () => { if (t !== token) return; busy = false; if (done) done(); };
+      speechSynthesis.speak(u);
+    }
+    function cue(c, done) {
+      // c = [start, end, text]
+      hush();
+      const t = token;
+      if (!c) { if (done) setTimeout(done, 300); return; }
+      const N = nOf();
+      if (!N || failed) return speak(c[2], done);
+      if (!audio) {
+        audio = new Audio(narrAll.base + N.f); audio.preload = "auto";
+        audio.addEventListener("error", () => { failed = true; });
+      }
+      const go = () => {
+        if (t !== token) return;
+        document.dispatchEvent(new CustomEvent("ik-audio", { detail: id }));
+        busy = true; audio.playbackRate = rate; audio.currentTime = c[0];
+        const p = audio.play();
+        if (p && p.catch) p.catch(() => { if (t !== token) return; failed = true; busy = false; speak(c[2], done); });
+        watch = setInterval(() => {
+          if (t !== token) return;
+          if (failed) { clearInterval(watch); busy = false; speak(c[2], done); return; }
+          if (audio.currentTime >= c[1] || audio.ended) { clearInterval(watch); watch = null; audio.pause(); busy = false; if (done) done(); }
+        }, 40);
+      };
+      if (audio.readyState >= 1) go(); else { audio.addEventListener("loadedmetadata", go, { once: true }); audio.load(); }
+    }
+    let onTaken = null;
+    document.addEventListener("ik-audio", (e) => { if (e.detail !== id && (busy || audio && !audio.paused)) { hush(); if (onTaken) onTaken(); } });
+    return {
+      taken: (f) => { onTaken = f; },
+      on: () => on,
+      setOn: (v) => { on = v; if (!v) hush(); try { localStorage.setItem("ik-narr", v ? "on" : "off"); } catch (e) { /* storage unavailable */ } },
+      busy: () => busy,
+      hush,
+      rate: (x) => { rate = x; if (audio) audio.playbackRate = x; },
+      intro: (done) => (fresh() ? cue(set().intro, done) : speak(cfg.title ? plainText(cfg.title) : "", done)),
+      say: (k, done) => (fresh() ? cue(set().steps[k], done) : (hush(), speak(said(steps()[k] || {}), done))),
+      ask: (k) => { const st = steps()[k]; if (!st || !st.ask) return; if (fresh() && !isBuggy() && nOf().asks[k]) cue(nOf().asks[k]); else { hush(); speak("Your turn. " + plainText(st.ask.q)); } },
+    };
   }
 
   /** Template lab: ONE execution trace drives the highlighted code line (Python, TypeScript or Java), the
@@ -1448,6 +1551,7 @@ html.iks-open { overflow: hidden; }
         ${cfg.bug ? `<span class="seg tl-bug" role="group" aria-label="Version"><button type="button" data-b="0">Correct</button><button type="button" data-b="1">${esc(cfg.bug.label)}</button></span>` : ""}
         <label class="tl-opt"><input type="checkbox" class="tl-pred"> Predict each step</label>
         <label class="tl-opt"><input type="checkbox" class="tl-expl" checked> Explanations</label>
+        <label class="tl-opt tl-voice-opt" hidden><input type="checkbox" class="tl-voice"> Narration</label>
       </div><div class="tl-player"></div><div class="tl-ask" aria-live="polite" hidden></div>`;
     const ask = root.querySelector(".tl-ask"), pred = root.querySelector(".tl-pred");
     const src = () => (buggy ? cfg.bug : cfg);
@@ -1487,7 +1591,9 @@ html.iks-open { overflow: hidden; }
     }
     function build() {
       const k = ctl ? ctl.index() : 0;
-      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk });
+      if (ctl && ctl.stop) ctl.stop();
+      ctl = stepper(root.querySelector(".tl-player"), { title: cfg.title, sub: cfg.sub, frames: frames(), speed: cfg.speed || 1700, speedControl: true, onShow: showAsk,
+        voice: voice || undefined, holdAt: (k) => pred.checked && !!(src().steps[k + 1] || {}).ask });
       ctl.show(Math.min(k, ctl.count - 1));
       root.querySelectorAll(".tl-lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === lang)));
       root.querySelectorAll(".tl-bug button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.b === +buggy)));
@@ -1495,6 +1601,13 @@ html.iks-open { overflow: hidden; }
     root.querySelector(".tl-lang").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; lang = b.dataset.l; try { localStorage.setItem("ik-code-lang", lang); } catch (err) { /* storage unavailable */ } build(); };
     const bugBar = root.querySelector(".tl-bug");
     if (bugBar) bugBar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; buggy = b.dataset.b === "1"; ctl = null; build(); };
+    const voice = narrator(root.id, cfg, () => buggy);
+    if (voice) {
+      const vo = root.querySelector(".tl-voice-opt"), vb = root.querySelector(".tl-voice");
+      vo.hidden = false; vb.checked = voice.on();
+      vb.onchange = () => { voice.setOn(vb.checked); if (!vb.checked && ctl) ctl.stop(); };
+      voice.taken(() => { if (ctl) ctl.stop(); });   // another player or the episode started speaking
+    }
     pred.onchange = () => showAsk(ctl.index());
     root.querySelector(".tl-expl").onchange = (e) => root.classList.toggle("tl-noexpl", !e.target.checked);
     build();
@@ -3103,6 +3216,7 @@ html.iks-open { overflow: hidden; }
     }
     function setPlaying(p) {
       playing = p; sec.classList.toggle("playing", p); if (p) sec.classList.add("started");
+      if (p) document.dispatchEvent(new CustomEvent("ik-audio", { detail: "episode" }));
       play.setAttribute("aria-label", p ? "Pause" : "Play the conversation");
       play.querySelector(".lc-lbl").textContent = p ? "Pause" : (now() > 0.5 ? "Resume" : "Listen");
       if ("mediaSession" in navigator) navigator.mediaSession.playbackState = p ? "playing" : "paused";
@@ -3166,6 +3280,7 @@ html.iks-open { overflow: hidden; }
       audio.play().then(() => { setPlaying(true); requestAnimationFrame(tick); }).catch((e) => { if (e && e.name === "NotSupportedError") toSpeech("Using your browser's voices (the recording didn't load)."); });
     }
     function pause() { setPlaying(false); if (mode === "audio") { if (audio) audio.pause(); } else synth.cancel(); }
+    document.addEventListener("ik-audio", (e) => { if (e.detail !== "episode" && playing) pause(); });   // one voice at a time
     function seek(t) {
       t = Math.max(0, Math.min(D.dur - 0.1, t));
       const i = lineAt(t);
@@ -7364,5 +7479,6 @@ Since x = 3 is found first, the value of x is 3.</span></div></div>
 })();
 </script>
 <!-- tlab-js:end -->
+<!-- narr:start --><script type="application/json" id="ik-narr">{"base": "https://sunil-bodeddula-pro.github.io/notebook-audio/narration/patterns/17-stack/", "players": {"tl-17a": {"f": "tl-17a.ogg?v=fea0badffd", "fp": "11:386", "intro": [0.0, 15.04, "Template A, Balanced brackets. It answers: is every bracket closed by the matching type, in the right order? Step through the string open bracket, open square bracket, close square bracket, open curly bracket, close curly bracket, close bracket."], "steps": [[15.36, 17.41, "No doors open. Empty stack."], [17.73, 20.54, "Walk through open bracket. Push open bracket."], [20.86, 24.47, "Walk through open square bracket. Push open square bracket."], [24.79, 32.21, "Close square bracket closes the last door open square bracket. Top open square bracket versus open square bracket."], [35.75, 36.91, "Walk out. Pop."], [37.23, 40.79, "Walk through open curly bracket. Push open curly bracket."], [41.11, 48.75, "Close curly bracket closes the last door open curly bracket. Top open curly bracket versus open curly bracket."], [52.33, 53.48, "Walk out. Pop."], [53.8, 59.65, "Close bracket closes the last door open bracket. Top open bracket versus open bracket."], [62.87, 64.02, "Walk out. Pop."], [64.34, 66.39, "All doors closed. Return true."]], "asks": {"3": [32.53, 35.43, "Your turn. Does close square bracket match the top?"], "6": [49.07, 52.01, "Your turn. Does close curly bracket match the top?"], "8": [59.97, 62.55, "Your turn. Does close bracket match the top?"]}}, "tl-17a-bug": {"f": "tl-17a-bug.ogg?v=e17701d514", "fp": "6:213", "intro": [0.0, 5.97, "Template A, Balanced brackets. The second player returns true at the end instead of checking the stack."], "steps": [[6.29, 8.34, "No doors open. Empty stack."], [8.66, 11.48, "Walk through open bracket. Push open bracket."], [11.8, 14.61, "Walk through open bracket. Push open bracket."], [14.93, 20.78, "Close bracket closes the last door open bracket. Top open bracket versus open bracket."], [24.0, 25.15, "Walk out. Pop."], [25.47, 28.84, "1 door of s left open: invalid. Return false."]], "asks": {"3": [21.1, 23.68, "Your turn. Does close bracket match the top?"]}, "bug": {"fp": "6:244", "intro": [29.16, 31.59, "Now the version with the bug: return True."], "steps": [[31.91, 33.96, "No doors open. Empty stack."], [34.28, 37.1, "Walk through open bracket. Push open bracket."], [37.42, 40.23, "Walk through open bracket. Push open bracket."], [40.55, 46.4, "Close bracket closes the last door open bracket. Top open bracket versus open bracket."], [46.72, 47.87, "Walk out. Pop."], [48.19, 59.14, "Here's the first difference from the correct version. A door is still open, but the function doesn't look. 1 door of s still open, but the function returns True anyway. Return true."]]}}, "tl-17b": {"f": "tl-17b.ogg?v=82fa31f03a", "fp": "11:394", "intro": [0.0, 9.54, "Template B, evaluate postfix. Each operator comes after its two numbers. Step through 5, 1, 2, plus, 4, times, plus, 3, minus."], "steps": [[9.86, 11.52, "Empty plate. Empty stack."], [11.84, 13.76, "Put 5 on the plate. Push 5."], [14.08, 15.87, "Put 1 on the plate. Push 1."], [16.19, 17.94, "Put 2 on the plate. Push 2."], [18.26, 21.63, "Plus eats 1 and 2: 1 plus 2 is 3. Push 3."], [23.94, 25.83, "Put 4 on the plate. Push 4."], [26.15, 30.31, "Times eats 3 and 4: 3 times 4 is 12. Push 12."], [32.7, 37.55, "Plus eats 5 and 12: 5 plus 12 is 17. Push 17."], [39.85, 41.75, "Put 3 on the plate. Push 3."], [42.07, 47.21, "Minus eats 17 and 3: 17 minus 3 is 14. Push 14."], [49.32, 52.37, "One value left: 14. Return 14."]], "asks": {"4": [21.95, 23.62, "Your turn. Result of +?"], "6": [30.63, 32.38, "Your turn. Result of times?"], "7": [37.87, 39.53, "Your turn. Result of +?"], "9": [47.53, 49.0, "Your turn. Result of -?"]}}, "tl-17b-bug": {"f": "tl-17b-bug.ogg?v=e9b9de95a2", "fp": "11:394", "intro": [0.0, 5.42, "Template B, evaluate postfix. The second player pops the two numbers in the wrong order."], "steps": [[5.74, 7.4, "Empty plate. Empty stack."], [7.72, 9.64, "Put 5 on the plate. Push 5."], [9.96, 11.75, "Put 1 on the plate. Push 1."], [12.07, 13.82, "Put 2 on the plate. Push 2."], [14.14, 17.51, "Plus eats 1 and 2: 1 plus 2 is 3. Push 3."], [19.82, 21.72, "Put 4 on the plate. Push 4."], [22.04, 26.2, "Times eats 3 and 4: 3 times 4 is 12. Push 12."], [28.59, 33.43, "Plus eats 5 and 12: 5 plus 12 is 17. Push 17."], [35.73, 37.63, "Put 3 on the plate. Push 3."], [37.95, 43.09, "Minus eats 17 and 3: 17 minus 3 is 14. Push 14."], [45.21, 48.26, "One value left: 14. Return 14."]], "asks": {"4": [17.83, 19.5, "Your turn. Result of +?"], "6": [26.52, 28.27, "Your turn. Result of times?"], "7": [33.75, 35.41, "Your turn. Result of +?"], "9": [43.41, 44.89, "Your turn. Result of -?"]}, "bug": {"fp": "11:415", "intro": [48.58, 51.07, "Now the version with the bug: pop a first."], "steps": [[51.39, 53.06, "Empty plate. Empty stack."], [53.38, 55.3, "Put 5 on the plate. Push 5."], [55.62, 57.41, "Put 1 on the plate. Push 1."], [57.73, 59.48, "Put 2 on the plate. Push 2."], [59.8, 71.23, "Here's the first difference from the correct version. The top of the stack is the right operand, but it was used as the left one. Plus eats 1 and 2: 2 plus 1 is 3. Push 3."], [71.55, 73.45, "Put 4 on the plate. Push 4."], [73.77, 77.87, "Times eats 3 and 4: 4 times 3 is 12. Push 12."], [78.19, 82.99, "Plus eats 5 and 12: 12 plus 5 is 17. Push 17."], [83.31, 85.21, "Put 3 on the plate. Push 3."], [85.53, 92.37, "Top, 3, used as the left operand: 3 minus 17 is minus 14. Push minus 14."], [92.69, 96.41, "One value left: minus 14. Return minus 14."]]}}, "tl-17c": {"f": "tl-17c.ogg?v=acc0bec10e", "fp": "8:425", "intro": [0.0, 12.42, "Template C, Min stack, minimum at every height. It answers: a stack with push, pop, top and get min, all O of 1. Step through push 5, push 2, push 4, get min, pop, pop, get min."], "steps": [[12.74, 14.25, "No plates. Empty."], [14.57, 18.22, "Plate 5; smallest so far 5. Push cell 5, 5."], [21.65, 24.81, "Plate 2; smallest so far 2. Push cell 2, 2."], [28.07, 31.36, "Plate 4; smallest so far 2. Push cell 4, 2."], [34.75, 37.35, "Top plate's note: 2. Get min gives 2."], [37.67, 41.51, "Lift plate 4; the one below already knows its minimum. Pop."], [41.83, 45.63, "Lift plate 2; the one below already knows its minimum. Pop."], [45.95, 48.87, "Top plate's note: 5. Get min gives 5."]], "asks": {"1": [18.54, 21.33, "Your turn. Which minimum is written on plate 5?"], "2": [25.13, 27.75, "Your turn. Which minimum is written on plate 2?"], "3": [31.68, 34.43, "Your turn. Which minimum is written on plate 4?"]}}}}</script><!-- narr:end -->
 </body>
 </html>
