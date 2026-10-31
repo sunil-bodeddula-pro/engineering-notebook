@@ -10,6 +10,8 @@
   "use strict";
   // Lets the CSS know JavaScript is running (set while <head> is parsed, so there's no flash on load).
   document.documentElement.classList.add("js");
+  // A theme the reader picked with the top-bar button wins over the device setting (applied in <head>: no flash).
+  try { const t = localStorage.getItem("ik-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (e) {}
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -1886,6 +1888,34 @@
 
   // Site-wide search: the top bar's Search button, "/" or Ctrl/Cmd+K. The index (assets/search-index.js, built by
   // tools/search_index.py) loads the first time search opens, through a script tag so it also works from disk.
+  function bootTheme() {
+    const bar = document.querySelector(".topbar");
+    if (!bar) return;
+    const root = document.documentElement, mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    const dark = () => root.dataset.theme ? root.dataset.theme === "dark" : !!(mq && mq.matches);
+    const MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+    const SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    // One button in the top bar; on phones (no room there) a labelled twin in the menu drawer, as for Sketch.
+    const btn = document.createElement("button"), inNav = document.createElement("button");
+    btn.type = inNav.type = "button"; btn.className = "theme-toggle"; inNav.className = "theme-toggle in-nav";
+    const paint = () => {
+      const d = dark(), label = d ? "Switch to light mode" : "Switch to dark mode";
+      btn.innerHTML = d ? SUN : MOON;
+      inNav.innerHTML = (d ? SUN : MOON) + `<span>${d ? "Light mode" : "Dark mode"}</span>`;
+      [btn, inNav].forEach((b) => { b.setAttribute("aria-label", label); b.title = label; });
+    };
+    [btn, inNav].forEach((b) => (b.onclick = () => {
+      const next = dark() ? "light" : "dark";
+      root.dataset.theme = next;
+      try { localStorage.setItem("ik-theme", next); } catch (e) {}
+      paint();
+    }));
+    if (mq && mq.addEventListener) mq.addEventListener("change", paint);
+    paint();
+    bar.insertBefore(btn, bar.querySelector(".search-btn") || bar.querySelector(".nav-toggle"));
+    const nav = document.getElementById("sidenav");
+    if (nav) nav.insertBefore(inNav, nav.querySelector(".sn-title"));
+  }
   function bootSearch() {
     const btn = document.querySelector(".topbar .search-btn");
     if (!btn) return;
@@ -2186,6 +2216,7 @@
     bootPageTours();
     bootSideNav();
     bootSketch();
+    bootTheme();
     bootSearch();
     wrapTables();
     bootCodeTabs();

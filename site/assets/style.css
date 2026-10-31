@@ -37,8 +37,12 @@
   --serif: "Fraunces", Georgia, "Times New Roman", serif;
 }
 
+/* Dark theme: follows the device unless the reader picked one with the top-bar button (data-theme on <html>). */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: hsl(215 22% 10%);
     --surface: hsl(215 20% 14%);
     --surface-2: hsl(215 18% 18%);
@@ -55,6 +59,23 @@
     --gold-soft: hsl(45 45% 20%);
     --shadow: 0 1px 2px hsl(0 0% 0% / .3), 0 10px 30px -12px hsl(0 0% 0% / .5);
   }
+}
+:root[data-theme="dark"] {
+  --bg: hsl(215 22% 10%);
+  --surface: hsl(215 20% 14%);
+  --surface-2: hsl(215 18% 18%);
+  --ink: hsl(40 20% 92%);
+  --ink-2: hsl(215 12% 70%);
+  --ink-3: hsl(215 10% 52%);
+  --line: hsl(215 14% 24%);
+  --accent: hsl(168 55% 50%);
+  --accent-soft: hsl(170 40% 18%);
+  --warm-soft: hsl(28 50% 20%);
+  --blue-soft: hsl(212 45% 22%);
+  --red-soft: hsl(355 40% 22%);
+  --green-soft: hsl(145 35% 18%);
+  --gold-soft: hsl(45 45% 20%);
+  --shadow: 0 1px 2px hsl(0 0% 0% / .3), 0 10px 30px -12px hsl(0 0% 0% / .5);
 }
 
 * { box-sizing: border-box; }
@@ -227,7 +248,8 @@ tr:hover td { background: color-mix(in srgb, var(--surface-2) 60%, transparent);
 .tag.easy { background: var(--green-soft); color: var(--green); }
 .tag.medium { background: var(--warm-soft); color: hsl(28 80% 40%); }
 .tag.hard { background: var(--red-soft); color: var(--red); }
-@media (prefers-color-scheme: dark) { .tag.medium { color: var(--warm); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.medium { color: var(--warm); } }
+:root[data-theme="dark"] .tag.medium { color: var(--warm); }
 /* data-structure chips: which structure a problem is built on (Array, Hash Map, Binary Tree, …) */
 .ds-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-end; }
@@ -238,14 +260,18 @@ details.problem > summary .ds-tags { margin-left: auto; justify-content: flex-en
 .mtag { background: var(--accent-soft); color: var(--accent); }
 .ntag { background: var(--green-soft); color: var(--green); }
 .atag { background: var(--warm-soft); color: hsl(28 80% 36%); }
-@media (prefers-color-scheme: dark) { .atag { color: var(--warm); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .atag { color: var(--warm); } }
+:root[data-theme="dark"] .atag { color: var(--warm); }
 .ctag { background: hsl(265 70% 94%); color: hsl(265 50% 45%); }
-@media (prefers-color-scheme: dark) { .ctag { background: hsl(265 30% 22%); color: hsl(265 60% 78%); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ctag { background: hsl(265 30% 22%); color: hsl(265 60% 78%); } }
+:root[data-theme="dark"] .ctag { background: hsl(265 30% 22%); color: hsl(265 60% 78%); }
 .mstag { background: var(--red-soft); color: var(--red); }
 .aptag { background: hsl(220 10% 91%); color: hsl(220 12% 26%); }
-@media (prefers-color-scheme: dark) { .aptag { background: hsl(215 12% 26%); color: hsl(220 10% 86%); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .aptag { background: hsl(215 12% 26%); color: hsl(220 10% 86%); } }
+:root[data-theme="dark"] .aptag { background: hsl(215 12% 26%); color: hsl(220 10% 86%); }
 .nftag { background: hsl(0 0% 13%); color: hsl(357 92% 62%); }
-@media (prefers-color-scheme: dark) { .nftag { background: hsl(0 0% 4%); box-shadow: inset 0 0 0 1px hsl(357 60% 40%); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nftag { background: hsl(0 0% 4%); box-shadow: inset 0 0 0 1px hsl(357 60% 40%); } }
+:root[data-theme="dark"] .nftag { background: hsl(0 0% 4%); box-shadow: inset 0 0 0 1px hsl(357 60% 40%); }
 
 /* Beginner helpers: "Start here" badges, the beginner path, glossary terms */
 .starttag { background: var(--green-soft); color: var(--green); white-space: nowrap; }
@@ -397,6 +423,11 @@ details.problem ul.edges { margin-top: 4px; }
 .tour-btn { font-size: .88rem; padding: 7px 14px; margin: 4px 0 8px; }
 .tl-ask button.tl-go { padding: 3px 10px; }
 .sketch-toggle { margin-right: 8px; }
+.theme-toggle { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; margin-right: 4px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; flex: none; }
+.theme-toggle:hover { color: var(--ink); border-color: var(--ink-3); }
+.theme-toggle svg { width: 17px; height: 17px; }
+.theme-toggle.in-nav { display: none; width: auto; gap: 8px; padding: 0 14px; margin: 0 0 12px 8px; font: 600 .85rem var(--sans); color: var(--ink); }
+@media (max-width: 560px) { .topbar .theme-toggle { display: none; } .theme-toggle.in-nav { display: inline-flex; align-items: center; } }
 
 .row { display: flex; gap: 6px; align-items: flex-end; }
 .row-label { font: 600 .72rem var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); width: 72px; text-align: right; margin-right: 6px; align-self: center; }
@@ -842,7 +873,8 @@ html.iks-open { overflow: hidden; }
 .iks-d { font-size: .84rem; color: var(--ink-2); line-height: 1.4; }
 .iks mark { background: color-mix(in srgb, #f2b705 35%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .iks-foot { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid var(--line); font-size: .76rem; color: var(--ink-3); }
-@media (prefers-color-scheme: dark) { .iks-k.k-p { color: #fb923c; } .iks-k.k-u { color: #a78bfa; } .iks-k.k-g { color: #38bdf8; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .iks-k.k-p { color: #fb923c; } :root:not([data-theme="light"]) .iks-k.k-u { color: #a78bfa; } :root:not([data-theme="light"]) .iks-k.k-g { color: #38bdf8; } }
+:root[data-theme="dark"] .iks-k.k-p { color: #fb923c; } :root[data-theme="dark"] .iks-k.k-u { color: #a78bfa; } :root[data-theme="dark"] .iks-k.k-g { color: #38bdf8; }
 @media (max-width: 760px) { .search-btn kbd { display: none; } }
 @media (max-width: 560px) {
   .search-btn { padding: 8px 10px; } .search-btn-label { display: none; }
