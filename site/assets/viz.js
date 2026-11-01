@@ -1898,7 +1898,8 @@
     const btn = document.createElement("button");
     btn.type = "button"; btn.className = "sketch-toggle"; btn.setAttribute("aria-pressed", "false");
     btn.title = "Draw diagrams in a hand-sketched whiteboard style";
-    btn.innerHTML = '<span aria-hidden="true">✎</span><span class="sketch-label">Sketch</span>';
+    btn.innerHTML = '<span aria-hidden="true">✎</span><span class="sketch-label">Sketch diagrams</span>';
+    btn.setAttribute("aria-label", "Sketch diagrams: draw them in a hand-drawn whiteboard style");
     bar.insertBefore(btn, bar.querySelector(".search-btn") || bar.querySelector(".nav-toggle"));
     // On phones the top bar has no room: the same toggle lives in the menu drawer instead.
     const nav = document.getElementById("sidenav"), inNav = btn.cloneNode(true);
