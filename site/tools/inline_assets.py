@@ -93,6 +93,7 @@ def chrome(path, page_html, nav):
             f'  <div class="sn-tracks">{tabs}</div>\n'
             f'  <a class="sn-title" href="{root}{track["home"]}">{esc(track["label"])}</a>\n'
             f'  {"".join(groups)}\n'
+            f'  <div class="sn-foot"><a href="{root}about.html">About InterviewKata</a></div>\n'
             f"</nav>\n"
             f'<div class="sn-scrim" aria-hidden="true"></div>\n'
             f"{CHROME_END}")
