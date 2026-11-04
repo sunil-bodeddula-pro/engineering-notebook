@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRACKS = {
     "coding": {"out": "review.html", "label": "Coding patterns", "pages": ["start-here.html", "follow-ups.html", "cheatsheet.html", "structures/*.html", "patterns/*.html"]},
     "ai": {"out": "ai/review.html", "label": "AI engineering", "pages": ["ai/start-here.html", "ai/modules/*.html", "ai/cases/*.html"]},
-    "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html"]},
+    "system-design": {"out": "system-design/review.html", "label": "System design", "pages": ["system-design/start-here.html", "system-design/framework.html", "system-design/modules/*.html", "system-design/designs/*.html", "system-design/guides/*.html"]},
     "behavioural": {"out": "behavioural/review.html", "label": "Behavioural interviews", "pages": ["behavioural/start-here.html", "behavioural/modules/*.html"]},
     "styles": {"out": "styles/review.html", "label": "Architecture styles", "pages": ["styles/start-here.html", "styles/modules/*.html"]},
     "design-patterns": {"out": "design-patterns/review.html", "label": "Design patterns", "pages": ["design-patterns/start-here.html", "design-patterns/modules/*.html"]},

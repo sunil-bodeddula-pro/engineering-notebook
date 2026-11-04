@@ -128,7 +128,7 @@ def pages():
     names = ["index.html", "start-here.html", "follow-ups.html", "about.html", "terms.html", "privacy.html", "cheatsheet.html", "review.html", "google.html", "meta.html", "nvidia.html", "amazon.html", "microsoft.html", "apple.html", "cisco.html", "netflix.html"] + sorted(glob.glob(os.path.join("patterns", "*.html"), root_dir=ROOT))
     names += sorted(glob.glob(os.path.join("structures", "*.html"), root_dir=ROOT))
     names += sorted(glob.glob(os.path.join("ai", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "modules", "*.html"), root_dir=ROOT)) + sorted(glob.glob(os.path.join("ai", "cases", "*.html"), root_dir=ROOT))
-    for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), "architecture", os.path.join("architecture", "modules"), os.path.join("architecture", "cases"), "behavioural", os.path.join("behavioural", "modules"), "lld", os.path.join("lld", "modules"), os.path.join("lld", "problems"), "styles", os.path.join("styles", "modules"), "design-patterns", os.path.join("design-patterns", "modules")):
+    for d in ("system-design", os.path.join("system-design", "modules"), os.path.join("system-design", "designs"), os.path.join("system-design", "guides"), "architecture", os.path.join("architecture", "modules"), os.path.join("architecture", "cases"), "behavioural", os.path.join("behavioural", "modules"), "lld", os.path.join("lld", "modules"), os.path.join("lld", "problems"), "styles", os.path.join("styles", "modules"), "design-patterns", os.path.join("design-patterns", "modules")):
         names += sorted(glob.glob(os.path.join(d, "*.html"), root_dir=ROOT))
     return [os.path.join(ROOT, n) for n in names]
 
