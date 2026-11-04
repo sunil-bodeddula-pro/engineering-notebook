@@ -3606,27 +3606,41 @@ html.iks-open { overflow: hidden; }
 
     <!-- 6 -->
     <h2 id="code">6. The checks an API makes on a token, in code</h2>
-    <p>Five requests reach an orders API with bearer tokens. The API checks, in order: the signature, the issuer, the audience (is this token meant for <em>this</em> API?), expiry with a minute of clock skew, and the scope the action needs. A caller who edits the scope after signing fails the signature check. The signature here is a simple stand-in so the program runs anywhere; real code uses a JWT library and the provider's published keys (JWKS). The program was run in all three languages; each prints the output below it.</p>
-<pre><code class="python">ISSUER, AUDIENCE, KEY, NOW, SKEW = &quot;https://login.example.com&quot;, &quot;orders-api&quot;, 7919, 1_000_000, 60
+    <p>Five requests reach an orders API with bearer tokens. The API checks, in order: the signature, the issuer, the audience (is this token meant for <em>this</em> API?), expiry with a minute of clock skew, and the scope the action needs. A caller who edits the scope after signing fails the signature check. The tokens are real JWTs signed with HS256 (HMAC-SHA256), because a shared secret works with each language's standard library; identity providers usually sign with RS256 or ES256 instead, and your API verifies with their published public keys (JWKS), through a JWT library. The program was run in all three languages, which produce the same signature; each prints the output below it.</p>
+<pre><code class="python">import base64, hashlib, hmac, json
+
+ISSUER, AUDIENCE, NOW, SKEW = &quot;https://login.example.com&quot;, &quot;orders-api&quot;, 1_000_000, 60
+SECRET = b&quot;demo-secret-not-for-production&quot;   # HS256 shares one secret; providers usually sign with RS256 or ES256 keys from a JWKS URL
 
 
-def toy_sign(claims, key):
-    &quot;&quot;&quot;A stand-in for RS256 or ES256 so the demo runs anywhere. Real code verifies signatures with a JWT library
-    and the issuer&#x27;s published keys (JWKS); never write your own crypto.&quot;&quot;&quot;
-    text = &quot;;&quot;.join(f&quot;{k}={claims[k]}&quot; for k in (&quot;iss&quot;, &quot;aud&quot;, &quot;sub&quot;, &quot;exp&quot;, &quot;scope&quot;))
-    return sum(ord(ch) * (i + 1) for i, ch in enumerate(text)) * key % 1_000_000_007
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b&quot;=&quot;).decode()
+
+
+def unb64url(text):
+    return base64.urlsafe_b64decode(text + &quot;=&quot; * (-len(text) % 4))
+
+
+def sign(header_b64, payload_b64):
+    return b64url(hmac.new(SECRET, f&quot;{header_b64}.{payload_b64}&quot;.encode(), hashlib.sha256).digest())
 
 
 def issue(**overrides):
     claims = {&quot;iss&quot;: ISSUER, &quot;aud&quot;: AUDIENCE, &quot;sub&quot;: &quot;user-42&quot;, &quot;exp&quot;: NOW + 900, &quot;scope&quot;: &quot;orders:read&quot;}
     claims.update(overrides)
-    return claims, toy_sign(claims, KEY)
+    header = b64url(json.dumps({&quot;alg&quot;: &quot;HS256&quot;, &quot;typ&quot;: &quot;JWT&quot;}, separators=(&quot;,&quot;, &quot;:&quot;)).encode())
+    payload = b64url(json.dumps(claims, separators=(&quot;,&quot;, &quot;:&quot;)).encode())
+    return f&quot;{header}.{payload}.{sign(header, payload)}&quot;
 
 
-def check(claims, signature, needed):
+def check(token, needed):
     &quot;&quot;&quot;The checks every API must make, in this order, before trusting a bearer token.&quot;&quot;&quot;
-    if toy_sign(claims, KEY) != signature:
+    header_b64, payload_b64, signature = token.split(&quot;.&quot;)
+    if json.loads(unb64url(header_b64))[&quot;alg&quot;] != &quot;HS256&quot;:
+        return &quot;401 unexpected algorithm&quot;                 # never accept &quot;none&quot; or an algorithm you didn&#x27;t choose
+    if not hmac.compare_digest(sign(header_b64, payload_b64), signature):
         return &quot;401 bad signature (token was changed or not issued by us)&quot;
+    claims = json.loads(unb64url(payload_b64))
     if claims[&quot;iss&quot;] != ISSUER:
         return &quot;401 wrong issuer&quot;
     if claims[&quot;aud&quot;] != AUDIENCE:
@@ -3638,39 +3652,48 @@ def check(claims, signature, needed):
     return f&quot;200 ok, acting as {claims[&#x27;sub&#x27;]}&quot;
 
 
-cases = {
-    &quot;valid token, reading orders&quot;: (*issue(), &quot;orders:read&quot;),
-    &quot;expired an hour ago&quot;: (*issue(exp=NOW - 3600), &quot;orders:read&quot;),
-    &quot;token meant for another API&quot;: (*issue(aud=&quot;billing-api&quot;), &quot;orders:read&quot;),
-    &quot;valid token, but writing&quot;: (*issue(), &quot;orders:write&quot;),
-}
-claims, sig = issue()
-tampered = dict(claims, scope=&quot;orders:read orders:write&quot;)     # edited after signing
-cases[&quot;scope edited by the caller&quot;] = (tampered, sig, &quot;orders:write&quot;)
+valid = issue()
+print(&quot;token:&quot;, valid[:60] + &quot;...&quot;)
+print(&quot;signature:&quot;, valid.split(&quot;.&quot;)[2])
+header_b64, payload_b64, sig = valid.split(&quot;.&quot;)
+edited = json.loads(unb64url(payload_b64))
+edited[&quot;scope&quot;] = &quot;orders:read orders:write&quot;            # the caller edits the claims and keeps the old signature
+tampered = f&quot;{header_b64}.{b64url(json.dumps(edited, separators=(&#x27;,&#x27;, &#x27;:&#x27;)).encode())}.{sig}&quot;
 
-for name, (c, s, needed) in cases.items():
-    print(f&quot;{name:30} -&gt; {check(c, s, needed)}&quot;)</code></pre>
-<div class="lang-alts"><div class="lang-alt" data-lang="ts"><pre><code class="typescript">const ISSUER = &quot;https://login.example.com&quot;, AUDIENCE = &quot;orders-api&quot;, KEY = 7919, NOW = 1_000_000, SKEW = 60;
+cases = [
+    (&quot;valid token, reading orders&quot;, valid, &quot;orders:read&quot;),
+    (&quot;expired an hour ago&quot;, issue(exp=NOW - 3600), &quot;orders:read&quot;),
+    (&quot;token meant for another API&quot;, issue(aud=&quot;billing-api&quot;), &quot;orders:read&quot;),
+    (&quot;valid token, but writing&quot;, valid, &quot;orders:write&quot;),
+    (&quot;scope edited by the caller&quot;, tampered, &quot;orders:write&quot;),
+]
+for name, token, needed in cases:
+    print(f&quot;{name:30} -&gt; {check(token, needed)}&quot;)</code></pre>
+<div class="lang-alts"><div class="lang-alt" data-lang="ts"><pre><code class="typescript">import { createHmac, timingSafeEqual } from &quot;node:crypto&quot;;
+
+const ISSUER = &quot;https://login.example.com&quot;, AUDIENCE = &quot;orders-api&quot;, NOW = 1_000_000, SKEW = 60;
+const SECRET = &quot;demo-secret-not-for-production&quot;; // HS256 shares one secret; providers usually sign with RS256 or ES256 keys from a JWKS URL
 
 type Claims = { iss: string; aud: string; sub: string; exp: number; scope: string };
 
-// A stand-in for RS256 or ES256 so the demo runs anywhere. Real code verifies signatures with a JWT library
-// and the issuer&#x27;s published keys (JWKS); never write your own crypto.
-function toySign(c: Claims, key: number): number {
-  const text = ([&quot;iss&quot;, &quot;aud&quot;, &quot;sub&quot;, &quot;exp&quot;, &quot;scope&quot;] as const).map((k) =&gt; `${k}=${c[k]}`).join(&quot;;&quot;);
-  let sum = 0;
-  for (let i = 0; i &lt; text.length; i++) sum += text.charCodeAt(i) * (i + 1);
-  return (sum * key) % 1_000_000_007;
-}
+const b64url = (data: string | Buffer) =&gt; Buffer.from(data).toString(&quot;base64url&quot;);
+const unb64url = (text: string) =&gt; Buffer.from(text, &quot;base64url&quot;).toString();
+const sign = (headerB64: string, payloadB64: string) =&gt; createHmac(&quot;sha256&quot;, SECRET).update(`${headerB64}.${payloadB64}`).digest(&quot;base64url&quot;);
 
-function issue(overrides: Partial&lt;Claims&gt; = {}): [Claims, number] {
+function issue(overrides: Partial&lt;Claims&gt; = {}): string {
   const claims: Claims = { iss: ISSUER, aud: AUDIENCE, sub: &quot;user-42&quot;, exp: NOW + 900, scope: &quot;orders:read&quot;, ...overrides };
-  return [claims, toySign(claims, KEY)];
+  const header = b64url(JSON.stringify({ alg: &quot;HS256&quot;, typ: &quot;JWT&quot; }));
+  const payload = b64url(JSON.stringify(claims));
+  return `${header}.${payload}.${sign(header, payload)}`;
 }
 
 // The checks every API must make, in this order, before trusting a bearer token.
-function check(c: Claims, signature: number, needed: string): string {
-  if (toySign(c, KEY) !== signature) return &quot;401 bad signature (token was changed or not issued by us)&quot;;
+function check(token: string, needed: string): string {
+  const [headerB64, payloadB64, signature] = token.split(&quot;.&quot;);
+  if (JSON.parse(unb64url(headerB64)).alg !== &quot;HS256&quot;) return &quot;401 unexpected algorithm&quot;; // never accept &quot;none&quot; or an algorithm you didn&#x27;t choose
+  const expected = Buffer.from(sign(headerB64, payloadB64)), given = Buffer.from(signature);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return &quot;401 bad signature (token was changed or not issued by us)&quot;;
+  const c: Claims = JSON.parse(unb64url(payloadB64));
   if (c.iss !== ISSUER) return &quot;401 wrong issuer&quot;;
   if (c.aud !== AUDIENCE) return `401 token is for ${c.aud}, not ${AUDIENCE}`;
   if (c.exp + SKEW &lt; NOW) return `401 expired ${NOW - c.exp} s ago`;
@@ -3678,63 +3701,111 @@ function check(c: Claims, signature: number, needed: string): string {
   return `200 ok, acting as ${c.sub}`;
 }
 
-const cases: [string, Claims, number, string][] = [
-  [&quot;valid token, reading orders&quot;, ...issue(), &quot;orders:read&quot;],
-  [&quot;expired an hour ago&quot;, ...issue({ exp: NOW - 3600 }), &quot;orders:read&quot;],
-  [&quot;token meant for another API&quot;, ...issue({ aud: &quot;billing-api&quot; }), &quot;orders:read&quot;],
-  [&quot;valid token, but writing&quot;, ...issue(), &quot;orders:write&quot;],
-];
-const [claims, sig] = issue();
-const tampered = { ...claims, scope: &quot;orders:read orders:write&quot; }; // edited after signing
-cases.push([&quot;scope edited by the caller&quot;, tampered, sig, &quot;orders:write&quot;]);
+const valid = issue();
+console.log(&quot;token:&quot;, valid.slice(0, 60) + &quot;...&quot;);
+console.log(&quot;signature:&quot;, valid.split(&quot;.&quot;)[2]);
+const [headerB64, payloadB64, sig] = valid.split(&quot;.&quot;);
+const edited = { ...JSON.parse(unb64url(payloadB64)), scope: &quot;orders:read orders:write&quot; }; // the caller edits the claims and keeps the old signature
+const tampered = `${headerB64}.${b64url(JSON.stringify(edited))}.${sig}`;
 
-for (const [name, c, s, needed] of cases) console.log(`${name.padEnd(30)} -&gt; ${check(c, s, needed)}`);</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">import java.util.*;
+const cases: [string, string, string][] = [
+  [&quot;valid token, reading orders&quot;, valid, &quot;orders:read&quot;],
+  [&quot;expired an hour ago&quot;, issue({ exp: NOW - 3600 }), &quot;orders:read&quot;],
+  [&quot;token meant for another API&quot;, issue({ aud: &quot;billing-api&quot; }), &quot;orders:read&quot;],
+  [&quot;valid token, but writing&quot;, valid, &quot;orders:write&quot;],
+  [&quot;scope edited by the caller&quot;, tampered, &quot;orders:write&quot;],
+];
+for (const [name, token, needed] of cases) console.log(`${name.padEnd(30)} -&gt; ${check(token, needed)}`);</code></pre></div><div class="lang-alt" data-lang="java"><pre><code class="java">import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+import java.util.regex.*;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 public class Main {
     static final String ISSUER = &quot;https://login.example.com&quot;, AUDIENCE = &quot;orders-api&quot;;
-    static final long KEY = 7919, NOW = 1_000_000, SKEW = 60;
+    static final long NOW = 1_000_000, SKEW = 60;
+    static final byte[] SECRET = &quot;demo-secret-not-for-production&quot;.getBytes(StandardCharsets.UTF_8); // HS256 shares one secret; providers usually sign with RS256 or ES256 keys from a JWKS URL
 
-    record Claims(String iss, String aud, String sub, long exp, String scope) {
-        Claims withExp(long e) { return new Claims(iss, aud, sub, e, scope); }
-        Claims withAud(String a) { return new Claims(iss, a, sub, exp, scope); }
-        Claims withScope(String s) { return new Claims(iss, aud, sub, exp, s); }
+    static String b64url(byte[] data) { return Base64.getUrlEncoder().withoutPadding().encodeToString(data); }
+    static String b64url(String text) { return b64url(text.getBytes(StandardCharsets.UTF_8)); }
+    static String unb64url(String text) { return new String(Base64.getUrlDecoder().decode(text), StandardCharsets.UTF_8); }
+
+    static String sign(String headerB64, String payloadB64) {
+        try {
+            Mac mac = Mac.getInstance(&quot;HmacSHA256&quot;);
+            mac.init(new SecretKeySpec(SECRET, &quot;HmacSHA256&quot;));
+            return b64url(mac.doFinal((headerB64 + &quot;.&quot; + payloadB64).getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) { throw new IllegalStateException(e); }
     }
 
-    // A stand-in for RS256 or ES256 so the demo runs anywhere. Real code verifies signatures with a JWT library
-    // and the issuer&#x27;s published keys (JWKS); never write your own crypto.
-    static long toySign(Claims c, long key) {
-        String text = &quot;iss=&quot; + c.iss() + &quot;;aud=&quot; + c.aud() + &quot;;sub=&quot; + c.sub() + &quot;;exp=&quot; + c.exp() + &quot;;scope=&quot; + c.scope();
-        long sum = 0;
-        for (int i = 0; i &lt; text.length(); i++) sum += (long) text.charAt(i) * (i + 1);
-        return sum * key % 1_000_000_007L;
+    // Claims are written as compact JSON in a fixed order, matching the Python and TypeScript output byte for byte.
+    static String json(Map&lt;String, Object&gt; m) {
+        StringJoiner j = new StringJoiner(&quot;,&quot;, &quot;{&quot;, &quot;}&quot;);
+        m.forEach((k, v) -&gt; j.add(&quot;\&quot;&quot; + k + &quot;\&quot;:&quot; + (v instanceof String ? &quot;\&quot;&quot; + v + &quot;\&quot;&quot; : v)));
+        return j.toString();
     }
 
-    static final Claims BASE = new Claims(ISSUER, AUDIENCE, &quot;user-42&quot;, NOW + 900, &quot;orders:read&quot;);
+    // A tiny reader for flat JSON objects of strings and integers; real code uses a JSON library and a JWT library.
+    static Map&lt;String, String&gt; parse(String text) {
+        Map&lt;String, String&gt; m = new LinkedHashMap&lt;&gt;();
+        Matcher x = Pattern.compile(&quot;\&quot;(\\w+)\&quot;:(?:\&quot;([^\&quot;]*)\&quot;|(-?\\d+))&quot;).matcher(text);
+        while (x.find()) m.put(x.group(1), x.group(2) != null ? x.group(2) : x.group(3));
+        return m;
+    }
+
+    static Map&lt;String, Object&gt; claims() {
+        Map&lt;String, Object&gt; c = new LinkedHashMap&lt;&gt;();
+        c.put(&quot;iss&quot;, ISSUER); c.put(&quot;aud&quot;, AUDIENCE); c.put(&quot;sub&quot;, &quot;user-42&quot;); c.put(&quot;exp&quot;, NOW + 900); c.put(&quot;scope&quot;, &quot;orders:read&quot;);
+        return c;
+    }
+
+    static String issue(Map&lt;String, Object&gt; c) {
+        Map&lt;String, Object&gt; h = new LinkedHashMap&lt;&gt;();
+        h.put(&quot;alg&quot;, &quot;HS256&quot;); h.put(&quot;typ&quot;, &quot;JWT&quot;);
+        String header = b64url(json(h)), payload = b64url(json(c));
+        return header + &quot;.&quot; + payload + &quot;.&quot; + sign(header, payload);
+    }
 
     // The checks every API must make, in this order, before trusting a bearer token.
-    static String check(Claims c, long signature, String needed) {
-        if (toySign(c, KEY) != signature) return &quot;401 bad signature (token was changed or not issued by us)&quot;;
-        if (!c.iss().equals(ISSUER)) return &quot;401 wrong issuer&quot;;
-        if (!c.aud().equals(AUDIENCE)) return &quot;401 token is for &quot; + c.aud() + &quot;, not &quot; + AUDIENCE;
-        if (c.exp() + SKEW &lt; NOW) return &quot;401 expired &quot; + (NOW - c.exp()) + &quot; s ago&quot;;
-        if (!Arrays.asList(c.scope().split(&quot; &quot;)).contains(needed)) return &quot;403 missing scope &quot; + needed;
-        return &quot;200 ok, acting as &quot; + c.sub();
+    static String check(String token, String needed) {
+        String[] p = token.split(&quot;\\.&quot;);
+        if (!&quot;HS256&quot;.equals(parse(unb64url(p[0])).get(&quot;alg&quot;))) return &quot;401 unexpected algorithm&quot;; // never accept &quot;none&quot; or an algorithm you didn&#x27;t choose
+        if (!MessageDigest.isEqual(sign(p[0], p[1]).getBytes(StandardCharsets.UTF_8), p[2].getBytes(StandardCharsets.UTF_8)))
+            return &quot;401 bad signature (token was changed or not issued by us)&quot;;
+        Map&lt;String, String&gt; c = parse(unb64url(p[1]));
+        if (!c.get(&quot;iss&quot;).equals(ISSUER)) return &quot;401 wrong issuer&quot;;
+        if (!c.get(&quot;aud&quot;).equals(AUDIENCE)) return &quot;401 token is for &quot; + c.get(&quot;aud&quot;) + &quot;, not &quot; + AUDIENCE;
+        long exp = Long.parseLong(c.get(&quot;exp&quot;));
+        if (exp + SKEW &lt; NOW) return &quot;401 expired &quot; + (NOW - exp) + &quot; s ago&quot;;
+        if (!Arrays.asList(c.get(&quot;scope&quot;).split(&quot; &quot;)).contains(needed)) return &quot;403 missing scope &quot; + needed;
+        return &quot;200 ok, acting as &quot; + c.get(&quot;sub&quot;);
     }
 
     public static void main(String[] args) {
-        Claims expired = BASE.withExp(NOW - 3600), other = BASE.withAud(&quot;billing-api&quot;);
-        Claims tampered = BASE.withScope(&quot;orders:read orders:write&quot;); // edited after signing
-        Object[][] cases = {
-            {&quot;valid token, reading orders&quot;, BASE, toySign(BASE, KEY), &quot;orders:read&quot;},
-            {&quot;expired an hour ago&quot;, expired, toySign(expired, KEY), &quot;orders:read&quot;},
-            {&quot;token meant for another API&quot;, other, toySign(other, KEY), &quot;orders:read&quot;},
-            {&quot;valid token, but writing&quot;, BASE, toySign(BASE, KEY), &quot;orders:write&quot;},
-            {&quot;scope edited by the caller&quot;, tampered, toySign(BASE, KEY), &quot;orders:write&quot;},
+        String valid = issue(claims());
+        System.out.println(&quot;token: &quot; + valid.substring(0, 60) + &quot;...&quot;);
+        System.out.println(&quot;signature: &quot; + valid.split(&quot;\\.&quot;)[2]);
+        String[] p = valid.split(&quot;\\.&quot;);
+        Map&lt;String, Object&gt; edited = claims();
+        edited.put(&quot;scope&quot;, &quot;orders:read orders:write&quot;); // the caller edits the claims and keeps the old signature
+        String tampered = p[0] + &quot;.&quot; + b64url(json(edited)) + &quot;.&quot; + p[2];
+
+        Map&lt;String, Object&gt; expired = claims(); expired.put(&quot;exp&quot;, NOW - 3600);
+        Map&lt;String, Object&gt; other = claims(); other.put(&quot;aud&quot;, &quot;billing-api&quot;);
+        String[][] cases = {
+            {&quot;valid token, reading orders&quot;, valid, &quot;orders:read&quot;},
+            {&quot;expired an hour ago&quot;, issue(expired), &quot;orders:read&quot;},
+            {&quot;token meant for another API&quot;, issue(other), &quot;orders:read&quot;},
+            {&quot;valid token, but writing&quot;, valid, &quot;orders:write&quot;},
+            {&quot;scope edited by the caller&quot;, tampered, &quot;orders:write&quot;},
         };
-        for (Object[] k : cases) System.out.printf(&quot;%-30s -&gt; %s%n&quot;, k[0], check((Claims) k[1], (long) k[2], (String) k[3]));
+        for (String[] k : cases) System.out.printf(&quot;%-30s -&gt; %s%n&quot;, k[0], check(k[1], k[2]));
     }
 }</code></pre></div></div>
-    <pre class="out"><code>valid token, reading orders    -&gt; 200 ok, acting as user-42
+    <pre class="out"><code>token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2x...
+signature: xqi1yxQ57PVKLfUZIf3lkJydziqBlAiABNOm25rqF68
+valid token, reading orders    -&gt; 200 ok, acting as user-42
 expired an hour ago            -&gt; 401 expired 3600 s ago
 token meant for another API    -&gt; 401 token is for billing-api, not orders-api
 valid token, but writing       -&gt; 403 missing scope orders:write
