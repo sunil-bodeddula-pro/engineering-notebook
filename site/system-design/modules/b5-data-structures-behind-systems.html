@@ -3475,6 +3475,10 @@ html.iks-open { overflow: hidden; }
   #bloom-lab .bits i.probe { outline: 2px solid var(--ink); outline-offset: 1px; }
   #bloom-lab .ctl input[type=text] { font: .9rem var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); width: 14ch; }
   #steps-lab table { font-size: .88rem; }
+  #count-lab .no-gl:has(table) { overflow-x: auto; }
+  @media (max-width: 560px) { #count-lab table { font-size: .78rem; } #count-lab th, #count-lab td { padding: 6px 5px; } }
+  #count-lab table { width: 100%; font-size: .86rem; margin: 8px 0; }
+  #count-lab td.bad { color: var(--red); font-weight: 700; }
 </style>
 </head>
 <body data-track="system-design">
@@ -3614,6 +3618,29 @@ html.iks-open { overflow: hidden; }
     <h3>Bloom filter: "definitely not" or "maybe"</h3>
     <p>A row of bits and a few hash functions. Adding an item sets its bits; checking reads them. Any 0 means <em>definitely not present</em>; all 1s means <em>maybe</em>, because other items may have set those bits.</p>
     <div id="viz-bloom"></div>
+
+    <h3 id="counting">Counting at scale: count-min sketch, HyperLogLog and top-k</h3>
+    <p>"How many times was each page viewed?", "how many different people visited today?" and "what are the ten most-searched terms right now?" sound simple. With billions of events and millions of distinct keys, an exact answer needs a counter per key: gigabytes of memory per question, per time window. Three small structures, called <strong>sketches</strong>, answer them in kilobytes by accepting a small, known error.</p>
+    <table class="pat">
+      <thead><tr><th>Question</th><th>Sketch</th><th>How it works</th><th>Error</th><th>Where you meet it</th></tr></thead>
+      <tbody>
+        <tr><td>How often did this item appear?</td><td><strong>Count-min sketch</strong></td><td>A small grid: d rows of w counters, each row with its own hash. Adding an item adds 1 to one counter per row; the estimate is the <em>smallest</em> of its d counters, because collisions only ever add.</td><td>Never under; over by a little, mostly for rare items</td><td>Heavy-hitter detection, rate limiting by key, Redis's CMS commands</td></tr>
+        <tr><td>How many distinct items?</td><td><strong>HyperLogLog</strong></td><td>Hash each item and look at how many leading zeros the hash has. Seeing a hash with 20 leading zeros suggests about 2<sup>20</sup> distinct items; averaging over many registers makes that guess accurate.</td><td>About 1.04 / √m (m registers): 0.8% with Redis's 16,384</td><td>Redis <code>PFADD</code>/<code>PFCOUNT</code> (12 KB per key), BigQuery <code>APPROX_COUNT_DISTINCT</code></td></tr>
+        <tr><td>What are the most frequent items?</td><td><strong>Top-k</strong> (heavy hitters)</td><td>A count-min sketch for the counts plus a small heap of the k biggest seen so far; or the Space-Saving algorithm, which keeps k counters and replaces the smallest.</td><td>The top items are found reliably when they really are much more frequent</td><td>Trending searches, hot keys in caches, Redis's top-k commands</td></tr>
+      </tbody>
+    </table>
+    <p>The rule is the same as for Bloom filters: approximate answers for dashboards, trends and protection (finding hot keys, spotting abusive callers), exact counts for anything billed or audited. Sketches also <strong>merge</strong>: add two count-min grids cell by cell, or take the larger of each HyperLogLog register, and you get the sketch of both streams. That's what lets each server count locally and a central job combine them.</p>
+    <h3>Try it: count 100,000 page views</h3>
+    <p>A stream of 100,000 views over 5,000 pages, where a few pages are very popular (as real traffic is), from about 30,000 visitors. Shrink the sketches and watch the error grow.</p>
+    <div class="card widget" id="count-lab">
+      <div class="ctl"><label for="cm-w">Count-min width</label><input id="cm-w" type="range" min="4" max="11" value="8"><output id="cm-wo"></output></div>
+      <div class="ctl"><label for="cm-d">Count-min rows</label><input id="cm-d" type="range" min="1" max="6" value="4"><output id="cm-do"></output></div>
+      <div class="ctl"><label for="hl-m">HyperLogLog registers</label><input id="hl-m" type="range" min="4" max="14" value="10"><output id="hl-mo"></output></div>
+      <div class="no-gl" id="cm-table"></div>
+      <div class="tiles no-gl" id="cm-tiles"></div>
+      <div class="verdict no-gl" id="cm-why"></div>
+    </div>
+    <p class="idx">Simulation: page popularity follows a Zipf distribution (exponent 1.1); hashes are seeded, so the run is repeatable. Memory assumes 4-byte counters and 1-byte registers; the exact map assumes about 40 bytes per entry.</p>
 
     <!-- 3 -->
     <h2 id="try">3. Try it yourself</h2>
@@ -3832,6 +3859,7 @@ html.iks-open { overflow: hidden; }
     { el: "#viz-btree", title: "3 · B-trees", text: "Why indexes are trees." },
     { el: "#viz-bloom", title: "4 · Bloom filters", text: "\"Definitely not\" or \"maybe\"." },
     { el: "#bloom-lab", title: "5 · Play with one", text: "Add words and find false positives." },
+    { el: "#count-lab", title: "5b · Counting at scale", text: "Count-min, HyperLogLog and top-k on 100,000 page views." },
     { el: "#remember", title: "6 · Remember it", text: "Hash to find, tree to sort, sketch to count." },
   ]);
 
@@ -3877,6 +3905,47 @@ html.iks-open { overflow: hidden; }
     $("st-why").innerHTML = `Assumes ~1 ns per in-memory comparison when scanning, ~100 ns per random memory access, ~100 µs per SSD read. At ${fmt(n)} items, a scan is ${scan > 1e6 ? "far too slow for a request" : "still tolerable"}; the B-tree's disk reads barely grow because each level multiplies capacity by 100.`;
   };
   $("st-n").oninput = srun; srun();
+  /* ---------- counting at scale: count-min, HyperLogLog, top-k ---------- */
+  (function () {
+    const g = (id) => document.getElementById(id);
+    const mix = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; h = Math.imul(h, 0x297a2d39); h ^= h >>> 15; return h >>> 0; };
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const P = 5000, N = 100000, V = 30000, cum = [];
+    let tot = 0; for (let r = 1; r <= P; r++) { tot += 1 / Math.pow(r, 1.1); cum.push(tot); }
+    const pages = new Int32Array(N), visitors = new Uint32Array(N), truth = new Int32Array(P);
+    for (let n = 0; n < N; n++) { const x = rnd() * tot; let lo = 0, hi = P - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] < x) lo = m + 1; else hi = m; } pages[n] = lo; truth[lo]++; visitors[n] = mix("visitor" + Math.floor(rnd() * V)); }
+    const distinct = new Set(visitors).size;
+    const RH = Array.from({ length: 6 }, (_, d) => Array.from({ length: P }, (_, p) => mix("row" + d + ":/page/" + p)));
+    const order = [...Array(P).keys()].sort((a, b) => truth[b] - truth[a]);
+    const fmt = (x) => Math.round(x).toLocaleString("en-US");
+    function run() {
+      const w = 1 << +g("cm-w").value, d = +g("cm-d").value, m = 1 << +g("hl-m").value, b = +g("hl-m").value;
+      g("cm-wo").textContent = fmt(w) + " counters"; g("cm-do").textContent = d; g("hl-mo").textContent = fmt(m);
+      const grid = Array.from({ length: d }, () => new Int32Array(w));
+      for (let n = 0; n < N; n++) for (let r = 0; r < d; r++) grid[r][RH[r][pages[n]] % w]++;
+      const est = (p) => { let v = Infinity; for (let r = 0; r < d; r++) v = Math.min(v, grid[r][RH[r][p] % w]); return v; };
+      // top-k: the 5 largest estimates (a heap in a real system; a sort is fine for a page of 5,000 keys)
+      const top = [...Array(P).keys()].map((p) => [p, est(p)]).sort((x, y) => y[1] - x[1]).slice(0, 5);
+      const trueTop = new Set(order.slice(0, 5)), found = top.filter(([p]) => trueTop.has(p)).length;
+      const probe = [order[0], order[1], order[2], order[99], order[999], order[3999]];
+      g("cm-table").innerHTML = `<table><thead><tr><th>Page (rank)</th><th>True</th><th>Estimate</th><th>Over</th></tr></thead><tbody>` +
+        probe.map((p) => { const t = truth[p], e = est(p), o = t ? (e - t) / t * 100 : 0; return `<tr><td>/page/${p} (#${order.indexOf(p) + 1})</td><td>${fmt(t)}</td><td>${fmt(e)}</td><td class="${o > 50 ? "bad" : ""}">${o < 0.05 ? "exact" : o.toFixed(o < 10 ? 1 : 0) + "%"}</td></tr>`; }).join("") + `</tbody></table>`;
+      const reg = new Uint8Array(m);
+      for (let n = 0; n < N; n++) { const h = visitors[n], j = h >>> (32 - b), rest = (h << b) >>> 0; const rank = rest === 0 ? 33 - b : Math.clz32(rest) + 1; if (rank > reg[j]) reg[j] = rank; }
+      let sum = 0, zeros = 0; for (let j = 0; j < m; j++) { sum += Math.pow(2, -reg[j]); if (!reg[j]) zeros++; }
+      const alpha = m === 16 ? 0.673 : m === 32 ? 0.697 : m === 64 ? 0.709 : 0.7213 / (1 + 1.079 / m);
+      let E = alpha * m * m / sum; if (E <= 2.5 * m && zeros) E = m * Math.log(m / zeros);
+      const herr = (E - distinct) / distinct * 100;
+      g("cm-tiles").innerHTML = [[(w * d * 4 / 1024).toFixed(1) + " KB", "count-min memory"], [fmt(P * 40 / 1024) + " KB", "exact map for 5,000 pages"], [`${found} of 5`, "true top 5 found"], [fmt(E), `distinct visitors (true ${fmt(distinct)})`], [(herr >= 0 ? "+" : "") + herr.toFixed(1) + "%", `HyperLogLog error, ${fmt(m)} bytes`]].map(([x, y]) => `<div><b>${x}</b><span>${y}</span></div>`).join("");
+      const rareErr = (est(order[3999]) - truth[order[3999]]) / Math.max(1, truth[order[3999]]);
+      const v = g("cm-why"); v.className = "verdict no-gl" + (found < 5 || rareErr > 5 || Math.abs(herr) > 10 ? " warn" : "");
+      v.innerHTML = (rareErr > 5 ? `With ${fmt(w)} counters per row, rare pages share counters with popular ones, so their estimates are many times too high. Popular pages stay accurate: the error is a fixed amount added to every count, which matters only for small counts. ` : `The popular pages are counted almost exactly; rare pages pick up a few extra views from collisions. `) +
+        (found < 5 ? `Top-k missed ${5 - found} of the true top 5: the sketch is too small to separate them. ` : `Top-k finds the true top 5. `) +
+        `HyperLogLog's typical error with ${fmt(m)} registers is about ${(104 / Math.sqrt(m)).toFixed(1)}%.`;
+    }
+    ["cm-w", "cm-d", "hl-m"].forEach((id) => g(id).addEventListener("input", run));
+    run();
+  })();
 })();
 </script>
 </body>

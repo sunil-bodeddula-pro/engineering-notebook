@@ -3585,6 +3585,19 @@ html.iks-open { overflow: hidden; }
       <li><strong>Hash slots</strong> are a simpler variant: Redis Cluster hashes each key to one of <strong>16,384 slots</strong> (CRC16 of the key, mod 16384) and assigns slot ranges to nodes. Moving a slot moves exactly its keys.</li>
     </ul>
     <p>Try both in section 3.</p>
+    <h3 id="beyond-ring">Beyond the ring: rendezvous, jump, Maglev and bounded loads</h3>
+    <p>The ring isn't the only way to move few keys when servers change. Four alternatives come up in interviews and in real load balancers, each trading something different:</p>
+    <table class="pat">
+      <thead><tr><th>Scheme</th><th>In plain terms</th><th>Choose it when</th><th>Watch out for</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Rendezvous (highest random weight)</strong></td><td>For each key, give every server a score <code>hash(key, server)</code>; the highest score wins. A new server takes only the keys it now beats everyone on.</td><td>A small, changing set of servers (tens), and you want an even spread with no ring to maintain</td><td>Each lookup scores every server: O(N)</td></tr>
+        <tr><td><strong>Jump consistent hash</strong></td><td>A few lines of arithmetic turn a key into a bucket number 0 to N−1, with no memory at all</td><td>Shards are numbered and only ever added at the end (storage shards, replicas of a sharded cache)</td><td>You can't remove server 3 of 10, only the last one</td></tr>
+        <tr><td><strong>Maglev</strong></td><td>Build a lookup table of a fixed prime size (65,537 in Google's paper); each backend takes turns claiming its next preferred slot. A key's slot is <code>hash(key) mod table size</code>.</td><td>A load balancer needs one array read per packet and near-perfect balance</td><td>A backend change moves slightly more than the minimum; the table is rebuilt</td></tr>
+        <tr><td><strong>Bounded loads</strong></td><td>Ordinary consistent hashing, but no server may hold more than (1 + ε) × the average; overflow walks on to the next server with room</td><td>Some keys are much hotter than others and you need a hard cap per server (cache tiers, HAProxy's <code>hash-balance-factor</code>)</td><td>A few more keys move, and placement depends on load</td></tr>
+      </tbody>
+    </table>
+    <div id="sc-rdv"></div>
+    <p>Compare all six schemes on the same 2,000 keys in <a href="#ch-lab">the hashing lab in section 11</a>: keys moved when a server is added, and how uneven the busiest server gets.</p>
     <h3>Hot spots: keys spread evenly, traffic doesn't</h3>
     <p>Hashing evens out <em>keys</em>, not <em>requests</em>. A celebrity's account or a viral post lives on one shard and can overload it. Fixes, from simplest:</p>
     <ul>
@@ -4159,12 +4172,20 @@ html.iks-open { overflow: hidden; }
     const fnv = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; return h >>> 0; };
     const KEYS = Array.from({ length: 2000 }, (_, i) => "user:" + (i * 7 + 13));
     const KH = KEYS.map(fnv);
-    const ALGS = ["Modulo (hash mod N)", "Ring with virtual nodes", "Rendezvous hashing", "Jump hash"], VN = [1, 8, 64, 256];
+    const ALGS = ["Modulo (hash mod N)", "Ring with virtual nodes", "Rendezvous hashing", "Jump hash", "Maglev", "Bounded loads"], VN = [1, 8, 64, 256];
+    const M = 1009; // Maglev lookup table size: a prime much larger than the number of servers
+    const maglev = (n) => { const perm = Array.from({ length: n }, (_, s) => ({ off: fnv("server" + s + "/o") % M, skip: fnv("server" + s + "/s") % (M - 1) + 1, next: 0 }));
+      const t = Array(M).fill(-1); let filled = 0;
+      while (filled < M) for (let s = 0; s < n && filled < M; s++) { const p = perm[s]; let c; do { c = (p.off + p.next * p.skip) % M; p.next++; } while (t[c] >= 0); t[c] = s; filled++; }
+      return t; };
+    const bounded = (n) => { const pts = ringFor(n, 64), cap = Math.ceil(1.25 * KEYS.length / n), load = Array(n).fill(0);
+      return KH.map((h) => { let lo = 0, hi = pts.length; while (lo < hi) { const m = (lo + hi) >> 1; if (pts[m][0] < h) lo = m + 1; else hi = m; }
+        for (let k = 0; ; k++) { const s = pts[(lo + k) % pts.length][1]; if (load[s] < cap) { load[s]++; return s; } } }); };
     let alg = 1, vi = 2;
     const jump = (key, n) => { let b = -1, j = 0, k = BigInt(key); while (j < n) { b = j; k = (k * 2862933555777941757n + 1n) & 0xFFFFFFFFFFFFFFFFn; j = Math.floor((b + 1) * (2147483648 / (Number(k >> 33n) + 1))); } return b; };
     const ringFor = (n, v) => { const pts = []; for (let s = 0; s < n; s++) for (let r = 0; r < v; r++) pts.push([fnv("server" + s + "#" + r), s]); return pts.sort((a, b) => a[0] - b[0]); };
     const onRing = (pts, h) => { let lo = 0, hi = pts.length; while (lo < hi) { const m = (lo + hi) >> 1; if (pts[m][0] < h) lo = m + 1; else hi = m; } return pts[lo === pts.length ? 0 : lo][1]; };
-    const place = (n) => { if (alg === 0) return KH.map((h) => h % n); if (alg === 1) { const p = ringFor(n, VN[vi]); return KH.map((h) => onRing(p, h)); } if (alg === 2) return KEYS.map((k) => { let best = -1, bs = -1; for (let s = 0; s < n; s++) { const sc = fnv(k + "|" + s); if (sc > bs) { bs = sc; best = s; } } return best; }); return KH.map((h) => jump(h, n)); };
+    const place = (n) => { if (alg === 0) return KH.map((h) => h % n); if (alg === 1) { const p = ringFor(n, VN[vi]); return KH.map((h) => onRing(p, h)); } if (alg === 2) return KEYS.map((k) => { let best = -1, bs = -1; for (let s = 0; s < n; s++) { const sc = fnv(k + "|" + s); if (sc > bs) { bs = sc; best = s; } } return best; }); if (alg === 3) return KH.map((h) => jump(h, n)); if (alg === 4) { const t = maglev(n); return KH.map((h) => t[h % M]); } return bounded(n); };
     const seg = (id, labels, get, set) => { g(id).innerHTML = labels.map((l, i) => `<button type="button" aria-pressed="${i === get()}">${l}</button>`).join(""); g(id).onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set([...g(id).children].indexOf(b)); [...g(id).children].forEach((c, i) => c.setAttribute("aria-pressed", String(i === get()))); run(); }; };
     seg("ch-alg", ALGS, () => alg, (v) => (alg = v));
     seg("ch-v", VN.map((v) => v + " virtual node" + (v > 1 ? "s" : "")), () => vi, (v) => (vi = v));
@@ -4181,7 +4202,9 @@ html.iks-open { overflow: hidden; }
       const msgs = [`Changing N re-maps almost every key: ${pct.toFixed(0)}% move, so caches go cold and data must be copied everywhere.`,
         `Only keys landing on the new server's points move. ${imb > 1.4 ? "With so few points per server the spread is lumpy: the busiest server holds " + imb.toFixed(1) + "× its fair share." : imb > 1.12 ? "The spread is fair but not flat (busiest " + imb.toFixed(2) + "× average); more virtual nodes smooth it further." : "With this many points per server the spread is close to even."}`,
         "Each key goes to the server with the highest score, so a new server only steals keys it now wins: minimal movement and an even spread, at the cost of scoring every server per lookup.",
-        "Arithmetic only, no ring stored: near-perfect balance and minimal movement, but servers must be numbered 0…N−1, so you can only add or remove the last one."];
+        "Arithmetic only, no ring stored: near-perfect balance and minimal movement, but servers must be numbered 0…N−1, so you can only add or remove the last one.",
+        `A 1,009-slot table, filled by each server taking turns to claim its next preferred slot. Lookups are one array read and the spread is almost flat; a few more keys move (${pct.toFixed(1)}%) than the minimum, the price of rebuilding the table.`,
+        `A ring with 64 points per server, but no server may hold more than 1.25 × the average; overflow walks on to the next server with room. No server can go above 1.25× average (here the busiest is ${imb.toFixed(2)}×); when the cap is reached, overflow keys move to a neighbour, so a few more keys can move than with the plain ring.`];
       g("ch-why").innerHTML = msgs[alg];
       g("ch-why").className = "verdict no-gl" + (alg === 0 || (alg === 1 && imb > 1.4) ? " warn" : "");
     }
@@ -4207,6 +4230,24 @@ html.iks-open { overflow: hidden; }
       { hl: { c: "active" }, moves: [{ e: "c>a", t: "search", k: "req" }, { e: "c>b", t: "search", k: "req" }, { e: "c>d", t: "search", k: "req" }, { e: "c>e", t: "search", k: "req" }], hold: 2.6, note: "A query on a non-key column must ask every shard." },
       { hl: { a: "found", b: "found", d: "found", e: "bad" }, moves: [{ e: "c>a", t: "12 hits", k: "ok", back: true }, { e: "c>b", t: "9 hits", k: "ok", back: true }, { e: "c>d", t: "4 hits", k: "ok", back: true }], pops: [{ n: "e", t: "still working…", k: "bad", at: 0.8 }], hold: 3, note: "Three answer in a few milliseconds…" },
       { hl: { c: "warm", e: "bad" }, moves: [{ e: "c>e", t: "7 hits (180 ms)", k: "bad", back: true }], pops: [{ n: "c", t: "total: 180 ms", k: "bad", at: 1.2 }], hold: 3.2, note: "…but the answer waits for the slowest. More shards means more chances that one is slow: hedge, time out with partial results, or avoid the fan-out." },
+    ],
+  });
+  Viz.scene("#sc-rdv", {
+    title: "Rendezvous hashing: highest score wins", sub: "Each server's box shows its score for the key <code>user:42</code>.",
+    nodes: [{ id: "k", x: 80, y: 150, w: 120, label: "user:42", kind: "client" },
+      { id: "a", x: 360, y: 40, w: 180, label: "Cache A", sub: "score ?", kind: "cache" }, { id: "b", x: 360, y: 120, w: 180, label: "Cache B", sub: "score ?", kind: "cache" },
+      { id: "c", x: 360, y: 200, w: 180, label: "Cache C", sub: "score ?", kind: "cache" }, { id: "d", x: 360, y: 280, w: 180, label: "Cache D (new)", sub: "not yet added", kind: "cache" }],
+    edges: [["k", "a"], ["k", "b"], ["k", "c"], ["k", "d"]],
+    width: 560, height: 330,
+    steps: [
+      { hl: { k: "active" }, set: { a: "hash(user:42, A) = 31", b: "hash(user:42, B) = 87", c: "hash(user:42, C) = 54" }, moves: [{ e: "k>a", t: "score" }, { e: "k>b", t: "score" }, { e: "k>c", t: "score" }], hold: 3.6,
+        note: "<b>Score every server.</b> Hash the key together with each server's name. The numbers look random but are the same on every client, so everyone agrees without talking." },
+      { hl: { b: "found" }, moves: [{ e: "k>b", t: "highest → B", k: "ok" }], hold: 3.2,
+        note: "<b>Highest wins.</b> B scored 87, so <code>user:42</code> lives on B. No ring, no table: just a loop over the servers." },
+      { hl: { d: "warm" }, set: { d: "hash(user:42, D) = 62" }, moves: [{ e: "k>d", t: "score" }], hold: 3.6,
+        note: "<b>Add server D.</b> D scores 62 for this key: less than B's 87, so <code>user:42</code> stays on B. Only keys where D beats every existing score move to D: about a quarter of them." },
+      { hl: { b: "bad", d: "found" }, set: { b: "removed" }, moves: [{ e: "k>d", t: "next highest → D", k: "ok" }], hold: 3.8,
+        note: "<b>Remove B.</b> Its keys go to their second-highest scorer, which differs key by key, so B's load spreads evenly over all the others instead of landing on one neighbour." },
     ],
   });
 })();
