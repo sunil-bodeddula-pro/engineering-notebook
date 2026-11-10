@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data structures — InterviewKata</title>
-<meta name="description" content="Twelve beginner lessons on the data structures coding interviews use, from arrays to graphs, each with step-through code in Python, TypeScript and Java, narrated walkthroughs and solved problems.">
+<meta name="description" content="Twelve beginner lessons on the data structures coding interviews use, from arrays to graphs, each with step-through code in Python, TypeScript and Java, audio episodes and solved problems.">
 <!-- seo:start -->
 <link rel="canonical" href="https://interviewkata.com/structures/">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="InterviewKata">
 <meta property="og:title" content="Data structures — InterviewKata">
-<meta property="og:description" content="Twelve beginner lessons on the data structures coding interviews use, from arrays to graphs, each with step-through code in Python, TypeScript and Java, narrated walkthroughs and solved problems.">
+<meta property="og:description" content="Twelve beginner lessons on the data structures coding interviews use, from arrays to graphs, each with step-through code in Python, TypeScript and Java, audio episodes and solved problems.">
 <meta property="og:url" content="https://interviewkata.com/structures/">
 <meta property="og:image" content="https://interviewkata.com/assets/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -18,7 +18,7 @@
 <meta property="og:image:alt" content="InterviewKata: coding patterns, system design and AI engineering interview prep">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Data structures — InterviewKata">
-<meta name="twitter:description" content="Twelve beginner lessons on the data structures coding interviews use, from arrays to graphs, each with step-through code in Python, TypeScript and Java, narrated walkthroughs and solved problems.">
+<meta name="twitter:description" content="Twelve beginner lessons on the data structures coding interviews use, from arrays to graphs, each with step-through code in Python, TypeScript and Java, audio episodes and solved problems.">
 <meta name="twitter:image" content="https://interviewkata.com/assets/og-image.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"InterviewKata","item":"https://interviewkata.com/"},{"@type":"ListItem","position":2,"name":"Data structures","item":"https://interviewkata.com/structures/"}]}</script>
 <!-- seo:end -->
@@ -1513,6 +1513,9 @@ html.iks-open { overflow: hidden; }
     return narrAll;
   }
   function narrator(id, cfg, isBuggy) {
+    // Coding pages (no data-track on <body>) play their templates silently: stepping through code reads better
+    // than listening to it. Their audio episodes are separate and unaffected.
+    if (!document.body.dataset.track) return null;
     const tts = typeof speechSynthesis !== "undefined";
     let N0;
     const nOf = () => { if (N0 === undefined) { const d = narrData(); if (d || document.readyState !== "loading") N0 = (d && d.players[id]) || null; } return N0 || null; };

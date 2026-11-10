@@ -1513,6 +1513,9 @@ html.iks-open { overflow: hidden; }
     return narrAll;
   }
   function narrator(id, cfg, isBuggy) {
+    // Coding pages (no data-track on <body>) play their templates silently: stepping through code reads better
+    // than listening to it. Their audio episodes are separate and unaffected.
+    if (!document.body.dataset.track) return null;
     const tts = typeof speechSynthesis !== "undefined";
     let N0;
     const nOf = () => { if (N0 === undefined) { const d = narrData(); if (d || document.readyState !== "loading") N0 = (d && d.players[id]) || null; } return N0 || null; };
@@ -3638,7 +3641,7 @@ def has_duplicate_fast(nums):          # O(n): one pass, O(1) set lookups
         <tr><td><a href="structures/11-graphs.html">Graph</a></td><td>dict of lists (adjacency list)</td><td>Networks: roads, friendships, dependencies</td><td>visit all O(nodes + edges)</td></tr>
       </tbody>
     </table>
-    <div class="callout tip"><strong>Learn each one properly</strong>This table is the summary. Each structure has its own lesson, with animations, code in three languages and narrated walkthroughs: start with <a href="structures/01-arrays-lists.html">01 · Arrays and lists</a>, or see <a href="structures/index.html">all twelve</a>. The beginner path goes through them before the first pattern.</div>
+    <div class="callout tip"><strong>Learn each one properly</strong>This table is the summary. Each structure has its own lesson, with animations, code in three languages and audio episodes: start with <a href="structures/01-arrays-lists.html">01 · Arrays and lists</a>, or see <a href="structures/index.html">all twelve</a>. The beginner path goes through them before the first pattern.</div>
 
     <h3>Stack and queue</h3>
     <p>Both hold items in a line. A <strong>stack</strong> adds and removes at the same end, so the newest item leaves first. A <strong>queue</strong> adds at the back and removes from the front, so the oldest leaves first.</p>

@@ -535,6 +535,9 @@
     return narrAll;
   }
   function narrator(id, cfg, isBuggy) {
+    // Coding pages (no data-track on <body>) play their templates silently: stepping through code reads better
+    // than listening to it. Their audio episodes are separate and unaffected.
+    if (!document.body.dataset.track) return null;
     const tts = typeof speechSynthesis !== "undefined";
     let N0;
     const nOf = () => { if (N0 === undefined) { const d = narrData(); if (d || document.readyState !== "loading") N0 = (d && d.players[id]) || null; } return N0 || null; };
